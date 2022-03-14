@@ -18,10 +18,7 @@ def create_site_object(domain):
         Site object from mwclient lib
     """
     domain_dict = {
-        "wiki": {"Address": "wiki.isc.loc"},
-        "laborwiki": {"Address": "laborwiki.isc.loc"},
-        "wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"},
-        "testwiki": {"Address": "testwiki35-proxy.kiprobatt.de:7443"}
+        "wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"}
     }
     if domain in domain_dict.keys():
         domain = domain_dict[domain]["Address"]

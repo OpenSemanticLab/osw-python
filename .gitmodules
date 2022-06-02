@@ -1,0 +1,3 @@
+[submodule "libs/chainables"]
+	path = libs/chainables
+	url = https://github.com/OpenSemanticLab/Chainables

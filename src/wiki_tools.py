@@ -293,6 +293,78 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
         success = False
     return success
 
+def create_flat_content_structure_from_wikitext(text):
+    """Create a flat python dict representing the content of the page
+
+    Parameters
+    ----------
+    text : str
+        the wiki source text
+
+    Returns
+    -------
+    res : dict
+    """
+    res = []
+    existing_code = mwparserfromhell.parse(text)
+    t_count = 0
+    for t in existing_code.filter_templates(recursive=False):
+        t_count += 1
+        wt = {}
+        #print(f"Template: {t.name} = {t}")
+        wt[str(t.name).strip()] = {}
+        for p in t.params:
+            #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
+            wt[str(t.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
+        res.append(wt)
+    if t_count == 0: res = str(text).strip().split(';')
+    return res
+
+def get_wikitext_from_flat_content_dict(d):
+    """Create wiki source text from a flat python dict representing the content of the page
+
+    Parameters
+    ----------
+    d : dict
+        flat python dict
+
+    Returns
+    -------
+    wt : wiki text
+    """
+    wt = ""
+    for key, value in d.items():
+        #print("key: {}, valuetype: {}, value: {}".format(key, type(value), "")) 
+        if isinstance(value,dict): 
+            #print("dict")
+            wt += "\n{{" + key
+            wt += get_wikitext_from_flat_content_dict(value)
+            wt += "\n}}"
+        elif isinstance(value,list): 
+            #print("list")
+            wt += "\n|{}=".format(key)
+            for index, element in enumerate(value):
+                if isinstance(element,dict): 
+                    wt += get_wikitext_from_flat_content_dict(element)
+                    #wt += "\n{{" + element
+                    #wt += get_wikitext_from_dict(element)
+                    #wt += "\n}}"  
+                else:
+                    if index > 0: wt += ";"
+                    wt += element
+        else: 
+            #print("literal")
+            wt += "\n|{}={}".format(key, value)
+    return wt
+
+def get_wikitext_from_flat_content_structure(content):
+    wt = ""
+    for content_element in content:
+        if isinstance(content_element,dict): 
+            wt += get_wikitext_from_flat_content_dict(content_element)
+        elif isinstance(content_element,str): wt += "\n" + content_element
+        else: print("Error: content element is not dict or string: {}".format(content_element))
+    return wt
 
 def create_or_overwrite_wiki_page(title, content, site):
     """Creates a page with the passed title and content. If the page already exists, the prior content is replaced with

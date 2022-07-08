@@ -10,6 +10,9 @@ def ensure_dir_exists(dir_name):
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
         
+def csv_data(filepath):
+    
+        
 def dat_to_pd(filepath):
     """reads typical LAP measurements output file and returns it as pandas dataframe"""  
     

@@ -9,9 +9,49 @@ def ensure_dir_exists(dir_name):
     """creates directory if not already existing"""    
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-        
-def csv_data(filepath):
+
+def csv_meta_to_dict(filepath,regex = "(\D* +) *(\d*\.*\d*) (.*)",max_header_lines = 100,encoding = "ISO-8859-1"):
+    """returns a meta dict with names and values of meatadata and a meta_d"""
     
+    print(filepath)
+    meta_dict={}
+    meta_units_dict={}
+    with open(filepath,'r', encoding = encoding) as f:
+        for i in range(max_header_lines):
+            
+            line = f.readline()
+            result = re.search(regex,line)
+            if result is not None: 
+                
+                try:
+                    key = result.group(1).split('  ')[0]
+                    meta_dict[key] = float(result.group(2))
+                    meta_units_dict[key] = result.group(3)
+                except Exception as e:
+                    # PRINT THE ERROR MESSAGE#
+                   #print(e)
+                    pass
+    return(meta_dict,meta_units_dict)
+
+def csv_infer_number_comment_lines(filepath,delimiter=';',encoding = "ISO-8859-1"):
+    """returns the number of comment lines for which less columns are present than in the main table"""
+    ## get number of columns 
+    
+    with open(filepath,'r',encoding = encoding) as f:
+        line_list = f.readlines()
+        n_cols_list = [len(a.split(delimiter)) for a in line_list]
+        n_cols = n_cols_list[-2] ## -2 for the case that the last line is empty
+        
+        for i in range(len(n_cols_list)):
+            if n_cols_list[i]==n_cols:
+                return(i)
+        return(None)
+
+
+def csv_data_to_df(filepath,delimiter = ';',encoding = "ISO-8859-1"):
+    n_comment_lines = csv_infer_number_comment_lines(filepath,delimiter=delimiter,encoding = encoding)
+    df = pd.read_csv(filepath,skiprows = n_comment_lines-1,header=1,skipinitialspace=True,sep = delimiter,encoding = encoding)
+    return(df)
         
 def dat_to_pd(filepath):
     """reads typical LAP measurements output file and returns it as pandas dataframe"""  

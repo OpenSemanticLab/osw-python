@@ -5,12 +5,13 @@ import numpy as np
 import copy
 
 
-def create_site_object(domain):
+def create_site_object(domain, password_file=""):
     """
 
     Parameters
     ----------
     domain : str
+    password_file : str (path to file with <username>\n<password>)
 
     Returns
     -------
@@ -24,8 +25,17 @@ def create_site_object(domain):
         domain = domain_dict[domain]["Address"]
 
     site = mwclient.Site(domain, path='/w/')
-    user = input("Enter bot username (username@botname)")
-    password = getpass.getpass("Enter bot password")
+    
+    if (password_file != ""):
+        f=open(password_file,"r")
+        lines=f.readlines()
+        user=lines[0].strip()
+        password=lines[1].strip()
+        f.close()
+    else:
+        user = input("Enter bot username (username@botname)")
+        password = getpass.getpass("Enter bot password")
+
     site.login(user, password)
     del user
     del password

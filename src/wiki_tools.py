@@ -303,9 +303,33 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
         success = False
     return success
 
-def create_flat_content_structure_from_wikitext(text):
-    """Create a flat python dict representing the content of the page
+def text_template_list_from_text(text):
+    
+    """Creates a list of string and template pieces from text
+    ----------
+    text : str
+        the wiki source text
 
+    Returns
+    -------
+    res : list of str and 
+    """
+    
+    
+    code = mwparserfromhell.parse(text)
+    template_code_list = code.filter_templates()
+    ret = []
+    work_text = text
+    for template in template_code_list:
+        in_between_text,work_text=work_text.split(str(template),1)
+        if in_between_text != '':
+            ret.append(in_between_text)
+        ret.append(template)
+    return(ret)
+        
+
+def create_flat_content_structure_from_wikitext(text):
+    """Create a flat python list representing the content of the page
     Parameters
     ----------
     text : str
@@ -313,22 +337,28 @@ def create_flat_content_structure_from_wikitext(text):
 
     Returns
     -------
-    res : dict
+    res : list of mwparserfromhell.nodes.template.Template and str
     """
     res = []
-    existing_code = mwparserfromhell.parse(text)
     t_count = 0
-    for t in existing_code.filter_templates(recursive=False):
-        t_count += 1
-        wt = {}
-        #print(f"Template: {t.name} = {t}")
-        wt[str(t.name).strip()] = {}
-        for p in t.params:
-            #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
-            wt[str(t.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
-        res.append(wt)
+    split_text = text_template_list_from_text(text)
+    print(split_text)
+    for t in split_text:
+        if type(t) == mwparserfromhell.nodes.template.Template:
+            t_count += 1
+            wt = {}
+            #print(f"Template: {t.name} = {t}")
+            wt[str(t.name).strip()] = {}
+            for p in t.params:
+                #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
+                wt[str(t.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
+            res.append(wt)
+        else:
+            print(type(t), t)
+            res.append(t)
     if t_count == 0: res = str(text).strip().split(';')
     return res
+
 
 def get_wikitext_from_flat_content_dict(d):
     """Create wiki source text from a flat python dict representing the content of the page
@@ -347,7 +377,7 @@ def get_wikitext_from_flat_content_dict(d):
         #print("key: {}, valuetype: {}, value: {}".format(key, type(value), "")) 
         if isinstance(value,dict): 
             #print("dict")
-            wt += "\n{{" + key
+            wt += "{{" + key
             wt += get_wikitext_from_flat_content_dict(value)
             wt += "\n}}"
         elif isinstance(value,list): 
@@ -372,7 +402,7 @@ def get_wikitext_from_flat_content_structure(content):
     for content_element in content:
         if isinstance(content_element,dict): 
             wt += get_wikitext_from_flat_content_dict(content_element)
-        elif isinstance(content_element,str): wt += "\n" + content_element
+        elif isinstance(content_element,str): wt += content_element #"\n" + content_element
         else: print("Error: content element is not dict or string: {}".format(content_element))
     return wt
 

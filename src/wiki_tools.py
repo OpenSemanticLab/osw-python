@@ -316,17 +316,27 @@ def create_flat_content_structure_from_wikitext(text):
     res : dict
     """
     res = []
+    text = text.strip()
     existing_code = mwparserfromhell.parse(text)
     t_count = 0
-    for t in existing_code.filter_templates(recursive=False):
-        t_count += 1
-        wt = {}
-        #print(f"Template: {t.name} = {t}")
-        wt[str(t.name).strip()] = {}
-        for p in t.params:
-            #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
-            wt[str(t.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
-        res.append(wt)
+    for i in range(0, len(existing_code.nodes)):
+        n = existing_code.nodes.pop(0) #returns first layer of nodes. filter() returns also template args
+        if (type(n) is mwparserfromhell.nodes.template.Template):
+            t_count += 1
+            wt = {}
+            #print(f"Template: {t.name} = {t}")
+            wt[str(n.name).strip()] = {}
+            for p in n.params:
+                #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
+                wt[str(n.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
+            res.append(wt)
+        else:
+            if len(res) == 0 or type(res[-1]) is dict:
+                res.append("")
+            res[-1] = res[-1] + str(n) #append to previos string if exists
+    #for i, x in enumerate(res):
+    #    if type(x) is str: res[i] = x.strip() #remove whitespace 
+    res = [x for x in res if x and not (type(x) is str and x.isspace())]
     if t_count == 0: res = str(text).strip().split(';')
     return res
 
@@ -347,12 +357,13 @@ def get_wikitext_from_flat_content_dict(d):
         #print("key: {}, valuetype: {}, value: {}".format(key, type(value), "")) 
         if isinstance(value,dict): 
             #print("dict")
-            wt += "\n{{" + key
+            wt += "{{" + key
             wt += get_wikitext_from_flat_content_dict(value)
             wt += "\n}}"
         elif isinstance(value,list): 
             #print("list")
             wt += "\n|{}=".format(key)
+            string_index = 0
             for index, element in enumerate(value):
                 if isinstance(element,dict): 
                     wt += get_wikitext_from_flat_content_dict(element)
@@ -360,8 +371,10 @@ def get_wikitext_from_flat_content_dict(d):
                     #wt += get_wikitext_from_dict(element)
                     #wt += "\n}}"  
                 else:
-                    if index > 0: wt += ";"
+                    if (string_index != index): print(f"Warning: template param '{key}' has mixed template/string values: {value}")
+                    if string_index > 0 and element and not element.strip().isspace(): wt += ";"
                     wt += element
+                    string_index +=1
         else: 
             #print("literal")
             wt += "\n|{}={}".format(key, value)
@@ -372,7 +385,7 @@ def get_wikitext_from_flat_content_structure(content):
     for content_element in content:
         if isinstance(content_element,dict): 
             wt += get_wikitext_from_flat_content_dict(content_element)
-        elif isinstance(content_element,str): wt += "\n" + content_element
+        elif isinstance(content_element,str): wt += content_element#"\n" + content_element
         else: print("Error: content element is not dict or string: {}".format(content_element))
     return wt
 

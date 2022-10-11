@@ -293,71 +293,47 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
         success = False
     return success
 
-def text_template_list_from_text(text):
-    
-    """Creates a list of string and template pieces from text
-    ----------
-    text : str
-        the wiki source text
-
-    Returns
-    -------
-    res : list of str and 
-    """
-    
-    
-    code = mwparserfromhell.parse(text)
-    template_code_list = code.filter_templates()
-    ret = []
-    work_text = text
-    for template in template_code_list:
-        in_between_text,work_text=work_text.split(str(template),1)
-        if in_between_text != '':
-            ret.append(in_between_text)
-        ret.append(template)
-    return(ret)
-        
-
 def create_flat_content_structure_from_wikitext(text):
-    """Create a flat python list representing the content of the page
+    """Create a flat python dict representing the content of the page
     Parameters
     ----------
     text : str
         the wiki source text
-
     Returns
     -------
-    res : list of mwparserfromhell.nodes.template.Template and str
+    res : dict
     """
     res = []
+    text = text.strip()
+    existing_code = mwparserfromhell.parse(text)
     t_count = 0
-    split_text = text_template_list_from_text(text)
-    print(split_text)
-    for t in split_text:
-        if type(t) == mwparserfromhell.nodes.template.Template:
+    for i in range(0, len(existing_code.nodes)):
+        n = existing_code.nodes.pop(0) #returns first layer of nodes. filter() returns also template args
+        if (type(n) is mwparserfromhell.nodes.template.Template):
             t_count += 1
             wt = {}
             #print(f"Template: {t.name} = {t}")
-            wt[str(t.name).strip()] = {}
-            for p in t.params:
+            wt[str(n.name).strip()] = {}
+            for p in n.params:
                 #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
-                wt[str(t.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
+                wt[str(n.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
             res.append(wt)
         else:
-            print(type(t), t)
-            res.append(t)
+            if len(res) == 0 or type(res[-1]) is dict:
+                res.append("")
+            res[-1] = res[-1] + str(n) #append to previos string if exists
+    #for i, x in enumerate(res):
+    #    if type(x) is str: res[i] = x.strip() #remove whitespace 
+    res = [x for x in res if x and not (type(x) is str and x.isspace())]
     if t_count == 0: res = str(text).strip().split(';')
     return res
 
-
 def get_wikitext_from_flat_content_dict(d):
     """Create wiki source text from a flat python dict representing the content of the page
-
     Parameters
     ----------
     d : dict
         flat python dict
-
     Returns
     -------
     wt : wiki text
@@ -373,6 +349,7 @@ def get_wikitext_from_flat_content_dict(d):
         elif isinstance(value,list): 
             #print("list")
             wt += "\n|{}=".format(key)
+            string_index = 0
             for index, element in enumerate(value):
                 if isinstance(element,dict): 
                     wt += get_wikitext_from_flat_content_dict(element)
@@ -380,8 +357,10 @@ def get_wikitext_from_flat_content_dict(d):
                     #wt += get_wikitext_from_dict(element)
                     #wt += "\n}}"  
                 else:
-                    if index > 0: wt += ";"
+                    if (string_index != index): print(f"Warning: template param '{key}' has mixed template/string values: {value}")
+                    if string_index > 0 and element and not element.strip().isspace(): wt += ";"
                     wt += element
+                    string_index +=1
         else: 
             #print("literal")
             wt += "\n|{}={}".format(key, value)
@@ -392,14 +371,13 @@ def get_wikitext_from_flat_content_structure(content):
     for content_element in content:
         if isinstance(content_element,dict): 
             wt += get_wikitext_from_flat_content_dict(content_element)
-        elif isinstance(content_element,str): wt += content_element #"\n" + content_element
+        elif isinstance(content_element,str): wt += content_element#"\n" + content_element
         else: print("Error: content element is not dict or string: {}".format(content_element))
     return wt
 
 def create_or_overwrite_wiki_page(title, content, site):
     """Creates a page with the passed title and content. If the page already exists, the prior content is replaced with
     the passed content.
-
     Parameters
     ----------
     title : str
@@ -407,7 +385,6 @@ def create_or_overwrite_wiki_page(title, content, site):
     content : str
     site : mwclient.client.Site
         Site object from mwclient lib
-
     Returns
     -------
     success : bool
@@ -416,6 +393,7 @@ def create_or_overwrite_wiki_page(title, content, site):
     target_page.edit(content, '[bot] create page')
     success = True
     return success
+
 
 
 def delete_wiki_page(title, site, reason):

@@ -80,6 +80,7 @@ def merge_nodes_with_label_in_list(DG,label_list):
 
 
 
+
 def upload_nx_to_OSL(DG,site,namespace="Term",upload_id="4"):
     ## get Term:OSL..UID... page name:
     OSL_name_dict = {}
@@ -162,9 +163,12 @@ def delete_by_property_value(site,value,prop = "HasUploadID"):
         print(f"delete {i} out of {len(delete_dict.keys())}")
         wt.delete_wiki_page(key,site,"BotDelete")
         
+def create_test_term_dict():
+    ret = {"template" = "OslTemplate:KB/Term"}
+        
 def create_test_DG(visualize=False):
     DG = nx.DiGraph()
-    DG.add_node(1,label="TestNode1")
+    DG.add_node(1,label="TestNode1",)
     DG.add_node(2,label="TestNode2")
     DG.add_node(3,label="TestNode3")
     

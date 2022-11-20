@@ -1,7 +1,9 @@
 import sys
-sys.path.append('../')
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #add parent dir to path
+
 import src.wiki_tools as wt 
-from src.WtSite import WtSite, WtPage
+from src.wtsite import WtSite, WtPage
 from pprint import pprint 
 
 def basic_text_manipulation():
@@ -52,7 +54,7 @@ def basic_text_manipulation():
     print(wt.get_wikitext_from_flat_content_structure(content_dict_3))
     
 def mass_page_edit():
-    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "../examples/wiki-admin.pwd")    
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "examples/wiki-admin.pwd")    
     #wtpage = wtsite.get_WtPage("LabNote:220601-sist-0001-ni")
     #wtpage = wtsite.get_WtPage("testesfesefsef")
     #wtpage.append_template("TestTemplate", {"p1": "v1"})

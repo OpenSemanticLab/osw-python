@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #ad
 
 from src.osl import OSL
 #import src.osl as osl
-from src.WtSite import WtSite
+from src.wtsite import WtSite
 from pprint import pprint 
 
 #from src.model.KB.Entity import *
@@ -18,7 +18,7 @@ osl = OSL(site = wtsite)
 #pprint(mycat)
 #osl.sync(mycat)
 
-osl.fetchSchema() #this will load the current entity schema from the OSL instance. You may have to re-run the script to get the updated schema extension
+osl.fetch_schema() #this will load the current entity schema from the OSL instance. You may have to re-run the script to get the updated schema extension
 #from src.model.KB.Entity import *
 reload(model) #only for modules
 
@@ -37,7 +37,7 @@ entity = model.Entity(label = "Test", extensions=[
 #pprint(entity._template)
 #pprint(entity.dict(include={'_template': True}))
 pprint(entity)
-osl.storeEntity(entity = entity, entity_title="Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d" )
+osl.store_entity(entity = entity, entity_title="Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d" )
 
-entity2 = osl.loadEntity("Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d")
+entity2 = osl.load_entity("Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d")
 pprint(entity2)

@@ -11,7 +11,7 @@ import os
 import json
 import importlib
 
-from src.WtSite import WtSite, WtPage
+from src.wtsite import WtSite, WtPage
 import src.wiki_tools as wt
 import src.model.KB.Entity as model
 
@@ -33,7 +33,7 @@ class OSL(BaseModel):
         
         pprint(wtpage)
 
-    def fetchSchema(self, schema_title = "JsonSchema:KB/Entity", root = True):
+    def fetch_schema(self, schema_title = "JsonSchema:KB/Entity", root = True):
         schema_name = schema_title.split(':')[-1]
         page = self.site.get_WtPage(schema_title)
         schema = json.loads(page._content.replace("$ref", "dollarref")) # '$' is a special char for root object in jsonpath
@@ -50,7 +50,7 @@ class OSL(BaseModel):
             match.full_path.update_or_create(schema, value)
             #print(f"replace {match.value} with {value}")
             if (ref_schema_title != schema_title): #prevent recursion in case of self references
-                 self.fetchSchema(schema_title = ref_schema_title, root = False) #resolve references recursive
+                 self.fetch_schema(schema_title = ref_schema_title, root = False) #resolve references recursive
 
         schema_path = "src/model/" + schema_name + ".json"
         os.makedirs(os.path.dirname(schema_path), exist_ok=True)
@@ -75,7 +75,7 @@ class OSL(BaseModel):
 
         importlib.reload(model) #reload the updated module
 
-    def loadEntity(self, entity_title):
+    def load_entity(self, entity_title):
         page = self.site.get_WtPage(entity_title)
         json = wt.wikiJson2SchemaJson(page._dict)
         #pprint(json)
@@ -88,7 +88,7 @@ class OSL(BaseModel):
         entity = model.Entity(**json)
         return entity
 
-    def storeEntity(self, entity_title, entity):
+    def store_entity(self, entity_title, entity):
         page = self.site.get_WtPage(entity_title)
         schema_json = entity.dict()
         #print(json)

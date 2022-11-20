@@ -1,9 +1,7 @@
 # extents mwclient.site
 
 import sys
-sys.path.append('../')
 import src.wiki_tools as wt 
-from pprint import pprint 
 import mwclient
 from jsonpath_ng.ext import parse
 
@@ -58,7 +56,7 @@ class WtPage:
         if self.exists: 
             self._original_content = self._page.text()
             self._content = self._original_content
-            self._dict = wt.create_flat_content_structure_from_wikitext(self._content)
+            self._dict = wt.create_flat_content_structure_from_wikitext(self._content, array_mode = 'only_multiple' )
             
     def append_template(self, template_name: str = None, template_params: dict = None):
         self._dict.append({template_name: template_params})

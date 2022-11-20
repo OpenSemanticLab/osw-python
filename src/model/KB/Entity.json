@@ -1,0 +1,98 @@
+{
+    "title": "Entity",
+    "type": "object",
+    "id": "entity",
+    "required": [
+        "osl_template",
+        "osl_template_label",
+        "osl_footer"
+    ],
+    "properties": {
+        "osl_template": {
+            "type": "string",
+            "default": "OslTemplate:KB/Entity",
+            "options": {
+                "hidden": true
+            }
+        },
+        "osl_template_label": {
+            "type": "string",
+            "default": "Entity",
+            "options": {
+                "hidden": true
+            }
+        },
+        "label": {
+            "title": "Label",
+            "description": "Human readable name",
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            ]
+        },
+        "label_lang_code": {
+            "title": "Lang code",
+            "type": "string",
+            "enum": [
+                "en",
+                "de"
+            ],
+            "default": "en"
+        },
+        "extensions": {
+            "title": "Extensions",
+            "type": "array",
+            "format": "tabs",
+            "items": {
+                "title": "Extension",
+                "headerTemplate": "{{i1}} - {{self.osl_template_label}}",
+                "options": {
+                    "keep_oneof_values": false
+                },
+                "oneOf": [
+                    {
+                        "$ref": "../LIMS/Device.json"
+                    }
+                ]
+            }
+        },
+        "osl_wikitext": {
+            "type": "string",
+            "format": "markdown",
+            "options": {
+                "hidden": true
+            },
+            "default": "=Details=\n"
+        },
+        "osl_footer": {
+            "title": "KB/Entity/Footer",
+            "type": "object",
+            "id": "footer",
+            "options": {
+                "hidden": true
+            },
+            "required": [
+                "osl_template"
+            ],
+            "properties": {
+                "osl_template": {
+                    "type": "string",
+                    "default": "OslTemplate:KB/Entity/Footer",
+                    "options": {
+                        "hidden": true
+                    }
+                }
+            },
+            "default": {
+                "osl_template": "OslTemplate:KB/Entity/Footer"
+            }
+        }
+    }
+}

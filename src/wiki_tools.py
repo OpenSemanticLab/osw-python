@@ -303,18 +303,26 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
         success = False
     return success
 
-def create_flat_content_structure_from_wikitext(text):
-    """Create a flat python dict representing the content of the page
+def create_flat_content_structure_from_wikitext(text: str, array_mode: str = 'force'):
+    """Create a flat python dict (aka 'flat_content_structure' = 'wikiJson') representing the content of the page
 
     Parameters
     ----------
     text : str
         the wiki source text
+    array_mode : str
+        defines how to parse template params
+        array_mode / param     value   value;  value;value     comment
+        'force':               array   array   array           always create an array
+        'only_multiple':       literal literal array           create only when more than one value is given
+        'delimiter_present':   literal array   array           create array if at least one separator char is present
 
     Returns
     -------
     res : dict
+        (aka 'flat_content_structure' = 'wikiJson')
     """
+
     res = []
     text = text.strip()
     existing_code = mwparserfromhell.parse(text)
@@ -328,7 +336,7 @@ def create_flat_content_structure_from_wikitext(text):
             wt[str(n.name).strip()] = {}
             for p in n.params:
                 #print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
-                wt[str(n.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value))
+                wt[str(n.name).strip()][str(p.name)] = create_flat_content_structure_from_wikitext(str(p.value), array_mode)
             res.append(wt)
         else:
             if len(res) == 0 or type(res[-1]) is dict:
@@ -337,20 +345,27 @@ def create_flat_content_structure_from_wikitext(text):
     #for i, x in enumerate(res):
     #    if type(x) is str: res[i] = x.strip() #remove whitespace 
     res = [x for x in res if x and not (type(x) is str and x.isspace())]
-    if t_count == 0: res = str(text).strip().split(';')
+    if t_count == 0: 
+        res = text
+        values = str(text).strip().split(';')
+        if array_mode == 'force': res = values
+        elif array_mode == 'only_multiple' and len(values) > 1: res = values
+        elif array_mode == 'separator_present' and ';' in text: res = values
     return res
 
-def get_wikitext_from_flat_content_dict(d):
-    """Create wiki source text from a flat python dict representing the content of the page
+def get_wikitext_from_flat_content_dict(d: dict):
+    """Create wiki source text from a flat python dict representing a wiki template
 
     Parameters
     ----------
     d : dict
         flat python dict
+        e.g.: {"HeaderTemplate": {"param": "value"}}
 
     Returns
     -------
-    wt : wiki text
+    wt : str
+        wiki text
     """
     wt = ""
     for key, value in d.items():
@@ -381,6 +396,18 @@ def get_wikitext_from_flat_content_dict(d):
     return wt
 
 def get_wikitext_from_flat_content_structure(content):
+    """Create wiki source text from the content list (aka 'flat_content_structure' = 'wikiJson') of the page
+
+    Parameters
+    ----------
+    content : list
+        content list, mixed objects (templates) and free text (aka 'flat_content_structure' = 'wikiJson')
+        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"param2": "value"}}]
+
+    Returns
+    -------
+    wt : wiki text
+    """
     wt = ""
     for content_element in content:
         if isinstance(content_element,dict): 
@@ -388,6 +415,137 @@ def get_wikitext_from_flat_content_structure(content):
         elif isinstance(content_element,str): wt += content_element#"\n" + content_element
         else: print("Error: content element is not dict or string: {}".format(content_element))
     return wt
+
+def wikiJson2SchemaJson(wikiJson):
+    """Create osl schema-compatible json from the content representation of a page (aka 'flat_content_structure' = 'wikiJson') 
+
+    Parameters
+    ----------
+    wikiJson : list
+        content list, mixed objects (templates) and free text (aka 'flat_content_structure' = 'wikiJson') 
+        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"param2": "value"}}]
+
+    Returns
+    -------
+    schemaJson : dict
+        schema-compatible json
+        e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_wikitext": "freetext", "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
+    """
+    schemaJson = {}
+    if not isinstance(wikiJson[0], dict) or not isinstance(wikiJson[1],str) or not isinstance(wikiJson[2], dict):
+        print("Error: Invalid wikiJson:", wikiJson)
+        return schemaJson
+
+    schemaJson = {}
+
+    schemaJson = wikiJson2SchemaJsonRecursion(wikiJson[0], wikiJson[2])
+    schemaJson["_wikitext"] = wikiJson[1]
+    return schemaJson
+
+def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
+    """internal recursion function of wikiJson2SchemaJson()
+
+    Parameters
+    ----------
+    wikiJson : list
+        wiki template representation 
+        e.g.: {"HeaderTemplate": {"param": "value"}}
+
+    footerWikiJson : list
+        wiki footer template representation 
+        e.g.: {"FooterTemplate": {"param2": "value2"}}
+
+    Returns
+    -------
+    schemaJson : dict
+        schema-compatible json
+        e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
+    """
+    schemaJson = {}
+    if footerWikiJson != None:
+        schemaJson['osl_footer'] = wikiJson2SchemaJsonRecursion(footerWikiJson)
+        
+    for key in wikiJson:
+        value = wikiJson[key]
+        if isinstance(value,list): 
+            schemaJson[key] = []
+            for index, element in enumerate(value):
+                element = value[index]
+                if isinstance(element,dict): 
+                    if key == "extensions":
+                        if footerWikiJson != None: #we asume that every extension provides also a footer template
+                            nextFooter = footerWikiJson[schemaJson['osl_footer']['osl_template']]['extensions'][index]
+                            schemaJson[key].append(wikiJson2SchemaJsonRecursion(element, nextFooter))
+                        else: schemaJson[key].append(wikiJson2SchemaJsonRecursion(element))
+                else:
+                    schemaJson[key].append(element)
+                    
+        elif isinstance(value,dict): 
+            schemaJson = wikiJson2SchemaJsonRecursion(value, footerWikiJson)
+            schemaJson['osl_template'] = key
+        else:
+            schemaJson[key] = value
+
+    for key in list(schemaJson.keys()):
+        if isinstance(schemaJson[key], list): #wikiJson defaults are lists, even for single or empty values
+            if len(schemaJson[key]) == 0: del schemaJson[key]
+            #elif len(schemaJson[key]) == 1: schemaJson[key] = schemaJson[key][0]
+
+    return schemaJson
+
+def schemaJson2WikiJson(schemaJson, isRoot = True):
+    """Create content representation of a page (aka 'flat_content_structure' = 'wikiJson')  from the osl schema-compatible json
+
+    Parameters
+    ----------
+    schemaJson : dict
+        schema-compatible json
+        e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_wikitext": "freetext", "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
+
+    isRoot: boolean
+        indicates first call in recursion
+
+    Returns
+    -------
+    wikiJson : list
+        content list, mixed objects (templates) and free text (aka 'flat_content_structure' = 'wikiJson') 
+        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"param2": "value"}}]
+    """
+    wikiJson = [{}, "", {}]; #header, freetext, footer
+    template = ""
+    footer_template = ""
+    if 'osl_template' in schemaJson:
+        template = schemaJson['osl_template']
+        wikiJson[0][template] = {}
+    else:
+        print("Error: Mandatory property 'osl_template' not found in schemaJson", schemaJson)
+        return
+
+    if 'osl_wikitext' in schemaJson: wikiJson[1] = schemaJson['osl_wikitext']
+    if 'osl_footer' in schemaJson:
+        wikiJson[2] = schemaJson2WikiJson(schemaJson['osl_footer'], False)[0]
+        footer_template = schemaJson['osl_footer']['osl_template']
+        wikiJson[2][footer_template]['extensions'] = []
+    
+    for key in schemaJson:
+        if key.startswith('_') or key.startswith('osl_template') or key.startswith('osl_wikitext') or key.startswith('osl_footer'): continue #exclude private and reserved keywords
+        if schemaJson[key] == None: continue
+        if isinstance(schemaJson[key], list):
+            wikiJson[0][template][key] = []
+            for subSchemaJson in schemaJson[key]:
+                subWikiJson = schemaJson2WikiJson(subSchemaJson, False)
+                wikiJson[0][template][key].append(subWikiJson[0])
+                if (key == "extensions"):
+                    wikiJson[2][footer_template]['extensions'].append(subWikiJson[2])
+
+        elif isinstance(schemaJson[key], dict):
+            subWikiJson = schemaJson2WikiJson(subSchemaJson, False)
+            wikiJson[0][template][key] = subWikiJson[0]
+        else:
+            wikiJson[0][template][key] = schemaJson[key]
+
+    return wikiJson
+
 
 def create_or_overwrite_wiki_page(title, content, site):
     """Creates a page with the passed title and content. If the page already exists, the prior content is replaced with

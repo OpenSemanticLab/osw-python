@@ -10,6 +10,7 @@ from copy import deepcopy
 import os
 import json
 import importlib
+import re
 
 from src.wtsite import WtSite, WtPage
 import src.wiki_tools as wt
@@ -67,13 +68,33 @@ class OSL(BaseModel):
                 --use-schema-description \
                 --use-field-description \
             ")
-        #see https://koxudaxi.github.io/datamodel-code-generator/
-        #--use-default: Use default value even if a field is required
-        #--use-schema-description: Use schema description to populate class docstring
-        #--use-field-description: Use schema description to populate field docstring
-        #--use-title-as-name: use titles as class names of models, e. g. for the footer templates
+            #see https://koxudaxi.github.io/datamodel-code-generator/
+            #--custom-template-dir src/model/template_data/ 
+            #--extra-template-data src/model/template_data/extra.json 
+            #--use-default: Use default value even if a field is required
+            #--use-schema-description: Use schema description to populate class docstring
+            #--use-field-description: Use schema description to populate field docstring
+            #--use-title-as-name: use titles as class names of models, e. g. for the footer templates
 
-        importlib.reload(model) #reload the updated module
+            #this is dirty, but required for autocompletion: https://stackoverflow.com/questions/62884543/pydantic-autocompletion-in-vs-code
+            #idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
+
+            with open (model_path, 'r' ) as f:
+                content = f.read()
+                header = (  "from typing import TYPE_CHECKING\n"
+                            "\n"
+                            "if TYPE_CHECKING:\n"
+                            "    from dataclasses import dataclass as _basemodel_decorator\n"
+                            "else:\n"
+                            "    _basemodel_decorator = lambda x: x\n"
+                            "\n"
+                        )
+                content = re.sub(r"(class\s*\S*\s*\(\s*BaseModel\s*\)\s*:.*\n)", header + r"\n\n\n\1", content, 1) #replace first match
+                content = re.sub(r"(class\s*\S*\s*\(\s*BaseModel\s*\)\s*:.*\n)", r"@_basemodel_decorator\n\1", content)
+            with open (model_path, 'w' ) as f:    
+                f.write(content)
+
+            importlib.reload(model) #reload the updated module
 
     def load_entity(self, entity_title):
         page = self.site.get_WtPage(entity_title)

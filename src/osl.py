@@ -24,6 +24,7 @@ class AbstractEntity(BaseModel):
 
 class OSL(BaseModel):
     uuid: str = "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5"
+    _protected_keywords = ('_osl_template', '_osl_footer') #private properties included in model export
     class Config:
         arbitrary_types_allowed = True #neccessary to allow e.g. np.array as type
     site: WtSite
@@ -63,6 +64,7 @@ class OSL(BaseModel):
         model_path = schema_path.replace(".json", ".py")
         if (root): 
             os.system(f"datamodel-codegen  --input {schema_path} --input-file-type jsonschema --output {model_path} \
+                --base-class OslBaseModel \
                 --use-default \
                 --enum-field-as-literal one \
                 --use-title-as-name \
@@ -70,6 +72,7 @@ class OSL(BaseModel):
                 --use-field-description \
             ")
             #see https://koxudaxi.github.io/datamodel-code-generator/
+            #--base-class OslBaseModel: use a custom base class
             #--custom-template-dir src/model/template_data/ 
             #--extra-template-data src/model/template_data/extra.json 
             #--use-default: Use default value even if a field is required
@@ -91,8 +94,17 @@ class OSL(BaseModel):
                             "    _basemodel_decorator = lambda x: x\n"
                             "\n"
                         )
-                content = re.sub(r"(class\s*\S*\s*\(\s*BaseModel\s*\)\s*:.*\n)", header + r"\n\n\n\1", content, 1) #replace first match
-                content = re.sub(r"(class\s*\S*\s*\(\s*BaseModel\s*\)\s*:.*\n)", r"@_basemodel_decorator\n\1", content)
+                header += (
+                    "\nclass OslBaseModel(BaseModel):\n"
+                    "    def full_dict(self, **kwargs): #extent BaseClass export function\n"
+                    "        d = super().dict(**kwargs)\n"
+                    "        for key in " + str(self._protected_keywords) + ":\n"
+                    "            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator \n"
+                    "        return d\n"
+                )
+                content = re.sub(r"(import OslBaseModel)", "from pydantic import BaseModel", content, 1) #remove import statement
+                content = re.sub(r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)", header + r"\n\n\n\1", content, 1) #replace first match
+                content = re.sub(r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)", r"@_basemodel_decorator\n\1", content)
             with open (model_path, 'w' ) as f:    
                 f.write(content)
 
@@ -113,7 +125,7 @@ class OSL(BaseModel):
 
     def store_entity(self, entity_title, entity):
         page = self.site.get_WtPage(entity_title)
-        schema_json = entity.dict()
+        schema_json = entity.full_dict()
         #print(json)
         wiki_json = wt.schemaJson2WikiJson(schema_json)
         #print(wiki_json)

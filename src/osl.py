@@ -64,6 +64,7 @@ class OSL(BaseModel):
         if (root): 
             os.system(f"datamodel-codegen  --input {schema_path} --input-file-type jsonschema --output {model_path} \
                 --use-default \
+                --enum-field-as-literal one \
                 --use-title-as-name \
                 --use-schema-description \
                 --use-field-description \
@@ -72,6 +73,7 @@ class OSL(BaseModel):
             #--custom-template-dir src/model/template_data/ 
             #--extra-template-data src/model/template_data/extra.json 
             #--use-default: Use default value even if a field is required
+            #--enum-field-as-literal one: for static properties like osl_template
             #--use-schema-description: Use schema description to populate class docstring
             #--use-field-description: Use schema description to populate field docstring
             #--use-title-as-name: use titles as class names of models, e. g. for the footer templates

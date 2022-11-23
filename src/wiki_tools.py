@@ -439,7 +439,7 @@ def wikiJson2SchemaJson(wikiJson):
     schemaJson = {}
 
     schemaJson = wikiJson2SchemaJsonRecursion(wikiJson[0], wikiJson[2])
-    schemaJson["_wikitext"] = wikiJson[1]
+    schemaJson["osl_wikitext"] = wikiJson[1]
     return schemaJson
 
 def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
@@ -476,7 +476,7 @@ def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
                         if footerWikiJson != None: #we asume that every extension provides also a footer template
                             nextFooter = footerWikiJson[schemaJson['osl_footer']['osl_template']]['extensions'][index]
                             schemaJson[key].append(wikiJson2SchemaJsonRecursion(element, nextFooter))
-                        else: schemaJson[key].append(wikiJson2SchemaJsonRecursion(element))
+                    else: schemaJson[key].append(wikiJson2SchemaJsonRecursion(element))
                 else:
                     schemaJson[key].append(element)
                     
@@ -487,7 +487,8 @@ def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
             schemaJson[key] = value
 
     for key in list(schemaJson.keys()):
-        if isinstance(schemaJson[key], list): #wikiJson defaults are lists, even for single or empty values
+        if schemaJson[key] == "" and key == 'extensions': del schemaJson[key]
+        elif isinstance(schemaJson[key], list): #wikiJson defaults are lists, even for single or empty values
             if len(schemaJson[key]) == 0: del schemaJson[key]
             #elif len(schemaJson[key]) == 1: schemaJson[key] = schemaJson[key][0]
 

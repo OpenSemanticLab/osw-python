@@ -81,5 +81,13 @@ def mass_page_edit():
                                      #print("Lambda")#wtpage.title)
                                      wtpage.set_value("*.'OslTemplate:ELN/Entry/Header'", {"id" : [wtpage.title.split(":")[1]]}).update_content()
                                 , limit=1, comment="[bot] set id from title", log=True, dryrun=True)  
-        
-mass_page_edit()
+
+def schema_renaming():
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "examples/wiki-admin.pwd")    
+    def modify(wtpage: WtPage):
+        wtpage.content_replace("_osl_template", "osl_template")
+        wtpage.content_replace("_osl_footer", "osl_footer")
+    wtsite.modify_search_results('prefix', 'JsonSchema:', modify, limit=20, comment="rename keywords _osl* to osl*", log=True, dryrun=False)      
+
+#mass_page_edit()
+schema_renaming()

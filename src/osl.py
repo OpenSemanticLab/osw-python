@@ -3,8 +3,9 @@ import copy
 import types
 from jsonpath_ng.ext import parse
 from abc import ABCMeta, abstractmethod
-from pydantic import BaseModel, validator
-from typing import List, Optional, Any, Union
+from pydantic import BaseModel, Field
+from pydantic.main import ModelMetaclass
+from typing import List, Optional, Any, Union, Literal
 import datetime
 from copy import deepcopy
 import os
@@ -22,6 +23,22 @@ class AbstractEntity(BaseModel):
     ns: str
     title: Optional[str] = None
 
+class OslClassMetaclass(ModelMetaclass):
+    def __new__(cls, name, bases, dic, osl_template, osl_footer_template):
+        base_footer_cls = type(dic['__qualname__'] + "Footer", (BaseModel,),
+            {
+                '__annotations__': {"osl_template": str},
+                "osl_template": Field(default=osl_footer_template, title=dic['__qualname__'] + "FooterTemplate")
+            }
+        )
+        if not '__annotations__' in dic: dic['__annotations__'] = {}
+        dic['__annotations__']['osl_template'] = str
+        dic['osl_template'] = Field(default=osl_template, title=dic['__qualname__'] + "Template")
+        dic['__annotations__']['osl_footer'] = base_footer_cls
+        dic['osl_footer'] =  Field(default={"osl_template": osl_footer_template}, title=dic['__qualname__'] + "Footer")
+        new_cls = super().__new__(cls, name, bases, dic)
+        return new_cls
+
 class OSL(BaseModel):
     uuid: str = "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5"
     _protected_keywords = ('_osl_template', '_osl_footer') #private properties included in model export
@@ -34,6 +51,63 @@ class OSL(BaseModel):
         wtpage = self.site.get_WtPage(entity.title)
         
         pprint(wtpage)
+
+    @model._basemodel_decorator
+    class SchemaRegistration(BaseModel):
+        model_cls: ModelMetaclass
+        schema_name: str
+        schema_bases: List[str] = ["KB/Entity"]
+
+    def register_schema(self, schema_registration: SchemaRegistration):
+        page = self.site.get_WtPage("JsonSchema:" + schema_registration.schema_name)
+
+        schema = json.loads(schema_registration.model_cls.schema_json(indent=4).replace("$ref", "dollarref"))
+        jsonpath_expr = parse('$..allOf')
+        #replace local definitions (#/definitions/...) with embedded definitions to prevent resolve errors in json-editor
+        for match in jsonpath_expr.find(schema):
+            result_array = []
+            for subschema in match.value:
+                pprint(subschema)
+                value = subschema['dollarref']
+                if value.startswith('#'):
+                    definition_jsonpath_expr = parse(value.replace('#','$').replace('/','.'))
+                    for def_match in definition_jsonpath_expr.find(schema):
+                        pprint(def_match.value)
+                        result_array.append(def_match.value)
+                else: result_array.append(subschema)
+            match.full_path.update_or_create(schema, result_array)
+        if 'definitions' in schema: del schema['definitions']
+
+        #replace 'osl_footer': {'allOf': [{...}]} with 'osl_footer': {...}
+        if 'allOf' in schema['properties']['osl_footer']: schema['properties']['osl_footer'] = schema['properties']['osl_footer']['allOf'][0] #directy attach single definition 
+        schema['properties']['osl_footer']['options'] = {"hidden": True} #don't show this field in the json-editor
+        if not 'required' in schema['properties']['osl_footer']: schema['properties']['osl_footer']['required'] = [] #add required property if missing
+        schema['properties']['osl_footer']['required'].extend(['osl_template'])
+
+        schema['properties']['osl_template']['options'] = {"hidden": True} #don't show this field in the json-editor
+        schema['properties']['osl_template']['enum'] = [schema['properties']['osl_template']['default']] #a single-value enum represents a constant / literal
+
+        if not 'required' in schema: schema['required'] = []  #add required property if missing
+        schema['required'].extend(['osl_template', 'osl_footer']) 
+
+        pprint(schema)
+
+        page.set_content(json.dumps(schema, indent=4).replace("dollarref", "$ref"))
+        page.edit("Create / update schema from pydantic BaseModel")
+        for base in schema_registration.schema_bases:
+            page = self.site.get_WtPage("JsonSchema:" + base)
+            schema = json.loads(page.get_content())
+            refs = schema['properties']['extensions']['items']['oneOf']
+            #pprint(refs)
+            schema_url = '/wiki/JsonSchema:' + schema_registration.schema_name + '?action=raw'
+            missing = True
+            for ref in refs:
+                if ref['$ref'] == schema_url: missing = False
+            print(missing)
+            if missing: refs.append({'$ref': schema_url})
+            #pprint(schema)
+            page.set_content(json.dumps(schema, indent=4))
+            page.edit("add extension schema " + schema_registration.schema_name)
 
     def fetch_schema(self, schema_title = "JsonSchema:KB/Entity", root = True):
         schema_name = schema_title.split(':')[-1]

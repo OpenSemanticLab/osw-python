@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #add parent dir to path
 
-from src.osl import OSL
+from src.osl import OSL, OslClassMetaclass
 #import src.osl as osl
 from src.wtsite import WtSite
 from pprint import pprint 
@@ -10,6 +10,10 @@ from pprint import pprint
 #from src.model.KB.Entity import *
 import src.model.KB.Entity as model
 from importlib import reload
+from datetime import date
+
+from pydantic import BaseModel, Field
+from typing import Optional
 
 wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "examples/wiki-admin.pwd") 
 osl = OSL(site = wtsite)
@@ -18,7 +22,7 @@ osl = OSL(site = wtsite)
 #pprint(mycat)
 #osl.sync(mycat)
 
-osl.fetch_schema() #this will load the current entity schema from the OSL instance. You may have to re-run the script to get the updated schema extension
+#osl.fetch_schema() #this will load the current entity schema from the OSL instance. You may have to re-run the script to get the updated schema extension. Requires 'pip install datamodel-code-generator'
 #from src.model.KB.Entity import *
 reload(model) #only for modules
 
@@ -29,15 +33,28 @@ except AttributeError:
 else:
     print("[Ex] Device defined")
 
-device = model.Device(manufacturer=2)
-entity = model.Entity(label = "Test", extensions=[
-     model.Device(manufacturer = "TestM")
+device = model.Device(manufacturer="Test")
+event = model.Event(start=date.fromisoformat("2022-01-01"))
+entity = model.Entity(label="TestE", extensions=[
+     model.Device(
+        manufacturer = "TestM"
+    ),
+    event
 ])
 
-#pprint(entity._template)
-#pprint(entity.dict(include={'_template': True}))
 pprint(entity)
-osl.store_entity(entity = entity, entity_title="Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d" )
+#osl.store_entity(entity = entity, entity_title="Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d" )
 
-entity2 = osl.load_entity("Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d")
-pprint(entity2)
+#entity2 = osl.load_entity("Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d")
+#pprint(entity2)
+
+#create custom model
+@model._basemodel_decorator
+class MyModel(model.BaseModel, metaclass=OslClassMetaclass, osl_template="MyTemplate", osl_footer_template="MyFooterTemplate"):
+    my_property_2: Optional[str]
+    my_property: Optional[int] =  Field(None, title="My Property")
+
+print(MyModel.schema_json(indent=4))
+#myModel = model.Entity(label="MyModel", extensions=[MyModel(my_property=1)])
+#pprint(myModel)
+osl.register_schema(OSL.SchemaRegistration(model_cls=MyModel, schema_name="MyModel"))

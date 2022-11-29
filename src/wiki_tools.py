@@ -3,7 +3,7 @@ import getpass
 import mwparserfromhell
 import numpy as np
 import copy
-
+from jsonpath_ng.ext import parse
 
 def create_site_object(domain, password_file=""):
     """
@@ -416,7 +416,7 @@ def get_wikitext_from_flat_content_structure(content):
         else: print("Error: content element is not dict or string: {}".format(content_element))
     return wt
 
-def wikiJson2SchemaJson(wikiJson):
+def wikiJson2SchemaJson(schema, wikiJson):
     """Create osl schema-compatible json from the content representation of a page (aka 'flat_content_structure' = 'wikiJson') 
 
     Parameters
@@ -436,13 +436,11 @@ def wikiJson2SchemaJson(wikiJson):
         print("Error: Invalid wikiJson:", wikiJson)
         return schemaJson
 
-    schemaJson = {}
-
-    schemaJson = wikiJson2SchemaJsonRecursion(wikiJson[0], wikiJson[2])
+    schemaJson = wikiJson2SchemaJsonRecursion(schema, wikiJson[0], wikiJson[2])
     schemaJson["osl_wikitext"] = wikiJson[1]
     return schemaJson
 
-def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
+def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson = None):
     """internal recursion function of wikiJson2SchemaJson()
 
     Parameters
@@ -463,7 +461,7 @@ def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
     """
     schemaJson = {}
     if footerWikiJson != None:
-        schemaJson['osl_footer'] = wikiJson2SchemaJsonRecursion(footerWikiJson)
+        schemaJson['osl_footer'] = wikiJson2SchemaJsonRecursion(schema, footerWikiJson)
         
     for key in wikiJson:
         value = wikiJson[key]
@@ -475,22 +473,42 @@ def wikiJson2SchemaJsonRecursion(wikiJson, footerWikiJson = None):
                     if key == "extensions":
                         if footerWikiJson != None: #we asume that every extension provides also a footer template
                             nextFooter = footerWikiJson[schemaJson['osl_footer']['osl_template']]['extensions'][index]
-                            schemaJson[key].append(wikiJson2SchemaJsonRecursion(element, nextFooter))
-                    else: schemaJson[key].append(wikiJson2SchemaJsonRecursion(element))
+                            schemaJson[key].append(wikiJson2SchemaJsonRecursion(schema, element, nextFooter))
+                    else: schemaJson[key].append(wikiJson2SchemaJsonRecursion(schema, element))
                 else:
                     schemaJson[key].append(element)
                     
         elif isinstance(value,dict): 
-            schemaJson = wikiJson2SchemaJsonRecursion(value, footerWikiJson)
+            schemaJson = wikiJson2SchemaJsonRecursion(schema, value, footerWikiJson)
             schemaJson['osl_template'] = key
         else:
             schemaJson[key] = value
 
-    for key in list(schemaJson.keys()):
-        if schemaJson[key] == "" and key == 'extensions': del schemaJson[key]
-        elif isinstance(schemaJson[key], list): #wikiJson defaults are lists, even for single or empty values
-            if len(schemaJson[key]) == 0: del schemaJson[key]
-            #elif len(schemaJson[key]) == 1: schemaJson[key] = schemaJson[key][0]
+
+    if 'osl_template' in schemaJson:
+        jsonpath_expr = parse('$..properties')#[?osl_template.default = "' + schemaJson['osl_template'] + '"]')
+        schema_def = {}
+        #print("Search for ", schemaJson['osl_template'])
+        for match in jsonpath_expr.find(schema):
+            value = match.value
+            if value['osl_template']['default'] == schemaJson['osl_template']:
+                schema_def = match.value
+                #print(schema_def)
+
+        for key in list(schemaJson.keys()):
+            if key in schema_def and 'type' in schema_def[key]: #use schema to resolve types
+                if schema_def[key]['type'] == 'integer': schemaJson[key] = int(schemaJson[key])
+                elif schema_def[key]['type'] == 'float': schemaJson[key] = float(schemaJson[key])
+                elif schema_def[key]['type'] == 'number': schemaJson[key] = float(schemaJson[key])
+                elif schema_def[key]['type'] == 'string': schemaJson[key] = str(schemaJson[key])
+                elif schema_def[key]['type'] == 'array':
+                    if not isinstance(schemaJson[key], list): del schemaJson[key]
+                    elif len(schemaJson[key]) == 0: del schemaJson[key]
+            else: #fall back
+                if schemaJson[key] == "" and key == 'extensions': del schemaJson[key]
+                elif isinstance(schemaJson[key], list): #wikiJson defaults are lists, even for single or empty values
+                    if len(schemaJson[key]) == 0: del schemaJson[key]
+                    #elif len(schemaJson[key]) == 1: schemaJson[key] = schemaJson[key][0]
 
     return schemaJson
 

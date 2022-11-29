@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from enum import Enum
 from pprint import pprint
 import copy
 import types
@@ -5,7 +8,7 @@ from jsonpath_ng.ext import parse
 from abc import ABCMeta, abstractmethod
 from pydantic import BaseModel, Field
 from pydantic.main import ModelMetaclass
-from typing import List, Optional, Any, Union, Literal
+from typing import ForwardRef, List, Optional, Any, Union, Literal
 import datetime
 from copy import deepcopy
 import os
@@ -109,24 +112,37 @@ class OSL(BaseModel):
             page.set_content(json.dumps(schema, indent=4))
             page.edit("add extension schema " + schema_registration.schema_name)
 
-    def fetch_schema(self, schema_title = "JsonSchema:KB/Entity", root = True):
+    class FetchSchemaMode(Enum):
+        append = "append" #append to the current model
+        replace = "replace" #replace the current model
+
+    @model._basemodel_decorator
+    class FetchSchemaParam(BaseModel):
+        schema_title: Optional[str] = "JsonSchema:KB/Entity"
+        root: Optional[bool] = True
+        mode: Optional[str] = 'replace' #type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+
+    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam):
+        schema_title = fetchSchemaParam.schema_title
+        root = fetchSchemaParam.root
         schema_name = schema_title.split(':')[-1]
         page = self.site.get_WtPage(schema_title)
         schema = json.loads(page._content.replace("$ref", "dollarref")) # '$' is a special char for root object in jsonpath
-        #print(schema)
+        print(f"Fetch {schema_title}")
 
         jsonpath_expr = parse("$..dollarref")
         for match in jsonpath_expr.find(schema):
             #value = "https://" + self.site._site.host + match.value
+            if match.value.startswith('#'): continue #skip self references
             ref_schema_title = match.value.replace("/wiki/","").split('?')[0]
             ref_schema_name = ref_schema_title.split(':')[-1] + ".json"
             value = ""
-            for i in range (0, ref_schema_name.count('/')): value += "../" #created relative path to top-level schema dir
+            for i in range (0, schema_name.count('/')): value += "../" #created relative path to top-level schema dir
             value += ref_schema_name #create a reference to a local file
             match.full_path.update_or_create(schema, value)
             #print(f"replace {match.value} with {value}")
             if (ref_schema_title != schema_title): #prevent recursion in case of self references
-                 self.fetch_schema(schema_title = ref_schema_title, root = False) #resolve references recursive
+                 self.fetch_schema(OSL.FetchSchemaParam(schema_title = ref_schema_title, root = False)) #resolve references recursive
 
         schema_path = "src/model/" + schema_name + ".json"
         os.makedirs(os.path.dirname(schema_path), exist_ok=True)
@@ -135,9 +151,11 @@ class OSL(BaseModel):
             #print(schema_str)
             f.write(schema_str)
 
-        model_path = schema_path.replace(".json", ".py")
+        #result_model_path = schema_path.replace(".json", ".py")
+        result_model_path = "src/model/KB/Entity.py"
+        temp_model_path = "src/model/temp.py"
         if (root): 
-            os.system(f"datamodel-codegen  --input {schema_path} --input-file-type jsonschema --output {model_path} \
+            os.system(f"datamodel-codegen  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
                 --base-class OslBaseModel \
                 --use-default \
                 --enum-field-as-literal one \
@@ -158,8 +176,15 @@ class OSL(BaseModel):
             #this is dirty, but required for autocompletion: https://stackoverflow.com/questions/62884543/pydantic-autocompletion-in-vs-code
             #idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
 
-            with open (model_path, 'r' ) as f:
-                content = f.read()
+            content = ""
+            with open (temp_model_path, 'r' ) as f:    
+                    content = f.read()
+            os.remove(temp_model_path)
+
+            content = re.sub(r"(import OslBaseModel)", "from pydantic import BaseModel", content, 1) #remove import statement
+
+            if fetchSchemaParam.mode == 'replace':
+
                 header = (  "from typing import TYPE_CHECKING\n"
                             "\n"
                             "if TYPE_CHECKING:\n"
@@ -176,25 +201,58 @@ class OSL(BaseModel):
                     "            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator \n"
                     "        return d\n"
                 )
-                content = re.sub(r"(import OslBaseModel)", "from pydantic import BaseModel", content, 1) #remove import statement
+
                 content = re.sub(r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)", header + r"\n\n\n\1", content, 1) #replace first match
                 content = re.sub(r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)", r"@_basemodel_decorator\n\1", content)
-            with open (model_path, 'w' ) as f:    
-                f.write(content)
+                with open (result_model_path, 'w' ) as f:    
+                    f.write(content)
+
+            if fetchSchemaParam.mode == 'append':
+                org_content = ""
+                with open (result_model_path, 'r' ) as f:    
+                    org_content = f.read()
+
+                pattern = re.compile(r"class\s*([\S]*)\s*\(\s*\S*\s*\)\s*:.*\n") #match class definition [\s\S]*(?:[^\S\n]*\n){2,}
+                for (cls) in re.findall(pattern, org_content):
+                    print(cls)
+                    content = re.sub(r"(class\s*" + cls + "\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})", "", content, count=1) #replace duplicated classes
+
+                content = re.sub(r"(from __future__ import annotations)", "", content, 1) #remove import statement
+                #print(content)
+                with open (result_model_path, 'a' ) as f:    
+                    f.write(content)
 
             importlib.reload(model) #reload the updated module
 
     def load_entity(self, entity_title):
         page = self.site.get_WtPage(entity_title)
-        json = wt.wikiJson2SchemaJson(page._dict)
-        #pprint(json)
+        osl_schema = 'JsonSchema:KB/Entity'
+        for key in page._dict[0]:
+            if key == 'osl_schema': osl_schema = page._dict[0][key]['osl_schema']
+        cls = osl_schema.split(':')[1].split('/')[-1] #better use schema['title]
+        #print(cls)
+        #schema = model.Entity.schema()
+        schema_str = ""
+        #schema_str = model.Entity.schema_json(indent=4)
+        schema_str = eval(f"model.{cls}.schema_json(indent=4)")
+        exec(f"schema_str = model.{cls}.schema_json(indent=4)")
+        #print(schema_str)
+        schema = json.loads(schema_str.replace("$ref", "dollarref"))
+        
+        schema_json = wt.wikiJson2SchemaJson(schema, page._dict)
+        pprint(schema_json)
         try:
             model.Device
         except AttributeError:
             print("Device not defined")
         else:
             print("Device defined")
-        entity = model.Entity(**json)
+
+        entity = None
+        #entity =  model.Entity(**schema_json)
+        #exec(f"entity = model.{cls}(**schema_json)")
+        entity = eval(f"model.{cls}(**schema_json)")
+
         return entity
 
     def store_entity(self, entity_title, entity):

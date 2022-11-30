@@ -8,3 +8,6 @@ reference for the technical implementation of the
 
 # osl
 ::: osl.OSL
+
+# model
+::: model.KB.Entity

@@ -6,5 +6,6 @@ plugins:
 
 nav:
     - Home: index.md
+    - reference.md
 
 theme: readthedocs

@@ -3,6 +3,4 @@ an **information-oriented** approach. Use it as a
 reference for the technical implementation of the
 `osl tools` project code.
 
-::: wiki_tools
-
 ::: osl.OSL

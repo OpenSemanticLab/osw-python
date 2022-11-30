@@ -1,0 +1,6 @@
+site_name: OpenSemanticLab Python Package (osl)
+site_url: https://OpenSemanticLab.github.io/Tools/
+nav:
+    - Home: index.md
+
+theme: readthedocs

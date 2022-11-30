@@ -19,10 +19,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.472b142f.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.08040f6c.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
         
       
       
@@ -260,19 +260,6 @@
     SchemaRegistration
   </a>
   
-    <nav class="md-nav" aria-label="SchemaRegistration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#osl.OSL.SchemaRegistration.model_cls" class="md-nav__link">
-    model_cls
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
@@ -342,19 +329,6 @@
   <a href="#osl.OSL.SchemaRegistration" class="md-nav__link">
     SchemaRegistration
   </a>
-  
-    <nav class="md-nav" aria-label="SchemaRegistration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#osl.OSL.SchemaRegistration.model_cls" class="md-nav__link">
-    model_cls
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -633,7 +607,13 @@
 <span class="normal">281</span>
 <span class="normal">282</span>
 <span class="normal">283</span>
-<span class="normal">284</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSL</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSL</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;OSL Class</span>
 <span class="sd">    &quot;&quot;&quot;</span>    
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -651,12 +631,18 @@
     <span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
     <span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        dataclass param of register_schema()</span>
+
+<span class="sd">        Attributes</span>
+<span class="sd">        ----------</span>
+<span class="sd">        model_cls: </span>
 <span class="sd">            the model class</span>
+<span class="sd">        schema_name: </span>
+<span class="sd">            the name of the schema</span>
+<span class="sd">        schema_bases:</span>
+<span class="sd">            list of base schemas (referenced by allOf)                    </span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            the name of the schema</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
         <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
 
@@ -899,7 +885,41 @@
         Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
 
   
-      <p>the model class</p>
+      <p>dataclass param of register_schema()</p>
+
+  <p><strong>Attributes:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>model_cls</code></td>
+          <td>
+                <code><span title="pydantic.main.ModelMetaclass">ModelMetaclass</span></code>
+          </td>
+          <td><p>the model class</p></td>
+        </tr>
+        <tr>
+          <td><code>schema_name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td><p>the name of the schema</p></td>
+        </tr>
+        <tr>
+          <td><code>schema_bases</code></td>
+          <td>
+                <code><span title="typing.List">List</span>[str]</code>
+          </td>
+          <td><p>list of base schemas (referenced by allOf)</p></td>
+        </tr>
+    </tbody>
+  </table>
 
 
         <details class="quote">
@@ -914,15 +934,27 @@
 <span class="normal">71</span>
 <span class="normal">72</span>
 <span class="normal">73</span>
-<span class="normal">74</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    dataclass param of register_schema()</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model_cls: </span>
 <span class="sd">        the model class</span>
+<span class="sd">    schema_name: </span>
+<span class="sd">        the name of the schema</span>
+<span class="sd">    schema_bases:</span>
+<span class="sd">        list of base schemas (referenced by allOf)                    </span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        the name of the schema</span>
-<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
@@ -937,27 +969,6 @@
 
 
 
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h3 id="osl.OSL.SchemaRegistration.model_cls" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span></code>
-  
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
-  </span>
-
-</h3>
-
-
-  <div class="doc doc-contents ">
-  
-      <p>the name of the schema</p>
-  </div>
-
-</div>
 
 
 
@@ -1010,13 +1021,7 @@
 
       <details class="quote">
         <summary>Source code in <code>src/osl.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 76</span>
-<span class="normal"> 77</span>
-<span class="normal"> 78</span>
-<span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
 <span class="normal"> 85</span>
@@ -1066,7 +1071,13 @@
 <span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
-<span class="normal">132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;registers a new or updated schema in OSL</span>
 
 <span class="sd">    Parameters</span>
@@ -1147,7 +1158,41 @@
         Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
 
   
-      <p>the model class</p>
+      <p>dataclass param of register_schema()</p>
+
+  <p><strong>Attributes:</strong></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td><code>model_cls</code></td>
+          <td>
+                <code><span title="pydantic.main.ModelMetaclass">ModelMetaclass</span></code>
+          </td>
+          <td><p>the model class</p></td>
+        </tr>
+        <tr>
+          <td><code>schema_name</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td><p>the name of the schema</p></td>
+        </tr>
+        <tr>
+          <td><code>schema_bases</code></td>
+          <td>
+                <code><span title="typing.List">List</span>[str]</code>
+          </td>
+          <td><p>list of base schemas (referenced by allOf)</p></td>
+        </tr>
+    </tbody>
+  </table>
 
 
         <details class="quote">
@@ -1162,15 +1207,27 @@
 <span class="normal">71</span>
 <span class="normal">72</span>
 <span class="normal">73</span>
-<span class="normal">74</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    dataclass param of register_schema()</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model_cls: </span>
 <span class="sd">        the model class</span>
+<span class="sd">    schema_name: </span>
+<span class="sd">        the name of the schema</span>
+<span class="sd">    schema_bases:</span>
+<span class="sd">        list of base schemas (referenced by allOf)                    </span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        the name of the schema</span>
-<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
@@ -1185,27 +1242,6 @@
 
 
 
-
-<div class="doc doc-object doc-attribute">
-
-
-
-<h2 id="osl.OSL.SchemaRegistration.model_cls" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span></code>
-  
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
-  </span>
-
-</h2>
-
-
-  <div class="doc doc-contents ">
-  
-      <p>the name of the schema</p>
-  </div>
-
-</div>
 
 
 
@@ -1293,8 +1329,9 @@ $pydantic: osl.OSL.SchemaRegistration</p>
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d6c3db9e.min.js"></script>
+      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
       
+    
     
   </body>
 </html>

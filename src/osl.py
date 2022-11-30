@@ -20,6 +20,10 @@ from src.wtsite import WtSite, WtPage
 import src.wiki_tools as wt
 import src.model.KB.Entity as model
 
+#class DeviceInstance(model.DeviceInstance):
+#    def print(self):
+#        print("CONTROLLER" + str(self.label))
+
 class AbstractEntity(BaseModel):
     name: str
     uuid: str
@@ -43,6 +47,8 @@ class OslClassMetaclass(ModelMetaclass):
         return new_cls
 
 class OSL(BaseModel):
+    """OSL Class
+    """    
     uuid: str = "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5"
     _protected_keywords = ('_osl_template', '_osl_footer') #private properties included in model export
     class Config:
@@ -57,11 +63,24 @@ class OSL(BaseModel):
 
     @model._basemodel_decorator
     class SchemaRegistration(BaseModel):
+        """
+            the model class
+        """
         model_cls: ModelMetaclass
+        """
+            the name of the schema
+        """
         schema_name: str
         schema_bases: List[str] = ["KB/Entity"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
+        """registers a new or updated schema in OSL
+
+        Parameters
+        ----------
+        schema_registration
+            see SchemaRegistration
+        """        
         page = self.site.get_WtPage("JsonSchema:" + schema_registration.schema_name)
 
         schema = json.loads(schema_registration.model_cls.schema_json(indent=4).replace("$ref", "dollarref"))
@@ -228,18 +247,17 @@ class OSL(BaseModel):
         page = self.site.get_WtPage(entity_title)
         osl_schema = 'JsonSchema:KB/Entity'
         for key in page._dict[0]:
-            if key == 'osl_schema': osl_schema = page._dict[0][key]['osl_schema']
-        cls = osl_schema.split(':')[1].split('/')[-1] #better use schema['title]
-        #print(cls)
-        #schema = model.Entity.schema()
-        schema_str = ""
-        #schema_str = model.Entity.schema_json(indent=4)
-        schema_str = eval(f"model.{cls}.schema_json(indent=4)")
-        exec(f"schema_str = model.{cls}.schema_json(indent=4)")
-        #print(schema_str)
+            if 'osl_schema' in page._dict[0][key]: osl_schema = page._dict[0][key]['osl_schema']
+        #cls = osl_schema.split(':')[1].split('/')[-1] #better use schema['title]
+        schema_str = self.site.get_WtPage(osl_schema).get_content()
         schema = json.loads(schema_str.replace("$ref", "dollarref"))
+        cls = schema['title']
+        #print(cls)
+        full_schema_str = eval(f"model.{cls}.schema_json(indent=4)")
+        full_schema = json.loads(full_schema_str.replace("$ref", "dollarref"))
+        #print(full_schema_str)
         
-        schema_json = wt.wikiJson2SchemaJson(schema, page._dict)
+        schema_json = wt.wikiJson2SchemaJson(full_schema, page._dict)
         pprint(schema_json)
         try:
             model.Device

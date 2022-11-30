@@ -5,10 +5,11 @@ plugins:
 - search
 plugins:
 - mkdocstrings:
-    docstring_style: numpy
     handlers:
       python:
         paths: [src]  # search packages in the src folder
+        options:
+          docstring_style: numpy
 
 
 nav:

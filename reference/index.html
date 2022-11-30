@@ -44,6 +44,178 @@
               <ul class="current">
                 <li class="toctree-l1 current"><a class="reference internal current" href="./">Reference</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools">wiki_tools</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.copy_list_of_wiki_pages">copy_list_of_wiki_pages()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.copy_list_of_wiki_pages--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.copy_list_of_wiki_pages--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.copy_wiki_page">copy_wiki_page()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.copy_wiki_page--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.copy_wiki_page--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.create_flat_content_structure_from_wikitext">create_flat_content_structure_from_wikitext()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.create_flat_content_structure_from_wikitext--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.create_flat_content_structure_from_wikitext--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.create_or_overwrite_wiki_page">create_or_overwrite_wiki_page()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.create_or_overwrite_wiki_page--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.create_or_overwrite_wiki_page--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.create_or_update_wiki_page_with_template">create_or_update_wiki_page_with_template()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.create_or_update_wiki_page_with_template--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.create_or_update_wiki_page_with_template--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.create_site_object">create_site_object()</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.delete_wiki_page">delete_wiki_page()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.delete_wiki_page--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.delete_wiki_page--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.edit_wiki_page_with_content_merge">edit_wiki_page_with_content_merge()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.edit_wiki_page_with_content_merge--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.edit_wiki_page_with_content_merge--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.extend_page_list_with_recursive_dependencies">extend_page_list_with_recursive_dependencies()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.extend_page_list_with_recursive_dependencies--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.extend_page_list_with_recursive_dependencies--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.find_dependencies">find_dependencies()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.find_dependencies--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.find_dependencies--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.find_dependencies_recursively">find_dependencies_recursively()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.find_dependencies_recursively--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.find_dependencies_recursively--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.get_wikitext_from_flat_content_dict">get_wikitext_from_flat_content_dict()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.get_wikitext_from_flat_content_dict--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.get_wikitext_from_flat_content_dict--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.get_wikitext_from_flat_content_structure">get_wikitext_from_flat_content_structure()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.get_wikitext_from_flat_content_structure--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.get_wikitext_from_flat_content_structure--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.merge_wiki_page_text">merge_wiki_page_text()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.merge_wiki_page_text--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.merge_wiki_page_text--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.prefix_search">prefix_search()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.prefix_search--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.prefix_search--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.schemaJson2WikiJson">schemaJson2WikiJson()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.schemaJson2WikiJson--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.schemaJson2WikiJson--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.search_redirection_sources">search_redirection_sources()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.search_redirection_sources--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.search_redirection_sources--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.search_wiki_page">search_wiki_page()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.search_wiki_page--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.search_wiki_page--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.semantic_search">semantic_search()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.semantic_search--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.semantic_search--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.update_template_within_wikitext">update_template_within_wikitext()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.update_template_within_wikitext--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.update_template_within_wikitext--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.wikiJson2SchemaJson">wikiJson2SchemaJson()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.wikiJson2SchemaJson--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.wikiJson2SchemaJson--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#wiki_tools.wikiJson2SchemaJsonRecursion">wikiJson2SchemaJsonRecursion()</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.wikiJson2SchemaJsonRecursion--parameters">Parameters</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wiki_tools.wikiJson2SchemaJsonRecursion--returns">Returns</a>
+    </li>
+        </ul>
+    </li>
     </ul>
                 </li>
               </ul>
@@ -74,6 +246,7 @@
 an <strong>information-oriented</strong> approach. Use it as a
 reference for the technical implementation of the
 <code>osl tools</code> project code.</p>
+<h1 id="wiki-tools">wiki-tools</h1>
 
 
 <div class="doc doc-object doc-module">
@@ -1664,7 +1837,8 @@ e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_footer": {"osl_tem
 
   </div>
 
-</div>
+</div><h1 id="osl">osl</h1>
+
 
 <div class="doc doc-object doc-class">
 

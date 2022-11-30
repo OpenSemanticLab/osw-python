@@ -3,7 +3,12 @@ site_url: https://OpenSemanticLab.github.io/Tools/
 
 plugins:
 - search
-- mkdocstrings
+plugins:
+- mkdocstrings:
+    handlers:
+      python:
+        paths: [src]  # search packages in the src folder
+
 
 nav:
     - Home: index.md

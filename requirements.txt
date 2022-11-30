@@ -3,3 +3,4 @@ mwclient
 mwparserfromhell
 SPARQLWrapper
 jsonpath-ng
+numpy

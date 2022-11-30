@@ -2,7 +2,8 @@ site_name: OpenSemanticLab Python Package (osl)
 site_url: https://OpenSemanticLab.github.io/Tools/
 
 plugins:
-    - mkdocstrings
+- search
+- mkdocstrings
 
 nav:
     - Home: index.md

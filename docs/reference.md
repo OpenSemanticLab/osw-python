@@ -10,4 +10,4 @@ reference for the technical implementation of the
 ::: osl.OSL
 
 # model
-::: model.KB.Entity
+::: model.KB.Entity.Entity

@@ -64,12 +64,18 @@ class OSL(BaseModel):
     @model._basemodel_decorator
     class SchemaRegistration(BaseModel):
         """
+        dataclass param of register_schema()
+
+        Attributes
+        ----------
+        model_cls: 
             the model class
+        schema_name: 
+            the name of the schema
+        schema_bases:
+            list of base schemas (referenced by allOf)                    
         """
         model_cls: ModelMetaclass
-        """
-            the name of the schema
-        """
         schema_name: str
         schema_bases: List[str] = ["KB/Entity"]
 

@@ -5,6 +5,3 @@ OpenSematicLab Class
 
 # OSL.SchemaRegistration
 ::: osl.OSL.SchemaRegistration
-
-**params**:
-$pydantic: osl.OSL.SchemaRegistration

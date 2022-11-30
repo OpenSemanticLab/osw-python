@@ -3,6 +3,7 @@ site_url: https://OpenSemanticLab.github.io/Tools/
 
 plugins:
   - mkdocstrings
+      default_handler: python
 
 nav:
     - Home: index.md

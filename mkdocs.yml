@@ -11,9 +11,6 @@ plugins:
         options:
           docstring_style: numpy
 
-markdown_extensions:
-- mdantic
-
 nav:
     - Home: index.md
     - tools.md

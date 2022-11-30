@@ -3,7 +3,7 @@ site_url: https://OpenSemanticLab.github.io/Tools/
 
 plugins:
 - search
-plugins:
+- autorefs
 - mkdocstrings:
     handlers:
       python:
@@ -14,6 +14,9 @@ plugins:
 
 nav:
     - Home: index.md
-    - reference.md
+    - tools.md
+    - osl.md
+    - model.md
 
-theme: readthedocs
+theme:
+  name: "material"

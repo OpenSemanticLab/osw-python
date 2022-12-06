@@ -1,2 +1,4 @@
 *.ipynb_checkpoints
 *.pwd
+__pycache__
+src/model/*

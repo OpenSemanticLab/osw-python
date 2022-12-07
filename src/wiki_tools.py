@@ -566,8 +566,8 @@ def schemaJson2WikiJson(schemaJson, isRoot = True):
                     wikiJson[2][footer_template]['extensions'].append(subWikiJson[2])
 
         elif isinstance(schemaJson[key], dict):
-            subWikiJson = schemaJson2WikiJson(subSchemaJson, False)
-            wikiJson[0][template][key] = subWikiJson[0]
+            subWikiJson = schemaJson2WikiJson(schemaJson[key], False)
+            wikiJson[0][template][key] = [subWikiJson[0]]
         else:
             wikiJson[0][template][key] = schemaJson[key]
 

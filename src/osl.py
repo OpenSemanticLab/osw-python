@@ -150,7 +150,8 @@ class OSL(BaseModel):
         root: Optional[bool] = True
         mode: Optional[str] = 'replace' #type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
-    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam):
+    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None):
+        if fetchSchemaParam == None: fetchSchemaParam = OSL.FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
         root = fetchSchemaParam.root
         schema_name = schema_title.split(':')[-1]
@@ -215,7 +216,8 @@ class OSL(BaseModel):
 
             if fetchSchemaParam.mode == 'replace':
 
-                header = (  "from typing import TYPE_CHECKING\n"
+                header = (  "from uuid import uuid4\n"
+                            "from typing import TYPE_CHECKING\n"
                             "\n"
                             "if TYPE_CHECKING:\n"
                             "    from dataclasses import dataclass as _basemodel_decorator\n"
@@ -232,8 +234,10 @@ class OSL(BaseModel):
                     "        return d\n"
                 )
 
+
                 content = re.sub(r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)", header + r"\n\n\n\1", content, 1) #replace first match
                 content = re.sub(r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)", r"@_basemodel_decorator\n\1", content)
+                content = re.sub(r"(UUID = Field\(...)", r"UUID = Field(default_factory=uuid4", content) #enable default value for uuid
                 with open (result_model_path, 'w' ) as f:    
                     f.write(content)
 

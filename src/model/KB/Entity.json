@@ -57,8 +57,7 @@
                 "options": {
                     "keep_oneof_values": false
                 },
-                "oneOf": [
-                ]
+                "oneOf": []
             }
         },
         "osl_wikitext": {

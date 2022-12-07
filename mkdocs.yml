@@ -16,6 +16,7 @@ nav:
     - tools.md
     - osl.md
     - model.md
+    - Development: dev.md
 
 theme:
   name: "material"

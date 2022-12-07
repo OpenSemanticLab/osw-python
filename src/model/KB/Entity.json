@@ -1,23 +1,27 @@
 {
+    "@context": {
+        "skos": "https://www.w3.org/TR/skos-reference/",
+        "property": "https://wiki-dev.open-semantic-lab.org/id/Property-3A",
+        "label_": "skos:prefLabel",
+        "label__": "property:HasLabel",
+        "test": "property:HasTestProperty"
+    },
     "title": "Entity",
     "type": "object",
     "id": "entity",
     "required": [
         "osl_template",
-        "osl_template_label",
-        "osl_footer"
+        "osl_wikitext",
+        "osl_footer",
+        "label"
     ],
     "properties": {
         "osl_template": {
             "type": "string",
+            "enum": [
+                "OslTemplate:KB/Entity"
+            ],
             "default": "OslTemplate:KB/Entity",
-            "options": {
-                "hidden": true
-            }
-        },
-        "osl_template_label": {
-            "type": "string",
-            "default": "Entity",
             "options": {
                 "hidden": true
             }
@@ -25,26 +29,23 @@
         "label": {
             "title": "Label",
             "description": "Human readable name",
-            "oneOf": [
-                {
-                    "type": "string"
-                },
-                {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            ]
+            "$ref": "../Label.json"
         },
-        "label_lang_code": {
-            "title": "Lang code",
-            "type": "string",
-            "enum": [
-                "en",
-                "de"
-            ],
-            "default": "en"
+        "additional_labels": {
+            "type": "array",
+            "title": "Additional Labels",
+            "format": "table",
+            "items": {
+                "$ref": "../Label.json"
+            }
+        },
+        "statements": {
+            "type": "array",
+            "title": "Statements",
+            "format": "tabs",
+            "items": {
+                "$ref": "../Statement.json"
+            }
         },
         "extensions": {
             "title": "Extensions",
@@ -57,9 +58,6 @@
                     "keep_oneof_values": false
                 },
                 "oneOf": [
-                    {
-                        "$ref": "../LIMS/Device.json"
-                    }
                 ]
             }
         },
@@ -69,12 +67,12 @@
             "options": {
                 "hidden": true
             },
-            "default": "=Details=\n"
+            "default": "\n=Details=\n"
         },
         "osl_footer": {
-            "title": "KB/Entity/Footer",
             "type": "object",
             "id": "footer",
+            "title": "KB/Entity/Footer",
             "options": {
                 "hidden": true
             },

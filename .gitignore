@@ -1,5 +1,6 @@
 *.ipynb_checkpoints
 *.pwd
+*.pwd.yaml
 __pycache__
 src/model/*
 venv

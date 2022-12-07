@@ -5,3 +5,4 @@ mwparserfromhell
 SPARQLWrapper
 jsonpath-ng
 numpy
+pyyaml

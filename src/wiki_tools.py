@@ -25,7 +25,7 @@ def create_site_object(domain, password_file=""):
         domain = domain_dict[domain]["Address"]
 
     site = mwclient.Site(domain, path='/w/')
-    
+
     if (password_file != ""):
         f=open(password_file,"r")
         lines=f.readlines()
@@ -492,18 +492,21 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson = 
         for match in jsonpath_expr.find(schema):
             value = match.value
             if value['osl_template']['default'] == schemaJson['osl_template']:
-                schema_def = match.value
+                schema_def = match.value #ToDo: Resolve allOf...
                 #print(schema_def)
 
         for key in list(schemaJson.keys()):
-            if key in schema_def and 'type' in schema_def[key]: #use schema to resolve types
-                if schema_def[key]['type'] == 'integer': schemaJson[key] = int(schemaJson[key])
-                elif schema_def[key]['type'] == 'float': schemaJson[key] = float(schemaJson[key])
-                elif schema_def[key]['type'] == 'number': schemaJson[key] = float(schemaJson[key])
-                elif schema_def[key]['type'] == 'string': schemaJson[key] = str(schemaJson[key])
-                elif schema_def[key]['type'] == 'array':
-                    if not isinstance(schemaJson[key], list): del schemaJson[key]
-                    elif len(schemaJson[key]) == 0: del schemaJson[key]
+            if key in schema_def:
+                if 'type' in schema_def[key]: #use schema to resolve types
+                    if schema_def[key]['type'] == 'integer': schemaJson[key] = int(schemaJson[key])
+                    elif schema_def[key]['type'] == 'float': schemaJson[key] = float(schemaJson[key])
+                    elif schema_def[key]['type'] == 'number': schemaJson[key] = float(schemaJson[key])
+                    elif schema_def[key]['type'] == 'string': schemaJson[key] = str(schemaJson[key])
+                    elif schema_def[key]['type'] == 'array':
+                        if not isinstance(schemaJson[key], list): del schemaJson[key]
+                        elif len(schemaJson[key]) == 0: del schemaJson[key]
+                else: #assume type==object
+                    if isinstance(schemaJson[key], list) and len(schemaJson[key]) == 1: schemaJson[key] = schemaJson[key][0]
             else: #fall back
                 if schemaJson[key] == "" and key == 'extensions': del schemaJson[key]
                 elif isinstance(schemaJson[key], list): #wikiJson defaults are lists, even for single or empty values

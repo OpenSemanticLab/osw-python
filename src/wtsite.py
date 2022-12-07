@@ -57,6 +57,13 @@ class WtPage:
             self._original_content = self._page.text()
             self._content = self._original_content
             self._dict = wt.create_flat_content_structure_from_wikitext(self._content, array_mode = 'only_multiple' )
+
+    def get_content(self):
+        return self._content
+
+    def set_content(self, content):
+        self._content = content
+        self.changed = True
             
     def append_template(self, template_name: str = None, template_params: dict = None):
         self._dict.append({template_name: template_params})

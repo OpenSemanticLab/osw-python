@@ -372,8 +372,7 @@
 
         <details class="quote">
           <summary>Source code in <code>src/osl.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 49</span>
-<span class="normal"> 50</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 50</span>
 <span class="normal"> 51</span>
 <span class="normal"> 52</span>
 <span class="normal"> 53</span>
@@ -613,7 +612,16 @@
 <span class="normal">287</span>
 <span class="normal">288</span>
 <span class="normal">289</span>
-<span class="normal">290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSL</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSL</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;OSL Class</span>
 <span class="sd">    &quot;&quot;&quot;</span>    
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -642,6 +650,8 @@
 <span class="sd">        schema_bases:</span>
 <span class="sd">            list of base schemas (referenced by allOf)                    </span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+            <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1">#allow any class as type</span>
         <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
         <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
         <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
@@ -714,7 +724,8 @@
         <span class="n">root</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;replace&#39;</span> <span class="c1">#type &#39;FetchSchemaMode&#39; requires: &#39;from __future__ import annotations&#39;</span>
 
-    <span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">fetchSchemaParam</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span> <span class="n">fetchSchemaParam</span> <span class="o">=</span> <span class="n">OSL</span><span class="o">.</span><span class="n">FetchSchemaParam</span><span class="p">()</span>
         <span class="n">schema_title</span> <span class="o">=</span> <span class="n">fetchSchemaParam</span><span class="o">.</span><span class="n">schema_title</span>
         <span class="n">root</span> <span class="o">=</span> <span class="n">fetchSchemaParam</span><span class="o">.</span><span class="n">root</span>
         <span class="n">schema_name</span> <span class="o">=</span> <span class="n">schema_title</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -736,7 +747,8 @@
             <span class="k">if</span> <span class="p">(</span><span class="n">ref_schema_title</span> <span class="o">!=</span> <span class="n">schema_title</span><span class="p">):</span> <span class="c1">#prevent recursion in case of self references</span>
                  <span class="bp">self</span><span class="o">.</span><span class="n">fetch_schema</span><span class="p">(</span><span class="n">OSL</span><span class="o">.</span><span class="n">FetchSchemaParam</span><span class="p">(</span><span class="n">schema_title</span> <span class="o">=</span> <span class="n">ref_schema_title</span><span class="p">,</span> <span class="n">root</span> <span class="o">=</span> <span class="kc">False</span><span class="p">))</span> <span class="c1">#resolve references recursive</span>
 
-        <span class="n">schema_path</span> <span class="o">=</span> <span class="s2">&quot;src/model/&quot;</span> <span class="o">+</span> <span class="n">schema_name</span> <span class="o">+</span> <span class="s2">&quot;.json&quot;</span>
+        <span class="n">model_dir_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)),</span><span class="s2">&quot;model&quot;</span><span class="p">)</span> <span class="c1">#src/model</span>
+        <span class="n">schema_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="n">schema_name</span> <span class="o">+</span> <span class="s2">&quot;.json&quot;</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">schema_path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">schema_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">schema_str</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;dollarref&quot;</span><span class="p">,</span> <span class="s2">&quot;$ref&quot;</span><span class="p">)</span>
@@ -744,10 +756,11 @@
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">schema_str</span><span class="p">)</span>
 
         <span class="c1">#result_model_path = schema_path.replace(&quot;.json&quot;, &quot;.py&quot;)</span>
-        <span class="n">result_model_path</span> <span class="o">=</span> <span class="s2">&quot;src/model/KB/Entity.py&quot;</span>
-        <span class="n">temp_model_path</span> <span class="o">=</span> <span class="s2">&quot;src/model/temp.py&quot;</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">root</span><span class="p">):</span> 
-            <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;datamodel-codegen  --input </span><span class="si">{</span><span class="n">schema_path</span><span class="si">}</span><span class="s2"> --input-file-type jsonschema --output </span><span class="si">{</span><span class="n">temp_model_path</span><span class="si">}</span><span class="s2"> </span><span class="se">\</span>
+        <span class="n">result_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;KB/Entity.py&quot;</span><span class="p">)</span>
+        <span class="n">temp_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;temp.py&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">root</span><span class="p">):</span>
+            <span class="n">exec_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">)),</span> <span class="s2">&quot;datamodel-codegen&quot;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">exec_path</span><span class="si">}</span><span class="s2">  --input </span><span class="si">{</span><span class="n">schema_path</span><span class="si">}</span><span class="s2"> --input-file-type jsonschema --output </span><span class="si">{</span><span class="n">temp_model_path</span><span class="si">}</span><span class="s2"> </span><span class="se">\</span>
 <span class="s2">                --base-class OslBaseModel </span><span class="se">\</span>
 <span class="s2">                --use-default </span><span class="se">\</span>
 <span class="s2">                --enum-field-as-literal one </span><span class="se">\</span>
@@ -777,7 +790,8 @@
 
             <span class="k">if</span> <span class="n">fetchSchemaParam</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;replace&#39;</span><span class="p">:</span>
 
-                <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>  <span class="s2">&quot;from typing import TYPE_CHECKING</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>  <span class="s2">&quot;from uuid import uuid4</span><span class="se">\n</span><span class="s2">&quot;</span>
+                            <span class="s2">&quot;from typing import TYPE_CHECKING</span><span class="se">\n</span><span class="s2">&quot;</span>
                             <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                             <span class="s2">&quot;if TYPE_CHECKING:</span><span class="se">\n</span><span class="s2">&quot;</span>
                             <span class="s2">&quot;    from dataclasses import dataclass as _basemodel_decorator</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -794,8 +808,10 @@
                     <span class="s2">&quot;        return d</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
 
+
                 <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)&quot;</span><span class="p">,</span> <span class="n">header</span> <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\n\n\n\1&quot;</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="c1">#replace first match</span>
                 <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;@_basemodel_decorator\n\1&quot;</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>
+                <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(UUID = Field\(...)&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;UUID = Field(default_factory=uuid4&quot;</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span> <span class="c1">#enable default value for uuid</span>
                 <span class="k">with</span> <span class="nb">open</span> <span class="p">(</span><span class="n">result_model_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span> <span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>    
                     <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
 
@@ -924,8 +940,7 @@
 
         <details class="quote">
           <summary>Source code in <code>src/osl.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">64</span>
-<span class="normal">65</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
@@ -940,7 +955,10 @@
 <span class="normal">77</span>
 <span class="normal">78</span>
 <span class="normal">79</span>
-<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    dataclass param of register_schema()</span>
@@ -954,6 +972,8 @@
 <span class="sd">    schema_bases:</span>
 <span class="sd">        list of base schemas (referenced by allOf)                    </span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+        <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1">#allow any class as type</span>
     <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
     <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
@@ -1021,10 +1041,7 @@
 
       <details class="quote">
         <summary>Source code in <code>src/osl.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
-<span class="normal"> 85</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 85</span>
 <span class="normal"> 86</span>
 <span class="normal"> 87</span>
 <span class="normal"> 88</span>
@@ -1077,7 +1094,10 @@
 <span class="normal">135</span>
 <span class="normal">136</span>
 <span class="normal">137</span>
-<span class="normal">138</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;registers a new or updated schema in OSL</span>
 
 <span class="sd">    Parameters</span>
@@ -1197,8 +1217,7 @@
 
         <details class="quote">
           <summary>Source code in <code>src/osl.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">64</span>
-<span class="normal">65</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
@@ -1213,7 +1232,10 @@
 <span class="normal">77</span>
 <span class="normal">78</span>
 <span class="normal">79</span>
-<span class="normal">80</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    dataclass param of register_schema()</span>
@@ -1227,6 +1249,8 @@
 <span class="sd">    schema_bases:</span>
 <span class="sd">        list of base schemas (referenced by allOf)                    </span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+        <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1">#allow any class as type</span>
     <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
     <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>

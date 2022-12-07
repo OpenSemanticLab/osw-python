@@ -2,3 +2,4 @@
 *.pwd
 __pycache__
 src/model/*
+venv

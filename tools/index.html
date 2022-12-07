@@ -428,6 +428,21 @@
   
 
     
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/" class="md-nav__link">
+        Development
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -3082,8 +3097,8 @@ e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"
                     <span class="n">wikiJson</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">footer_template</span><span class="p">][</span><span class="s1">&#39;extensions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subWikiJson</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
 
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schemaJson</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="n">subWikiJson</span> <span class="o">=</span> <span class="n">schemaJson2WikiJson</span><span class="p">(</span><span class="n">subSchemaJson</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-            <span class="n">wikiJson</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">template</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">subWikiJson</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">subWikiJson</span> <span class="o">=</span> <span class="n">schemaJson2WikiJson</span><span class="p">(</span><span class="n">schemaJson</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">wikiJson</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">template</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">subWikiJson</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">wikiJson</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">template</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">schemaJson</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
 

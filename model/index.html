@@ -281,6 +281,21 @@
   
 
     
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/" class="md-nav__link">
+        Development
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -364,9 +379,11 @@
 <span class="normal">75</span>
 <span class="normal">76</span>
 <span class="normal">77</span>
-<span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_basemodel_decorator</span>
+<span class="normal">78</span>
+<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">Entity</span><span class="p">(</span><span class="n">OslBaseModel</span><span class="p">):</span>
     <span class="n">osl_template</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s1">&#39;OslTemplate:KB/Entity&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="s1">&#39;OslTemplate:KB/Entity&#39;</span>
+    <span class="n">uuid</span><span class="p">:</span> <span class="n">UUID</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">uuid4</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;UUID&#39;</span><span class="p">)</span>
     <span class="n">label</span><span class="p">:</span> <span class="n">Label</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Label&#39;</span><span class="p">)</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Human readable name</span>
@@ -455,6 +472,21 @@
           </div>
         </a>
       
+      
+        
+        <a href="../dev/" class="md-footer__link md-footer__link--next" aria-label="Next: Development" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Development
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
       
     </nav>
   

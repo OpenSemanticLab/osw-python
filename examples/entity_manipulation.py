@@ -15,7 +15,9 @@ from datetime import date
 from pydantic import BaseModel, Field
 from typing import Optional
 
-wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "examples/wiki-admin.pwd") 
+#create/update the password file under examples/wiki-admin.pwd
+pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiki-admin.pwd")
+wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
 osl = OSL(site = wtsite)
 
 #mycat = Category(uuid = "b02b21b5-b1b3-479e-afc1-2c71ac35a0c1", name="MyCat")
@@ -66,7 +68,7 @@ pprint(entity2)
 #osl.register_schema(OSL.SchemaRegistration(model_cls=MyModel, schema_name="MyModel"))
 
 #import src.model.LIMS.Device.Type as model2
-dt = model.DeviceType(label="Test")
+dt = model.DeviceType(label=model.Label(label_text="Test"))
 #pprint(dt)
 #pprint(dt.json())
 

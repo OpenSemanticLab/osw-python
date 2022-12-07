@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from enum import Enum
 from pprint import pprint
 import copy
@@ -75,6 +76,8 @@ class OSL(BaseModel):
         schema_bases:
             list of base schemas (referenced by allOf)                    
         """
+        class Config:
+            arbitrary_types_allowed = True #allow any class as type
         model_cls: ModelMetaclass
         schema_name: str
         schema_bases: List[str] = ["KB/Entity"]
@@ -169,7 +172,8 @@ class OSL(BaseModel):
             if (ref_schema_title != schema_title): #prevent recursion in case of self references
                  self.fetch_schema(OSL.FetchSchemaParam(schema_title = ref_schema_title, root = False)) #resolve references recursive
 
-        schema_path = "src/model/" + schema_name + ".json"
+        model_dir_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"model") #src/model
+        schema_path = os.path.join(model_dir_path, schema_name + ".json")
         os.makedirs(os.path.dirname(schema_path), exist_ok=True)
         with open(schema_path, 'w', encoding='utf-8') as f:
             schema_str = json.dumps(schema, ensure_ascii=False, indent=4).replace("dollarref", "$ref")
@@ -177,10 +181,11 @@ class OSL(BaseModel):
             f.write(schema_str)
 
         #result_model_path = schema_path.replace(".json", ".py")
-        result_model_path = "src/model/KB/Entity.py"
-        temp_model_path = "src/model/temp.py"
-        if (root): 
-            os.system(f"datamodel-codegen  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
+        result_model_path = os.path.join(model_dir_path, "KB/Entity.py")
+        temp_model_path = os.path.join(model_dir_path, "temp.py")
+        if (root):
+            exec_path = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "datamodel-codegen")
+            os.system(f"{exec_path}  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
                 --base-class OslBaseModel \
                 --use-default \
                 --enum-field-as-literal one \

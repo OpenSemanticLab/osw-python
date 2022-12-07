@@ -1,3 +1,4 @@
+import yaml
 import mwclient
 import getpass
 import mwparserfromhell
@@ -26,12 +27,16 @@ def create_site_object(domain, password_file=""):
 
     site = mwclient.Site(domain, path='/w/')
 
-    if (password_file != ""):
-        f=open(password_file,"r")
-        lines=f.readlines()
-        user=lines[0].strip()
-        password=lines[1].strip()
-        f.close()
+    if password_file != "":
+        with open(password_file, "r") as stream:
+            try:
+                accounts = yaml.safe_load(stream)
+                for domain in accounts:
+                    if domain == domain:
+                        user = accounts[domain]['username']
+                        password = accounts[domain]['password']
+            except yaml.YAMLError as exc:
+                print(exc)
     else:
         user = input("Enter bot username (username@botname)")
         password = getpass.getpass("Enter bot password")

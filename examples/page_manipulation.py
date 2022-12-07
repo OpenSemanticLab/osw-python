@@ -4,7 +4,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #ad
 
 import src.wiki_tools as wt 
 from src.wtsite import WtSite, WtPage
-from pprint import pprint 
+from pprint import pprint
+
+pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
 
 def basic_text_manipulation():
     wikitext_org = """{{OslTemplate:LIMS/Device/Type
@@ -54,7 +56,7 @@ def basic_text_manipulation():
     print(wt.get_wikitext_from_flat_content_structure(content_dict_3))
     
 def mass_page_edit():
-    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "examples/wiki-admin.pwd")    
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
     #wtpage = wtsite.get_WtPage("LabNote:220601-sist-0001-ni")
     #wtpage = wtsite.get_WtPage("testesfesefsef")
     #wtpage.append_template("TestTemplate", {"p1": "v1"})
@@ -83,7 +85,7 @@ def mass_page_edit():
                                 , limit=1, comment="[bot] set id from title", log=True, dryrun=True)  
 
 def schema_renaming():
-    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", "examples/wiki-admin.pwd")    
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
     def modify(wtpage: WtPage):
         wtpage.content_replace("_osl_template", "osl_template")
         wtpage.content_replace("_osl_footer", "osl_footer")

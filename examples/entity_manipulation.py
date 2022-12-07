@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 #create/update the password file under examples/wiki-admin.pwd
-pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiki-admin.pwd")
+pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
 wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
 osl = OSL(site = wtsite)
 

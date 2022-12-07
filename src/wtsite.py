@@ -6,7 +6,7 @@ import mwclient
 from jsonpath_ng.ext import parse
 
 class WtSite:
-    
+
     def __init__(self, site: mwclient.Site = None):
         if site: self._site = site
         else: raise ValueError("Parameter 'site' is None")
@@ -64,6 +64,9 @@ class WtPage:
     def set_content(self, content):
         self._content = content
         self.changed = True
+
+    def get_url(self) -> str:
+        return "https://" + self.wtSite._site.host + "/wiki/" + self.title
             
     def append_template(self, template_name: str = None, template_params: dict = None):
         self._dict.append({template_name: template_params})

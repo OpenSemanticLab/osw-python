@@ -5,6 +5,8 @@ from enum import Enum
 from pprint import pprint
 import copy
 import types
+from uuid import UUID
+
 from jsonpath_ng.ext import parse
 from abc import ABCMeta, abstractmethod
 from pydantic import BaseModel, Field
@@ -61,6 +63,14 @@ class OSL(BaseModel):
         wtpage = self.site.get_WtPage(entity.title)
         
         pprint(wtpage)
+
+    @staticmethod
+    def get_osl_id(uuid: uuid) -> str:
+        return 'OSL' + str(uuid).replace('-', '')
+
+    @staticmethod
+    def get_uuid(osl_id) -> uuid:
+        return UUID(osl_id.replace('OSL', ''))
 
     @model._basemodel_decorator
     class SchemaRegistration(BaseModel):
@@ -249,7 +259,7 @@ class OSL(BaseModel):
                 pattern = re.compile(r"class\s*([\S]*)\s*\(\s*\S*\s*\)\s*:.*\n") #match class definition [\s\S]*(?:[^\S\n]*\n){2,}
                 for (cls) in re.findall(pattern, org_content):
                     print(cls)
-                    content = re.sub(r"(class\s*" + cls + "\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})", "", content, count=1) #replace duplicated classes
+                    content = re.sub(r"(class\s*" + cls + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})", "", content, count=1) #replace duplicated classes
 
                 content = re.sub(r"(from __future__ import annotations)", "", content, 1) #remove import statement
                 #print(content)
@@ -288,7 +298,8 @@ class OSL(BaseModel):
 
         return entity
 
-    def store_entity(self, entity_title, entity):
+    def store_entity(self, entity: model.Entity) -> None:
+        entity_title = "Term:" + OSL.get_osl_id(entity.uuid)
         page = self.site.get_WtPage(entity_title)
         schema_json = entity.full_dict()
         #print(json)
@@ -296,7 +307,9 @@ class OSL(BaseModel):
         #print(wiki_json)
         page._dict = wiki_json
         page.update_content()
+        #print(page.get_content())
         page.edit()
+        print("Entity stored at " + page.get_url())
     
 class AbstractCategory(AbstractEntity):
     ns: str = "Category"

@@ -13,6 +13,7 @@
         "osl_template",
         "osl_wikitext",
         "osl_footer",
+        "uuid",
         "label"
     ],
     "properties": {
@@ -22,6 +23,14 @@
                 "OslTemplate:KB/Entity"
             ],
             "default": "OslTemplate:KB/Entity",
+            "options": {
+                "hidden": true
+            }
+        },
+        "uuid": {
+            "title": "UUID",
+            "type": "string",
+            "format": "uuid",
             "options": {
                 "hidden": true
             }

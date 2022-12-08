@@ -688,7 +688,7 @@
             <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1">#allow any class as type</span>
         <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
         <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
-        <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
+        <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Entity&quot;</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;registers a new or updated schema in OSL</span>
@@ -754,7 +754,7 @@
 
     <span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
     <span class="k">class</span> <span class="nc">FetchSchemaParam</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-        <span class="n">schema_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;JsonSchema:KB/Entity&quot;</span>
+        <span class="n">schema_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;JsonSchema:Entity&quot;</span>
         <span class="n">root</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;replace&#39;</span> <span class="c1">#type &#39;FetchSchemaMode&#39; requires: &#39;from __future__ import annotations&#39;</span>
 
@@ -790,7 +790,7 @@
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">schema_str</span><span class="p">)</span>
 
         <span class="c1">#result_model_path = schema_path.replace(&quot;.json&quot;, &quot;.py&quot;)</span>
-        <span class="n">result_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;KB/Entity.py&quot;</span><span class="p">)</span>
+        <span class="n">result_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;Entity.py&quot;</span><span class="p">)</span>
         <span class="n">temp_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;temp.py&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">root</span><span class="p">):</span>
             <span class="n">exec_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">)),</span> <span class="s2">&quot;datamodel-codegen&quot;</span><span class="p">)</span>
@@ -868,7 +868,7 @@
 
     <span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">):</span>
         <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_WtPage</span><span class="p">(</span><span class="n">entity_title</span><span class="p">)</span>
-        <span class="n">osl_schema</span> <span class="o">=</span> <span class="s1">&#39;JsonSchema:KB/Entity&#39;</span>
+        <span class="n">osl_schema</span> <span class="o">=</span> <span class="s1">&#39;JsonSchema:Entity&#39;</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">page</span><span class="o">.</span><span class="n">_dict</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
             <span class="k">if</span> <span class="s1">&#39;osl_schema&#39;</span> <span class="ow">in</span> <span class="n">page</span><span class="o">.</span><span class="n">_dict</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">key</span><span class="p">]:</span> <span class="n">osl_schema</span> <span class="o">=</span> <span class="n">page</span><span class="o">.</span><span class="n">_dict</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">key</span><span class="p">][</span><span class="s1">&#39;osl_schema&#39;</span><span class="p">]</span>
         <span class="c1">#cls = osl_schema.split(&#39;:&#39;)[1].split(&#39;/&#39;)[-1] #better use schema[&#39;title]</span>
@@ -1013,7 +1013,7 @@
         <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1">#allow any class as type</span>
     <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
     <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
+    <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Entity&quot;</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -1290,7 +1290,7 @@
         <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span> <span class="c1">#allow any class as type</span>
     <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
     <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;KB/Entity&quot;</span><span class="p">]</span>
+    <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Entity&quot;</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
         </details>
 

@@ -496,7 +496,8 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson = 
         #print("Search for ", schemaJson['osl_template'])
         for match in jsonpath_expr.find(schema):
             value = match.value
-            if value['osl_template']['default'] == schemaJson['osl_template']:
+            if 'osl_template' in value and 'osl_template' in schemaJson and value['osl_template']['default'] == schemaJson['osl_template'] \
+            or 'osl_schema' in value and 'osl_schema' in schemaJson and value['osl_schema']['default'] == schemaJson['osl_schema']:
                 schema_def = match.value #ToDo: Resolve allOf...
                 #print(schema_def)
 

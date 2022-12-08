@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from enum import Enum
 from typing import Any, List, Optional
 from uuid import UUID
@@ -47,6 +48,7 @@ class Label(OslBaseModel):
     label_text: str = Field(..., title='Label')
     label_lang_code: Optional[LangCode] = Field('en', title='Lang code')
 
+from uuid import uuid4
 
 @_basemodel_decorator
 class Statement(OslBaseModel):

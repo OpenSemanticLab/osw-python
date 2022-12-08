@@ -21,7 +21,7 @@ import re
 
 from src.wtsite import WtSite, WtPage
 import src.wiki_tools as wt
-import src.model.KB.Entity as model
+import src.model.Entity as model
 
 #class DeviceInstance(model.DeviceInstance):
 #    def print(self):
@@ -90,7 +90,7 @@ class OSL(BaseModel):
             arbitrary_types_allowed = True #allow any class as type
         model_cls: ModelMetaclass
         schema_name: str
-        schema_bases: List[str] = ["KB/Entity"]
+        schema_bases: List[str] = ["Entity"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
         """registers a new or updated schema in OSL
@@ -156,7 +156,7 @@ class OSL(BaseModel):
 
     @model._basemodel_decorator
     class FetchSchemaParam(BaseModel):
-        schema_title: Optional[str] = "JsonSchema:KB/Entity"
+        schema_title: Optional[str] = "JsonSchema:Entity"
         root: Optional[bool] = True
         mode: Optional[str] = 'replace' #type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
@@ -192,7 +192,7 @@ class OSL(BaseModel):
             f.write(schema_str)
 
         #result_model_path = schema_path.replace(".json", ".py")
-        result_model_path = os.path.join(model_dir_path, "KB/Entity.py")
+        result_model_path = os.path.join(model_dir_path, "Entity.py")
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if (root):
             exec_path = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "datamodel-codegen")
@@ -270,7 +270,7 @@ class OSL(BaseModel):
 
     def load_entity(self, entity_title):
         page = self.site.get_WtPage(entity_title)
-        osl_schema = 'JsonSchema:KB/Entity'
+        osl_schema = 'JsonSchema:Entity'
         for key in page._dict[0]:
             if 'osl_schema' in page._dict[0][key]: osl_schema = page._dict[0][key]['osl_schema']
         #cls = osl_schema.split(':')[1].split('/')[-1] #better use schema['title]

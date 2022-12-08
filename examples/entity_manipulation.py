@@ -7,8 +7,9 @@ from src.osl import OSL, OslClassMetaclass
 from src.wtsite import WtSite
 from pprint import pprint 
 
-#from src.model.KB.Entity import *
-import src.model.KB.Entity as model
+#from src.model.Entity import *
+import src.model.Entity as model
+#from src.model.Entity import DeviceInstance
 from importlib import reload
 from datetime import date
 
@@ -52,9 +53,20 @@ else:
 
 #pprint(entity)
 #osl.store_entity(entity = entity, entity_title="Term:OSL9c64c51bd5fb4162bc1fa9e60468a09d" )
-
+    
+#import src.controller.DeviceType as crtl
+from src.controller.DeviceType import DeviceInstance
 entity2 = osl.load_entity("Term:OSL9c64c51bd5fb4162bc1fa9e60468a09e")
-pprint(entity2)
+#pprint(entity2)
+print(type(entity2))
+#ctrl = crtl.DeviceController(dev = entity2)
+#ctrl.print()
+
+entity2.print()
+entity2.getPlot()
+di= model.DeviceInstance(label="test")
+di.print()
+print(type(di))
 
 #create custom model
 #@model._basemodel_decorator

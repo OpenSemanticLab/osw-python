@@ -5,12 +5,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #ad
 from src.osl import OSL
 from src.wtsite import WtSite
 
-import src.model.KB.Entity as model
+import src.model.Entity as model
 from importlib import reload
 
 #create/update the password file under examples/accounts.pwd.yaml
-#pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
-pwd_file_path = "./accounts.pwd.yaml"
+pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
+#pwd_file_path = "./accounts.pwd.yaml"
 wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
 osl = OSL(site = wtsite)
 

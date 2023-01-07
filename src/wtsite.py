@@ -1,5 +1,6 @@
 # extents mwclient.site
 
+import json
 import sys
 import src.wiki_tools as wt 
 import mwclient
@@ -52,18 +53,41 @@ class WtPage:
         self.exists = self._page.exists
         self._original_content = ""
         self._content = ""
+        self.changed = False
         self._dict = []
+        self._slots = { 'main': "" }
+        self._slots_changed = { 'main': False}
+        self._content_model = {'main': "wikitext"}
+
         if self.exists: 
             self._original_content = self._page.text()
             self._content = self._original_content
             self._dict = wt.create_flat_content_structure_from_wikitext(self._content, array_mode = 'only_multiple' )
+            #multi content revisions
+            rev = wtSite._site.api('query', prop="revisions", titles=title, rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|slotsize", rvslots="*", rvlimit="1", format="json")
+            for page_id in rev["query"]["pages"]:
+                page = rev["query"]["pages"][page_id]
+                if page["title"] == title:
+                    for revision in page["revisions"]:
+                        for slot_key in revision["slots"]:
+                            self._slots[slot_key] = revision["slots"][slot_key]["*"]
+                            self._content_model[slot_key] = revision["slots"][slot_key]["contentmodel"]
+                            self._slots_changed[slot_key] = False
+                            if self._content_model[slot_key] == 'json': self._slots[slot_key] = json.loads(self._slots[slot_key])
 
     def get_content(self):
         return self._content
 
+    def get_slot_content(self, slot_key):
+        return self._slots[slot_key]
+
     def set_content(self, content):
         self._content = content
         self.changed = True
+
+    def set_slot_content(self, slot_key, content):
+        if (content != self._slots[slot_key]): self._slots_changed[slot_key] = True
+        self._slots[slot_key] = content
 
     def get_url(self) -> str:
         return "https://" + self.wtSite._site.host + "/wiki/" + self.title
@@ -115,7 +139,12 @@ class WtPage:
     
     def edit(self, comment: str = None):
         if not comment: comment = "[bot] update of page content"
-        if self.changed: self._page.edit(self._content, comment);
+        if self.changed: self._page.edit(self._content, comment)
+        for slot_key in self._slots:
+            if self._slots_changed[slot_key]:
+                content = self._slots[slot_key]
+                if (self._content_model[slot_key] == 'json'): content = json.dumps(content)
+                self.wtSite._site.api('editslot', token=self.wtSite._site.get_token('csrf'), title=self.title, slot=slot_key, text=content, summary=comment)
 
  
         

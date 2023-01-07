@@ -166,7 +166,11 @@ class OSL(BaseModel):
         root = fetchSchemaParam.root
         schema_name = schema_title.split(':')[-1]
         page = self.site.get_WtPage(schema_title)
-        schema = json.loads(page._content.replace("$ref", "dollarref")) # '$' is a special char for root object in jsonpath
+        if schema_title.startswith("Category:"):
+            schema_str = json.dumps(page.get_slot_content("jsonschema"))
+        else:
+            schema_str = page.get_content()
+        schema = json.loads(schema_str.replace("$ref", "dollarref")) # '$' is a special char for root object in jsonpath
         print(f"Fetch {schema_title}")
 
         jsonpath_expr = parse("$..dollarref")

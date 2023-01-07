@@ -9,7 +9,7 @@ from uuid import UUID
 
 from jsonpath_ng.ext import parse
 from abc import ABCMeta, abstractmethod
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 from typing import ForwardRef, List, Optional, Any, Union, Literal
 import datetime
@@ -90,7 +90,7 @@ class OSL(BaseModel):
             arbitrary_types_allowed = True #allow any class as type
         model_cls: ModelMetaclass
         schema_name: str
-        schema_bases: List[str] = ["Entity"]
+        schema_bases: List[str] = ["Category:Item"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
         """registers a new or updated schema in OSL
@@ -99,56 +99,83 @@ class OSL(BaseModel):
         ----------
         schema_registration
             see SchemaRegistration
-        """        
-        page = self.site.get_WtPage("JsonSchema:" + schema_registration.schema_name)
+        """
+        entity = schema_registration.model_cls
 
-        schema = json.loads(schema_registration.model_cls.schema_json(indent=4).replace("$ref", "dollarref"))
-        jsonpath_expr = parse('$..allOf')
-        #replace local definitions (#/definitions/...) with embedded definitions to prevent resolve errors in json-editor
-        for match in jsonpath_expr.find(schema):
-            result_array = []
-            for subschema in match.value:
-                pprint(subschema)
-                value = subschema['dollarref']
-                if value.startswith('#'):
-                    definition_jsonpath_expr = parse(value.replace('#','$').replace('/','.'))
-                    for def_match in definition_jsonpath_expr.find(schema):
-                        pprint(def_match.value)
-                        result_array.append(def_match.value)
-                else: result_array.append(subschema)
-            match.full_path.update_or_create(schema, result_array)
-        if 'definitions' in schema: del schema['definitions']
+        jsondata = {}
+        jsondata['label'] = {'text': schema_registration.schema_name, 'lang': 'en'}
+        jsondata['subclass_of'] = schema_registration.schema_bases
 
-        #replace 'osl_footer': {'allOf': [{...}]} with 'osl_footer': {...}
-        if 'allOf' in schema['properties']['osl_footer']: schema['properties']['osl_footer'] = schema['properties']['osl_footer']['allOf'][0] #directy attach single definition 
-        schema['properties']['osl_footer']['options'] = {"hidden": True} #don't show this field in the json-editor
-        if not 'required' in schema['properties']['osl_footer']: schema['properties']['osl_footer']['required'] = [] #add required property if missing
-        schema['properties']['osl_footer']['required'].extend(['osl_template'])
+        if issubclass(entity, BaseModel):
+            entity_title = "Category:" + OSL.get_osl_id(entity.__uuid__)
+            page = self.site.get_WtPage(entity_title)
 
-        schema['properties']['osl_template']['options'] = {"hidden": True} #don't show this field in the json-editor
-        schema['properties']['osl_template']['enum'] = [schema['properties']['osl_template']['default']] #a single-value enum represents a constant / literal
+            page.set_slot_content('jsondata', jsondata)
 
-        if not 'required' in schema: schema['required'] = []  #add required property if missing
-        schema['required'].extend(['osl_template', 'osl_footer']) 
+            #entity = ModelMetaclass(entity.__name__, (BaseModel,), dict(entity.__dict__)) #strips base classes but fiels are already importet
+            schema = json.loads(entity.schema_json(indent=4).replace("$ref", "dollarref"))
 
-        pprint(schema)
+            jsonpath_expr = parse('$..allOf')
+            # replace local definitions (#/definitions/...) with embedded definitions to prevent resolve errors in json-editor
+            for match in jsonpath_expr.find(schema):
+                result_array = []
+                for subschema in match.value:
+                    #pprint(subschema)
+                    value = subschema['dollarref']
+                    if value.startswith('#'):
+                        definition_jsonpath_expr = parse(value.replace('#', '$').replace('/', '.'))
+                        for def_match in definition_jsonpath_expr.find(schema):
+                            #pprint(def_match.value)
+                            result_array.append(def_match.value)
+                    else:
+                        result_array.append(subschema)
+                match.full_path.update_or_create(schema, result_array)
+            if 'definitions' in schema: del schema['definitions']
 
-        page.set_content(json.dumps(schema, indent=4).replace("dollarref", "$ref"))
-        page.edit("Create / update schema from pydantic BaseModel")
-        for base in schema_registration.schema_bases:
-            page = self.site.get_WtPage("JsonSchema:" + base)
-            schema = json.loads(page.get_content())
-            refs = schema['properties']['extensions']['items']['oneOf']
-            #pprint(refs)
-            schema_url = '/wiki/JsonSchema:' + schema_registration.schema_name + '?action=raw'
-            missing = True
-            for ref in refs:
-                if ref['$ref'] == schema_url: missing = False
-            print(missing)
-            if missing: refs.append({'$ref': schema_url})
-            #pprint(schema)
-            page.set_content(json.dumps(schema, indent=4))
-            page.edit("add extension schema " + schema_registration.schema_name)
+            if not 'allOf' in schema: schema['allOf'] = []
+            for base in schema_registration.schema_bases:
+                schema['allOf'].append({"$ref": f"/wiki/{base}?action=raw&slot=jsonschema"})
+
+            page.set_slot_content('jsonschema', schema)
+        else:
+            print("Error: Unsupported entity type")
+            return
+
+        page.edit()
+        print("Entity stored at " + page.get_url())
+
+    @model._basemodel_decorator
+    class SchemaUnregistration(BaseModel):
+        """
+        dataclass param of register_schema()
+
+        Attributes
+        ----------
+        model_cls:
+            the model class
+        schema_name:
+            the name of the schema
+        schema_bases:
+            list of base schemas (referenced by allOf)
+        """
+        class Config:
+            arbitrary_types_allowed = True #allow any class as type
+        model_cls: Optional[ModelMetaclass]
+        model_uuid: Optional[str]
+        comment: Optional[str]
+
+    def unregister_schema(self, schema_unregistration: SchemaUnregistration):
+        uuid = ""
+        if (schema_unregistration.model_uuid):
+            uuid = schema_unregistration.model_uuid
+        elif not uuid and schema_unregistration.model_cls and issubclass(schema_unregistration.model_cls, BaseModel):
+            uuid = schema_unregistration.model_cls.__uuid__
+        else:
+            print("Error: Neither model nor model id provided")
+
+        entity_title = "Category:" + OSL.get_osl_id(uuid)
+        page = self.site.get_WtPage(entity_title)
+        page.delete(schema_unregistration.comment)
 
     class FetchSchemaMode(Enum):
         append = "append" #append to the current model
@@ -273,47 +300,54 @@ class OSL(BaseModel):
             importlib.reload(model) #reload the updated module
 
     def load_entity(self, entity_title):
-        page = self.site.get_WtPage(entity_title)
-        osl_schema = 'JsonSchema:Entity'
-        for key in page._dict[0]:
-            if 'osl_schema' in page._dict[0][key]: osl_schema = page._dict[0][key]['osl_schema']
-        #cls = osl_schema.split(':')[1].split('/')[-1] #better use schema['title]
-        schema_str = self.site.get_WtPage(osl_schema).get_content()
-        schema = json.loads(schema_str.replace("$ref", "dollarref"))
-        cls = schema['title']
-        #print(cls)
-        full_schema_str = eval(f"model.{cls}.schema_json(indent=4)")
-        full_schema = json.loads(full_schema_str.replace("$ref", "dollarref"))
-        #print(full_schema_str)
-        
-        schema_json = wt.wikiJson2SchemaJson(full_schema, page._dict)
-        pprint(schema_json)
-        try:
-            model.Device
-        except AttributeError:
-            print("Device not defined")
-        else:
-            print("Device defined")
-
         entity = None
-        #entity =  model.Entity(**schema_json)
-        #exec(f"entity = model.{cls}(**schema_json)")
-        entity = eval(f"model.{cls}(**schema_json)")
+        schemas = []
+        page = self.site.get_WtPage(entity_title)
+        jsondata = page.get_slot_content('jsondata')
+        if (jsondata):
+            for category in jsondata['type']:
+                schema = self.site.get_WtPage(category).get_slot_content('jsonschema')
+                schemas.append(schema)
+
+        if len(schemas) == 0:
+            print("Error: no schema defined")
+
+        elif len(schemas) == 1:
+            cls = schemas[0]['title']
+            entity = eval(f"model.{cls}(**jsondata)")
+
+        else:
+            bases = []
+            for schema in schemas:
+                bases.append(eval("model." + schema['title']))
+            cls = create_model("Test", __base__=tuple(bases))
+            entity = cls(**jsondata)
 
         return entity
 
-    def store_entity(self, entity: model.Entity) -> None:
-        entity_title = "Term:" + OSL.get_osl_id(entity.uuid)
-        page = self.site.get_WtPage(entity_title)
-        schema_json = entity.full_dict()
-        #print(json)
-        wiki_json = wt.schemaJson2WikiJson(schema_json)
-        #print(wiki_json)
-        page._dict = wiki_json
-        page.update_content()
-        #print(page.get_content())
+    def store_entity(self, entity) -> None:
+        if isinstance(entity, model.Item):
+            entity_title = "Item:" + OSL.get_osl_id(entity.uuid)
+            page = self.site.get_WtPage(entity_title)
+            jsondata = json.loads(entity.json()) #use pydantic serialization
+            page.set_slot_content('jsondata', jsondata)
+        else:
+            print("Error: Unsupported entity type")
+            return
+
         page.edit()
         print("Entity stored at " + page.get_url())
+
+    def delete_entity(self, entity, comment: str = None):
+        if isinstance(entity, model.Item):
+            entity_title = "Item:" + OSL.get_osl_id(entity.uuid)
+            page = self.site.get_WtPage(entity_title)
+        else:
+            print("Error: Unsupported entity type")
+            return
+
+        page.delete(comment)
+        print("Entity deleted: " + page.get_url())
     
 class AbstractCategory(AbstractEntity):
     ns: str = "Category"

@@ -13,18 +13,23 @@ from src.osl import OSL
 from src.wtsite import WtSite
 
 import src.model.Entity as model
+from importlib import reload
 
 #create/update the password file under examples/accounts.pwd.yaml
 pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
 wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
 osl = OSL(site = wtsite)
 
-my_entity = model.Item(label=model.Label(text="MyItem"), statements=[model.Statement(predicate="IsA")])
-pprint(my_entity)
+class MyClass(BaseModel): #we don't inherit from model.Item here because this will trigger a full schema export
+    __uuid__: ClassVar[uuid4] = "35e4356e-b726-4c5b-b63f-620b301eb836"
+    my_value: str
 
-osl.store_entity(my_entity)
+osl.register_schema(osl.SchemaRegistration(model_cls=MyClass, schema_name="MyClass", schema_bases=["Category:Item"]))
 
-my_entity2 = osl.load_entity("Item:" + OSL.get_osl_id(my_entity.uuid))
-pprint(my_entity)
+osl.fetch_schema(osl.FetchSchemaParam(schema_title="Category:" + OSL.get_osl_id(MyClass.__uuid__), mode="append"))
+reload(model)
 
-osl.delete_entity(my_entity)
+my_instance = model.MyClass(label=model.Label(text="My Instance"), my_value="test")
+pprint(my_instance)
+
+

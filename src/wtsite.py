@@ -75,6 +75,11 @@ class WtPage:
                             self._slots_changed[slot_key] = False
                             if self._content_model[slot_key] == 'json': self._slots[slot_key] = json.loads(self._slots[slot_key])
 
+    def create_slot(self, slot_key, content_model):
+        self._slots[slot_key] = None
+        self._slots_changed[slot_key] = False
+        self._content_model[slot_key] = content_model
+
     def get_content(self):
         return self._content
 
@@ -86,6 +91,10 @@ class WtPage:
         self.changed = True
 
     def set_slot_content(self, slot_key, content):
+        if not slot_key in self._slots:
+            content_model = 'json'
+            if type(content) == str: content_model = 'wikitext'
+            self.create_slot(slot_key, content_model)
         if (content != self._slots[slot_key]): self._slots_changed[slot_key] = True
         self._slots[slot_key] = content
 
@@ -146,9 +155,5 @@ class WtPage:
                 if (self._content_model[slot_key] == 'json'): content = json.dumps(content)
                 self.wtSite._site.api('editslot', token=self.wtSite._site.get_token('csrf'), title=self.title, slot=slot_key, text=content, summary=comment)
 
- 
-        
-    
-        
-    
-
+    def delete(self, comment: str = None):
+        self._page.delete(comment)

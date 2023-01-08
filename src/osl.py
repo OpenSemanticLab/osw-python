@@ -1,4 +1,5 @@
 from __future__ import annotations
+import platform
 
 import sys
 from enum import Enum
@@ -226,7 +227,13 @@ class OSL(BaseModel):
         result_model_path = os.path.join(model_dir_path, "Entity.py")
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if (root):
-            exec_path = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "datamodel-codegen")
+            exec_name = "datamodel-codegen"
+            if (platform.system() == "Windows"): exec_name += ".exe"
+            exec_path = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), exec_name)
+            if not os.path.isfile(exec_path): exec_path = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "Scripts", exec_name)
+            if not os.path.isfile(exec_path): 
+                print("Error: datamodel-codegen not found")
+                return  
             os.system(f"{exec_path}  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
                 --base-class OslBaseModel \
                 --use-default \

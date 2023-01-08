@@ -189,6 +189,8 @@ class OSL(BaseModel):
         mode: Optional[str] = 'replace' #type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None):
+        site_cache_state = self.site.get_cache_enabled()
+        self.site.enable_cache()
         if fetchSchemaParam == None: fetchSchemaParam = OSL.FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
         root = fetchSchemaParam.root
@@ -305,6 +307,7 @@ class OSL(BaseModel):
                     f.write(content)
 
             importlib.reload(model) #reload the updated module
+            if not site_cache_state: self.site.disable_cache() #restore original state
 
     def load_entity(self, entity_title):
         entity = None

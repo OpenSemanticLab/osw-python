@@ -11,6 +11,8 @@ class WtSite:
     def __init__(self, site: mwclient.Site = None):
         if site: self._site = site
         else: raise ValueError("Parameter 'site' is None")
+        self._page_cache = {}
+        self._cache_enabled = False
         
     @classmethod
     def from_domain(cls, domain: str = None, password_file: str = None):
@@ -18,8 +20,24 @@ class WtSite:
         return cls(site)
     
     def get_WtPage(self, title: str = None):
-        wtpage = WtPage(self, title)
+        if self._cache_enabled and title in self._page_cache: return self._page_cache[title]
+        else: 
+            wtpage = WtPage(self, title)
+            if self._cache_enabled: self._page_cache[title] = wtpage
         return wtpage
+
+    def enable_cache(self):
+        self._cache_enabled = True
+
+    def disable_cache(self):
+        self._cache_enabled = False
+
+    def get_cache_enabled(self):
+        return self._cache_enabled
+
+    def clear_cache(self):
+        del self._page_cache
+        self._page_cache = {}
     
     def prefix_search(self, text):
         return wt.prefix_search(self._site, text)

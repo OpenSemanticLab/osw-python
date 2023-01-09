@@ -20,9 +20,9 @@ import json
 import importlib
 import re
 
-from src.wtsite import WtSite, WtPage
-import src.wiki_tools as wt
-import src.model.Entity as model
+from osw.wtsite import WtSite, WtPage
+import osw.wiki_tools as wt
+import osw.model.Entity as model
 
 #class DeviceInstance(model.DeviceInstance):
 #    def print(self):

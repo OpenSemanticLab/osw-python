@@ -1,15 +1,14 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #add parent dir to path
 
-from src.osl import OSL, OslClassMetaclass
-#import src.osl as osl
-from src.wtsite import WtSite
+from osw.osl import OSL, OslClassMetaclass
+#import osw.osl as osl
+from osw.wtsite import WtSite
 from pprint import pprint 
 
-#from src.model.Entity import *
-import src.model.Entity as model
-#from src.model.Entity import DeviceInstance
+#from osw.model.Entity import *
+import osw.model.Entity as model
+#from osw.model.Entity import DeviceInstance
 from importlib import reload
 from datetime import date
 

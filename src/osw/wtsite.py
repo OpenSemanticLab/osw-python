@@ -2,7 +2,7 @@
 
 import json
 import sys
-import src.wiki_tools as wt 
+import osw.wiki_tools as wt 
 import mwclient
 from jsonpath_ng.ext import parse
 

@@ -2,9 +2,7 @@ import sys
 import os
 from uuid import UUID
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #add parent dir to path
-
-from src.osl import OSL
+from osw.osl import OSL
 
 def test_osl_id_to_uuid():
     osl_id = "OSL2ea5b605c91f4e5a95593dff79fdd4a5"

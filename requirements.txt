@@ -1,8 +1,0 @@
-pydantic
-datamodel-code-generator
-mwclient
-mwparserfromhell
-SPARQLWrapper
-jsonpath-ng
-numpy
-pyyaml

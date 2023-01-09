@@ -1,9 +1,8 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #add parent dir to path
 
-import src.wiki_tools as wt 
-from src.wtsite import WtSite, WtPage
+import osw.wiki_tools as wt 
+from osw.wtsite import WtSite, WtPage
 from pprint import pprint
 
 pwd_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")

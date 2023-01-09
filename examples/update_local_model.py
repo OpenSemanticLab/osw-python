@@ -1,11 +1,10 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #add parent dir to path
 
-from src.osl import OSL
-from src.wtsite import WtSite
+from osw.osl import OSL
+from osw.wtsite import WtSite
 
-import src.model.Entity as model
+import osw.model.Entity as model
 from importlib import reload
 
 #create/update the password file under examples/accounts.pwd.yaml

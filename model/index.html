@@ -71,7 +71,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#model.Entity.Entity" class="md-skip">
+        <a href="#osw.model.Entity.Entity" class="md-skip">
           Skip to content
         </a>
       
@@ -265,14 +265,14 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#model.Entity.Entity" class="md-nav__link">
-    model.Entity.Entity
+  <a href="#osw.model.Entity.Entity" class="md-nav__link">
+    osw.model.Entity.Entity
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#model.Entity.Entity.label" class="md-nav__link">
+  <a href="#osw.model.Entity.Entity.label" class="md-nav__link">
     label
   </a>
   
@@ -326,14 +326,14 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#model.Entity.Entity" class="md-nav__link">
-    model.Entity.Entity
+  <a href="#osw.model.Entity.Entity" class="md-nav__link">
+    osw.model.Entity.Entity
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#model.Entity.Entity.label" class="md-nav__link">
+  <a href="#osw.model.Entity.Entity.label" class="md-nav__link">
     label
   </a>
   
@@ -363,38 +363,38 @@
 <div class="doc doc-object doc-class">
 
 
-<a id="model.Entity.Entity"></a>
+<a id="osw.model.Entity.Entity"></a>
   <div class="doc doc-contents first">
       <p class="doc doc-class-bases">
-        Bases: <code><span title="model.Entity.OslBaseModel">OslBaseModel</span></code></p>
+        Bases: <code><span title="osw.model.Entity.OslBaseModel">OslBaseModel</span></code></p>
 
 
 
         <details class="quote">
-          <summary>Source code in <code>model/Entity.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">61</span>
+          <summary>Source code in <code>osw/model/Entity.py</code></summary>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
 <span class="normal">62</span>
 <span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span>
-<span class="normal">70</span>
-<span class="normal">71</span>
-<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_basemodel_decorator</span>
+<span class="normal">68</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">Entity</span><span class="p">(</span><span class="n">OslBaseModel</span><span class="p">):</span>
-    <span class="n">uuid</span><span class="p">:</span> <span class="n">UUID</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">uuid4</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;UUID&#39;</span><span class="p">)</span>
-    <span class="n">label</span><span class="p">:</span> <span class="n">Label</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Label&#39;</span><span class="p">)</span>
+    <span class="n">uuid</span><span class="p">:</span> <span class="n">UUID</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">uuid4</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;UUID&quot;</span><span class="p">)</span>
+    <span class="n">label</span><span class="p">:</span> <span class="n">Label</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Human readable name</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">query_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Label&#39;</span><span class="p">)</span>
-    <span class="n">additional_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Additional Labels&#39;</span><span class="p">)</span>
-    <span class="n">image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Image&#39;</span><span class="p">)</span>
-    <span class="n">statements</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Statement</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Statements&#39;</span><span class="p">)</span>
-    <span class="n">extensions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Extensions&#39;</span><span class="p">)</span>
+    <span class="n">query_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">)</span>
+    <span class="n">additional_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Additional Labels&quot;</span><span class="p">)</span>
+    <span class="n">image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Image&quot;</span><span class="p">)</span>
+    <span class="n">statements</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Statement</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Statements&quot;</span><span class="p">)</span>
+    <span class="n">extensions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Extensions&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -412,7 +412,7 @@
 
 
 
-<h2 id="model.Entity.Entity.label" class="doc doc-heading">
+<h2 id="osw.model.Entity.Entity.label" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">label</span><span class="p">:</span> <span class="n">Label</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="bp">Ellipsis</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Label&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">

@@ -18,6 +18,9 @@
 
 > Python toolset for data processing, queries, wikicode generation and page manipulation
 
+## Documentation
+
+https://github.com/OpenSemanticLab/osw-python
 
 <!-- pyscaffold-notes -->
 

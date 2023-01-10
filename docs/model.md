@@ -1,3 +1,3 @@
 OpenSematicLab Model
 
-::: model.Entity.Entity
+::: osw.model.Entity.Entity

@@ -1,3 +1,3 @@
 Collection of helper functions
 
-::: wiki_tools
+::: osw.wiki_tools

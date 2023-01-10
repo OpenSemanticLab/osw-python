@@ -1,7 +1,7 @@
 OpenSematicLab Class
 
 # OSL
-::: osl.OSL
+::: osw.osl.OSL
 
 # OSL.SchemaRegistration
-::: osl.OSL.SchemaRegistration
+::: osw.osl.OSL.SchemaRegistration

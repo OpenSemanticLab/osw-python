@@ -1,3 +1,3 @@
 OpenSematicLab Model
 
-::: model.KB.Entity.Entity
+::: model.Entity.Entity

@@ -4,3 +4,8 @@
 # sphinx_rtd_theme
 myst-parser[linkify]
 sphinx>=3.2.1
+
+mkdocs
+mkdocs-gen-files
+mkdocstrings[python]
+mkdocs-material

@@ -20,7 +20,7 @@
 
 ## Documentation
 
-https://github.com/OpenSemanticLab/osw-python
+https://opensemanticlab.github.io/osw-python/
 
 <!-- pyscaffold-notes -->
 

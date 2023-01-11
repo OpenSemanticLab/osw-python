@@ -788,7 +788,10 @@
 <span class="normal">439</span>
 <span class="normal">440</span>
 <span class="normal">441</span>
-<span class="normal">442</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSL</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSL</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;OSL Class&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -1001,7 +1004,7 @@
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">schema_str</span><span class="p">)</span>
 
         <span class="c1"># result_model_path = schema_path.replace(&quot;.json&quot;, &quot;.py&quot;)</span>
-        <span class="n">result_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;Entity.py&quot;</span><span class="p">)</span>
+        <span class="n">result_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;entity.py&quot;</span><span class="p">)</span>
         <span class="n">temp_model_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">model_dir_path</span><span class="p">,</span> <span class="s2">&quot;temp.py&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">root</span><span class="p">:</span>
             <span class="n">exec_name</span> <span class="o">=</span> <span class="s2">&quot;datamodel-codegen&quot;</span>
@@ -1055,21 +1058,24 @@
 
                 <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="s2">&quot;from uuid import uuid4</span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;from typing import TYPE_CHECKING</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;from typing import TYPE_CHECKING, Type, TypeVar</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;if TYPE_CHECKING:</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;    from dataclasses import dataclass as _basemodel_decorator</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;else:</span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;    _basemodel_decorator = lambda x: x</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;    _basemodel_decorator = lambda x: x   # noqa: E731</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="n">header</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">T = TypeVar(&#39;T&#39;, bound=BaseModel)</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">class OslBaseModel(BaseModel):</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;    def full_dict(self, **kwargs): #extent BaseClass export function</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;        d = super().dict(**kwargs)</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;        for key in &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_protected_keywords</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator </span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;        return d</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;        return d</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;    def cast(self, cls: Type[T]) -&gt; T:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;       return cls(**self.dict())</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
 
                 <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
@@ -1121,7 +1127,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">site_cache_state</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">disable_cache</span><span class="p">()</span>  <span class="c1"># restore original state</span>
 
-    <span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
         <span class="n">entity</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">schemas</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_WtPage</span><span class="p">(</span><span class="n">entity_title</span><span class="p">)</span>

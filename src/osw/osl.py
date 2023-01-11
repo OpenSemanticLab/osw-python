@@ -15,7 +15,7 @@ from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
-import osw.model.Entity as model
+import osw.model.entity as model
 from osw.wtsite import WtSite
 
 # class DeviceInstance(model.DeviceInstance):
@@ -271,7 +271,7 @@ class OSL(BaseModel):
             f.write(schema_str)
 
         # result_model_path = schema_path.replace(".json", ".py")
-        result_model_path = os.path.join(model_dir_path, "Entity.py")
+        result_model_path = os.path.join(model_dir_path, "entity.py")
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if root:
             exec_name = "datamodel-codegen"
@@ -325,21 +325,24 @@ class OSL(BaseModel):
 
                 header = (
                     "from uuid import uuid4\n"
-                    "from typing import TYPE_CHECKING\n"
+                    "from typing import TYPE_CHECKING, Type, TypeVar\n"
                     "\n"
                     "if TYPE_CHECKING:\n"
                     "    from dataclasses import dataclass as _basemodel_decorator\n"
                     "else:\n"
-                    "    _basemodel_decorator = lambda x: x\n"
+                    "    _basemodel_decorator = lambda x: x   # noqa: E731\n"
                     "\n"
                 )
                 header += (
+                    "\nT = TypeVar('T', bound=BaseModel)\n"
                     "\nclass OslBaseModel(BaseModel):\n"
                     "    def full_dict(self, **kwargs): #extent BaseClass export function\n"
                     "        d = super().dict(**kwargs)\n"
                     "        for key in " + str(self._protected_keywords) + ":\n"
                     "            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator \n"
-                    "        return d\n"
+                    "        return d\n\n"
+                    "    def cast(self, cls: Type[T]) -> T:\n"
+                    "       return cls(**self.dict())\n"
                 )
 
                 content = re.sub(
@@ -391,7 +394,7 @@ class OSL(BaseModel):
             if not site_cache_state:
                 self.site.disable_cache()  # restore original state
 
-    def load_entity(self, entity_title):
+    def load_entity(self, entity_title) -> model.Entity:
         entity = None
         schemas = []
         page = self.site.get_WtPage(entity_title)

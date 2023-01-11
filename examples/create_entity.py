@@ -1,6 +1,6 @@
 from pprint import pprint
 
-import osw.model.Entity as model
+import osw.model.entity as model
 
 my_entity = model.Item(
     label=model.Label(text="MyItem"), statements=[model.Statement(predicate="IsA")]

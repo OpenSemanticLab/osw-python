@@ -1,5 +1,6 @@
 import os
 
+import osw.model.entity as model
 from osw.osl import OSL
 from osw.wtsite import WtSite
 
@@ -15,4 +16,7 @@ title = "Item:OSL7d7193567ea14e4e89b74de88983b718"
 # title = "Item:OSLe02213b6c4664d04834355dc8eb08b99"
 entity = osl.load_entity(title)
 print(entity.__class__)
-print(entity)
+print(entity.label.text)  # we can access any attribute of model.Entity
+
+hardware_entity = entity.cast(model.Hardware)  # explicit cast to model.Hardware
+print(hardware_entity.manufacturer)  # we can access now any attribute of model.Entity

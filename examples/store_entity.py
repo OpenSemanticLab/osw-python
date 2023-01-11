@@ -1,7 +1,7 @@
 import os
 from pprint import pprint
 
-import osw.model.Entity as model
+import osw.model.entity as model
 from osw.osl import OSL
 from osw.wtsite import WtSite
 

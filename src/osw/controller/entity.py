@@ -16,3 +16,9 @@ class Hardware(model.Hardware, Entity):
 
 
 # model.Hardware = Hardware
+
+
+class DbController(model.Database):
+    def create_table(self):
+        connection_str = self.db_server
+        return connection_str

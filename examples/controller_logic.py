@@ -3,7 +3,7 @@ import os
 from typing_extensions import override
 
 from osw.controller.entity import Entity, Hardware
-from osw.osl import OSL
+from osw.core import OSW
 from osw.wtsite import WtSite
 
 # create/update the password file under examples/accounts.pwd.yaml
@@ -12,11 +12,11 @@ pwd_file_path = os.path.join(
 )
 # pwd_file_path = "./accounts.pwd.yaml"
 wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
-osl = OSL(site=wtsite)
+osw = OSW(site=wtsite)
 
-title = "Item:OSL7d7193567ea14e4e89b74de88983b718"
-# title = "Item:OSLe02213b6c4664d04834355dc8eb08b99"
-entity = osl.load_entity(title).cast(Entity)
+title = "Item:OSW7d7193567ea14e4e89b74de88983b718"
+# title = "Item:OSWe02213b6c4664d04834355dc8eb08b99"
+entity = osw.load_entity(title).cast(Entity)
 print(entity.__class__)
 print(entity.label.text)  # we can access any attribute of model.Entity...
 entity.explain()  # ...and any methode of controller.Entity

@@ -1,4 +1,6 @@
+import json
 import os
+from datetime import datetime
 from pprint import pprint
 
 import osw.wiki_tools as wt
@@ -18,13 +20,13 @@ def basic_text_manipulation():
     |label_lang_code=en
     |description=Some description
     with line break
-    |category=Category:OSLa444b0eeb79140d58a836a7fc6fc940a
+    |category=Category:OSWa444b0eeb79140d58a836a7fc6fc940a
     |relations={{OslTemplate:KB/Relation
     |property=IsRelatedTo
-    |value=Term:OSL6b663c61c12d42e8be37d735dd2a869c
+    |value=Term:OSW6b663c61c12d42e8be37d735dd2a869c
     }}SomeText{{OslTemplate:KB/Relation
     |property=IsRelatedTo
-    |value=Term:OSL6b663c61c12d42e8be37d735dd2a869c
+    |value=Term:OSW6b663c61c12d42e8be37d735dd2a869c
     }}
     }}
     =Details=
@@ -116,5 +118,105 @@ def schema_renaming():
     )
 
 
+def slot_default_values():
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
+
+    def modify(wtpage: WtPage):
+        edit = True
+        # print(wtpage.get_last_changed_time())
+        # if wtpage.get_last_changed_time() > datetime.fromisoformat('2023-01-15T12:00:00+00:00'):
+        #    print("new")
+        # else:
+        #    print("old")
+        #    edit = False
+        if edit:
+            if wtpage.get_slot_content("header") != "{{#invoke:Entity|header}}":
+                wtpage.set_slot_content("header", "{{#invoke:Entity|header}}")
+            if wtpage.get_slot_content("footer") != "{{#invoke:Entity|footer}}":
+                wtpage.set_slot_content("footer", "{{#invoke:Entity|footer}}")
+
+    wtsite.modify_search_results(
+        "prefix",
+        "Item:",
+        # "semantic",
+        # "[[IsA::Category:Category]]",
+        modify,
+        limit=300,
+        comment="set default content of slot header and footer",
+        log=True,
+        dryrun=False,
+    )
+
+
+def text_replace():
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
+
+    def modify(wtpage: WtPage):
+        edit = True
+        if "#" in wtpage.title:
+            edit = False
+        if wtpage._page.redirect:
+            edit = False
+        if edit:
+            for slot in wtpage._slots:
+                content = wtpage.get_slot_content(slot)
+                if isinstance(content, dict):
+                    content = json.loads(json.dumps(content).replace("OSL", "OSW"))
+                else:
+                    content = content.replace("OSL", "OSW")
+                wtpage.set_slot_content(slot, content)
+
+    wtsite.modify_search_results(
+        "semantic",
+        # "[[IsA::Category:Category]]",
+        "[[Item:+]]",
+        # "prefix",
+        # "Item:OSW",
+        modify,
+        limit=100,
+        comment="replace OSL with OSW",
+        log=True,
+        dryrun=False,
+    )
+
+
+def move_page():
+    wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
+
+    def modify(wtpage: WtPage):
+        edit = True
+        # print(wtpage.get_last_changed_time())
+        if wtpage.get_last_changed_time() > datetime.fromisoformat(
+            "2022-12-24T12:00:00+00:00"
+        ):
+            print("new")
+        else:
+            print("old")
+            edit = False
+        if "#" in wtpage.title:
+            edit = False
+        if wtpage._page.redirect:
+            edit = False
+        if edit:
+            new_title = wtpage.title.replace("OSL", "OSW")
+            wtpage.move(new_title=new_title, comment="replace OSL with OSW")
+
+    wtsite.modify_search_results(
+        "semantic",
+        # "[[IsA::Category:Category]]",
+        "[[~*File:OSL*]]",
+        # "prefix",
+        # "File:OSL",
+        modify,
+        limit=1000,
+        comment="replace OSL with OSW",
+        log=False,
+        dryrun=True,
+    )
+
+
 # mass_page_edit()
-schema_renaming()
+# schema_renaming()
+# slot_default_values()
+# text_replace()
+move_page()

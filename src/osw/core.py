@@ -7,7 +7,6 @@ import platform
 import re
 import sys
 from enum import Enum
-from pprint import pprint
 from typing import List, Optional
 from uuid import UUID
 
@@ -18,19 +17,8 @@ from pydantic.main import ModelMetaclass
 import osw.model.entity as model
 from osw.wtsite import WtSite
 
-# class DeviceInstance(model.DeviceInstance):
-#    def print(self):
-#        print("CONTROLLER" + str(self.label))
 
-
-class AbstractEntity(BaseModel):
-    name: str
-    uuid: str
-    ns: str
-    title: Optional[str] = None
-
-
-class OslClassMetaclass(ModelMetaclass):
+class OswClassMetaclass(ModelMetaclass):
     def __new__(cls, name, bases, dic, osl_template, osl_footer_template):
         base_footer_cls = type(
             dic["__qualname__"] + "Footer",
@@ -58,8 +46,8 @@ class OslClassMetaclass(ModelMetaclass):
         return new_cls
 
 
-class OSL(BaseModel):
-    """OSL Class"""
+class OSW(BaseModel):
+    """OSW Class"""
 
     uuid: str = "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5"
     _protected_keywords = (
@@ -72,20 +60,13 @@ class OSL(BaseModel):
 
     site: WtSite
 
-    def sync(self, entity: AbstractEntity):
-        if not entity.title:
-            entity.title = entity.ns + ":OSL" + entity.uuid.replace("-", "")
-        wtpage = self.site.get_WtPage(entity.title)
-
-        pprint(wtpage)
+    @staticmethod
+    def get_osw_id(uuid: uuid) -> str:
+        return "OSW" + str(uuid).replace("-", "")
 
     @staticmethod
-    def get_osl_id(uuid: uuid) -> str:
-        return "OSL" + str(uuid).replace("-", "")
-
-    @staticmethod
-    def get_uuid(osl_id) -> uuid:
-        return UUID(osl_id.replace("OSL", ""))
+    def get_uuid(osw_id) -> uuid:
+        return UUID(osw_id.replace("OSW", ""))
 
     @model._basemodel_decorator
     class SchemaRegistration(BaseModel):
@@ -106,11 +87,12 @@ class OSL(BaseModel):
             arbitrary_types_allowed = True  # allow any class as type
 
         model_cls: ModelMetaclass
-        schema_name: str
+        schema_uuid = str  # Optional[str] = model_cls.__uuid__
+        schema_name: str  # Optional[str] = model_cls.__name__
         schema_bases: List[str] = ["Category:Item"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
-        """registers a new or updated schema in OSL
+        """registers a new or updated schema in OSW
 
         Parameters
         ----------
@@ -120,11 +102,12 @@ class OSL(BaseModel):
         entity = schema_registration.model_cls
 
         jsondata = {}
+        jsondata["uuid"] = schema_registration.schema_uuid
         jsondata["label"] = {"text": schema_registration.schema_name, "lang": "en"}
         jsondata["subclass_of"] = schema_registration.schema_bases
 
         if issubclass(entity, BaseModel):
-            entity_title = "Category:" + OSL.get_osl_id(entity.__uuid__)
+            entity_title = "Category:" + OSW.get_osw_id(schema_registration.schema_uuid)
             page = self.site.get_WtPage(entity_title)
 
             page.set_slot_content("jsondata", jsondata)
@@ -204,7 +187,7 @@ class OSL(BaseModel):
         else:
             print("Error: Neither model nor model id provided")
 
-        entity_title = "Category:" + OSL.get_osl_id(uuid)
+        entity_title = "Category:" + OSW.get_osw_id(uuid)
         page = self.site.get_WtPage(entity_title)
         page.delete(schema_unregistration.comment)
 
@@ -224,7 +207,7 @@ class OSL(BaseModel):
         site_cache_state = self.site.get_cache_enabled()
         self.site.enable_cache()
         if fetchSchemaParam is None:
-            fetchSchemaParam = OSL.FetchSchemaParam()
+            fetchSchemaParam = OSW.FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
@@ -255,7 +238,7 @@ class OSL(BaseModel):
                 ref_schema_title != schema_title
             ):  # prevent recursion in case of self references
                 self.fetch_schema(
-                    OSL.FetchSchemaParam(schema_title=ref_schema_title, root=False)
+                    OSW.FetchSchemaParam(schema_title=ref_schema_title, root=False)
                 )  # resolve references recursive
 
         model_dir_path = os.path.join(
@@ -291,7 +274,7 @@ class OSL(BaseModel):
                 return
             os.system(
                 f"{exec_path}  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
-                --base-class OslBaseModel \
+                --base-class OswBaseModel \
                 --use-default \
                 --enum-field-as-literal one \
                 --use-title-as-name \
@@ -300,7 +283,7 @@ class OSL(BaseModel):
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
-            # --base-class OslBaseModel: use a custom base class
+            # --base-class OswBaseModel: use a custom base class
             # --custom-template-dir src/model/template_data/
             # --extra-template-data src/model/template_data/extra.json
             # --use-default: Use default value even if a field is required
@@ -318,7 +301,7 @@ class OSL(BaseModel):
             os.remove(temp_model_path)
 
             content = re.sub(
-                r"(import OslBaseModel)", "from pydantic import BaseModel", content, 1
+                r"(import OswBaseModel)", "from pydantic import BaseModel", content, 1
             )  # remove import statement
 
             if fetchSchemaParam.mode == "replace":
@@ -335,7 +318,7 @@ class OSL(BaseModel):
                 )
                 header += (
                     "\nT = TypeVar('T', bound=BaseModel)\n"
-                    "\nclass OslBaseModel(BaseModel):\n"
+                    "\nclass OswBaseModel(BaseModel):\n"
                     "    def full_dict(self, **kwargs): #extent BaseClass export function\n"
                     "        d = super().dict(**kwargs)\n"
                     "        for key in " + str(self._protected_keywords) + ":\n"
@@ -346,13 +329,13 @@ class OSL(BaseModel):
                 )
 
                 content = re.sub(
-                    r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)",
+                    r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
                     header + r"\n\n\n\1",
                     content,
                     1,
                 )  # replace first match
                 content = re.sub(
-                    r"(class\s*\S*\s*\(\s*OslBaseModel\s*\)\s*:.*\n)",
+                    r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
                     r"@_basemodel_decorator\n\1",
                     content,
                 )
@@ -422,7 +405,7 @@ class OSL(BaseModel):
 
     def store_entity(self, entity) -> None:
         if isinstance(entity, model.Item):
-            entity_title = "Item:" + OSL.get_osl_id(entity.uuid)
+            entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
             page = self.site.get_WtPage(entity_title)
             jsondata = json.loads(entity.json())  # use pydantic serialization
             page.set_slot_content("jsondata", jsondata)
@@ -435,7 +418,7 @@ class OSL(BaseModel):
 
     def delete_entity(self, entity, comment: str = None):
         if isinstance(entity, model.Item):
-            entity_title = "Item:" + OSL.get_osl_id(entity.uuid)
+            entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
             page = self.site.get_WtPage(entity_title)
         else:
             print("Error: Unsupported entity type")

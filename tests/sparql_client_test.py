@@ -3,7 +3,7 @@ from osw.sparql_client_smw import SmwSparqlClient
 domain = "onterface.open-semantic-lab.org"
 
 
-def test_osl_id_to_uuid():
+def test_sparql_client():
     sc = SmwSparqlClient(
         f"https://graph.{domain}/blazegraph/namespace/kb/sparql", domain
     )

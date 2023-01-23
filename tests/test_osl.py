@@ -1,17 +1,17 @@
 from uuid import UUID
 
-from osw.osl import OSL
+from osw.core import OSW
 
 
-def test_osl_id_to_uuid():
-    osl_id = "OSL2ea5b605c91f4e5a95593dff79fdd4a5"
+def test_osw_id_to_uuid():
+    osw_id = "OSW2ea5b605c91f4e5a95593dff79fdd4a5"
     expected = UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
-    result = OSL.get_uuid(osl_id)
+    result = OSW.get_uuid(osw_id)
     assert result == expected
 
 
-def test_uuid_to_osl_id():
+def test_uuid_to_osw_id():
     uuid = UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
-    expected = "OSL2ea5b605c91f4e5a95593dff79fdd4a5"
-    result = OSL.get_osl_id(uuid)
+    expected = "OSW2ea5b605c91f4e5a95593dff79fdd4a5"
+    result = OSW.get_osw_id(uuid)
     assert result == expected

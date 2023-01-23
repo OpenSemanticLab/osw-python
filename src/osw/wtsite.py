@@ -1,6 +1,8 @@
 # extents mwclient.site
 
 import json
+from datetime import datetime
+from pprint import pprint
 
 import mwclient
 from jsonpath_ng.ext import parse
@@ -73,8 +75,14 @@ class WtSite:
             wtpage = self.get_WtPage(title)
             modify_page(wtpage)
             if log:
-                print(f"======= {title} =======")
-                print(wtpage._content + "\n")
+                print(f"\n======= {title} =======")
+                print(wtpage._content)
+                for slot in wtpage._slots:
+                    content = wtpage.get_slot_content(slot)
+                    # if isinstance(content, dict): content = json.dumps(content)
+                    print(f"   ==== {title}:{slot} ====   ")
+                    pprint(content)
+                    print("\n")
             if not dryrun:
                 wtpage.edit(comment)
 
@@ -114,6 +122,7 @@ class WtPage:
                 page = rev["query"]["pages"][page_id]
                 if page["title"] == title:
                     for revision in page["revisions"]:
+                        self._current_revision = revision
                         for slot_key in revision["slots"]:
                             self._slots[slot_key] = revision["slots"][slot_key]["*"]
                             self._content_model[slot_key] = revision["slots"][slot_key][
@@ -134,6 +143,8 @@ class WtPage:
         return self._content
 
     def get_slot_content(self, slot_key):
+        if slot_key not in self._slots:
+            return None
         return self._slots[slot_key]
 
     def set_content(self, content):
@@ -223,3 +234,16 @@ class WtPage:
 
     def delete(self, comment: str = None):
         self._page.delete(comment)
+
+    def move(self, new_title: str, comment: str = None, redirect=True):
+        if new_title != self.title:
+            print(f"move '{self.title}' to '{new_title}'")
+            self._page.move(
+                new_title=new_title, reason=comment, no_redirect=not redirect
+            )
+            self.title = new_title
+
+    def get_last_changed_time(self):
+        return datetime.fromisoformat(
+            self._current_revision["timestamp"].replace("Z", "+00:00")
+        )

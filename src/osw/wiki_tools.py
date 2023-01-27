@@ -8,6 +8,35 @@ import yaml
 from jsonpath_ng.ext import parse
 
 
+def read_credentials_from_yaml(password_file):
+    """Reads credentials from a yaml file
+
+    Parameters
+    ----------
+    password_file : str
+        Path to the yaml file with the credentials
+
+    Returns
+    -------
+    credentials : dict
+        Dictionary with the credentials
+    """
+    if password_file != "":
+        with open(password_file, "r") as stream:
+            try:
+                accounts = yaml.safe_load(stream)
+                for domain in accounts:
+                    if domain == domain:
+                        user = accounts[domain]["username"]
+                        password = accounts[domain]["password"]
+            except yaml.YAMLError as exc:
+                print(exc)
+    else:
+        user = input("Enter bot username (username@botname)")
+        password = getpass.getpass("Enter bot password")
+    return {"username": user, "password": password}
+
+
 def create_site_object(domain, password_file=""):
     """
 
@@ -26,24 +55,10 @@ def create_site_object(domain, password_file=""):
         domain = domain_dict[domain]["Address"]
 
     site = mwclient.Site(domain, path="/w/")
-
-    if password_file != "":
-        with open(password_file, "r") as stream:
-            try:
-                accounts = yaml.safe_load(stream)
-                for domain in accounts:
-                    if domain == domain:
-                        user = accounts[domain]["username"]
-                        password = accounts[domain]["password"]
-            except yaml.YAMLError as exc:
-                print(exc)
-    else:
-        user = input("Enter bot username (username@botname)")
-        password = getpass.getpass("Enter bot password")
-
-    site.login(user, password)
-    del user
-    del password
+    credentials = read_credentials_from_yaml(password_file)
+    site.login(**credentials)
+    site.login(username=credentials["username"], password=credentials["password"])
+    del credentials
     return site
 
 

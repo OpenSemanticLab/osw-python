@@ -57,3 +57,6 @@ site
 # Credential files
 *pwd.txt
 *pwd.yaml
+
+# data
+/nb/quantities/data

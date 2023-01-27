@@ -1,0 +1,22 @@
+site_name: OpenSemanticWorld Python Package (osw)
+site_url: https://OpenSemanticLab.github.io/Tools/
+
+plugins:
+- search
+- autorefs
+- mkdocstrings:
+    handlers:
+      python:
+        paths: [src]  # search packages in the src folder
+        options:
+          docstring_style: numpy
+
+nav:
+    - Home: index.md
+    - tools.md
+    - osw.md
+    - model.md
+    - Development: dev.md
+
+theme:
+  name: "material"

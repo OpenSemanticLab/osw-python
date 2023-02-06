@@ -1,13 +1,19 @@
 # extents mwclient.site
 
 import json
+import os
+import shutil
 from datetime import datetime
 from pprint import pprint
+from typing import List, Optional
 
 import mwclient
 from jsonpath_ng.ext import parse
+from pydantic import BaseModel
 
+import osw.model.page_package as package
 import osw.wiki_tools as wt
+from osw.model.entity import _basemodel_decorator
 
 
 class WtSite:
@@ -86,6 +92,36 @@ class WtSite:
             if not dryrun:
                 wtpage.edit(comment)
 
+    class PagePackageConfig(BaseModel):
+        name: str
+        target_path: str
+        titles: List[str]
+        # replace: Optional[bool] = False
+        bundle: package.PagePackageBundle
+
+    def create_page_package(self, config: PagePackageConfig):
+        try:
+            shutil.rmtree(os.path.dirname(config.target_path))
+        except OSError as e:
+            print("Error: %s - %s." % (e.filename, e.strerror))
+        dump_config = WtPage.PageDumpConfig(
+            target_dir=os.path.dirname(config.target_path)
+        )
+        bundle = config.bundle
+        if config.name not in bundle.packages:
+            print(f"Error: package {config.name} does not exist in bundle")
+            return
+        if not bundle.packages[config.name].pages:
+            bundle.packages[config.name].pages = []
+        for title in config.titles:
+            page = self.get_WtPage(title)
+            bundle.packages[config.name].pages.append(page.dump(dump_config))
+
+        content = bundle.json(exclude_none=True, indent=4)
+        file_name = f"{config.target_path}"
+        with open(file_name, "w") as f:
+            f.write(content)
+
 
 class WtPage:
     def __init__(self, wtSite: WtSite = None, title: str = None):
@@ -146,6 +182,11 @@ class WtPage:
         if slot_key not in self._slots:
             return None
         return self._slots[slot_key]
+
+    def get_slot_content_model(self, slot_key):
+        if slot_key not in self._slots:
+            return None
+        return self._content_model[slot_key]
 
     def set_content(self, content):
         self._content = content
@@ -247,3 +288,53 @@ class WtPage:
         return datetime.fromisoformat(
             self._current_revision["timestamp"].replace("Z", "+00:00")
         )
+
+    @_basemodel_decorator
+    class PageDumpConfig(BaseModel):
+        target_dir: str
+        namespace_as_folder: Optional[bool] = True
+
+        class Config:
+            arbitrary_types_allowed = True  # neccessary to allow e.g. np.array as type
+
+    def dump(self, config: PageDumpConfig):
+        page_name = self.title.split(":")[-1]
+        if ":" in self.title:
+            namespace = self.title.split(":")[0]
+        else:
+            namespace = "Main"
+        namespace_const = "NS_" + namespace.upper()
+        # namespace_id = self._page.namespace
+
+        package_page = package.PagePackagePage(
+            name=page_name, namespace=namespace_const, slots={}
+        )
+
+        dir = config.target_dir
+        path_prefix = ""
+        if config.namespace_as_folder:
+            dir = os.path.join(dir, namespace)
+            path_prefix = namespace + "/"
+        # if not os.path.exists(dir):
+        #    os.makedirs(dir)
+        for slot_key in self._slots:
+            content = self.get_slot_content(slot_key)
+            if isinstance(content, dict):
+                content = json.dumps(content, indent=4)
+            content_type = self.get_slot_content_model(slot_key)
+            if content_type == "Scribunto":
+                content_type = "lua"
+            file_name = f"{page_name}.slot_{slot_key}.{content_type}"
+            file_path = os.path.join(dir, *file_name.split("/"))  # handle subpages
+            if not os.path.exists(os.path.dirname(file_path)):
+                os.makedirs(os.path.dirname(file_path))
+            with open(os.path.join(file_path), "w") as f:
+                f.write(content)
+            if slot_key == "main":
+                package_page.urlPath = path_prefix + file_name
+            else:
+                package_page.slots[slot_key] = package.PagePackagePageSlot(
+                    urlPath=path_prefix + file_name
+                )
+
+        return package_page

@@ -12,6 +12,9 @@ class PagePackagePage(BaseModel):
     name: str
     """The name (minus of the namespace) of a wiki page
     """
+    label: Optional[str]
+    """The display label of the page
+    """
     namespace: Union[str, int]
     url: Optional[str]
     urlPath: Optional[str]
@@ -38,6 +41,9 @@ class PagePackageDirectoryStructure(BaseModel):
 
 class PagePackage(BaseModel):
     globalID: str
+    label: Optional[str]
+    """The display label of the package
+    """
     description: str
     publisher: Optional[str]
     publisherURL: Optional[str]

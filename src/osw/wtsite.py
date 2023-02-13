@@ -94,18 +94,32 @@ class WtSite:
 
     class PagePackageConfig(BaseModel):
         name: str
-        target_path: str
+        """The name (label) of the package
+        """
+        config_path: str
+        """The path of the generated json file
+        """
+        content_path: Optional[str] = ""
+        """
+        The directory where the content (pages, files) is stored
+        """
         titles: List[str]
         # replace: Optional[bool] = False
         bundle: package.PagePackageBundle
+        skip_slot_suffix_for_main: Optional[bool] = False
+        include_files: Optional[bool] = True
 
     def create_page_package(self, config: PagePackageConfig):
+        if config.content_path == "":
+            config.content_path = os.path.dirname(config.config_path)
         try:
-            shutil.rmtree(os.path.dirname(config.target_path))
+            print(f"Delete dir '{config.content_path}'")
+            shutil.rmtree(config.content_path)
         except OSError as e:
             print("Error: %s - %s." % (e.filename, e.strerror))
         dump_config = WtPage.PageDumpConfig(
-            target_dir=os.path.dirname(config.target_path)
+            target_dir=config.content_path,
+            skip_slot_suffix_for_main=config.skip_slot_suffix_for_main,
         )
         bundle = config.bundle
         if config.name not in bundle.packages:
@@ -116,9 +130,15 @@ class WtSite:
         for title in config.titles:
             page = self.get_WtPage(title)
             bundle.packages[config.name].pages.append(page.dump(dump_config))
+            if config.include_files:
+                for file in page._page.images():
+                    file_page = self.get_WtPage(file.name)
+                    bundle.packages[config.name].pages.append(
+                        file_page.dump(dump_config)
+                    )
 
         content = bundle.json(exclude_none=True, indent=4)
-        file_name = f"{config.target_path}"
+        file_name = f"{config.config_path}"
         with open(file_name, "w") as f:
             f.write(content)
 
@@ -204,6 +224,15 @@ class WtPage:
 
     def get_url(self) -> str:
         return "https://" + self.wtSite._site.host + "/wiki/" + self.title
+
+    def is_file_page(self) -> bool:
+        """Checks if this page is a file page (containing an image, pdf, etc.)
+
+        Returns
+        -------
+            true if this page is a file page, else false
+        """
+        return self.title.startswith("File:")
 
     def append_template(self, template_name: str = None, template_params: dict = None):
         self._dict.append({template_name: template_params})
@@ -293,6 +322,7 @@ class WtPage:
     class PageDumpConfig(BaseModel):
         target_dir: str
         namespace_as_folder: Optional[bool] = True
+        skip_slot_suffix_for_main: Optional[bool] = False
 
         class Config:
             arbitrary_types_allowed = True  # neccessary to allow e.g. np.array as type
@@ -309,6 +339,8 @@ class WtPage:
         package_page = package.PagePackagePage(
             name=page_name, namespace=namespace_const, slots={}
         )
+        if "jsondata" in self._slots and "name" in self._slots["jsondata"]:
+            package_page.label = self._slots["jsondata"]["name"]
 
         dir = config.target_dir
         path_prefix = ""
@@ -324,11 +356,14 @@ class WtPage:
             content_type = self.get_slot_content_model(slot_key)
             if content_type == "Scribunto":
                 content_type = "lua"
-            file_name = f"{page_name}.slot_{slot_key}.{content_type}"
+            if slot_key == "main" and config.skip_slot_suffix_for_main:
+                file_name = f"{page_name}.{content_type}"
+            else:
+                file_name = f"{page_name}.slot_{slot_key}.{content_type}"
             file_path = os.path.join(dir, *file_name.split("/"))  # handle subpages
             if not os.path.exists(os.path.dirname(file_path)):
                 os.makedirs(os.path.dirname(file_path))
-            with open(os.path.join(file_path), "w") as f:
+            with open(os.path.join(file_path), "w", encoding="utf-8") as f:
                 f.write(content)
             if slot_key == "main":
                 package_page.urlPath = path_prefix + file_name
@@ -336,5 +371,13 @@ class WtPage:
                 package_page.slots[slot_key] = package.PagePackagePageSlot(
                     urlPath=path_prefix + file_name
                 )
+
+        if self.is_file_page():
+            file = self.wtSite._site.images[self.title.split(":")[-1]]
+            file_name = f"{page_name}"
+            file_path = os.path.join(dir, *file_name.split("/"))  # handle subpages
+            with open(file_path, "wb") as fd:
+                file.download(fd)
+            package_page.fileURLPath = path_prefix + file_name
 
         return package_page

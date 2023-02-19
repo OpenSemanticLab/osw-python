@@ -8,25 +8,17 @@ import yaml
 from jsonpath_ng.ext import parse
 
 
-def create_site_object(domain, password_file=""):
-    """
-
+def read_credentials_from_yaml(password_file):
+    """Reads credentials from a yaml file
     Parameters
     ----------
-    domain : str
-    password_file : str (path to file with <username>\n<password>)
-
+    password_file : str
+        Path to the yaml file with the credentials
     Returns
     -------
-    site : mwclient.client.Site
-        Site object from mwclient lib
+    credentials : dict
+        Dictionary with the credentials
     """
-    domain_dict = {"wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"}}
-    if domain in domain_dict.keys():
-        domain = domain_dict[domain]["Address"]
-
-    site = mwclient.Site(domain, path="/w/")
-
     if password_file != "":
         with open(password_file, "r") as stream:
             try:
@@ -40,10 +32,41 @@ def create_site_object(domain, password_file=""):
     else:
         user = input("Enter bot username (username@botname)")
         password = getpass.getpass("Enter bot password")
+    return {"username": user, "password": password}
 
-    site.login(user, password)
-    del user
-    del password
+
+def create_site_object(
+        domain: str,
+        password_file: str = "",
+        credentials: dict = None):
+    """
+    Parameters
+    ----------
+    domain :
+        Domain of the OSW instance, as specifed in the yaml file
+    password_file :
+        path to file with <username>\n<password>
+    credentials :
+        Dictionary with the credentials (username, password)
+    Returns
+    -------
+    site : mwclient.client.Site
+        Site object from mwclient lib
+    """
+    domain_dict = {"wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"}}
+    if domain in domain_dict.keys():
+        domain = domain_dict[domain]["Address"]
+
+    site = mwclient.Site(domain, path="/w/")
+    if credentials is None:
+        credentials = read_credentials_from_yaml(password_file)
+    # else:
+    #     credentials = credentials
+    # Login with dictionary unpacking:
+    # site.login(**credentials)
+    # Explicit login:
+    site.login(username=credentials["username"], password=credentials["password"])
+    del credentials
     return site
 
 

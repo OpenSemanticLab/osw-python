@@ -5,7 +5,8 @@ import os
 import shutil
 from datetime import datetime
 from pprint import pprint
-from typing import List, Optional
+from typing import List, Optional, Union
+from pathlib import Path
 
 import mwclient
 from jsonpath_ng.ext import parse
@@ -14,6 +15,21 @@ from pydantic import BaseModel
 import osw.model.page_package as package
 import osw.wiki_tools as wt
 from osw.model.entity import _basemodel_decorator
+
+
+# Definition of constants
+SLOTS = {
+    "main": {"content_model": "wikitext", "content_template": ""},
+    "header": {"content_model": "wikitext", "content_template": ""},
+    "footer": {"content_model": "wikitext", "content_template": ""},
+    "jsondata": {"content_model": "json", "content_template": ""},
+    "jsonschema": {"content_model": "json", "content_template": ""},
+    "template": {"content_model": "wikitext", "content_template": ""},
+    "header_template": {"content_model": "wikitext", "content_template": ""},
+    "footer_template": {"content_model": "wikitext", "content_template": ""},
+    "data_template": {"content_model": "wikitext", "content_template": ""},
+    "schema_template": {"content_model": "wikitext", "content_template": ""}
+}
 
 
 class WtSite:
@@ -26,8 +42,13 @@ class WtSite:
         self._cache_enabled = False
 
     @classmethod
-    def from_domain(cls, domain: str = None, password_file: str = None):
-        site = wt.create_site_object(domain, password_file)
+    def from_domain(cls, domain: str = None,
+                    password_file: Union[str, Path] = None,
+                    credentials: dict = None):
+        if credentials is None:
+            site = wt.create_site_object(domain, password_file)
+        else:
+            site = wt.create_site_object(domain, "", credentials)
         return cls(site)
 
     def get_WtPage(self, title: str = None):
@@ -177,6 +198,7 @@ class WtPage:
             for page_id in rev["query"]["pages"]:
                 page = rev["query"]["pages"][page_id]
                 if page["title"] == title:
+                    page_id_reuse = page_id
                     for revision in page["revisions"]:
                         self._current_revision = revision
                         for slot_key in revision["slots"]:
@@ -189,6 +211,8 @@ class WtPage:
                                 self._slots[slot_key] = json.loads(
                                     self._slots[slot_key]
                                 )
+                    # todo: set content for slots not in revision["slots"] (use
+                    #  SLOTS) --> create empty slots
 
     def create_slot(self, slot_key, content_model):
         self._slots[slot_key] = None
@@ -213,6 +237,7 @@ class WtPage:
         self.changed = True
 
     def set_slot_content(self, slot_key, content):
+        # todo: get slot content model from page / constant
         if slot_key not in self._slots:
             content_model = "json"
             if type(content) == str:
@@ -320,9 +345,11 @@ class WtPage:
 
     @_basemodel_decorator
     class PageDumpConfig(BaseModel):
-        target_dir: str
+        target_dir: Union[str, Path]
         namespace_as_folder: Optional[bool] = True
         skip_slot_suffix_for_main: Optional[bool] = False
+        dump_empty_slots: Optional[bool] = False
+        page_name_as_filename: Optional[bool] = False
 
         class Config:
             arbitrary_types_allowed = True  # neccessary to allow e.g. np.array as type
@@ -339,43 +366,64 @@ class WtPage:
         package_page = package.PagePackagePage(
             name=page_name, namespace=namespace_const, slots={}
         )
+        name_in_json_data = False
         if "jsondata" in self._slots and "name" in self._slots["jsondata"]:
             package_page.label = self._slots["jsondata"]["name"]
+            name_in_json_data = True
 
-        dir = config.target_dir
+        if config.page_name_as_filename and name_in_json_data:
+            # Use name from jsondata as filename for the dump
+            dump_name = self._slots["jsondata"]["name"]
+        else:
+            # Use page name as filename for the dump
+            dump_name = page_name
+
+        tar_dir = config.target_dir
         path_prefix = ""
         if config.namespace_as_folder:
-            dir = os.path.join(dir, namespace)
+            tar_dir = os.path.join(tar_dir, namespace)
             path_prefix = namespace + "/"
         # if not os.path.exists(dir):
         #    os.makedirs(dir)
+
+        def dump_slot_content(slot_key_, content_type_, content_):
+            if isinstance(content_, dict):
+                content_ = json.dumps(content_, indent=4)
+            if content_type_ == "Scribunto":
+                content_type_ = "lua"
+            if slot_key_ == "main" and config.skip_slot_suffix_for_main:
+                file_name_ = f"{dump_name}.{content_type_}"
+            else:
+                file_name_ = f"{dump_name}.slot_{slot_key_}.{content_type_}"
+            # handle subpages:
+            file_path_ = os.path.join(tar_dir, *file_name_.split("/"))
+            if not os.path.exists(os.path.dirname(file_path_)):
+                os.makedirs(os.path.dirname(file_path_))
+            with open(os.path.join(file_path_), "w", encoding="utf-8") as f:
+                f.write(content_)
+            if slot_key_ == "main":
+                package_page.urlPath = path_prefix + file_name_
+            else:
+                package_page.slots[slot_key_] = package.PagePackagePageSlot(
+                    urlPath=path_prefix + file_name_
+                )
+
         for slot_key in self._slots:
             content = self.get_slot_content(slot_key)
-            if isinstance(content, dict):
-                content = json.dumps(content, indent=4)
             content_type = self.get_slot_content_model(slot_key)
-            if content_type == "Scribunto":
-                content_type = "lua"
-            if slot_key == "main" and config.skip_slot_suffix_for_main:
-                file_name = f"{page_name}.{content_type}"
-            else:
-                file_name = f"{page_name}.slot_{slot_key}.{content_type}"
-            file_path = os.path.join(dir, *file_name.split("/"))  # handle subpages
-            if not os.path.exists(os.path.dirname(file_path)):
-                os.makedirs(os.path.dirname(file_path))
-            with open(os.path.join(file_path), "w", encoding="utf-8") as f:
-                f.write(content)
-            if slot_key == "main":
-                package_page.urlPath = path_prefix + file_name
-            else:
-                package_page.slots[slot_key] = package.PagePackagePageSlot(
-                    urlPath=path_prefix + file_name
-                )
+            dump_slot_content(slot_key, content_type, content)
+
+        # If the slots are empty, we still want files to fill after dumping them
+        if config.dump_empty_slots:
+            for slot_key in [slot for slot in SLOTS.keys() if slot not in self._slots]:
+                content = SLOTS[slot_key]["content_template"]
+                content_type = SLOTS[slot_key]["content_model"]
+                dump_slot_content(slot_key, content_type, content)
 
         if self.is_file_page():
             file = self.wtSite._site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
-            file_path = os.path.join(dir, *file_name.split("/"))  # handle subpages
+            file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages
             with open(file_path, "wb") as fd:
                 file.download(fd)
             package_page.fileURLPath = path_prefix + file_name

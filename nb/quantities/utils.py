@@ -23,20 +23,19 @@ def dict_to_json(dictionary={}, name_of_json="sample", optional_path=None):
         filepath_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", f"{name_of_json}.json")
         with open(filepath_json, "w") as outfile:
             json.dump(dictionary, outfile)
-            print(name_of_json, "created as json using filepath: \n", filepath_json)
+            print(name_of_json, "created as json using filepath: \n", filepath_json, "\n")
     else: 
         optional_filepath = Path(optional_path)    
         with open(optional_filepath, "w") as outfile:
             json.dump(dictionary, outfile)
-            print(name_of_json, "created as json using optional filepath: \n", optional_filepath)
+            print(name_of_json, "created as json using optional filepath: \n", optional_filepath, "\n")
  
 # import data from json file as dictonary
 def json_to_dict(name_of_json="sample", optional_path=None):
     if optional_path is None: 
         filepath_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", f"{name_of_json}.json")
-        print(filepath_json)
         with open(filepath_json) as json_file:
-            print(name_of_json, "loaded using filepath:\n", filepath_json)
+            print(name_of_json, "loaded using filepath:\n", filepath_json, "\n")
             return json.load(json_file)
     else:
         optional_filepath = Path(optional_path)

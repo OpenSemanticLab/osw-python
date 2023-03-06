@@ -9,11 +9,11 @@ Status Quantities.ipynb
 - #3 analyse wikidata
   - passed
 - #4 create dict dbpedia -> wikidata
-  - to do
+  - review qwdict
 - #5 merge qudt and wikidata hierarchy
-  - to do
+  - review -> manual corrections failed (comment out)
 - #6 create wiki code
-  - to do
+  - passed
 
 Status utils.py
 

@@ -51,6 +51,39 @@ class WtSite:
             site = wt.create_site_object(domain, "", credentials)
         return cls(site)
 
+    @classmethod
+    def from_credentials(cls, credentials: Union[Dict[str, str], str, Path],
+                         key: Union[str, int] = 0):
+        """
+
+        Parameters
+        ----------
+        credentials:
+            A dictionary of credentials or a path to a credentials file, expected to
+            contain keys 'username' and 'password'.
+        key:
+            The key of the credentials-dictionary (domain) or the index of the key.
+            By default, the first key is used.
+
+        Returns
+        -------
+
+        """
+
+        if isinstance(credentials, str) or isinstance(credentials, Path):
+            domains, accounts = wt.read_domains_from_credentials_file(credentials)
+        else:
+            accounts = credentials
+        if isinstance(key, int):
+            _domain = list(accounts.keys())[key]
+        else:
+            _domain = key
+        _domain = _domain
+        _credentials: Dict = accounts[_domain]
+        # todo: research why nested typing doesn't work as expected fo the dictionary
+        site = wt.create_site_object(_domain, "", _credentials)
+        return cls(site)
+
     def get_WtPage(self, title: str = None):
         if self._cache_enabled and title in self._page_cache:
             return self._page_cache[title]

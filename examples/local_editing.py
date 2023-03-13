@@ -10,16 +10,19 @@ https://github.com/OpenSemanticLab/osw-python/blob/main/src/osw/wtsite.py#L112
 import json
 import PySimpleGUI as psg
 import os
-import yaml
+# import yaml
 from pathlib import Path
 from typing import Union
 from numpy import array as np_array
-
+from osw.wiki_tools import read_domains_from_credentials_file
 from osw.core import OSW
 from osw.wtsite import WtPage, WtSite, SLOTS
+import osw.model.page_package as package
 
 
 # Definition of constants
+GUI_THEME = "reddit"
+DEBUG = True  # Set to True to get an output element in the GUI
 DUMP_EMPTY_SLOTS_DEFAULT = True
 SEL_INDICES_DEFAULT = [
     0,  # "main",
@@ -33,9 +36,19 @@ LWD_DEFAULT = Path(os.getcwd()).parent / "data"
 SETTINGS_FILE_PATH_DEFAULT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "settings.json"
 )
+CREDENTIALS_FILE_PATH_DEFAULT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
+)
 
 
-# Defintion of functions
+# Definition of functions
+def str_or_none(value):
+    if str(value) == "" or value is None:
+        return str("None")
+    else:
+        return str(value)
+
+
 def create_config_from_setting(settings_: dict):
     config_ = WtPage.PageDumpConfig(
         target_dir=settings_["local_working_directory"],
@@ -45,33 +58,77 @@ def create_config_from_setting(settings_: dict):
     return config_
 
 
-# Predefining some variables before execution
-# Create/update the password file under examples/accounts.pwd.yaml
- # pwd_file_path = "./accounts.pwd.yaml"
-pwd_file_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
-)
-with open(pwd_file_path, "r") as stream:
-    try:
-        accounts = yaml.safe_load(stream)
-        for domain in accounts:
-            if domain == domain:
-                user = accounts[domain]["username"]
-                password = accounts[domain]["password"]
-    except yaml.YAMLError as exc:
-        print(exc)
+def create_page_package(full_page_name_, wtsite_: WtSite,
+                        dump_config_: WtPage.PageDumpConfig,
+                        label_: str = None,
+                        top_level_: str = None,
+                        sub_level_: str = "content",
+                        author_: Union[str, list] = "Open Semantic World"):
+    if top_level_ is None:
+        top_level_ = full_page_name_.split(":")[-1]
+    package_repo_org = "OpenSemanticWorld-Packages"
+    package_repo = f"{top_level_}.{sub_level_}"
+    package_id = f"{top_level_}.{sub_level_}"
+    package_name = top_level_
+    package_subdir = sub_level_
+    package_branch = "deleteme"
+    publisher = "Open Semantic World"
+    working_dir = dump_config_.target_dir
+    if dump_config_.page_name_as_filename and label_ is not None:
+        target_dir = os.path.join(working_dir, label_)
+    else:
+        target_dir = os.path.join(working_dir, top_level_)
+    if isinstance(author_, list):
+        author_list = author_
+    elif isinstance(author_, str):
+        author_list = [author_]
+    else:
+        author_list = [""]
 
-domains = list(accounts.keys())
-if len(domains) == 0:
-    raise ValueError("No domain found in accounts.pwd.yaml!")
+    bundle = package.PagePackageBundle(
+        publisher=publisher,
+        author=author_list,
+        language="en",
+        publisherURL=f"https://github.com/{package_repo_org}/{package_repo}",
+        packages={
+            f"{package_name}": package.PagePackage(
+                globalID=f"{package_id}",
+                label=package_name,
+                version="0.0.1",
+                description="Created by the GUI for local editing of OSW pages",
+                baseURL=f"https://raw.githubusercontent.com/{package_repo_org}/"
+                        f"{package_repo}/{package_branch}/{package_subdir}/",
+            )
+        },
+    )
+    wtsite_.create_page_package(
+        config=package.PagePackageConfig(
+            name=package_name,
+            config_path=os.path.join(target_dir, "packages.json"),
+            content_path=os.path.join(target_dir, package_subdir),
+            bundle=bundle,
+            titles=[
+                full_page_name_
+            ],
+        ),
+        dump_config=dump_config_
+    )
+
+
+# Predefining some variables before execution
+domains, accounts = read_domains_from_credentials_file(CREDENTIALS_FILE_PATH_DEFAULT)
+domain = domains[0]
 
 wtsite_obj = WtSite.from_domain(
     domain=domains[0],
-    password_file=pwd_file_path,
+    password_file="",
     credentials=accounts[domains[0]]
 
 )
 osw_obj = OSW(site=wtsite_obj)
+
+full_page_name = TARGET_PAGE_DEFAULT.split("/")[-1].replace('_', ' ')
+page = wtsite_obj.get_WtPage(full_page_name)
 
 settings_file_path = SETTINGS_FILE_PATH_DEFAULT
 if os.path.exists(settings_file_path):
@@ -79,6 +136,7 @@ if os.path.exists(settings_file_path):
         settings = json.load(f)
 else:
     settings = {
+        "credentials_file_path": str(CREDENTIALS_FILE_PATH_DEFAULT),
         "local_working_directory": str(LWD_DEFAULT),
         "settings_file_path": str(SETTINGS_FILE_PATH_DEFAULT),
         "target_page": TARGET_PAGE_DEFAULT,
@@ -88,10 +146,11 @@ else:
         "domain": domains[0]
     }
 label_set = False
+label = None
 
 # ----- GUI Definition -----
 # Setting the theme of the GUI
-psg.theme("reddit")
+psg.theme(GUI_THEME)
 # Settings
 settings_layout = [
 
@@ -103,6 +162,9 @@ settings_layout = [
             [
                 [
                     psg.Text("Settings file"),
+                ],
+                [
+                    psg.Text("Credentials file"),
                 ],
                 [
                     psg.Text("Local working directory"),
@@ -117,6 +179,11 @@ settings_layout = [
                     psg.FileBrowse(button_text="Browse", key="-BROWSE_SETTINGS-"),
                     psg.Button("Load", key="-LOAD_SETTINGS-"),
                     psg.Button("Save", key="-SAVE_SETTINGS-")
+                ],
+                [
+                    psg.In(size=(50, 1), enable_events=True, key="-CREDENTIALS-",
+                           default_text=CREDENTIALS_FILE_PATH_DEFAULT),
+                    psg.FileBrowse(button_text="Browse", key="-BROWSE_CREDENTIALS-"),
                 ],
                 [
                     psg.In(size=(50, 1), enable_events=True, key="-LWD-",
@@ -136,7 +203,7 @@ actions_layout = [
     [
         psg.Text("Actions", font=("Helvetica", 20))
     ],
-    # Target OSW instace
+    # Target OSW instance
     [
         psg.Text("Target OSW instance", font=("Helvetica", 16))
     ],
@@ -166,6 +233,7 @@ actions_layout = [
             [
                 [
                     psg.InputText(
+                        size=(50, 1),
                         default_text=TARGET_PAGE_DEFAULT,
                         key="-ADDRESS-"
                     ),
@@ -173,7 +241,7 @@ actions_layout = [
                 ],
                 [
                     # A display element that will show the label of the OSW page
-                    psg.Text(size=(40, 1), key="-LABEL-")
+                    psg.Multiline(size=(50, 1), key="-LABEL-", no_scrollbar=True)
                 ]
             ]
         )
@@ -201,6 +269,9 @@ actions_layout = [
                 [
                     psg.Button("Download selected", key="-DL-")
                 ],
+                [
+                    psg.Multiline(size=(20, 1), key="-DL_RES-", no_scrollbar=True)
+                ]
             ]
         ),
     ],
@@ -230,10 +301,15 @@ actions_layout = [
                 ],
                 [
                     psg.Button("Upload selected", key="-UL-")
+                ],
+                [
+                    psg.Multiline(size=(20, 1), key="-UL_RES-", no_scrollbar=True)
                 ]
             ]
         )
-    ],
+    ]
+]
+output_layout = [
     [
         psg.HSeparator()
     ],
@@ -247,6 +323,8 @@ actions_layout = [
 ]
 # The full layout
 layout = settings_layout + actions_layout
+if DEBUG:
+    layout += output_layout
 # Create the window
 window = psg.Window("OSW local editing GUI", layout)
 # Create an event loop
@@ -263,6 +341,7 @@ while True:
         with open(settings["settings_file_path"], "r") as f:
             settings = json.load(f)
         # update GUI
+        window["-CREDENTIALS-"].update(settings["credentials_file_path"]),
         window["-LWD-"].update(settings["local_working_directory"])
         window["-DOMAIN-"].update(settings["domain"])
         window["-ADDRESS-"].update(settings["target_page"])
@@ -273,11 +352,18 @@ while True:
         window["-UL_LIST-"].update(set_to_index=indices)
     elif event == "-SAVE_SETTINGS-":
         with open(settings["settings_file_path"], "w") as f:
-            json.dump(settings, f)
+            json.dump(settings, f, indent=4)
+    elif event == "-CREDENTIALS-":
+        settings["credentials_file_path"] = values["-CREDENTIALS-"]
+        domains, accounts = read_domains_from_credentials_file(
+            settings["credentials_file_path"]
+        )
+        window["-DOMAIN-"].update(values=domains)
     elif event == "-LWD-":
         settings["local_working_directory"] = values["-LWD-"]
     elif event == "-DOMAIN-":
         settings["domain"] = values["-DOMAIN-"]
+        domain = settings["domain"].split("//")[-1]
         wtsite_obj = WtSite.from_domain(
             domain=settings["domain"],
             password_file="",
@@ -313,8 +399,15 @@ while True:
         settings["dump_empty_slots"] = values["-INC_EMPTY-"]
     elif event == "-DL-":
         if label_set:
-            config = create_config_from_setting(settings)
-            page.dump(config)
+            dump_config = create_config_from_setting(settings)
+            # _ = page.dump(dump_config)
+            create_page_package(full_page_name_=full_page_name,
+                                label_=label, wtsite_=wtsite_obj,
+                                dump_config_=dump_config,
+                                author_=accounts[domains[0]]["username"])
+            window["-DL_RES-"].update("Slots downloaded!")
+        else:
+            window["-DL_RES-"].update("No page loaded!")
     elif event == "-UL_SEL-":
         indices = list(window["-UL_LIST-"].get_indexes())
         # All selected: deselect all
@@ -326,28 +419,29 @@ while True:
         indices = list(window["-UL_LIST-"].get_indexes())
         settings["slots_to_upload"] = \
             np_array(list(SLOTS.keys()))[indices].tolist()
-
-    def str_or_none(value):
-        if str(value) == "" or value is None:
-            return str("None")
-        else:
-            return str(value)
+    elif event == "-UL-":
+        pass
+        # Success:
+        # window["-UL_RES-"].update("Slots uploaded!")
+        window["-UL_RES-"].update("Not yet implemented!")
+        # todo: no slot selected
 
     # Some debugging output functionality
-    values_str = "\n".join(
-        [f"{key}: {str_or_none(value)}"
-         for key, value in values.items() if key != "-OUTPUT-"]
-    )
-    listbox_selected_items_str = "\n".join(settings["slots_to_upload"])
+    if DEBUG:
+        values_str = "\n".join(
+            [f"{key}: {str_or_none(value)}"
+             for key, value in values.items() if key != "-OUTPUT-"]
+        )
+        listbox_selected_items_str = "\n".join(settings["slots_to_upload"])
 
-    window["-OUTPUT-"].update(
-        f"Last event: {event}\n"
-        f"-----------\n"
-        f"Values:\n"
-        f"-------\n"
-        f"{values_str}"
-        f"\nListbox values:\n"
-        f"{listbox_selected_items_str}"
-    )
+        window["-OUTPUT-"].update(
+            f"Last event: {event}\n"
+            f"-----------\n"
+            f"Values:\n"
+            f"-------\n"
+            f"{values_str}"
+            f"\nListbox values:\n"
+            f"{listbox_selected_items_str}"
+        )
 
 window.close()

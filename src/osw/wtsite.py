@@ -386,6 +386,12 @@ class WtPage:
         # if not os.path.exists(dir):
         #    os.makedirs(dir)
 
+        def save_to_file(file_path__, content__):
+            if not os.path.exists(os.path.dirname(file_path__)):
+                os.makedirs(os.path.dirname(file_path__))
+            with open(os.path.join(file_path__), "w", encoding="utf-8") as f__:
+                f__.write(content__)
+
         def dump_slot_content(slot_key_, content_type_, content_):
             if isinstance(content_, dict):
                 content_ = json.dumps(content_, indent=4)
@@ -397,10 +403,7 @@ class WtPage:
                 file_name_ = f"{dump_name}.slot_{slot_key_}.{content_type_}"
             # handle subpages:
             file_path_ = os.path.join(tar_dir, *file_name_.split("/"))
-            if not os.path.exists(os.path.dirname(file_path_)):
-                os.makedirs(os.path.dirname(file_path_))
-            with open(os.path.join(file_path_), "w", encoding="utf-8") as f:
-                f.write(content_)
+            save_to_file(file_path_, content_)
             if slot_key_ == "main":
                 package_page.urlPath = path_prefix + file_name_
             else:

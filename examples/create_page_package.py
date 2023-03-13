@@ -39,7 +39,7 @@ bundle = package.PagePackageBundle(
 )
 
 wtsite.create_page_package(
-    WtSite.PagePackageConfig(
+    package.PagePackageConfig(
         name=package_name,
         config_path=os.path.join(working_dir, "packages.json"),
         content_path=os.path.join(working_dir, package_subdir),

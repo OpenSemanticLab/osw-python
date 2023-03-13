@@ -5,7 +5,7 @@ import os
 import shutil
 from datetime import datetime
 from pprint import pprint
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from pathlib import Path
 
 import mwclient
@@ -146,36 +146,35 @@ class WtSite:
             if not dryrun:
                 wtpage.edit(comment)
 
-    class PagePackageConfig(BaseModel):
-        name: str
-        """The name (label) of the package
-        """
-        config_path: str
-        """The path of the generated json file
-        """
-        content_path: Optional[str] = ""
-        """
-        The directory where the content (pages, files) is stored
-        """
-        titles: List[str]
-        # replace: Optional[bool] = False
-        bundle: package.PagePackageBundle
-        skip_slot_suffix_for_main: Optional[bool] = False
-        include_files: Optional[bool] = True
+    def create_page_package(
+            self,
+            config: package.PagePackageConfig,
+            dump_config: 'WtPage.PageDumpConfig' = None
+    ):
+        """Create a page package, which is a locally stored collection of wiki pages
+        and their slots, based on a configuration
+        object.
 
-    def create_page_package(self, config: PagePackageConfig):
-        if config.content_path == "":
-            config.content_path = os.path.dirname(config.config_path)
+
+        """
+        # Clear the content directory
         try:
             print(f"Delete dir '{config.content_path}'")
-            shutil.rmtree(config.content_path)
+            if os.path.exists(config.content_path):
+                shutil.rmtree(config.content_path)
         except OSError as e:
             print("Error: %s - %s." % (e.filename, e.strerror))
-        dump_config = WtPage.PageDumpConfig(
-            target_dir=config.content_path,
-            skip_slot_suffix_for_main=config.skip_slot_suffix_for_main,
-        )
-        bundle = config.bundle
+        # Create a dump config
+        if dump_config is None:
+            dump_config = WtPage.PageDumpConfig(
+                target_dir=config.content_path,
+                skip_slot_suffix_for_main=config.skip_slot_suffix_for_main,
+            )
+        else:
+            dump_config.target_dir = config.content_path
+            dump_config.skip_slot_suffix_for_main = config.skip_slot_suffix_for_main
+
+        bundle = config.bundle  # type: package.PagePackageBundle
         if config.name not in bundle.packages:
             print(f"Error: package {config.name} does not exist in bundle")
             return
@@ -385,7 +384,7 @@ class WtPage:
         page_name_as_filename: Optional[bool] = False
 
         class Config:
-            arbitrary_types_allowed = True  # neccessary to allow e.g. np.array as type
+            arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
     def dump(self, config: PageDumpConfig):
         page_name = self.title.split(":")[-1]

@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
-
-from pydantic import BaseModel
+import os
+from pydantic import BaseModel, Field
 
 
 class PagePackagePageSlot(BaseModel):
@@ -35,7 +35,6 @@ class PagePackageDirectoryStructure(BaseModel):
     service: Optional[str] = "GitHub"
     accountName: str
     repositoryName: str
-
     namespaceSettings: PagePackageNamespaceSettings
 
 
@@ -54,7 +53,9 @@ class PagePackage(BaseModel):
     licenseName: Optional[str]
     requiredExtensions: Optional[List[str]]
     requiredPackages: Optional[List[str]]
-    baseURL: str
+    baseURL: str  # todo: comment
+    """
+    """
     pages: Optional[List[PagePackagePage]]
     directoryStructure: Optional[PagePackageDirectoryStructure]
 
@@ -80,3 +81,30 @@ class PagePackageBundle(BaseModel):
     """Holds the set of packages, with the package name as the key
     and the set of package parameters as the values.
     """
+
+
+class PagePackageConfig(BaseModel):
+    name: str
+    """The name (label) of the package
+    """
+    config_path: str
+    """The path of the generated json file
+    """
+    # todo: which json file?
+    content_path: Optional[str] = ""
+    """
+    The directory where the content (pages, files) is stored
+    """
+    titles: List[str]
+    # replace: Optional[bool] = False
+    bundle: PagePackageBundle
+    skip_slot_suffix_for_main: Optional[bool] = False
+    include_files: Optional[bool] = True
+
+    def __post_init__(self):
+        """Will be executed after the object is initialized, but before validation.
+        """
+        if self.content_path == "":
+            self.content_path = os.path.dirname(self.config_path)
+
+

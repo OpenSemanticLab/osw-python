@@ -58,30 +58,28 @@ def create_config_from_setting(settings_: dict):
     return config_
 
 
-def create_page_package(full_page_name_, wtsite_: WtSite,
-                        dump_config_: WtPage.PageDumpConfig,
-                        label_: str = None,
-                        top_level_: str = None,
-                        sub_level_: str = "content",
-                        author_: Union[str, list] = "Open Semantic World"):
-    if top_level_ is None:
-        top_level_ = full_page_name_.split(":")[-1]
+def create_page_package(full_page_name_str, wtsite_inst: WtSite,
+                        dump_config_inst: WtPage.PageDumpConfig, label_str: str = None,
+                        top_level: str = None, sub_level: str = "content",
+                        author: Union[str, list] = "Open Semantic World"):
+    if top_level is None:
+        top_level = full_page_name_str.split(":")[-1]
     package_repo_org = "OpenSemanticWorld-Packages"
-    package_repo = f"{top_level_}.{sub_level_}"
-    package_id = f"{top_level_}.{sub_level_}"
-    package_name = top_level_
-    package_subdir = sub_level_
+    package_repo = f"{top_level}.{sub_level}"
+    package_id = f"{top_level}.{sub_level}"
+    package_name = top_level
+    package_subdir = sub_level
     package_branch = "deleteme"
     publisher = "Open Semantic World"
-    working_dir = dump_config_.target_dir
-    if dump_config_.page_name_as_filename and label_ is not None:
-        target_dir = os.path.join(working_dir, label_)
+    working_dir = dump_config_inst.target_dir
+    if dump_config_inst.page_name_as_filename and label_str is not None:
+        target_dir = os.path.join(working_dir, label_str)
     else:
-        target_dir = os.path.join(working_dir, top_level_)
-    if isinstance(author_, list):
-        author_list = author_
-    elif isinstance(author_, str):
-        author_list = [author_]
+        target_dir = os.path.join(working_dir, top_level)
+    if isinstance(author, list):
+        author_list = author
+    elif isinstance(author, str):
+        author_list = [author]
     else:
         author_list = [""]
 
@@ -101,17 +99,18 @@ def create_page_package(full_page_name_, wtsite_: WtSite,
             )
         },
     )
-    wtsite_.create_page_package(
+    wtsite_inst.create_page_package(
         config=package.PagePackageConfig(
             name=package_name,
             config_path=os.path.join(target_dir, "packages.json"),
             content_path=os.path.join(target_dir, package_subdir),
             bundle=bundle,
             titles=[
-                full_page_name_
+                full_page_name_str
             ],
         ),
-        dump_config=dump_config_
+        dump_config=dump_config_inst,
+        debug=False
     )
 
 
@@ -141,11 +140,8 @@ domain = domains[0]
 if settings_read_from_file:
     settings["domain"] = domain
 
-wtsite_obj = WtSite.from_domain(
-    domain=domains[0],
-    password_file="",
-    credentials=accounts[domains[0]]
-)
+wtsite_obj = WtSite.from_domain(domain=domains[0], password_file="",
+                                credentials=accounts[domains[0]])
 osw_obj = OSW(site=wtsite_obj)
 
 full_page_name = settings["target_page"].split("/")[-1].replace('_', ' ')
@@ -216,8 +212,7 @@ actions_layout = [
         psg.Text("List of domains is read from accounts.pwd.yaml!")
     ],
     [
-        psg.Combo(domains, default_value=domains[0], key='-DOMAIN-',
-                  enable_events=True)
+        psg.Combo(domains, default_value=domains[0], key='-DOMAIN-', enable_events=True)
     ],
     # Target page
     [
@@ -237,11 +232,8 @@ actions_layout = [
         psg.Column(
             [
                 [
-                    psg.InputText(
-                        size=(50, 1),
-                        default_text=settings["target_page"],
-                        key="-ADDRESS-"
-                    ),
+                    psg.InputText(size=(50, 1), default_text=settings["target_page"],
+                        key="-ADDRESS-"),
                     psg.Button("Load page")
                 ],
                 [
@@ -264,13 +256,12 @@ actions_layout = [
                 [
                     psg.Radio("Include empty slots", group_id="-RADIO1-",
                               default=settings["dump_empty_slots"],
-                              key="-INC_EMPTY-",
-                              enable_events=True)
+                              key="-INC_EMPTY-", enable_events=True)
                 ],
                 [
                     psg.Radio("Exclude empty slots", group_id="-RADIO1-",
-                              default=(not settings["dump_empty_slots"]), key="-EXC_EMPTY-",
-                              enable_events=True)
+                              default=(not settings["dump_empty_slots"]),
+                              key="-EXC_EMPTY-", enable_events=True)
                 ],
                 [
                     psg.Button("Download selected", key="-DL-")
@@ -295,15 +286,11 @@ actions_layout = [
                     psg.Button("(De)Select all", key="-UL_SEL-")
                 ],
                 [
-                    psg.Listbox(
-                        values=SLOTS.keys(),
-                        default_values=settings["slots_to_upload"],
-                        size=(20, 10),
-                        key="-UL_LIST-",
-                        select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
-                        enable_events=True,
-                        no_scrollbar=True
-                    )
+                    psg.Listbox(values=SLOTS.keys(),
+                                default_values=settings["slots_to_upload"],
+                                size=(20, 10), key="-UL_LIST-",
+                                select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
+                                enable_events=True, no_scrollbar=True)
                 ],
                 [
                     psg.Button("Upload selected", key="-UL-")
@@ -408,10 +395,10 @@ while True:
         if label_set:
             dump_config = create_config_from_setting(settings)
             # _ = page.dump(dump_config)
-            create_page_package(full_page_name_=full_page_name,
-                                label_=label, wtsite_=wtsite_obj,
-                                dump_config_=dump_config,
-                                author_=accounts[domains[0]]["username"])
+            create_page_package(full_page_name_str=full_page_name,
+                                wtsite_inst=wtsite_obj, dump_config_inst=dump_config,
+                                label_str=label,
+                                author=accounts[domains[0]]["username"])
             window["-DL_RES-"].update("Slots downloaded!")
         else:
             window["-DL_RES-"].update("No page loaded!")

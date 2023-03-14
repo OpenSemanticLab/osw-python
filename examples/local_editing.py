@@ -116,24 +116,11 @@ def create_page_package(full_page_name_, wtsite_: WtSite,
 
 
 # Predefining some variables before execution
-domains, accounts = read_domains_from_credentials_file(CREDENTIALS_FILE_PATH_DEFAULT)
-domain = domains[0]
-
-wtsite_obj = WtSite.from_domain(
-    domain=domains[0],
-    password_file="",
-    credentials=accounts[domains[0]]
-
-)
-osw_obj = OSW(site=wtsite_obj)
-
-full_page_name = TARGET_PAGE_DEFAULT.split("/")[-1].replace('_', ' ')
-page = wtsite_obj.get_WtPage(full_page_name)
-
 settings_file_path = SETTINGS_FILE_PATH_DEFAULT
 if os.path.exists(settings_file_path):
     with open(settings_file_path, "r") as f:
         settings = json.load(f)
+    settings_read_from_file = True
 else:
     settings = {
         "credentials_file_path": str(CREDENTIALS_FILE_PATH_DEFAULT),
@@ -143,8 +130,26 @@ else:
         "dump_empty_slots": DUMP_EMPTY_SLOTS_DEFAULT,
         "page_name_as_filename": True,
         "slots_to_upload": SLOTS_TO_UPLOAD_DEFAULT,
-        "domain": domains[0]
+        "domain": ""
     }
+    settings_read_from_file = False
+
+domains, accounts = read_domains_from_credentials_file(
+    settings["credentials_file_path"]
+)
+domain = domains[0]
+if settings_read_from_file:
+    settings["domain"] = domain
+
+wtsite_obj = WtSite.from_domain(
+    domain=domains[0],
+    password_file="",
+    credentials=accounts[domains[0]]
+)
+osw_obj = OSW(site=wtsite_obj)
+
+full_page_name = settings["target_page"].split("/")[-1].replace('_', ' ')
+page = wtsite_obj.get_WtPage(full_page_name)
 label_set = False
 label = None
 
@@ -175,19 +180,19 @@ settings_layout = [
             [
                 [
                     psg.In(size=(50, 1), enable_events=True, key="-SETTINGS-",
-                           default_text=SETTINGS_FILE_PATH_DEFAULT),
+                           default_text=settings["settings_file_path"]),
                     psg.FileBrowse(button_text="Browse", key="-BROWSE_SETTINGS-"),
                     psg.Button("Load", key="-LOAD_SETTINGS-"),
                     psg.Button("Save", key="-SAVE_SETTINGS-")
                 ],
                 [
                     psg.In(size=(50, 1), enable_events=True, key="-CREDENTIALS-",
-                           default_text=CREDENTIALS_FILE_PATH_DEFAULT),
+                           default_text=settings["credentials_file_path"]),
                     psg.FileBrowse(button_text="Browse", key="-BROWSE_CREDENTIALS-"),
                 ],
                 [
                     psg.In(size=(50, 1), enable_events=True, key="-LWD-",
-                           default_text=LWD_DEFAULT),
+                           default_text=settings["local_working_directory"]),
                     psg.FolderBrowse(button_text="Browse", key="-BROWSE_LWD-")
                 ]
             ]
@@ -234,7 +239,7 @@ actions_layout = [
                 [
                     psg.InputText(
                         size=(50, 1),
-                        default_text=TARGET_PAGE_DEFAULT,
+                        default_text=settings["target_page"],
                         key="-ADDRESS-"
                     ),
                     psg.Button("Load page")
@@ -258,12 +263,13 @@ actions_layout = [
             [
                 [
                     psg.Radio("Include empty slots", group_id="-RADIO1-",
-                              default=DUMP_EMPTY_SLOTS_DEFAULT, key="-INC_EMPTY-",
+                              default=settings["dump_empty_slots"],
+                              key="-INC_EMPTY-",
                               enable_events=True)
                 ],
                 [
                     psg.Radio("Exclude empty slots", group_id="-RADIO1-",
-                              default=(not DUMP_EMPTY_SLOTS_DEFAULT), key="-EXC_EMPTY-",
+                              default=(not settings["dump_empty_slots"]), key="-EXC_EMPTY-",
                               enable_events=True)
                 ],
                 [
@@ -291,7 +297,7 @@ actions_layout = [
                 [
                     psg.Listbox(
                         values=SLOTS.keys(),
-                        default_values=SLOTS_TO_UPLOAD_DEFAULT,
+                        default_values=settings["slots_to_upload"],
                         size=(20, 10),
                         key="-UL_LIST-",
                         select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
@@ -350,6 +356,7 @@ while True:
         indices = \
             [i for i, x in enumerate(SLOTS.keys()) if x in settings["slots_to_upload"]]
         window["-UL_LIST-"].update(set_to_index=indices)
+        settings_read_from_file = True
     elif event == "-SAVE_SETTINGS-":
         with open(settings["settings_file_path"], "w") as f:
             json.dump(settings, f, indent=4)

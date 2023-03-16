@@ -158,8 +158,7 @@ class PagePackageConfig(BaseModel):
     name: str
     """The name (label) of the package."""
     config_path: str
-    """The path of the generated json file."""
-    # todo: which json file?
+    """The path of the generated json file (package.json)."""
     content_path: Optional[str] = ""
     """The directory where the content (pages, files) is stored."""
     titles: List[str]

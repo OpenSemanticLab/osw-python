@@ -430,15 +430,17 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
     return success
 
 
-def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "force"):
+def create_flat_content_structure_from_wikitext(
+        text: str, array_mode: str = "force"
+) -> list:
     """Create a flat python dict (aka 'flat_content_structure' = 'wikiJson')
     representing the content of the page
 
     Parameters
     ----------
-    text : str
+    text :
         the wiki source text
-    array_mode : str
+    array_mode :
         defines how to parse template params
         array_mode / param     value   value;  value;value     comment
         'force':               array   array   array           always create an array
@@ -447,7 +449,7 @@ def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "fo
 
     Returns
     -------
-    res : dict
+    res :
         (aka 'flat_content_structure' = 'wikiJson')
     """
 
@@ -491,18 +493,18 @@ def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "fo
     return res
 
 
-def get_wikitext_from_flat_content_dict(d: dict):
+def get_wikitext_from_flat_content_dict(d: dict) -> str:
     """Create wiki source text from a flat python dict representing a wiki template
 
     Parameters
     ----------
-    d : dict
+    d :
         flat python dict
         e.g.: {"HeaderTemplate": {"param": "value"}}
 
     Returns
     -------
-    wt : str
+    wt :
         wiki text
     """
     wt = ""

@@ -52,7 +52,7 @@ class WtSite:
         return cls(site)
 
     @classmethod
-    def from_credentials(cls, credentials: Union[Dict[str, str], str, Path],
+    def from_credentials(cls, credentials: Union[Dict[str, Dict[str, str]], str, Path],
                          key: Union[str, int] = 0):
         """
 
@@ -149,21 +149,22 @@ class WtSite:
     def create_page_package(
             self,
             config: package.PagePackageConfig,
-            dump_config: 'WtPage.PageDumpConfig' = None
+            dump_config: 'WtPage.PageDumpConfig' = None,
+            debug: bool = True
     ):
         """Create a page package, which is a locally stored collection of wiki pages
         and their slots, based on a configuration
         object.
-
-
         """
         # Clear the content directory
         try:
-            print(f"Delete dir '{config.content_path}'")
+            if debug:
+                print(f"Delete dir '{config.content_path}'")
             if os.path.exists(config.content_path):
                 shutil.rmtree(config.content_path)
         except OSError as e:
-            print("Error: %s - %s." % (e.filename, e.strerror))
+            if debug:
+                print("Error: %s - %s." % (e.filename, e.strerror))
         # Create a dump config
         if dump_config is None:
             dump_config = WtPage.PageDumpConfig(
@@ -191,9 +192,16 @@ class WtSite:
                     )
 
         content = bundle.json(exclude_none=True, indent=4)
+        # This will create the JSON (e.g., package.json) with the PagePackageConfig,
+        #  which contains the PagePackageBundle
         file_name = f"{config.config_path}"
         with open(file_name, "w") as f:
             f.write(content)
+
+    # todo: implement
+
+    def upload_page_package(self):
+        pass
 
 
 class WtPage:
@@ -206,7 +214,7 @@ class WtPage:
         self._original_content = ""
         self._content = ""
         self.changed = False
-        self._dict = []
+        self._dict = []  # todo: named dict but is of type list
         self._slots = {"main": ""}
         self._slots_changed = {"main": False}
         self._content_model = {"main": "wikitext"}
@@ -464,3 +472,12 @@ class WtPage:
             package_page.fileURLPath = path_prefix + file_name
 
         return package_page
+
+    @_basemodel_decorator
+    class PageUploadConfig(BaseModel):
+        pass
+
+    # todo: implement
+
+    def upload(self, config: PageUploadConfig):
+        pass

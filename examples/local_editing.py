@@ -33,12 +33,10 @@ SEL_INDICES_DEFAULT = [
 SLOTS_TO_UPLOAD_DEFAULT = np_array(list(SLOTS.keys()))[SEL_INDICES_DEFAULT].tolist()
 TARGET_PAGE_DEFAULT = "https://wiki-dev.open-semantic-lab.org/wiki/Main_Page"
 LWD_DEFAULT = Path(os.getcwd()).parent / "data"
-SETTINGS_FILE_PATH_DEFAULT = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "settings.json"
-)
-CREDENTIALS_FILE_PATH_DEFAULT = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
-)
+SETTINGS_FILE_PATH_DEFAULT = \
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+CREDENTIALS_FILE_PATH_DEFAULT = \
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
 
 
 # Definition of functions
@@ -233,7 +231,7 @@ actions_layout = [
             [
                 [
                     psg.InputText(size=(50, 1), default_text=settings["target_page"],
-                        key="-ADDRESS-"),
+                                  key="-ADDRESS-"),
                     psg.Button("Load page")
                 ],
                 [

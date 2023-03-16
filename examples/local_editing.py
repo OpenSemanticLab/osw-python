@@ -8,17 +8,19 @@ dumpy_empty_slots = False
 https://github.com/OpenSemanticLab/osw-python/blob/main/src/osw/wtsite.py#L112
 """
 import json
-import PySimpleGUI as psg
 import os
+
 # import yaml
 from pathlib import Path
 from typing import Union
-from numpy import array as np_array
-from osw.wiki_tools import read_domains_from_credentials_file
-from osw.core import OSW
-from osw.wtsite import WtPage, WtSite, SLOTS
-import osw.model.page_package as package
 
+import PySimpleGUI as psg
+from numpy import array as np_array
+
+import osw.model.page_package as package
+from osw.core import OSW
+from osw.wiki_tools import read_domains_from_credentials_file
+from osw.wtsite import SLOTS, WtPage, WtSite
 
 # Definition of constants
 GUI_THEME = "reddit"
@@ -33,10 +35,12 @@ SEL_INDICES_DEFAULT = [
 SLOTS_TO_UPLOAD_DEFAULT = np_array(list(SLOTS.keys()))[SEL_INDICES_DEFAULT].tolist()
 TARGET_PAGE_DEFAULT = "https://wiki-dev.open-semantic-lab.org/wiki/Main_Page"
 LWD_DEFAULT = Path(os.getcwd()).parent / "data"
-SETTINGS_FILE_PATH_DEFAULT = \
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
-CREDENTIALS_FILE_PATH_DEFAULT = \
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml")
+SETTINGS_FILE_PATH_DEFAULT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "settings.json"
+)
+CREDENTIALS_FILE_PATH_DEFAULT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
+)
 
 
 # Definition of functions
@@ -51,15 +55,20 @@ def create_config_from_setting(settings_: dict):
     config_ = WtPage.PageDumpConfig(
         target_dir=settings_["local_working_directory"],
         dump_empty_slots=settings_["dump_empty_slots"],
-        page_name_as_filename=settings_["page_name_as_filename"]
+        page_name_as_filename=settings_["page_name_as_filename"],
     )
     return config_
 
 
-def create_page_package(full_page_name_str, wtsite_inst: WtSite,
-                        dump_config_inst: WtPage.PageDumpConfig, label_str: str = None,
-                        top_level: str = None, sub_level: str = "content",
-                        author: Union[str, list] = "Open Semantic World"):
+def create_page_package(
+    full_page_name_str,
+    wtsite_inst: WtSite,
+    dump_config_inst: WtPage.PageDumpConfig,
+    label_str: str = None,
+    top_level: str = None,
+    sub_level: str = "content",
+    author: Union[str, list] = "Open Semantic World",
+):
     if top_level is None:
         top_level = full_page_name_str.split(":")[-1]
     package_repo_org = "OpenSemanticWorld-Packages"
@@ -93,7 +102,7 @@ def create_page_package(full_page_name_str, wtsite_inst: WtSite,
                 version="0.0.1",
                 description="Created by the GUI for local editing of OSW pages",
                 baseURL=f"https://raw.githubusercontent.com/{package_repo_org}/"
-                        f"{package_repo}/{package_branch}/{package_subdir}/",
+                f"{package_repo}/{package_branch}/{package_subdir}/",
             )
         },
     )
@@ -103,12 +112,10 @@ def create_page_package(full_page_name_str, wtsite_inst: WtSite,
             config_path=os.path.join(target_dir, "packages.json"),
             content_path=os.path.join(target_dir, package_subdir),
             bundle=bundle,
-            titles=[
-                full_page_name_str
-            ],
+            titles=[full_page_name_str],
         ),
         dump_config=dump_config_inst,
-        debug=False
+        debug=False,
     )
 
 
@@ -127,7 +134,7 @@ else:
         "dump_empty_slots": DUMP_EMPTY_SLOTS_DEFAULT,
         "page_name_as_filename": True,
         "slots_to_upload": SLOTS_TO_UPLOAD_DEFAULT,
-        "domain": ""
+        "domain": "",
     }
     settings_read_from_file = False
 
@@ -138,11 +145,12 @@ domain = domains[0]
 if settings_read_from_file:
     settings["domain"] = domain
 
-wtsite_obj = WtSite.from_domain(domain=domains[0], password_file="",
-                                credentials=accounts[domains[0]])
+wtsite_obj = WtSite.from_domain(
+    domain=domains[0], password_file="", credentials=accounts[domains[0]]
+)
 osw_obj = OSW(site=wtsite_obj)
 
-full_page_name = settings["target_page"].split("/")[-1].replace('_', ' ')
+full_page_name = settings["target_page"].split("/")[-1].replace("_", " ")
 page = wtsite_obj.get_WtPage(full_page_name)
 label_set = False
 label = None
@@ -152,10 +160,7 @@ label = None
 psg.theme(GUI_THEME)
 # Settings
 settings_layout = [
-
-    [
-        psg.Text("Settings", font=("Helvetica", 20))
-    ],
+    [psg.Text("Settings", font=("Helvetica", 20))],
     [
         psg.Column(
             [
@@ -167,106 +172,107 @@ settings_layout = [
                 ],
                 [
                     psg.Text("Local working directory"),
-                ]
+                ],
             ]
         ),
         psg.Column(
             [
                 [
-                    psg.In(size=(50, 1), enable_events=True, key="-SETTINGS-",
-                           default_text=settings["settings_file_path"]),
+                    psg.In(
+                        size=(50, 1),
+                        enable_events=True,
+                        key="-SETTINGS-",
+                        default_text=settings["settings_file_path"],
+                    ),
                     psg.FileBrowse(button_text="Browse", key="-BROWSE_SETTINGS-"),
                     psg.Button("Load", key="-LOAD_SETTINGS-"),
-                    psg.Button("Save", key="-SAVE_SETTINGS-")
+                    psg.Button("Save", key="-SAVE_SETTINGS-"),
                 ],
                 [
-                    psg.In(size=(50, 1), enable_events=True, key="-CREDENTIALS-",
-                           default_text=settings["credentials_file_path"]),
+                    psg.In(
+                        size=(50, 1),
+                        enable_events=True,
+                        key="-CREDENTIALS-",
+                        default_text=settings["credentials_file_path"],
+                    ),
                     psg.FileBrowse(button_text="Browse", key="-BROWSE_CREDENTIALS-"),
                 ],
                 [
-                    psg.In(size=(50, 1), enable_events=True, key="-LWD-",
-                           default_text=settings["local_working_directory"]),
-                    psg.FolderBrowse(button_text="Browse", key="-BROWSE_LWD-")
-                ]
+                    psg.In(
+                        size=(50, 1),
+                        enable_events=True,
+                        key="-LWD-",
+                        default_text=settings["local_working_directory"],
+                    ),
+                    psg.FolderBrowse(button_text="Browse", key="-BROWSE_LWD-"),
+                ],
             ]
-        )
+        ),
     ],
-    [
-        psg.HSeparator()
-    ]
+    [psg.HSeparator()],
 ]
 # Actions
 actions_layout = [
     # Actions
-    [
-        psg.Text("Actions", font=("Helvetica", 20))
-    ],
+    [psg.Text("Actions", font=("Helvetica", 20))],
     # Target OSW instance
-    [
-        psg.Text("Target OSW instance", font=("Helvetica", 16))
-    ],
-    [
-        psg.Text("List of domains is read from accounts.pwd.yaml!")
-    ],
-    [
-        psg.Combo(domains, default_value=domains[0], key='-DOMAIN-', enable_events=True)
-    ],
+    [psg.Text("Target OSW instance", font=("Helvetica", 16))],
+    [psg.Text("List of domains is read from accounts.pwd.yaml!")],
+    [psg.Combo(domains, default_value=domains[0], key="-DOMAIN-", enable_events=True)],
     # Target page
-    [
-        psg.Text("Target page", font=("Helvetica", 16))
-    ],
+    [psg.Text("Target page", font=("Helvetica", 16))],
     [
         psg.Column(
             [
-                [
-                    psg.Text("Address, within selected OSW instance")
-                ],
-                [
-                    psg.Text("First label of the OSW page:")
-                ]
+                [psg.Text("Address, within selected OSW instance")],
+                [psg.Text("First label of the OSW page:")],
             ]
         ),
         psg.Column(
             [
                 [
-                    psg.InputText(size=(50, 1), default_text=settings["target_page"],
-                                  key="-ADDRESS-"),
-                    psg.Button("Load page")
+                    psg.InputText(
+                        size=(50, 1),
+                        default_text=settings["target_page"],
+                        key="-ADDRESS-",
+                    ),
+                    psg.Button("Load page"),
                 ],
                 [
                     # A display element that will show the label of the OSW page
                     psg.Multiline(size=(50, 1), key="-LABEL-", no_scrollbar=True)
-                ]
+                ],
             ]
-        )
+        ),
     ],
     # [
     #     psg.HSeparator()
     # ],
     # Slots to download
-    [
-        psg.Text("Slots to download", font=("Helvetica", 16))
-    ],
+    [psg.Text("Slots to download", font=("Helvetica", 16))],
     [
         psg.Column(
             [
                 [
-                    psg.Radio("Include empty slots", group_id="-RADIO1-",
-                              default=settings["dump_empty_slots"],
-                              key="-INC_EMPTY-", enable_events=True)
+                    psg.Radio(
+                        "Include empty slots",
+                        group_id="-RADIO1-",
+                        default=settings["dump_empty_slots"],
+                        key="-INC_EMPTY-",
+                        enable_events=True,
+                    )
                 ],
                 [
-                    psg.Radio("Exclude empty slots", group_id="-RADIO1-",
-                              default=(not settings["dump_empty_slots"]),
-                              key="-EXC_EMPTY-", enable_events=True)
+                    psg.Radio(
+                        "Exclude empty slots",
+                        group_id="-RADIO1-",
+                        default=(not settings["dump_empty_slots"]),
+                        key="-EXC_EMPTY-",
+                        enable_events=True,
+                    )
                 ],
-                [
-                    psg.Button("Download selected", key="-DL-")
-                ],
-                [
-                    psg.Multiline(size=(20, 1), key="-DL_RES-", no_scrollbar=True)
-                ]
+                [psg.Button("Download selected", key="-DL-")],
+                [psg.Multiline(size=(20, 1), key="-DL_RES-", no_scrollbar=True)],
             ]
         ),
     ],
@@ -274,43 +280,33 @@ actions_layout = [
     #     psg.HSeparator()
     # ],
     # Slots to upload
-    [
-        psg.Text("Slots to upload", font=("Helvetica", 16))
-    ],
+    [psg.Text("Slots to upload", font=("Helvetica", 16))],
     [
         psg.Column(
             [
+                [psg.Button("(De)Select all", key="-UL_SEL-")],
                 [
-                    psg.Button("(De)Select all", key="-UL_SEL-")
+                    psg.Listbox(
+                        values=SLOTS.keys(),
+                        default_values=settings["slots_to_upload"],
+                        size=(20, 10),
+                        key="-UL_LIST-",
+                        select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
+                        enable_events=True,
+                        no_scrollbar=True,
+                    )
                 ],
-                [
-                    psg.Listbox(values=SLOTS.keys(),
-                                default_values=settings["slots_to_upload"],
-                                size=(20, 10), key="-UL_LIST-",
-                                select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
-                                enable_events=True, no_scrollbar=True)
-                ],
-                [
-                    psg.Button("Upload selected", key="-UL-")
-                ],
-                [
-                    psg.Multiline(size=(20, 1), key="-UL_RES-", no_scrollbar=True)
-                ]
+                [psg.Button("Upload selected", key="-UL-")],
+                [psg.Multiline(size=(20, 1), key="-UL_RES-", no_scrollbar=True)],
             ]
         )
-    ]
+    ],
 ]
 output_layout = [
-    [
-        psg.HSeparator()
-    ],
+    [psg.HSeparator()],
     # Output
-    [
-        psg.Text("Debug output", font=("Helvetica", 20))
-    ],
-    [
-        psg.Multiline(key="-OUTPUT-", size=(100, 10))
-    ]
+    [psg.Text("Debug output", font=("Helvetica", 20))],
+    [psg.Multiline(key="-OUTPUT-", size=(100, 10))],
 ]
 # The full layout
 layout = settings_layout + actions_layout
@@ -338,8 +334,9 @@ while True:
         window["-ADDRESS-"].update(settings["target_page"])
         window["-INC_EMPTY-"].update(settings["dump_empty_slots"])
         window["-EXC_EMPTY-"].update(not settings["dump_empty_slots"])
-        indices = \
-            [i for i, x in enumerate(SLOTS.keys()) if x in settings["slots_to_upload"]]
+        indices = [
+            i for i, x in enumerate(SLOTS.keys()) if x in settings["slots_to_upload"]
+        ]
         window["-UL_LIST-"].update(set_to_index=indices)
         settings_read_from_file = True
     elif event == "-SAVE_SETTINGS-":
@@ -359,13 +356,14 @@ while True:
         wtsite_obj = WtSite.from_domain(
             domain=settings["domain"],
             password_file="",
-            credentials=accounts[settings["domain"]]
+            credentials=accounts[settings["domain"]],
         )
         osw_obj = OSW(site=wtsite_obj)
     elif event == "Load page":
-        full_page_name = values["-ADDRESS-"].split("/")[-1].replace('_', ' ')
-        if (values["-ADDRESS-"].find("/wiki/") != -1) or \
-                (values["-ADDRESS-"].find("/w/") != -1):
+        full_page_name = values["-ADDRESS-"].split("/")[-1].replace("_", " ")
+        if (values["-ADDRESS-"].find("/wiki/") != -1) or (
+            values["-ADDRESS-"].find("/w/") != -1
+        ):
             settings["target_page"] = values["-ADDRESS-"]
         else:
             settings["target_page"] = "https://" + domain + "/wiki/" + full_page_name
@@ -393,10 +391,13 @@ while True:
         if label_set:
             dump_config = create_config_from_setting(settings)
             # _ = page.dump(dump_config)
-            create_page_package(full_page_name_str=full_page_name,
-                                wtsite_inst=wtsite_obj, dump_config_inst=dump_config,
-                                label_str=label,
-                                author=accounts[domains[0]]["username"])
+            create_page_package(
+                full_page_name_str=full_page_name,
+                wtsite_inst=wtsite_obj,
+                dump_config_inst=dump_config,
+                label_str=label,
+                author=accounts[domains[0]]["username"],
+            )
             window["-DL_RES-"].update("Slots downloaded!")
         else:
             window["-DL_RES-"].update("No page loaded!")
@@ -409,8 +410,7 @@ while True:
             window["-UL_LIST-"].update(set_to_index=list(range(len(SLOTS.keys()))))
     elif event == "-UL_LIST-":
         indices = list(window["-UL_LIST-"].get_indexes())
-        settings["slots_to_upload"] = \
-            np_array(list(SLOTS.keys()))[indices].tolist()
+        settings["slots_to_upload"] = np_array(list(SLOTS.keys()))[indices].tolist()
     elif event == "-UL-":
         pass
         # Success:
@@ -421,8 +421,11 @@ while True:
     # Some debugging output functionality
     if DEBUG:
         values_str = "\n".join(
-            [f"{key}: {str_or_none(value)}"
-             for key, value in values.items() if key != "-OUTPUT-"]
+            [
+                f"{key}: {str_or_none(value)}"
+                for key, value in values.items()
+                if key != "-OUTPUT-"
+            ]
         )
         listbox_selected_items_str = "\n".join(settings["slots_to_upload"])
 

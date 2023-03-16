@@ -1,17 +1,17 @@
 import copy
 import getpass
+from pathlib import Path
+from typing import Dict, List, Union
 
 import mwclient
 import mwparserfromhell
 import numpy as np
 import yaml
 from jsonpath_ng.ext import parse
-from pathlib import Path
-from typing import Union, List, Dict, Any
 
 
 def read_domains_from_credentials_file(
-        credentials_file_path: Union[str, Path]
+    credentials_file_path: Union[str, Path]
 ) -> (List[str], Dict[str, Dict[str, str]]):
     """Reads domains and credentials from a yaml file
 
@@ -36,8 +36,7 @@ def read_domains_from_credentials_file(
 
 
 def read_credentials_from_yaml(
-        password_file: Union[str, Path],
-        domain: str = None
+    password_file: Union[str, Path], domain: str = None
 ) -> dict:
     """Reads credentials from a yaml file
 
@@ -75,9 +74,7 @@ def read_credentials_from_yaml(
 
 
 def create_site_object(
-        domain: str,
-        password_file: Union[str, Path] = "",
-        credentials: dict = None
+    domain: str, password_file: Union[str, Path] = "", credentials: dict = None
 ) -> mwclient.client.Site:
     """
     Parameters
@@ -93,8 +90,10 @@ def create_site_object(
     site : mwclient.client.Site
         Site object from mwclient lib
     """
-    domain_dict = {"wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"},
-                   "onterface": {"Address": "onterface.open-semantic-lab.org:"}}
+    domain_dict = {
+        "wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"},
+        "onterface": {"Address": "onterface.open-semantic-lab.org:"},
+    }
     if domain in domain_dict.keys():
         domain = domain_dict[domain]["Address"]
 
@@ -214,9 +213,7 @@ def search_wiki_page(title: str, site: mwclient.client.Site):
 
 
 def search_redirection_sources(
-        site: mwclient.client.Site,
-        target_title: str,
-        debug: bool = False
+    site: mwclient.client.Site, target_title: str, debug: bool = False
 ):
     """Returns a list of pages redirecting to the page with target_title per #REDIRECT
     [[target]] syntax
@@ -252,11 +249,11 @@ def search_redirection_sources(
 
 
 def update_template_within_wikitext(
-        text,
-        template_text,
-        delete=False,
-        remove_empty_lines=False,
-        overwrite_with_empty=False,
+    text,
+    template_text,
+    delete=False,
+    remove_empty_lines=False,
+    overwrite_with_empty=False,
 ):
     """Updates the template parameters in an existing wiki <text> with a provided new
     <template_text>
@@ -326,7 +323,7 @@ def update_template_within_wikitext(
 
 
 def merge_wiki_page_text(
-        text1, text2, template_name, subtemplate_param="", subtemplate_name=""
+    text1, text2, template_name, subtemplate_param="", subtemplate_name=""
 ):
     """Not fully tested function!
 
@@ -431,7 +428,7 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
 
 
 def create_flat_content_structure_from_wikitext(
-        text: str, array_mode: str = "force"
+    text: str, array_mode: str = "force"
 ) -> list:
     """Create a flat python dict (aka 'flat_content_structure' = 'wikiJson')
     representing the content of the page
@@ -594,9 +591,9 @@ def wikiJson2SchemaJson(schema, wikiJson):
     """
     schemaJson = {}
     if (
-            not isinstance(wikiJson[0], dict)
-            or not isinstance(wikiJson[1], str)
-            or not isinstance(wikiJson[2], dict)
+        not isinstance(wikiJson[0], dict)
+        or not isinstance(wikiJson[1], str)
+        or not isinstance(wikiJson[2], dict)
     ):
         print("Error: Invalid wikiJson:", wikiJson)
         return schemaJson
@@ -639,7 +636,7 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
                 if isinstance(element, dict):
                     if key == "extensions":
                         if (
-                                footerWikiJson is not None
+                            footerWikiJson is not None
                         ):  # we asume that every extension provides also a footer template
                             nextFooter = footerWikiJson[
                                 schemaJson["osl_footer"]["osl_template"]
@@ -671,12 +668,12 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
         for match in jsonpath_expr.find(schema):
             value = match.value
             if (
-                    "osl_template" in value
-                    and "osl_template" in schemaJson
-                    and value["osl_template"]["default"] == schemaJson["osl_template"]
-                    or "osl_schema" in value
-                    and "osl_schema" in schemaJson
-                    and value["osl_schema"]["default"] == schemaJson["osl_schema"]
+                "osl_template" in value
+                and "osl_template" in schemaJson
+                and value["osl_template"]["default"] == schemaJson["osl_template"]
+                or "osl_schema" in value
+                and "osl_schema" in schemaJson
+                and value["osl_schema"]["default"] == schemaJson["osl_schema"]
             ):
                 schema_def = match.value  # ToDo: Resolve allOf...
                 # print(schema_def)
@@ -704,7 +701,7 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
                 if schemaJson[key] == "" and key == "extensions":
                     del schemaJson[key]
                 elif isinstance(
-                        schemaJson[key], list
+                    schemaJson[key], list
                 ):  # wikiJson defaults are lists, even for single or empty values
                     if len(schemaJson[key]) == 0:
                         del schemaJson[key]
@@ -759,10 +756,10 @@ def schemaJson2WikiJson(schemaJson, isRoot=True):
 
     for key in schemaJson:
         if (
-                key.startswith("_")
-                or key.startswith("osl_template")
-                or key.startswith("osl_wikitext")
-                or key.startswith("osl_footer")
+            key.startswith("_")
+            or key.startswith("osl_template")
+            or key.startswith("osl_wikitext")
+            or key.startswith("osl_footer")
         ):
             continue  # exclude private and reserved keywords
         if schemaJson[key] is None:
@@ -832,7 +829,7 @@ def delete_wiki_page(title, site, reason):
 
 
 def create_or_update_wiki_page_with_template(
-        title, content, site, overwrite_with_empty=False
+    title, content, site, overwrite_with_empty=False
 ):
     """Creates a wiki page with a template included in the content. If the page does
     already exist, the parameters within the template are update
@@ -893,7 +890,7 @@ def find_dependencies(wikitext, debug=False):
                 print("ParserFunction: {}".format(template.name))
             if "#set:" in template.name or "#declare:" in template.name:
                 if (
-                        "=" in template.name.split(":")[1]
+                    "=" in template.name.split(":")[1]
                 ):  # in case of '{{#set:HasIdPostfix={{{id_postfix}}} }}'
                     property_ = "Property:" + template.name.split(":")[1].split("=")[0]
                     dependencies.append(property_)
@@ -1044,7 +1041,7 @@ def copy_wiki_page(title0, title1, site0, site1, overwrite=True):
         else:
             search_result = search_wiki_page(title1, site1)
             if (
-                    search_result["Result"] and search_result["Exact match"]
+                search_result["Result"] and search_result["Exact match"]
             ):  # page already exists
                 success = False
             else:  # search_result["Result"] == True/False, search_result["Exact match"] == False

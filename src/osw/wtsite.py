@@ -4,9 +4,9 @@ import json
 import os
 import shutil
 from datetime import datetime
-from pprint import pprint
-from typing import Dict, List, Optional, Union
 from pathlib import Path
+from pprint import pprint
+from typing import Dict, Optional, Union
 
 import mwclient
 from jsonpath_ng.ext import parse
@@ -15,7 +15,6 @@ from pydantic import BaseModel
 import osw.model.page_package as package
 import osw.wiki_tools as wt
 from osw.model.entity import _basemodel_decorator
-
 
 # Definition of constants
 SLOTS = {
@@ -28,7 +27,7 @@ SLOTS = {
     "header_template": {"content_model": "wikitext", "content_template": ""},
     "footer_template": {"content_model": "wikitext", "content_template": ""},
     "data_template": {"content_model": "wikitext", "content_template": ""},
-    "schema_template": {"content_model": "wikitext", "content_template": ""}
+    "schema_template": {"content_model": "wikitext", "content_template": ""},
 }
 
 
@@ -42,9 +41,12 @@ class WtSite:
         self._cache_enabled = False
 
     @classmethod
-    def from_domain(cls, domain: str = None,
-                    password_file: Union[str, Path] = None,
-                    credentials: dict = None):
+    def from_domain(
+        cls,
+        domain: str = None,
+        password_file: Union[str, Path] = None,
+        credentials: dict = None,
+    ):
         if credentials is None:
             site = wt.create_site_object(domain, password_file)
         else:
@@ -52,8 +54,11 @@ class WtSite:
         return cls(site)
 
     @classmethod
-    def from_credentials(cls, credentials: Union[Dict[str, Dict[str, str]], str, Path],
-                         key: Union[str, int] = 0):
+    def from_credentials(
+        cls,
+        credentials: Union[Dict[str, Dict[str, str]], str, Path],
+        key: Union[str, int] = 0,
+    ):
         """
 
         Parameters
@@ -147,10 +152,10 @@ class WtSite:
                 wtpage.edit(comment)
 
     def create_page_package(
-            self,
-            config: package.PagePackageConfig,
-            dump_config: 'WtPage.PageDumpConfig' = None,
-            debug: bool = True
+        self,
+        config: package.PagePackageConfig,
+        dump_config: "WtPage.PageDumpConfig" = None,
+        debug: bool = True,
     ):
         """Create a page package, which is a locally stored collection of wiki pages
         and their slots, based on a configuration
@@ -238,7 +243,6 @@ class WtPage:
             for page_id in rev["query"]["pages"]:
                 page = rev["query"]["pages"][page_id]
                 if page["title"] == title:
-                    page_id_reuse = page_id
                     for revision in page["revisions"]:
                         self._current_revision = revision
                         for slot_key in revision["slots"]:

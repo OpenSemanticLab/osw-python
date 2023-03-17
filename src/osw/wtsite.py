@@ -352,24 +352,55 @@ class WtPage:
         self.changed = self._original_content != self._content
         return self
 
-    def edit(self, comment: str = None):
+    def edit(self, comment: str = None, mode="action-multislot"):
+        """creates / updates the content of all page slots in the wiki site
+
+        Parameters
+        ----------
+        comment, optional
+            edit comment for the page history, by default None
+        mode, optional
+            single API call ('action-multislot') or multiple ('action-singleslot'), by default 'action-multislot' (faster)
+        """
         if not comment:
             comment = "[bot] update of page content"
         if self.changed:
-            self._page.edit(self._content, comment)
-        for slot_key in self._slots:
-            if self._slots_changed[slot_key]:
-                content = self._slots[slot_key]
-                if self._content_model[slot_key] == "json":
-                    content = json.dumps(content)
+            self._page.edit(self._content, comment)  # legacy mode
+        if mode == "action-multislot":
+            params = {}
+            changed = False
+            for slot_key in self._slots:
+                if self._slots_changed[slot_key]:
+                    changed = True
+                    self._slots_changed[slot_key] = False
+                    content = self._slots[slot_key]
+                    if self._content_model[slot_key] == "json":
+                        content = json.dumps(content)
+                    params["slot_" + slot_key] = content
+            if changed:
                 self.wtSite._site.api(
-                    "editslot",
+                    "editslots",
                     token=self.wtSite._site.get_token("csrf"),
                     title=self.title,
-                    slot=slot_key,
-                    text=content,
                     summary=comment,
+                    **params,
                 )
+
+        else:
+            for slot_key in self._slots:
+                if self._slots_changed[slot_key]:
+                    content = self._slots[slot_key]
+                    if self._content_model[slot_key] == "json":
+                        content = json.dumps(content)
+                    self.wtSite._site.api(
+                        "editslot",
+                        token=self.wtSite._site.get_token("csrf"),
+                        title=self.title,
+                        slot=slot_key,
+                        text=content,
+                        summary=comment,
+                    )
+                    self._slots_changed[slot_key] = False
 
     def delete(self, comment: str = None):
         self._page.delete(comment)

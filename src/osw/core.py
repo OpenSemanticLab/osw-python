@@ -415,6 +415,12 @@ class OSW(BaseModel):
             print("Error: Unsupported entity type")
             return
 
+        page.set_slot_content(
+            "header", "{{#invoke:Entity|header}}"
+        )  # required for json parsing and header rendering
+        page.set_slot_content(
+            "footer", "{{#invoke:Entity|footer}}"
+        )  # required for footer rendering
         page.edit()
         print("Entity stored at " + page.get_url())
 

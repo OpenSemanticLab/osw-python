@@ -13,7 +13,7 @@ wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
 osw = OSW(site=wtsite)
 
 my_entity = model.Item(
-    label=model.Label(text="MyItem"), statements=[model.Statement(predicate="IsA")]
+    label=[model.Label(text="MyItem")], statements=[model.Statement(predicate="IsA")]
 )
 pprint(my_entity)
 

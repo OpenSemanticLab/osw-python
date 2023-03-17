@@ -43,6 +43,6 @@ osw.fetch_schema(
 reload(model)
 
 my_instance = model.MyPythonClass(
-    label=model.Label(text="My Instance"), my_value="test"
+    label=[model.Label(text="My Instance")], my_value="test"
 )
 pprint(my_instance)

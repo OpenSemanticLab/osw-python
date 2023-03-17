@@ -47,7 +47,7 @@ class OswClassMetaclass(ModelMetaclass):
 
 
 class OSW(BaseModel):
-    """OSW Class"""
+    """Bundles core functionalities of OpenSemanticWorld (OSW)"""
 
     uuid: str = "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5"
     _protected_keywords = (
@@ -62,10 +62,32 @@ class OSW(BaseModel):
 
     @staticmethod
     def get_osw_id(uuid: uuid) -> str:
+        """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing all "-" from the uuid-string
+
+        Parameters
+        ----------
+        uuid
+            uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+
+        Returns
+        -------
+            OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+        """
         return "OSW" + str(uuid).replace("-", "")
 
     @staticmethod
     def get_uuid(osw_id) -> uuid:
+        """Returns the uuid for a given OSW-ID
+
+        Parameters
+        ----------
+        osw_id
+            OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+
+        Returns
+        -------
+            uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+        """
         return UUID(osw_id.replace("OSW", ""))
 
     @model._basemodel_decorator
@@ -92,7 +114,7 @@ class OSW(BaseModel):
         schema_bases: List[str] = ["Category:Item"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
-        """registers a new or updated schema in OSW
+        """registers a new or updated schema in OSW by creating the corresponding category page
 
         Parameters
         ----------
@@ -175,6 +197,13 @@ class OSW(BaseModel):
         comment: Optional[str]
 
     def unregister_schema(self, schema_unregistration: SchemaUnregistration):
+        """deletes the corresponding category page
+
+        Parameters
+        ----------
+        schema_unregistration
+            see SchemaUnregistration
+        """
         uuid = ""
         if schema_unregistration.model_uuid:
             uuid = schema_unregistration.model_uuid
@@ -192,18 +221,47 @@ class OSW(BaseModel):
         page.delete(schema_unregistration.comment)
 
     class FetchSchemaMode(Enum):
+        """Modes of the FetchSchemaParam class
+
+        Attributes
+        ----------
+        append:
+            append to the current model
+        replace:
+            replace the current model
+        """
+
         append = "append"  # append to the current model
         replace = "replace"  # replace the current model
 
     @model._basemodel_decorator
     class FetchSchemaParam(BaseModel):
-        schema_title: Optional[str] = "JsonSchema:Entity"
+        """_summary_
+
+        Attributes
+        ----------
+        schema_title:
+            the title (wiki page name) of the schema (default: Category:Item)
+        root:
+            marks the root iteration for a recursive fetch (internal param, default: True)
+        mode:
+            append or replace (default) current schema, see FetchSchemaMode
+        """
+
+        schema_title: Optional[str] = "Category:Item"
         root: Optional[bool] = True
         mode: Optional[
             str
         ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
-    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None):
+    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
+        """loads the given schema from the OSW instance and autogenerates python datasclasses within osw.model.entity from it
+
+        Parameters
+        ----------
+        fetchSchemaParam, optional
+            see FetchSchemaParam, by default None
+        """
         site_cache_state = self.site.get_cache_enabled()
         self.site.enable_cache()
         if fetchSchemaParam is None:
@@ -378,6 +436,19 @@ class OSW(BaseModel):
                 self.site.disable_cache()  # restore original state
 
     def load_entity(self, entity_title) -> model.Entity:
+        """Loads the entity with the given wiki page name from the OSW instance.
+            Creates a instance of the class specified by the "type" attribute, default model.Entity
+            Instance of model.Entity can be casted to any subclass with .cast(model.<class>)
+
+        Parameters
+        ----------
+        entity_title
+            the wiki page name
+
+        Returns
+        -------
+            the dataclass instance
+        """
         entity = None
         schemas = []
         page = self.site.get_WtPage(entity_title)
@@ -404,6 +475,13 @@ class OSW(BaseModel):
         return entity
 
     def store_entity(self, entity) -> None:
+        """stores the given datasclass instance as OSW page by calling BaseModel.json()
+
+        Parameters
+        ----------
+        entity
+            the datasclass instance
+        """
         if isinstance(entity, model.Item):
             entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
             page = self.site.get_WtPage(entity_title)
@@ -425,6 +503,15 @@ class OSW(BaseModel):
         print("Entity stored at " + page.get_url())
 
     def delete_entity(self, entity, comment: str = None):
+        """deletes the given entity from the OSW instance
+
+        Parameters
+        ----------
+        entity
+            the dataclass instance to delete
+        comment, optional
+            command for the change log, by default None
+        """
         if isinstance(entity, model.Item):
             entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
             page = self.site.get_WtPage(entity_title)

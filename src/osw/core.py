@@ -407,7 +407,9 @@ class OSW(BaseModel):
         if isinstance(entity, model.Item):
             entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
             page = self.site.get_WtPage(entity_title)
-            jsondata = json.loads(entity.json())  # use pydantic serialization
+            jsondata = json.loads(
+                entity.json(exclude_none=True)
+            )  # use pydantic serialization, skip none values
             page.set_slot_content("jsondata", jsondata)
         else:
             print("Error: Unsupported entity type")

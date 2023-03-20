@@ -184,6 +184,6 @@ class PagePackageConfig(BaseModel):
         analogous function will be implemented and any in a BaseModel class defined
         method named 'model_post_init(self, **kwargs)' will be called after
         init."""
-        super().__init__(self, **data)
+        super().__init__(**data)
         if self.content_path == "":
             self.content_path = os.path.dirname(self.config_path)

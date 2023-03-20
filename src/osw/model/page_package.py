@@ -176,7 +176,14 @@ class PagePackageConfig(BaseModel):
     skip_slot_suffix_for_main: Optional[bool] = False
     include_files: Optional[bool] = True
 
-    def __post_init__(self):
-        """Will be executed after the object is initialized, but before validation."""
+    def __init__(self, **data):
+        """Originally, the dataclass.__post_init_() method was used here. 
+        Pydantic does not implement anything similar yet. According to
+        https://github.com/pydantic/pydantic/issues/1729#issuecomment-1300576214
+        no __post_init__ method will be available until Pydantic v2. Then an 
+        analogous function will be implemented and any in a BaseModel class defined 
+        method named 'model_post_init(self, **kwargs)' will be called after 
+        init."""
+        super().__init__(self, **data)
         if self.content_path == "":
             self.content_path = os.path.dirname(self.config_path)

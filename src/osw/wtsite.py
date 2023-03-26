@@ -6,6 +6,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from pprint import pprint
+from time import sleep
 from typing import Dict, Optional, Union
 
 import mwclient
@@ -90,12 +91,31 @@ class WtSite:
         return cls(site)
 
     def get_WtPage(self, title: str = None):
+        retry = 0
+        max_retry = 5
+        page = None
+        while retry < max_retry:
+            try:
+                page = self._get_WtPage(title)
+                break
+            except Exception as e:
+                print(e)
+                if retry < max_retry:
+                    retry += 1
+                    print(f"Page load failed. Retry ({retry}/{max_retry})")
+                    sleep(5)
+        self._clear_cookies()
+        return page
+
+    def _get_WtPage(self, title: str = None):
+
         if self._cache_enabled and title in self._page_cache:
             return self._page_cache[title]
         else:
             wtpage = WtPage(self, title)
             if self._cache_enabled:
                 self._page_cache[title] = wtpage
+
         return wtpage
 
     def enable_cache(self):
@@ -110,6 +130,14 @@ class WtSite:
     def clear_cache(self):
         del self._page_cache
         self._page_cache = {}
+
+    def _clear_cookies(self):
+        # see https://github.com/mwclient/mwclient/issues/221
+        for cookie in self._site.connection.cookies:
+            if "PostEditRevision" in cookie.name:
+                self._site.connection.cookies.clear(
+                    cookie.domain, cookie.path, cookie.name
+                )
 
     def prefix_search(self, text):
         return wt.prefix_search(self._site, text)
@@ -362,6 +390,19 @@ class WtPage:
         mode, optional
             single API call ('action-multislot') or multiple ('action-singleslot'), by default 'action-multislot' (faster)
         """
+        retry = 0
+        max_retry = 5
+        while retry < max_retry:
+            try:
+                return self._edit(comment, mode)
+            except Exception as e:
+                print(e)
+                if retry < max_retry:
+                    retry += 1
+                    print(f"Page edit failed. Retry ({retry}/{max_retry})")
+                    sleep(5)
+
+    def _edit(self, comment: str = None, mode="action-multislot"):
         if not comment:
             comment = "[bot] update of page content"
         if self.changed:
@@ -385,6 +426,7 @@ class WtPage:
                     summary=comment,
                     **params,
                 )
+                self.wtSite._clear_cookies()
 
         else:
             for slot_key in self._slots:

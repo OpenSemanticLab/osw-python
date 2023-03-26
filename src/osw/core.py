@@ -7,7 +7,7 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
@@ -474,33 +474,37 @@ class OSW(BaseModel):
 
         return entity
 
-    def store_entity(self, entity) -> None:
+    def store_entity(self, entity: Union[model.Entity, List[model.Entity]]) -> None:
         """stores the given datasclass instance as OSW page by calling BaseModel.json()
 
         Parameters
         ----------
         entity
-            the datasclass instance
+            the datasclass instance or a list of instances
         """
-        if isinstance(entity, model.Item):
-            entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
-            page = self.site.get_WtPage(entity_title)
-            jsondata = json.loads(
-                entity.json(exclude_none=True)
-            )  # use pydantic serialization, skip none values
-            page.set_slot_content("jsondata", jsondata)
-        else:
-            print("Error: Unsupported entity type")
-            return
+        if not isinstance(entity, list):
+            entity = [entity]
+        max_index = len(entity)
+        for index, e in enumerate(entity):
+            if isinstance(e, model.Item):
+                entity_title = "Item:" + OSW.get_osw_id(e.uuid)
+                page = self.site.get_WtPage(entity_title)
+                jsondata = json.loads(
+                    e.json(exclude_none=True)
+                )  # use pydantic serialization, skip none values
+                page.set_slot_content("jsondata", jsondata)
+            else:
+                print("Error: Unsupported entity type")
+                return
 
-        page.set_slot_content(
-            "header", "{{#invoke:Entity|header}}"
-        )  # required for json parsing and header rendering
-        page.set_slot_content(
-            "footer", "{{#invoke:Entity|footer}}"
-        )  # required for footer rendering
-        page.edit()
-        print("Entity stored at " + page.get_url())
+            page.set_slot_content(
+                "header", "{{#invoke:Entity|header}}"
+            )  # required for json parsing and header rendering
+            page.set_slot_content(
+                "footer", "{{#invoke:Entity|footer}}"
+            )  # required for footer rendering
+            page.edit()
+            print(f"({index}/{max_index}) Entity stored at {page.get_url()}")
 
     def delete_entity(self, entity, comment: str = None):
         """deletes the given entity from the OSW instance

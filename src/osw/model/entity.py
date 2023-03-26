@@ -46,6 +46,7 @@ class OswBaseModel(BaseModel):
         """Casting self into target class. If the passed attribute is None or solely
         includes None values, the attribute is not passed to the instance of the
         target class, which will then fall back to the default."""
+
         def test_if_empty_list_or_none(obj) -> bool:
             if obj is None:
                 return True
@@ -56,9 +57,13 @@ class OswBaseModel(BaseModel):
                     return True
             return False
 
-        return cls(**{
-            k: v for k, v in self.dict().items() if not test_if_empty_list_or_none(v)
-        })
+        return cls(
+            **{
+                k: v
+                for k, v in self.dict().items()
+                if not test_if_empty_list_or_none(v)
+            }
+        )
 
 
 @_basemodel_decorator

@@ -338,6 +338,7 @@ class OSW(BaseModel):
                 --use-title-as-name \
                 --use-schema-description \
                 --use-field-description \
+                --encoding utf-8 \
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
@@ -354,7 +355,7 @@ class OSW(BaseModel):
             # idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
 
             content = ""
-            with open(temp_model_path, "r") as f:
+            with open(temp_model_path, "r", encoding="utf-8") as f:
                 content = f.read()
             os.remove(temp_model_path)
 
@@ -402,12 +403,12 @@ class OSW(BaseModel):
                     r"UUID = Field(default_factory=uuid4",
                     content,
                 )  # enable default value for uuid
-                with open(result_model_path, "w") as f:
+                with open(result_model_path, "w", encoding="utf-8") as f:
                     f.write(content)
 
             if fetchSchemaParam.mode == "append":
                 org_content = ""
-                with open(result_model_path, "r") as f:
+                with open(result_model_path, "r", encoding="utf-8") as f:
                     org_content = f.read()
 
                 pattern = re.compile(
@@ -428,7 +429,7 @@ class OSW(BaseModel):
                     r"(from __future__ import annotations)", "", content, 1
                 )  # remove import statement
                 # print(content)
-                with open(result_model_path, "a") as f:
+                with open(result_model_path, "a", encoding="utf-8") as f:
                     f.write(content)
 
             importlib.reload(model)  # reload the updated module

@@ -1013,7 +1013,10 @@
 <span class="normal">525</span>
 <span class="normal">526</span>
 <span class="normal">527</span>
-<span class="normal">528</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -1306,6 +1309,7 @@
 <span class="s2">                --use-schema-description </span><span class="se">\</span>
 <span class="s2">                --use-field-description </span><span class="se">\</span>
 <span class="s2">                --encoding utf-8 </span><span class="se">\</span>
+<span class="s2">                --use-double-quotes </span><span class="se">\</span>
 <span class="s2">            &quot;</span>
             <span class="p">)</span>
             <span class="c1"># see https://koxudaxi.github.io/datamodel-code-generator/</span>
@@ -1339,15 +1343,17 @@
                     <span class="s2">&quot;if TYPE_CHECKING:</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;    from dataclasses import dataclass as _basemodel_decorator</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;else:</span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;    _basemodel_decorator = lambda x: x   # noqa: E731</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;    _basemodel_decorator = lambda x: x  # noqa: E731</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
                 <span class="n">header</span> <span class="o">+=</span> <span class="p">(</span>
-                    <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">T = TypeVar(&#39;T&#39;, bound=BaseModel)</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">T = TypeVar(&quot;T&quot;, bound=BaseModel)</span><span class="se">\n</span><span class="s1">&#39;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">class OswBaseModel(BaseModel):</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;    def full_dict(self, **kwargs): #extent BaseClass export function</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;        d = super().dict(**kwargs)</span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;        for key in &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_protected_keywords</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;        for key in &quot;</span>
+                    <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_protected_keywords</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+                    <span class="o">+</span> <span class="s2">&quot;:</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator </span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;        return d</span><span class="se">\n\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;    def cast(self, cls: Type[T]) -&gt; T:</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -2014,10 +2020,7 @@
 
       <details class="quote">
         <summary>Source code in <code>osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">513</span>
 <span class="normal">514</span>
 <span class="normal">515</span>
 <span class="normal">516</span>
@@ -2032,7 +2035,10 @@
 <span class="normal">525</span>
 <span class="normal">526</span>
 <span class="normal">527</span>
-<span class="normal">528</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;deletes the given entity from the OSW instance</span>
 
 <span class="sd">    Parameters</span>
@@ -2287,7 +2293,10 @@
 <span class="normal">434</span>
 <span class="normal">435</span>
 <span class="normal">436</span>
-<span class="normal">437</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;loads the given schema from the OSW instance and autogenerates python datasclasses within osw.model.entity from it</span>
 
 <span class="sd">    Parameters</span>
@@ -2372,6 +2381,7 @@
 <span class="s2">            --use-schema-description </span><span class="se">\</span>
 <span class="s2">            --use-field-description </span><span class="se">\</span>
 <span class="s2">            --encoding utf-8 </span><span class="se">\</span>
+<span class="s2">            --use-double-quotes </span><span class="se">\</span>
 <span class="s2">        &quot;</span>
         <span class="p">)</span>
         <span class="c1"># see https://koxudaxi.github.io/datamodel-code-generator/</span>
@@ -2405,15 +2415,17 @@
                 <span class="s2">&quot;if TYPE_CHECKING:</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;    from dataclasses import dataclass as _basemodel_decorator</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;else:</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;    _basemodel_decorator = lambda x: x   # noqa: E731</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;    _basemodel_decorator = lambda x: x  # noqa: E731</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
             <span class="p">)</span>
             <span class="n">header</span> <span class="o">+=</span> <span class="p">(</span>
-                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">T = TypeVar(&#39;T&#39;, bound=BaseModel)</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">T = TypeVar(&quot;T&quot;, bound=BaseModel)</span><span class="se">\n</span><span class="s1">&#39;</span>
                 <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">class OswBaseModel(BaseModel):</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;    def full_dict(self, **kwargs): #extent BaseClass export function</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;        d = super().dict(**kwargs)</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;        for key in &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_protected_keywords</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;        for key in &quot;</span>
+                <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_protected_keywords</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+                <span class="o">+</span> <span class="s2">&quot;:</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator </span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;        return d</span><span class="se">\n\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;    def cast(self, cls: Type[T]) -&gt; T:</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -2722,10 +2734,7 @@
 
       <details class="quote">
         <summary>Source code in <code>osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">439</span>
-<span class="normal">440</span>
-<span class="normal">441</span>
-<span class="normal">442</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">442</span>
 <span class="normal">443</span>
 <span class="normal">444</span>
 <span class="normal">445</span>
@@ -2759,7 +2768,10 @@
 <span class="normal">473</span>
 <span class="normal">474</span>
 <span class="normal">475</span>
-<span class="normal">476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads the entity with the given wiki page name from the OSW instance.</span>
 <span class="sd">        Creates a instance of the class specified by the &quot;type&quot; attribute, default model.Entity</span>
 <span class="sd">        Instance of model.Entity can be casted to any subclass with .cast(model.&lt;class&gt;)</span>
@@ -3008,10 +3020,7 @@
 
       <details class="quote">
         <summary>Source code in <code>osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">481</span>
 <span class="normal">482</span>
 <span class="normal">483</span>
 <span class="normal">484</span>
@@ -3038,7 +3047,10 @@
 <span class="normal">505</span>
 <span class="normal">506</span>
 <span class="normal">507</span>
-<span class="normal">508</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given datasclass instance as OSW page by calling BaseModel.json()</span>
 
 <span class="sd">    Parameters</span>

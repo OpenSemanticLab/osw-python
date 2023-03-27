@@ -339,6 +339,7 @@ class OSW(BaseModel):
                 --use-schema-description \
                 --use-field-description \
                 --encoding utf-8 \
+                --use-double-quotes \
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
@@ -372,15 +373,17 @@ class OSW(BaseModel):
                     "if TYPE_CHECKING:\n"
                     "    from dataclasses import dataclass as _basemodel_decorator\n"
                     "else:\n"
-                    "    _basemodel_decorator = lambda x: x   # noqa: E731\n"
+                    "    _basemodel_decorator = lambda x: x  # noqa: E731\n"
                     "\n"
                 )
                 header += (
-                    "\nT = TypeVar('T', bound=BaseModel)\n"
+                    '\nT = TypeVar("T", bound=BaseModel)\n'
                     "\nclass OswBaseModel(BaseModel):\n"
                     "    def full_dict(self, **kwargs): #extent BaseClass export function\n"
                     "        d = super().dict(**kwargs)\n"
-                    "        for key in " + str(self._protected_keywords) + ":\n"
+                    "        for key in "
+                    + str(self._protected_keywords).replace("'", '"')
+                    + ":\n"
                     "            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator \n"
                     "        return d\n\n"
                     "    def cast(self, cls: Type[T]) -> T:\n"

@@ -5,15 +5,12 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Optional
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, List, Optional, Type, TypeVar, Union
+from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
-from typing_extensions import Literal
+from pydantic import AnyUrl, BaseModel, EmailStr, Field, constr
 
 from osw.model.static import OswBaseModel
-from typing import TYPE_CHECKING, Type, TypeVar
-from uuid import uuid4
 
 if TYPE_CHECKING:
     from dataclasses import dataclass as _basemodel_decorator

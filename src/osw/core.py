@@ -369,25 +369,13 @@ class OSW(BaseModel):
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import TYPE_CHECKING, Type, TypeVar\n"
+                    "from osw.model.static import OswBaseModel\n"
                     "\n"
                     "if TYPE_CHECKING:\n"
                     "    from dataclasses import dataclass as _basemodel_decorator\n"
                     "else:\n"
                     "    _basemodel_decorator = lambda x: x  # noqa: E731\n"
                     "\n"
-                )
-                header += (
-                    '\nT = TypeVar("T", bound=BaseModel)\n'
-                    "\nclass OswBaseModel(BaseModel):\n"
-                    "    def full_dict(self, **kwargs): #extent BaseClass export function\n"
-                    "        d = super().dict(**kwargs)\n"
-                    "        for key in "
-                    + str(self._protected_keywords).replace("'", '"')
-                    + ":\n"
-                    "            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator \n"
-                    "        return d\n\n"
-                    "    def cast(self, cls: Type[T]) -> T:\n"
-                    "       return cls(**self.dict())\n"
                 )
 
                 content = re.sub(

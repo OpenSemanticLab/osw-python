@@ -1,8 +1,9 @@
 """
 This module is to be imported in the dynamically created and updated entity.py module.
 """
-from pydantic import BaseModel
 from typing import Type, TypeVar
+
+from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -12,9 +13,7 @@ class OswBaseModel(BaseModel):
         d = super().dict(**kwargs)
         for key in ("_osl_template", "_osl_footer"):
             if hasattr(self, key):
-                d[key] = getattr(
-                    self, key
-                )
+                d[key] = getattr(self, key)
                 # Include selected private properties. note: private properties are not
                 #  considered as discriminator
         return d

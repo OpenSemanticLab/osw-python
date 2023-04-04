@@ -514,6 +514,8 @@ class OSW(BaseModel):
         else:
             print("Error: Unsupported entity type")
             return
-
-        page.delete(comment)
-        print("Entity deleted: " + page.get_url())
+        if page.exists:
+            page.delete(comment)
+            print("Entity deleted: " + page.get_url())
+        else:
+            print(f"Entity '{entity_title}' does not exist!")

@@ -1,0 +1,10 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Stier
+    given-names: Simon
+    orcid: https://orcid.org/0000-0003-0410-3616
+  - family-names: Gold
+    given-names: Lukas
+    orcid: https://orcid.org/0000-0001-7444-2969
+title: OpenSemanticWorld Python Package (osw-python)

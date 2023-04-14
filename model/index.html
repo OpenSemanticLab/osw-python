@@ -17,7 +17,7 @@
         <link rel="next" href="../dev/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.1.5">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.1.6">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.7a7fce14.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ded33207.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.a0c5b2b5.min.css">
@@ -274,8 +274,29 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#osw.model.entity.Entity.based_on" class="md-nav__link">
+    based_on
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#osw.model.entity.Entity.label" class="md-nav__link">
     label
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#osw.model.entity.Entity.name" class="md-nav__link">
+    name
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#osw.model.entity.Entity.short_name" class="md-nav__link">
+    short_name
   </a>
   
 </li>
@@ -335,8 +356,29 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#osw.model.entity.Entity.based_on" class="md-nav__link">
+    based_on
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#osw.model.entity.Entity.label" class="md-nav__link">
     label
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#osw.model.entity.Entity.name" class="md-nav__link">
+    name
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#osw.model.entity.Entity.short_name" class="md-nav__link">
+    short_name
   </a>
   
 </li>
@@ -373,7 +415,12 @@
 
         <details class="quote">
           <summary>Source code in <code>src/osw/model/entity.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
 <span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
@@ -385,19 +432,36 @@
 <span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
-<span class="normal">69</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_basemodel_decorator</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_basemodel_decorator</span>
 <span class="k">class</span> <span class="nc">Entity</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">uuid</span><span class="p">:</span> <span class="n">UUID</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">uuid4</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;UUID&quot;</span><span class="p">)</span>
-    <span class="n">label</span><span class="p">:</span> <span class="n">Label</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">)</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Name&quot;</span><span class="p">)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Human readable name</span>
+<span class="sd">    Technical / Machine compatible name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">label</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">min_items</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Labels&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Human readable names. You have to assign at least one.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">short_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Short name&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Abbreviation, Acronym, etc.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">query_label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">)</span>
-    <span class="n">additional_labels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Additional Labels&quot;</span><span class="p">)</span>
     <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Description</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Description&quot;</span><span class="p">)</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Image&quot;</span><span class="p">)</span>
+    <span class="n">based_on</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Based on&quot;</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Other entities on which this one is based, e.g. when it is created by copying</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">statements</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Statement</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Statements&quot;</span><span class="p">)</span>
-    <span class="n">extensions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Extensions&quot;</span><span class="p">)</span>
+    <span class="n">attachments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;File attachments&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -415,8 +479,8 @@
 
 
 
-<h2 id="osw.model.entity.Entity.label" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">label</span><span class="p">:</span> <span class="n">Label</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="bp">Ellipsis</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Label&#39;</span><span class="p">)</span></code>
+<h2 id="osw.model.entity.Entity.based_on" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">based_on</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Based on&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
@@ -427,7 +491,70 @@
 
   <div class="doc doc-contents ">
   
-      <p>Human readable name</p>
+      <p>Other entities on which this one is based, e.g. when it is created by copying</p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="osw.model.entity.Entity.label" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">label</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="bp">Ellipsis</span><span class="p">,</span> <span class="n">min_items</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Labels&#39;</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+  </span>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Human readable names. You have to assign at least one.</p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="osw.model.entity.Entity.name" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+  </span>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Technical / Machine compatible name</p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="osw.model.entity.Entity.short_name" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">short_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Label</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Short name&#39;</span><span class="p">)</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+  </span>
+
+</h2>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Abbreviation, Acronym, etc.</p>
   </div>
 
 </div>
@@ -481,7 +608,7 @@
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.407015b8.min.js"></script>
+      <script src="../assets/javascripts/bundle.51198bba.min.js"></script>
       
     
   </body>

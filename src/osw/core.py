@@ -410,7 +410,7 @@ class OSW(BaseModel):
                     content = re.sub(
                         r"(class\s*"
                         + cls
-                        + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})",
+                        + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
                         "",
                         content,
                         count=1,

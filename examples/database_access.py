@@ -19,17 +19,21 @@ wtsite.enable_cache()  # skip downloads on second request
 if False:
     osw.fetch_schema(
         OSW.FetchSchemaParam(
-            schema_title="Category:OSW02590972aeba46d7864ed492c0c11384", mode="replace"
+            schema_title="Category:OSW02590972aeba46d7864ed492c0c11384",  # Host
+            mode="replace",
         )
     )
     osw.fetch_schema(
         OSW.FetchSchemaParam(
-            schema_title="Category:OSWacdb001c926c46b998af3e645d36b13f", mode="append"
+            schema_title="Category:OSWacdb001c926c46b998af3e645d36b13f",
+            # DatabaseServer
+            mode="append",
         )
     )
     osw.fetch_schema(
         OSW.FetchSchemaParam(
-            schema_title="Category:OSW51ad0d1716254c77a2b7a03217f23b43", mode="append"
+            schema_title="Category:OSW51ad0d1716254c77a2b7a03217f23b43",  # Database
+            mode="append",
         )
     )
 

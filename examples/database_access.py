@@ -2,7 +2,6 @@ import os
 
 import osw.model.entity as model
 from osw.auth import CredentialManager
-from osw.controller.database import DatabaseController
 from osw.core import OSW
 from osw.wtsite import WtSite
 
@@ -17,7 +16,7 @@ osw = OSW(site=wtsite)
 wtsite.enable_cache()  # skip downloads on second request
 
 # osw.fetch_schema() #this will load the current entity schema from the OSW instance. You may have to re-run the script to get the updated schema extension. Requires 'pip install datamodel-code-generator'
-if False:
+if True:
     osw.fetch_schema(
         OSW.FetchSchemaParam(
             schema_title="Category:OSW02590972aeba46d7864ed492c0c11384",  # Host
@@ -44,14 +43,18 @@ if False:
         )
     )
 
+
+# make sure to import controllers after updating the model (ignore linter warning)
+import osw.controller as controller  # noqa: E402
+
 # load database definition
 db = osw.load_entity("Item:OSWb8cc7705e17c47b19331fdb045bfbca8")  # postgres
 db = db.cast(model.Database)
 
 # cast into controller and execute function
-db = db.cast(DatabaseController)
+db = db.cast(controller.DatabaseController)
 db.connect(
-    DatabaseController.ConnectionConfig(
+    controller.DatabaseController.ConnectionConfig(
         cm=CredentialManager(cred_filepath=pwd_file_path), osw=osw
     )
 )

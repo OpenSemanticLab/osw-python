@@ -1,9 +1,9 @@
-OpenSematicLab Controller
+# OpenSematicLab Controller
 
 A controller extents a model class with functions
 
-# Entity
-::: osw.controller.entity.Entity
+## Entity
+### ::: osw.controller.Entity
 
-# DatabaseController
-::: osw.controller.database.DatabaseController
+## DatabaseController
+### ::: osw.controller.DatabaseController

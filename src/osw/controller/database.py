@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Union
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
+from sqlalchemy import text as sql_text
 from sqlalchemy.engine import Engine
 
 import osw.model.entity as model
@@ -59,8 +60,8 @@ class DatabaseController(model.Database):
 
         osw: OSW
         """ OSW instance to fetch related resources (host, server, etc.) """
-        cm: CredentialManager
-        """ CredentialManager to login to the database"""
+        cm: Union[CredentialManager.Credential, CredentialManager]
+        """ CredentialManager or direct Credential to login to the database"""
 
     def connect(self, config: ConnectionConfig):
         """Initializes the connection to the database by creating a sqlalchemy engine
@@ -88,12 +89,15 @@ class DatabaseController(model.Database):
         )
         dbtype = self.osw.load_entity(dbtype_title[0]).cast(model.DatabaseType)
 
-        db_server_cred = config.cm.get_credential(
-            CredentialManager.CredentialConfig(
-                iri=f"{host.network_domain[0]}:{server.network_port[0]}",
-                fallback=CredentialManager.CredentialFallback.ask,
+        if type(self.cm) is CredentialManager.Credential:
+            db_server_cred = self.cm
+        else:
+            db_server_cred = config.cm.get_credential(
+                CredentialManager.CredentialConfig(
+                    iri=f"{host.network_domain[0]}:{server.network_port[0]}",
+                    fallback=CredentialManager.CredentialFallback.ask,
+                )
             )
-        )
 
         cstr = DatabaseController.ConnectionString(
             dialect=dbtype.connection_str_dialect,
@@ -116,6 +120,6 @@ class DatabaseController(model.Database):
             the sql string
         """
         with self.engine.connect() as conn:
-            result_set = conn.execute(text(sql))
+            result_set = conn.execute(sql_text(sql))
             for r in result_set:
                 print(r)

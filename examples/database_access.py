@@ -1,7 +1,8 @@
 import os
 
-# import osw.controller.entity as controller
 import osw.model.entity as model
+from osw.auth import CredentialManager
+from osw.controller.database import DatabaseController
 from osw.core import OSW
 from osw.wtsite import WtSite
 
@@ -36,33 +37,22 @@ if False:
             mode="append",
         )
     )
+    osw.fetch_schema(
+        OSW.FetchSchemaParam(
+            schema_title="Category:OSW33c7c3a4076a4a58b20d818c162e84e6",  # DatabaseType
+            mode="append",
+        )
+    )
 
-# #explicit load host and server
-# host = osw.load_entity("Item:OSWb8625aedf4074b72a4fa9bcb11694e4d")
-# server = osw.load_entity("Item:OSW536e1417a0eb427887aeb267f47442fb")
-
-db = osw.load_entity("Item:OSW837099bdc67d4b7cb5ffcce713a7648b")
+# load database definition
+db = osw.load_entity("Item:OSWb8cc7705e17c47b19331fdb045bfbca8")  # postgres
 db = db.cast(model.Database)
 
-# #load host and server from references
-# server = osw.load_entity(db.db_server)
-# server = server.cast(model.DatabaseServer)
-# host = osw.load_entity(server.host)
-# host = host.cast(model.Host)
-
-# #load host and server from semantic queries
-server_title = wtsite.semantic_search(
-    f"[[-HasDbServer::Item:{osw.get_osw_id(db.uuid)}]]"
-)
-server = osw.load_entity(server_title[0])
-
-host_title = wtsite.semantic_search(f"[[-HasHost::Item:{osw.get_osw_id(server.uuid)}]]")
-host = osw.load_entity(host_title[0])
-
-
-connect_str = f"{host.network_domain[0]}:{server.network_port[0]}/{db.db_name}"
-print(connect_str)
-
 # cast into controller and execute function
-# db = db.cast(controller.DbController)
-# print(db.create_table())
+db = db.cast(DatabaseController)
+db.connect(
+    DatabaseController.ConnectionConfig(
+        cm=CredentialManager(cred_filepath=pwd_file_path), osw=osw
+    )
+)
+db.execute("SELECT * FROM public.sensors ORDER BY sensor_id ASC")

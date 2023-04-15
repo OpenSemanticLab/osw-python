@@ -8,6 +8,35 @@ from osw.wtsite import WtSite
 # run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass --db_username user --db_password pass
 
 
+def test_connection_string():
+    # make sure to import controllers after updating the model (ignore linter warning)
+    import osw.controller as controller  # noqa: E402
+
+    cstr = controller.DatabaseController.ConnectionString(
+        dialect="postgresql",
+        driver="pg8000",
+        username="dbuser",
+        password="kx@jj5/g",
+        host="pghost10",
+        port="3000",
+        database="appdb",
+    )
+    assert str(cstr) == "postgresql+pg8000://dbuser:kx%40jj5%2Fg@pghost10:3000/appdb"
+
+    cstr = controller.DatabaseController.ConnectionString(
+        dialect="postgresql",
+        username="dbuser",
+        password="kx@jj5/g",
+        host="pghost10",
+        port="3000",
+        database="appdb",
+    )
+    assert str(cstr) == "postgresql://dbuser:kx%40jj5%2Fg@pghost10:3000/appdb"
+
+
+test_connection_string()
+
+
 def test_connect_and_query(
     wiki_domain, wiki_username, wiki_password, db_username, db_password
 ):

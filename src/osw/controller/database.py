@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-from sqlalchemy import create_engine
+from sqlalchemy import URL, create_engine
 from sqlalchemy import text as sql_text
 from sqlalchemy.engine import Engine
 
@@ -36,7 +36,7 @@ class DatabaseController(model.Database):
         """ password for the login """
         host: str
         """ the database host (ip address or domain) """
-        port: str
+        port: int
         """ the database port """
         database: str
         """ the database name / identifier """
@@ -53,7 +53,15 @@ class DatabaseController(model.Database):
             prefix = f"{self.dialect}"
             if self.driver:
                 prefix += f"+{self.driver}"
-            return f"{prefix}://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+            url = URL.create(
+                prefix,
+                username=self.username,
+                password=self.password,
+                host=self.host,
+                port=self.port,
+                database=self.database,
+            )
+            return url.render_as_string(hide_password=False)
 
     class ConnectionConfig(OswBaseModel):
         """Database connection configuration"""

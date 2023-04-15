@@ -8,7 +8,9 @@ from osw.wtsite import WtSite
 # run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass --db_username user --db_password pass
 
 
-def test_connection_string():
+def _test_connection_string(
+    wiki_domain, wiki_username, wiki_password, db_username, db_password
+):
     # make sure to import controllers after updating the model (ignore linter warning)
     import osw.controller as controller  # noqa: E402
 
@@ -32,9 +34,6 @@ def test_connection_string():
         database="appdb",
     )
     assert str(cstr) == "postgresql://dbuser:kx%40jj5%2Fg@pghost10:3000/appdb"
-
-
-test_connection_string()
 
 
 def test_connect_and_query(

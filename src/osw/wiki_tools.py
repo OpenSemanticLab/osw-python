@@ -1,7 +1,7 @@
 import copy
 import getpass
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import mwclient
 import mwparserfromhell
@@ -12,7 +12,7 @@ from jsonpath_ng.ext import parse
 
 def read_domains_from_credentials_file(
     credentials_file_path: Union[str, Path]
-) -> (List[str], Dict[str, Dict[str, str]]):
+) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
     """Reads domains and credentials from a yaml file
 
     Parameters

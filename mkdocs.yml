@@ -14,8 +14,10 @@ plugins:
 nav:
     - Home: index.md
     - tools.md
+    - auth.md
     - osw.md
     - model.md
+    - controller.md
     - Development: dev.md
 
 theme:

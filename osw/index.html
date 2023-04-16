@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://OpenSemanticLab.github.io/Tools/osw/">
       
       
-        <link rel="prev" href="../tools/">
+        <link rel="prev" href="../auth/">
       
       
         <link rel="next" href="../model/">
@@ -220,6 +220,21 @@
 
   
   
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        Auth
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
     
   
   
@@ -364,6 +379,21 @@
     <li class="md-nav__item">
       <a href="../model/" class="md-nav__link">
         Model
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../controller/" class="md-nav__link">
+        OpenSematicLab Controller
       </a>
     </li>
   
@@ -1370,7 +1400,7 @@
                     <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
                         <span class="sa">r</span><span class="s2">&quot;(class\s*&quot;</span>
                         <span class="o">+</span> <span class="bp">cls</span>
-                        <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})&quot;</span><span class="p">,</span>
+                        <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})&quot;</span><span class="p">,</span>
                         <span class="s2">&quot;&quot;</span><span class="p">,</span>
                         <span class="n">content</span><span class="p">,</span>
                         <span class="n">count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
@@ -2424,7 +2454,7 @@
                 <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
                     <span class="sa">r</span><span class="s2">&quot;(class\s*&quot;</span>
                     <span class="o">+</span> <span class="bp">cls</span>
-                    <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})&quot;</span><span class="p">,</span>
+                    <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})&quot;</span><span class="p">,</span>
                     <span class="s2">&quot;&quot;</span><span class="p">,</span>
                     <span class="n">content</span><span class="p">,</span>
                     <span class="n">count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
@@ -3137,121 +3167,6 @@
   </div>
 
 </div>
-
-
-
-  </div>
-
-  </div>
-
-</div><h1 id="oswschemaregistration">OSW.SchemaRegistration</h1>
-
-
-<div class="doc doc-object doc-class">
-
-
-<a id="osw.core.OSW.SchemaRegistration"></a>
-  <div class="doc doc-contents first">
-      <p class="doc doc-class-bases">
-        Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
-
-  
-      <p>dataclass param of register_schema()</p>
-
-  <p><strong>Attributes:</strong></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr>
-          <td><code>model_cls</code></td>
-          <td>
-                <code><span title="pydantic.main.ModelMetaclass">ModelMetaclass</span></code>
-          </td>
-          <td><p>the model class</p></td>
-        </tr>
-        <tr>
-          <td><code>schema_name</code></td>
-          <td>
-                <code>str</code>
-          </td>
-          <td><p>the name of the schema</p></td>
-        </tr>
-        <tr>
-          <td><code>schema_bases</code></td>
-          <td>
-                <code><span title="typing.List">List</span>[str]</code>
-          </td>
-          <td><p>list of base schemas (referenced by allOf)</p></td>
-        </tr>
-    </tbody>
-  </table>
-
-
-        <details class="quote">
-          <summary>Source code in <code>src/osw/core.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 93</span>
-<span class="normal"> 94</span>
-<span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span>
-<span class="normal">102</span>
-<span class="normal">103</span>
-<span class="normal">104</span>
-<span class="normal">105</span>
-<span class="normal">106</span>
-<span class="normal">107</span>
-<span class="normal">108</span>
-<span class="normal">109</span>
-<span class="normal">110</span>
-<span class="normal">111</span>
-<span class="normal">112</span>
-<span class="normal">113</span>
-<span class="normal">114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@model</span><span class="o">.</span><span class="n">_basemodel_decorator</span>
-<span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    dataclass param of register_schema()</span>
-
-<span class="sd">    Attributes</span>
-<span class="sd">    ----------</span>
-<span class="sd">    model_cls:</span>
-<span class="sd">        the model class</span>
-<span class="sd">    schema_name:</span>
-<span class="sd">        the name of the schema</span>
-<span class="sd">    schema_bases:</span>
-<span class="sd">        list of base schemas (referenced by allOf)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
-        <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># allow any class as type</span>
-
-    <span class="n">model_cls</span><span class="p">:</span> <span class="n">ModelMetaclass</span>
-    <span class="n">schema_uuid</span> <span class="o">=</span> <span class="nb">str</span>  <span class="c1"># Optional[str] = model_cls.__uuid__</span>
-    <span class="n">schema_name</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># Optional[str] = model_cls.__name__</span>
-    <span class="n">schema_bases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Category:Item&quot;</span><span class="p">]</span>
-</code></pre></div></td></tr></table></div>
-        </details>
-
-  
-
-  <div class="doc doc-children">
-
-
-
-
-
-
-
-
 
 
 

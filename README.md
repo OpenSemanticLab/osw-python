@@ -17,7 +17,17 @@
 
 # osw
 
-> Python toolset for data processing, queries, wikicode generation and page manipulation
+> Python toolset for data processing, queries, code generation, wiki-page manipulation add automated (timeseries) database access
+
+## Install
+```
+pip install osw
+```
+
+to use [database controller features](https://opensemanticlab.github.io/osw-python/controller/), use
+```
+pip install osw[DB]
+```
 
 ## Documentation
 

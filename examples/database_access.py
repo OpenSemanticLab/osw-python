@@ -89,6 +89,8 @@ data = dc.load_data(
     controller.DataToolController.LoadDataParam(source_name="PressureSensor")
 )
 pprint(data)
+datapoint = data[0].dataset.cast(model.TimestampedPressure)
+print(datapoint.value[0].p)
 
 # load database definition
 # db = osw.load_entity("Item:OSWb8cc7705e17c47b19331fdb045bfbca8")  # postgres

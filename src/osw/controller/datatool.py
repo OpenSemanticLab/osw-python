@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import PrivateAttr, validator
@@ -25,7 +25,7 @@ class DataToolController(model.IndividualDevice):
 
     _data_base: Optional[TimescaleDbController] = PrivateAttr()
 
-    _data_schemas: List[Optional[model.Dataset]]
+    _data_schemas: Optional[Dict[str, model.Dataset]] = PrivateAttr()
     # _data: List[Dict[DataSource]]
 
     class ConnectionConfig(OswBaseModel):
@@ -53,7 +53,15 @@ class DataToolController(model.IndividualDevice):
         self._device_type = self.osw.load_entity(_device_type_title[0]).cast(
             model.DataDevice
         )
-        print(self._device_type)
+
+        self._data_schemas = {}
+        for source in self._device_type.data_sources:
+            schema_page = self.osw.site.get_WtPage(source.type)
+            schema_data = schema_page.get_slot_content("jsondata")
+            self._data_schemas[str(source.uuid)] = schema_data["name"]
+
+        print("Data Sources Schemas:")
+        print(self._data_schemas)
 
         self._data_base = self.osw.load_entity(self._device_type.storage_location[0])
         self._data_base = self._data_base.cast(TimescaleDbController)
@@ -121,8 +129,16 @@ class DataToolController(model.IndividualDevice):
         raw_results = self._data_base.query_tool_data(param)
         results = []
         for res in raw_results:
+            timestamp = res[0]
+            jsondata = res[2]
             data = DataToolController.DataParam(
-                timestamp=res[0], source=param.source, dataset=model.Dataset(**res[2])
+                timestamp=timestamp, source=param.source
             )
+            if str(param.source.uuid) in self._data_schemas:
+                data.dataset = eval(
+                    f"model.{self._data_schemas[str(param.source.uuid)]}(**jsondata)"
+                )
+            else:
+                data.dataset = model.Dataset(**jsondata)
             results.append(data)
         return results

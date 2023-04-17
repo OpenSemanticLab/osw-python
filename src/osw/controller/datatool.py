@@ -70,15 +70,25 @@ class DataToolController(model.IndividualDevice):
         )
 
     class DataParam(OswBaseModel):
+        """General param class"""
+
         source: Optional[model.DataSource]
+        """explicite data source instance"""
         source_name: Optional[str]
+        """the name of the source for name-matching"""
         # source_type: Optional[OswBaseModel]
         source_uuid: Optional[UUID]
+        """the uuid of the source for uuid-matching"""
         timestamp: Optional[datetime]
+        """the UTC timestamp of the dataset"""
         dataset: Optional[model.Dataset]
+        """the dataset"""
 
     class StoreDataParam(DataParam):
+        """Param class for get_source()"""
+
         dataset: model.Dataset
+        """the data to store"""
 
         @validator("dataset")
         def check_dataset(cls, v):
@@ -88,7 +98,29 @@ class DataToolController(model.IndividualDevice):
             return v
 
     def get_source(self, param: DataParam):
+        """Retrieves the data source from the given specification
+
+        Parameters
+        ----------
+        param
+            see StoreDataParam
+
+        Returns
+        -------
+            the matched source or None
+
+        Raises
+        ------
+        ValueError
+            if no source was matching
+        ValueError
+            if more than one source was matching
+        """
+
         source = None
+        if param.source is not None:
+            return param.source
+
         candidates = []
         for source in self._device_type.data_sources:
             if param.source_uuid and param.source_uuid == source.uuid:
@@ -111,6 +143,13 @@ class DataToolController(model.IndividualDevice):
         return source
 
     def store_data(self, param: StoreDataParam):
+        """Stores the given data in the rool table
+
+        Parameters
+        ----------
+        param
+            see StoreDataParam
+        """
         source = self.get_source(param)
 
         self._data_base.insert_tool_data(
@@ -120,10 +159,25 @@ class DataToolController(model.IndividualDevice):
         )
 
     class LoadDataParam(DataParam, TimescaleDbController.QueryToolDataParam):
+        """Param class for load_data()"""
+
         tool: Optional[model.DataTool]  # overwrite to make it optional (autoset)
+        """data tool (automatically set to the current instance)"""
         source: Optional[model.DataSource]  # overwrite to make it optional (autoset)
+        """data source (automatically set if not specified)"""
 
     def load_data(self, param: LoadDataParam) -> List[DataParam]:
+        """queries data from the tool table
+
+        Parameters
+        ----------
+        param
+            see LoadDataParam
+
+        Returns
+        -------
+            query results as list of DataParams
+        """
         param.source = self.get_source(param)
         param.tool = self
         raw_results = self._data_base.query_tool_data(param)

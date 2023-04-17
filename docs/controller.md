@@ -7,3 +7,9 @@ A controller extents a model class with functions
 
 ## DatabaseController
 ### ::: osw.controller.DatabaseController
+
+## TimescaleDbController
+### ::: osw.controller.TimescaleDbController
+
+## DataToolController
+### ::: osw.controller.DataToolController

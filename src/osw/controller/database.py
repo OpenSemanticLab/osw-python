@@ -328,12 +328,25 @@ class TimescaleDbController(DatabaseController):
         return table
 
     class InsertToolDataParam(OswBaseModel):
+        """Param class to insert new data in a tool table with insert_tool_data()"""
+
         tool: model.DataTool
+        """the tool owning the data source"""
         source: model.DataSource
+        """the data source, e. g. a sensor"""
         data: model.Dataset
+        """the data as instance of a dataset schema"""
         timestamp: Optional[datetime]
+        """UTC timestamp of the data. Auto-created if not provided"""
 
     def insert_tool_data(self, param: InsertToolDataParam):
+        """Inserts a new data set
+
+        Parameters
+        ----------
+        param
+            see InsertToolDataParam
+        """
         tool = self.get_tool_table(param.tool)
         index = self.get_source_index(param.source)
         time = sqlalchemy.func.now()
@@ -349,13 +362,30 @@ class TimescaleDbController(DatabaseController):
         self.execute(DatabaseController.ExecuteParam(stmt=stmt))
 
     class QueryToolDataParam(OswBaseModel):
+        """Param class to query for data in a tool table with query_tool_data()"""
+
         tool: model.DataTool
+        """the tool owning the data"""
         source: model.DataSource
+        """the data source, e. g. sensor"""
         min_time: Optional[datetime]
+        """the minimal timestamp, older entries are ignored"""
         max_time: Optional[datetime]
+        """the maximal timestamp, newer entries are ignored"""
         limit: Optional[int]
 
     def query_tool_data(self, param: QueryToolDataParam):
+        """uery for data in a tool table
+
+        Parameters
+        ----------
+        param
+            see QueryToolDataParam
+
+        Returns
+        -------
+            sqlalchemy query result
+        """
         tool = self.get_tool_table(param.tool)
         index = self.get_source_index(param.source)
         stmt = sqlalchemy.select(tool)

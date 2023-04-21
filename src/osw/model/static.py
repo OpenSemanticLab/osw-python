@@ -43,3 +43,11 @@ class OswBaseModel(BaseModel):
                 if not test_if_empty_list_or_none(v)
             }
         )
+
+
+class Ontology(OswBaseModel):
+    iri: str
+    prefix: str
+    name: str
+    prefix_name: str
+    link: str

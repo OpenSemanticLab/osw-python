@@ -369,7 +369,7 @@ class OSW(BaseModel):
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import TYPE_CHECKING, Type, TypeVar\n"
-                    "from osw.model.static import OswBaseModel\n"
+                    "from osw.model.static import OswBaseModel, Ontology\n"
                     "\n"
                     "if TYPE_CHECKING:\n"
                     "    from dataclasses import dataclass as _basemodel_decorator\n"
@@ -466,20 +466,35 @@ class OSW(BaseModel):
 
         return entity
 
-    def store_entity(self, entity: Union[model.Entity, List[model.Entity]]) -> None:
+    class StoreEntityParam(model.OswBaseModel):
+        entities: Union[model.Entity, List[model.Entity]]
+        namespace: Optional[str]
+
+    def store_entity(
+        self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
+    ) -> None:
         """stores the given datasclass instance as OSW page by calling BaseModel.json()
 
         Parameters
         ----------
         entity
-            the datasclass instance or a list of instances
+            StoreParam, the datasclass instance or a list of instances
         """
+
+        namespace = None
+        entity = param
+        if isinstance(param, OSW.StoreEntityParam):
+            entity = param.entities
+            namespace = param.namespace
+
         if not isinstance(entity, list):
             entity = [entity]
         max_index = len(entity)
         for index, e in enumerate(entity):
-            if isinstance(e, model.Item):
-                entity_title = "Item:" + OSW.get_osw_id(e.uuid)
+            if namespace is None and isinstance(e, model.Item):
+                namespace = "Item"
+            if namespace is not None:
+                entity_title = namespace + ":" + OSW.get_osw_id(e.uuid)
                 page = self.site.get_WtPage(entity_title)
                 jsondata = json.loads(
                     e.json(exclude_none=True)
@@ -519,3 +534,59 @@ class OSW(BaseModel):
             print("Entity deleted: " + page.get_url())
         else:
             print(f"Entity '{entity_title}' does not exist!")
+
+    class _ImportOntologyParam(model.OswBaseModel):
+        ontology: model.Ontology
+        entities: List[model.Entity]
+        properties: Optional[List[model.Entity]]
+
+    def _import_ontology(self, param: _ImportOntologyParam):
+        import_page = self.site.get_WtPage(
+            "MediaWiki:Smw_import_" + param.ontology.prefix_name
+        )
+        text = f"{param.ontology.prefix}|[{param.ontology.link} {param.ontology.name}]"
+        for e in param.entities:
+            iri = None
+            if hasattr(e, "iri"):
+                iri = e.iri
+            if hasattr(e, "uri"):
+                iri = e.uri
+            if iri is not None:
+                text += f"\n {iri.replace(param.ontology.prefix, '')}|Category"
+            else:
+                print("Error: Entity has not iri/uri property")
+        import_page.set_slot_content("main", text)
+        import_page.edit("import ontology")
+
+        self.store_entity(
+            OSW.StoreEntityParam(namespace="Category", entities=param.entities)
+        )
+
+    class ImportOntologyParam(model.OswBaseModel):
+        entities: List[model.Entity]
+        ontologies: List[model.Ontology]
+
+    def import_ontology(self, param: ImportOntologyParam):
+        prefix_dict = {}
+        for e in param.entities:
+            if "#" in e.uri:
+                key = e.uri.split("#")[0] + "#"
+            else:
+                key = e.uri.replace(e.uri.split("/")[-1], "")
+            if key not in prefix_dict:
+                prefix_dict[key] = []
+            prefix_dict[key].append(e)
+
+        for prefix in prefix_dict.keys():
+            onto = None
+            for o in param.ontologies:
+                if o.prefix == prefix:
+                    onto = o
+            if onto is None:
+                print(f"Error: No ontology defined for prefix {prefix}")
+            else:
+                self._import_ontology(
+                    OSW._ImportOntologyParam(
+                        ontology=onto, entities=prefix_dict[prefix]
+                    )
+                )

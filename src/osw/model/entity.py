@@ -19,7 +19,7 @@ class LangCode(Enum):
 from typing import TYPE_CHECKING, Type, TypeVar
 from uuid import uuid4
 
-from osw.model.static import OswBaseModel
+from osw.model.static import Ontology, OswBaseModel
 
 if TYPE_CHECKING:
     from dataclasses import dataclass as _basemodel_decorator

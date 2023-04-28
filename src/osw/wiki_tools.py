@@ -112,7 +112,7 @@ def create_site_object(
 
 # Standard Query
 # api.php?action=query&list=prefixsearch&pssearch=Star Wars
-def prefix_search(site: mwclient.client.Site, text: str):
+def prefix_search(site: mwclient.client.Site, text: str, debug: bool = True):
     """
 
     Parameters
@@ -120,6 +120,8 @@ def prefix_search(site: mwclient.client.Site, text: str):
     site :
         Site object from mwclient lib
     text :
+    debug :
+        Whether to print the results
 
     Returns
     -------
@@ -129,25 +131,28 @@ def prefix_search(site: mwclient.client.Site, text: str):
     result = site.api(
         "query", list="prefixsearch", pssearch=text, pslimit=1000, format="json"
     )
-    if len(result["query"]["prefixsearch"]) == 0:
+    if len(result["query"]["prefixsearch"]) == 0 and debug:
         print("No results")
     else:
         for page in result["query"]["prefixsearch"]:
             title = page["title"]
-            print(title)
+            if debug:
+                print(title)
             page_list.append(title)
     return page_list
 
 
 # Semantic Query
-def semantic_search(site: mwclient.client.Site, query):
+def semantic_search(site: mwclient.client.Site, query: str, debug: bool = True):
     """
 
     Parameters
     ----------
     site :
         Site object from mwclient lib
-    query
+    query :
+    debug :
+        Whether to print the results
 
     Returns
     -------
@@ -156,19 +161,20 @@ def semantic_search(site: mwclient.client.Site, query):
     page_list = []
     query += "|limit=1000"
     result = site.api("ask", query=query, format="json")
-    if len(result["query"]["results"]) == 0:
+    if len(result["query"]["results"]) == 0 and debug:
         print("Query '{}' returned no results".format(query))
     else:
-        print(
-            "Query '{}' returned {} results".format(
-                query, len(result["query"]["results"])
+        if debug:
+            print(
+                "Query '{}' returned {} results".format(
+                    query, len(result["query"]["results"])
+                )
             )
-        )
         for page in result["query"]["results"].values():
             # why do we do the following?
             if "printouts" in page:
                 title = page["fulltext"]
-                if "#" not in title:
+                if "#" not in title and debug:
                     print(title)
                     # original position of "page_list.append(title)" line
             page_list.append(title)

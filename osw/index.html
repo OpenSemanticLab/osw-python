@@ -17,7 +17,7 @@
         <link rel="next" href="../model/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.1.8">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.1.9">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ded33207.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.85bb2934.min.css">
       
       
 
@@ -1030,7 +1030,78 @@
 <span class="normal">518</span>
 <span class="normal">519</span>
 <span class="normal">520</span>
-<span class="normal">521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -1353,7 +1424,7 @@
                 <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="s2">&quot;from uuid import uuid4</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;from typing import TYPE_CHECKING, Type, TypeVar</span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;from osw.model.static import OswBaseModel</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;from osw.model.static import OswBaseModel, Ontology</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;if TYPE_CHECKING:</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;    from dataclasses import dataclass as _basemodel_decorator</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -1450,20 +1521,35 @@
 
         <span class="k">return</span> <span class="n">entity</span>
 
-    <span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">class</span> <span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">OswBaseModel</span><span class="p">):</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]]</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;stores the given datasclass instance as OSW page by calling BaseModel.json()</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        entity</span>
-<span class="sd">            the datasclass instance or a list of instances</span>
+<span class="sd">            StoreParam, the datasclass instance or a list of instances</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">namespace</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">entity</span> <span class="o">=</span> <span class="n">param</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityParam</span><span class="p">):</span>
+            <span class="n">entity</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">entities</span>
+            <span class="n">namespace</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">namespace</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">entity</span> <span class="o">=</span> <span class="p">[</span><span class="n">entity</span><span class="p">]</span>
         <span class="n">max_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">entity</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Item</span><span class="p">):</span>
-                <span class="n">entity_title</span> <span class="o">=</span> <span class="s2">&quot;Item:&quot;</span> <span class="o">+</span> <span class="n">OSW</span><span class="o">.</span><span class="n">get_osw_id</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">uuid</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">namespace</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Item</span><span class="p">):</span>
+                <span class="n">namespace</span> <span class="o">=</span> <span class="s2">&quot;Item&quot;</span>
+            <span class="k">if</span> <span class="n">namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">entity_title</span> <span class="o">=</span> <span class="n">namespace</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">OSW</span><span class="o">.</span><span class="n">get_osw_id</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">uuid</span><span class="p">)</span>
                 <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_WtPage</span><span class="p">(</span><span class="n">entity_title</span><span class="p">)</span>
                 <span class="n">jsondata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
                     <span class="n">e</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">exclude_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1503,6 +1589,62 @@
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Entity deleted: &quot;</span> <span class="o">+</span> <span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">())</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity &#39;</span><span class="si">{</span><span class="n">entity_title</span><span class="si">}</span><span class="s2">&#39; does not exist!&quot;</span><span class="p">)</span>
+
+    <span class="k">class</span> <span class="nc">_ImportOntologyParam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">OswBaseModel</span><span class="p">):</span>
+        <span class="n">ontology</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">Ontology</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]</span>
+        <span class="n">properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]]</span>
+
+    <span class="k">def</span> <span class="nf">_import_ontology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">_ImportOntologyParam</span><span class="p">):</span>
+        <span class="n">import_page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_WtPage</span><span class="p">(</span>
+            <span class="s2">&quot;MediaWiki:Smw_import_&quot;</span> <span class="o">+</span> <span class="n">param</span><span class="o">.</span><span class="n">ontology</span><span class="o">.</span><span class="n">prefix_name</span>
+        <span class="p">)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">ontology</span><span class="o">.</span><span class="n">prefix</span><span class="si">}</span><span class="s2">|[</span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">ontology</span><span class="o">.</span><span class="n">link</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">ontology</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">]&quot;</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">:</span>
+            <span class="n">iri</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">&quot;iri&quot;</span><span class="p">):</span>
+                <span class="n">iri</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">iri</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="s2">&quot;uri&quot;</span><span class="p">):</span>
+                <span class="n">iri</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">uri</span>
+            <span class="k">if</span> <span class="n">iri</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">iri</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">ontology</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">|Category&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: Entity has not iri/uri property&quot;</span><span class="p">)</span>
+        <span class="n">import_page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;main&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        <span class="n">import_page</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span><span class="s2">&quot;import ontology&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">store_entity</span><span class="p">(</span>
+            <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityParam</span><span class="p">(</span><span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;Category&quot;</span><span class="p">,</span> <span class="n">entities</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">class</span> <span class="nc">ImportOntologyParam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">OswBaseModel</span><span class="p">):</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]</span>
+        <span class="n">ontologies</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Ontology</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">import_ontology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">ImportOntologyParam</span><span class="p">):</span>
+        <span class="n">prefix_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;#&quot;</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">uri</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">uri</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;#&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">uri</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">uri</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prefix_dict</span><span class="p">:</span>
+                <span class="n">prefix_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">prefix_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">prefix_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">onto</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">param</span><span class="o">.</span><span class="n">ontologies</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">o</span><span class="o">.</span><span class="n">prefix</span> <span class="o">==</span> <span class="n">prefix</span><span class="p">:</span>
+                    <span class="n">onto</span> <span class="o">=</span> <span class="n">o</span>
+            <span class="k">if</span> <span class="n">onto</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error: No ontology defined for prefix </span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_import_ontology</span><span class="p">(</span>
+                    <span class="n">OSW</span><span class="o">.</span><span class="n">_ImportOntologyParam</span><span class="p">(</span>
+                        <span class="n">ontology</span><span class="o">=</span><span class="n">onto</span><span class="p">,</span> <span class="n">entities</span><span class="o">=</span><span class="n">prefix_dict</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -2024,27 +2166,27 @@
 
       <details class="quote">
         <summary>Source code in <code>src/osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">501</span>
-<span class="normal">502</span>
-<span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">516</span>
 <span class="normal">517</span>
 <span class="normal">518</span>
 <span class="normal">519</span>
 <span class="normal">520</span>
-<span class="normal">521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;deletes the given entity from the OSW instance</span>
 
 <span class="sd">    Parameters</span>
@@ -2407,7 +2549,7 @@
             <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="s2">&quot;from uuid import uuid4</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;from typing import TYPE_CHECKING, Type, TypeVar</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;from osw.model.static import OswBaseModel</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;from osw.model.static import OswBaseModel, Ontology</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;if TYPE_CHECKING:</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;    from dataclasses import dataclass as _basemodel_decorator</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -2969,7 +3111,7 @@
 
 
 <h2 id="osw.core.OSW.store_entity" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">store_entity</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">store_entity</span><span class="p">(</span><span class="n">param</span><span class="p">)</span></code>
 
 </h2>
 
@@ -2992,9 +3134,8 @@
         <tr>
           <td><code>entity</code></td>
           <td>
-                <code><span title="typing.Union">Union</span>[<span title="osw.model.entity">model</span>.<a class="autorefs autorefs-internal" title="osw.model.entity.Entity" href="../model/#osw.model.entity.Entity">Entity</a>, <span title="typing.List">List</span>[<span title="osw.model.entity">model</span>.<a class="autorefs autorefs-internal" title="osw.model.entity.Entity" href="../model/#osw.model.entity.Entity">Entity</a>]]</code>
           </td>
-          <td><p>the datasclass instance or a list of instances</p></td>
+          <td><p>StoreParam, the datasclass instance or a list of instances</p></td>
           <td>
               <em>required</em>
           </td>
@@ -3004,11 +3145,7 @@
 
       <details class="quote">
         <summary>Source code in <code>src/osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">473</span>
 <span class="normal">474</span>
 <span class="normal">475</span>
 <span class="normal">476</span>
@@ -3034,20 +3171,46 @@
 <span class="normal">496</span>
 <span class="normal">497</span>
 <span class="normal">498</span>
-<span class="normal">499</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given datasclass instance as OSW page by calling BaseModel.json()</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    entity</span>
-<span class="sd">        the datasclass instance or a list of instances</span>
+<span class="sd">        StoreParam, the datasclass instance or a list of instances</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">namespace</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">entity</span> <span class="o">=</span> <span class="n">param</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityParam</span><span class="p">):</span>
+        <span class="n">entity</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">entities</span>
+        <span class="n">namespace</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">namespace</span>
+
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
         <span class="n">entity</span> <span class="o">=</span> <span class="p">[</span><span class="n">entity</span><span class="p">]</span>
     <span class="n">max_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">entity</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Item</span><span class="p">):</span>
-            <span class="n">entity_title</span> <span class="o">=</span> <span class="s2">&quot;Item:&quot;</span> <span class="o">+</span> <span class="n">OSW</span><span class="o">.</span><span class="n">get_osw_id</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">uuid</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">namespace</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Item</span><span class="p">):</span>
+            <span class="n">namespace</span> <span class="o">=</span> <span class="s2">&quot;Item&quot;</span>
+        <span class="k">if</span> <span class="n">namespace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">entity_title</span> <span class="o">=</span> <span class="n">namespace</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">OSW</span><span class="o">.</span><span class="n">get_osw_id</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">uuid</span><span class="p">)</span>
             <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_WtPage</span><span class="p">(</span><span class="n">entity_title</span><span class="p">)</span>
             <span class="n">jsondata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">exclude_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -3209,7 +3372,7 @@
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.51198bba.min.js"></script>
+      <script src="../assets/javascripts/bundle.fac441b0.min.js"></script>
       
     
   </body>

@@ -209,16 +209,26 @@ class WtSite:
             dump_config.skip_slot_suffix_for_main = config.skip_slot_suffix_for_main
 
         bundle = config.bundle  # type: package.PagePackageBundle
+        added_titles = []  # keep track of added pages, prevent duplicates
+
         if config.name not in bundle.packages:
             print(f"Error: package {config.name} does not exist in bundle")
             return
         if not bundle.packages[config.name].pages:
             bundle.packages[config.name].pages = []
         for title in config.titles:
+            if title in added_titles:
+                continue  # prevent duplicates
+            else:
+                added_titles.append(title)
             page = self.get_WtPage(title)
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
                 for file in page._page.images():
+                    if file.name in added_titles:
+                        continue  # prevent duplicates
+                    else:
+                        added_titles.append(file.name)
                     file_page = self.get_WtPage(file.name)
                     bundle.packages[config.name].pages.append(
                         file_page.dump(dump_config)
@@ -263,7 +273,7 @@ class WtPage:
                 "query",
                 prop="revisions",
                 titles=title,
-                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|slotsize",
+                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|slotsize|slotsha1",
                 rvslots="*",
                 rvlimit="1",
                 format="json",
@@ -279,6 +289,7 @@ class WtPage:
                                 "contentmodel"
                             ]
                             self._slots_changed[slot_key] = False
+                            # self._slots_sha1[slot_key] = revision["slots"][slot_key]["*"]
                             if self._content_model[slot_key] == "json":
                                 self._slots[slot_key] = json.loads(
                                     self._slots[slot_key]

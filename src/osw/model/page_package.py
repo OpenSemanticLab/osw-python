@@ -1,4 +1,5 @@
 import os
+from os import PathLike
 from typing import List, Optional, Union
 
 from pydantic import BaseModel
@@ -187,3 +188,44 @@ class PagePackageConfig(BaseModel):
         super().__init__(**data)
         if self.content_path == "":
             self.content_path = os.path.dirname(self.config_path)
+
+
+class PagePackageMetaData(BaseModel):
+    """Meta data for a page package. This data needed to create a page package and
+    included in the page package."""
+
+    name: str
+    """The name (label) of the page package."""
+    repo: str
+    """Page package repository name - usually the GitHub repository name"""
+    id: str
+    """Page package ID - usually the same as package_repo"""
+    subdir: str
+    """Page package subdirectory - usually resembling parts of the package name"""
+    branch: str
+    """Page package branch - usually 'main'."""
+    repo_org: str
+    """(GitHub) Organization hosting the package repository"""
+    description: str
+    """Page package description"""
+    version = "0.2.1"
+    """Page package version - use semantic versioning"""
+    authors: List[str]
+    """Authors of the page package"""
+    publisher: str
+    """Publisher of the page package."""
+    page_titles: List[str]
+    """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
+     to be packaged."""
+
+
+class PagePackageCreationConfig(BaseModel):
+    """Configuration for creating a page package. This is the data needed to create
+    a page package but is not included in the page package."""
+
+    domain: str
+    """A string formatted as domain"""
+    credentials_file_path: Union[str, PathLike]
+    """Path to a credentials yaml files"""
+    working_dir: Union[str, PathLike]
+    """Working directory"""

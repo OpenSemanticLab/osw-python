@@ -9,6 +9,9 @@ import numpy as np
 import yaml
 from jsonpath_ng.ext import parse
 
+from osw.model import page_package as package
+from osw.wtsite import WtSite
+
 
 def read_domains_from_credentials_file(
     credentials_file_path: Union[str, Path]
@@ -1110,3 +1113,43 @@ def copy_list_of_wiki_pages(title_list, site0, site1, overwrite, callback=None):
         "Pages failed to copy": fail_list,
     }
     return results_dict
+
+
+def create_page_package(
+    meta_data: package.PagePackageMetaData,
+    creation_config: package.PagePackageCreationConfig,
+):
+    # Create a WtSite instance to load pages from the specified domain
+    wtsite = WtSite.from_domain(
+        domain=creation_config.domain,
+        password_file=creation_config.credentials_file_path,
+    )
+    # Create a PagePackageBundle instance
+    bundle = package.PagePackageBundle(
+        publisher=meta_data.publisher,
+        author=meta_data.authors,
+        language="en",
+        publisherURL=f"https://github.com/{meta_data.repo_org}/" f"{meta_data.repo}",
+        packages={
+            f"{meta_data.name}": package.PagePackage(
+                globalID=f"{meta_data.id}",
+                label=meta_data.name,
+                version=meta_data.version,
+                description=meta_data.package_description,
+                baseURL=f"https://raw.githubusercontent.com/"
+                f"{meta_data.repo_org}/"
+                f"{meta_data.repo}/{meta_data.branch}"
+                f"/{meta_data.subdir}/",
+            )
+        },
+    )
+    # Create a PagePackageConfig instance
+    config = package.PagePackageConfig(
+        name=meta_data.name,
+        config_path=Path(creation_config.working_dir) / "packages.json",
+        content_path=Path(creation_config.working_dir) / meta_data.subdir,
+        bundle=bundle,
+        titles=meta_data.page_titles,
+    )
+    # Create the page package in the working directory
+    wtsite.create_page_package(config=config)

@@ -191,7 +191,7 @@ class PagePackageConfig(BaseModel):
 
 
 class PagePackageMetaData(BaseModel):
-    """Meta data for a page package. This data needed to create a page package and
+    """Metadata for a page package. This data needed to create a page package and
     included in the page package."""
 
     name: str
@@ -208,6 +208,9 @@ class PagePackageMetaData(BaseModel):
     """(GitHub) Organization hosting the package repository"""
     description: str
     """Page package description"""
+    language: str = "en"
+    """Page package language - usually the two-letter IETF language tag for that
+    language"""
     version = "0.2.1"
     """Page package version - use semantic versioning"""
     authors: List[str]

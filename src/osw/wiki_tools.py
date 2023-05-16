@@ -1128,14 +1128,14 @@ def create_page_package(
     bundle = package.PagePackageBundle(
         publisher=meta_data.publisher,
         author=meta_data.authors,
-        language="en",
+        language=meta_data.language,
         publisherURL=f"https://github.com/{meta_data.repo_org}/" f"{meta_data.repo}",
         packages={
             f"{meta_data.name}": package.PagePackage(
                 globalID=f"{meta_data.id}",
                 label=meta_data.name,
                 version=meta_data.version,
-                description=meta_data.package_description,
+                description=meta_data.description,
                 baseURL=f"https://raw.githubusercontent.com/"
                 f"{meta_data.repo_org}/"
                 f"{meta_data.repo}/{meta_data.branch}"

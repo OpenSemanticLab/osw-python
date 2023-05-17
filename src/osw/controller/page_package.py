@@ -1,6 +1,7 @@
-from os import PathLike
 from pathlib import Path
 from typing import Union
+
+from pydantic import FilePath
 
 import osw.model.page_package as model
 from osw.model import page_package as package
@@ -17,13 +18,10 @@ class PagePackageController(model.PagePackageMetaData):
 
         domain: str
         """A string formatted as domain"""
-        credentials_file_path: Union[str, PathLike]
+        credentials_file_path: Union[str, FilePath]
         """Path to a credentials yaml files"""
-        working_dir: Union[str, PathLike]
+        working_dir: Union[str, FilePath]
         """Working directory"""
-
-        class Config:
-            arbitrary_types_allowed = True  # allow any class as type
 
     def create(
         self,

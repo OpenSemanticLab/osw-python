@@ -11,7 +11,7 @@ from typing import Dict, Optional, Union
 
 import mwclient
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel
+from pydantic import BaseModel, FilePath
 
 import osw.model.page_package as package
 import osw.wiki_tools as wt
@@ -45,7 +45,7 @@ class WtSite:
     def from_domain(
         cls,
         domain: str = None,
-        password_file: Union[str, Path] = None,
+        password_file: Union[str, FilePath] = None,
         credentials: dict = None,
     ):
         if credentials is None:
@@ -57,7 +57,7 @@ class WtSite:
     @classmethod
     def from_credentials(
         cls,
-        credentials: Union[Dict[str, Dict[str, str]], str, Path],
+        credentials: Union[Dict[str, Dict[str, str]], str, FilePath],
         key: Union[str, int] = 0,
     ):
         """
@@ -263,7 +263,8 @@ class WtPage:
                 "query",
                 prop="revisions",
                 titles=title,
-                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|slotsize",
+                rvprop="ids|timestamp|flags|comment|user|content|"
+                "contentmodel|roles|slotsize",
                 rvslots="*",
                 rvlimit="1",
                 format="json",
@@ -349,7 +350,7 @@ class WtPage:
             res.append(match.value)
         return res
 
-    def update_dict(combined: dict, update: dict) -> None:
+    def update_dict(self, combined: dict, update: dict) -> None:
         for k, v in update.items():
             if isinstance(v, dict):
                 WtPage.combine_into(v, combined.setdefault(k, {}))
@@ -385,10 +386,11 @@ class WtPage:
 
         Parameters
         ----------
-        comment, optional
-            edit comment for the page history, by default None
-        mode, optional
-            single API call ('action-multislot') or multiple ('action-singleslot'), by default 'action-multislot' (faster)
+        comment:
+            (optional) edit comment for the page history, by default None
+        mode:
+            (optional) single API call ('action-multislot') or multiple (
+            'action-singleslot'), by default 'action-multislot' (faster)
         """
         retry = 0
         max_retry = 5
@@ -462,7 +464,7 @@ class WtPage:
 
     @_basemodel_decorator
     class PageDumpConfig(BaseModel):
-        target_dir: Union[str, Path]
+        target_dir: Union[str, FilePath]
         namespace_as_folder: Optional[bool] = True
         skip_slot_suffix_for_main: Optional[bool] = False
         dump_empty_slots: Optional[bool] = False

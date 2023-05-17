@@ -1,7 +1,7 @@
 import os
 from typing import List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, FilePath
 
 
 class PagePackagePageSlot(BaseModel):
@@ -164,9 +164,9 @@ class PagePackageConfig(BaseModel):
 
     name: str
     """The name (label) of the package."""
-    config_path: Union[str, os.PathLike]
+    config_path: Union[str, FilePath]
     """The path of the generated json file (package.json)."""
-    content_path: Optional[Union[str, os.PathLike]] = ""
+    content_path: Optional[Union[str, FilePath]] = ""
     """The directory where the content (pages, files) is stored."""
     titles: List[str]
     """List of page titles."""
@@ -175,9 +175,6 @@ class PagePackageConfig(BaseModel):
     """Bund of pages."""
     skip_slot_suffix_for_main: Optional[bool] = False
     include_files: Optional[bool] = True
-
-    class Config:
-        arbitrary_types_allowed = True  # allow any class as type
 
     def __init__(self, **data):
         """Originally, the dataclass.__post_init_() method was used here.

@@ -22,8 +22,8 @@ package = Package(
     ),
     # Specify the package version - use semantic versioning
     version="0.2.1",
-    # Authors
-    authors=["Simon Stier", "Lukas Gold"],
+    # Author(s)
+    author=["Simon Stier", "Lukas Gold"],
     # Publisher
     publisher="OpenSemanticWorld",
     # List the full page titles of the pages to be included in the package

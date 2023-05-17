@@ -212,8 +212,8 @@ class PagePackageMetaData(BaseModel):
     language"""
     version = "0.2.1"
     """Page package version - use semantic versioning"""
-    authors: List[str]
-    """Authors of the page package"""
+    author: List[str]
+    """Author(s) of the page package"""
     publisher: str
     """Publisher of the page package."""
     page_titles: List[str]

@@ -42,7 +42,7 @@ class PagePackageController(model.PagePackageMetaData):
         # Create a PagePackageBundle instance
         bundle = package.PagePackageBundle(
             publisher=self.publisher,
-            author=self.authors,
+            author=self.author,
             language=self.language,
             publisherURL=f"https://github.com/{self.repo_org}/" f"{self.repo}",
             packages={

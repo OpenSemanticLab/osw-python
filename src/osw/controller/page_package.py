@@ -22,6 +22,7 @@ class PagePackageController(model.PagePackageMetaData):
         """Path to a credentials yaml files"""
         working_dir: Union[str, FilePath]
         """Working directory"""
+        skip_slot_suffix_for_main: bool = False
 
     def create(
         self,
@@ -65,6 +66,7 @@ class PagePackageController(model.PagePackageMetaData):
             content_path=Path(creation_config.working_dir) / self.subdir,
             bundle=bundle,
             titles=self.page_titles,
+            skip_slot_suffix_for_main=creation_config.skip_slot_suffix_for_main,
         )
         # Create the page package in the working directory
         wtsite.create_page_package(config=config)

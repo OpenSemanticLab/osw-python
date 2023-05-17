@@ -45,7 +45,7 @@ class PagePackageController(model.PagePackageMetaData):
             publisher=self.publisher,
             author=self.author,
             language=self.language,
-            publisherURL=f"https://github.com/{self.repo_org}/" f"{self.repo}",
+            publisherURL=f"https://github.com/{self.repo_org}/{self.repo}",
             packages={
                 f"{self.name}": package.PagePackage(
                     globalID=f"{self.id}",
@@ -54,8 +54,9 @@ class PagePackageController(model.PagePackageMetaData):
                     description=self.description,
                     baseURL=f"https://raw.githubusercontent.com/"
                     f"{self.repo_org}/"
-                    f"{self.repo}/{self.branch}"
-                    f"/{self.subdir}/",
+                    f"{self.repo}/"
+                    f"{self.branch}/"
+                    f"{self.subdir}/",
                 )
             },
         )

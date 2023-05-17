@@ -1,5 +1,4 @@
 import os
-from os import PathLike
 from typing import List, Optional, Union
 
 from pydantic import BaseModel
@@ -165,9 +164,9 @@ class PagePackageConfig(BaseModel):
 
     name: str
     """The name (label) of the package."""
-    config_path: str
+    config_path: Union[str, os.PathLike]
     """The path of the generated json file (package.json)."""
-    content_path: Optional[str] = ""
+    content_path: Optional[Union[str, os.PathLike]] = ""
     """The directory where the content (pages, files) is stored."""
     titles: List[str]
     """List of page titles."""
@@ -176,6 +175,9 @@ class PagePackageConfig(BaseModel):
     """Bund of pages."""
     skip_slot_suffix_for_main: Optional[bool] = False
     include_files: Optional[bool] = True
+
+    class Config:
+        arbitrary_types_allowed = True  # allow any class as type
 
     def __init__(self, **data):
         """Originally, the dataclass.__post_init_() method was used here.
@@ -220,15 +222,3 @@ class PagePackageMetaData(BaseModel):
     page_titles: List[str]
     """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
      to be packaged."""
-
-
-class PagePackageCreationConfig(BaseModel):
-    """Configuration for creating a page package. This is the data needed to create
-    a page package but is not included in the page package."""
-
-    domain: str
-    """A string formatted as domain"""
-    credentials_file_path: Union[str, PathLike]
-    """Path to a credentials yaml files"""
-    working_dir: Union[str, PathLike]
-    """Working directory"""

@@ -1,10 +1,9 @@
 from pathlib import Path
 
-import osw.model.page_package as package
-from osw.wiki_tools import create_page_package
+from osw.controller.page_package import PagePackageController as Package
 
 # Provide information on the page package to be created
-package_meta_data = package.PagePackageMetaData(
+package = Package(
     # Package name
     name="OSW Core",
     # Package repository name - usually the GitHub repository name
@@ -46,16 +45,13 @@ package_meta_data = package.PagePackageMetaData(
     ],
 )
 # Provide the information needed (only) to create the page package
-package_creation_config = package.PagePackageCreationConfig(
+config = Package.CreationConfig(
     # Specify the path to the credentials file
-    pwd_file_path=Path(__file__).parent / "accounts.pwd.yaml",
+    credentials_file_path=Path(__file__).parent / "accounts.pwd.yaml",
     # Specify the domain of the OSW/OSL instance to load pages from
     domain="wiki-dev.open-semantic-lab.org",
     # Specify the path to the working directory - where the package is stored on disk
-    working_dir=Path(__file__).parents[2] / "packages" / package_meta_data.repo,
+    working_dir=Path(__file__).parents[2] / "packages" / package.repo,
 )
 # Create the page package
-create_page_package(
-    meta_data=package_meta_data,
-    creation_config=package_creation_config,
-)
+package.create(creation_config=config)

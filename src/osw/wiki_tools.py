@@ -1,6 +1,5 @@
 import copy
 import getpass
-from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
 import mwclient
@@ -8,10 +7,11 @@ import mwparserfromhell
 import numpy as np
 import yaml
 from jsonpath_ng.ext import parse
+from pydantic import FilePath
 
 
 def read_domains_from_credentials_file(
-    credentials_file_path: Union[str, Path]
+    credentials_file_path: Union[str, FilePath]
 ) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
     """Reads domains and credentials from a yaml file
 
@@ -36,7 +36,7 @@ def read_domains_from_credentials_file(
 
 
 def read_credentials_from_yaml(
-    password_file: Union[str, Path], domain: str = None
+    password_file: Union[str, FilePath], domain: str = None
 ) -> dict:
     """Reads credentials from a yaml file
 
@@ -74,7 +74,7 @@ def read_credentials_from_yaml(
 
 
 def create_site_object(
-    domain: str, password_file: Union[str, Path] = "", credentials: dict = None
+    domain: str, password_file: Union[str, FilePath] = "", credentials: dict = None
 ) -> mwclient.client.Site:
     """
     Parameters
@@ -381,8 +381,9 @@ def merge_wiki_page_text(
                     if rel1.has(p.name):
                         if not rel1.get(p.name).value.matches(rel2.get(p.name).value):
                             all_params_equal = False
-                        # print("Compare {}:{} with :{} -> res={}".format(p.name, rel1.get(p.name).value,rel2.get(p.name).value,
-                        #                                                rel1.get(p.name).value.matches(rel2.get(p.name).value)))
+                        # print("Compare {}:{} with :{} -> res={}".format(p.name,
+                        #       rel1.get(p.name).value,rel2.get(p.name).value,
+                        #       rel1.get(p.name).value.matches(rel2.get(p.name).value)))
                     else:
                         all_params_equal = False
                 if all_params_equal:
@@ -531,7 +532,8 @@ def get_wikitext_from_flat_content_dict(d: dict) -> str:
                 else:
                     if string_index != index:
                         print(
-                            f"Warning: template param '{key}' has mixed template/string values: {value}"
+                            f"Warning: template param '{key}' has mixed template/"
+                            f"string values: {value}"
                         )
                     if string_index > 0 and element and not element.strip().isspace():
                         wt += ";"

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import List, Optional, Union
 
 from pydantic import BaseModel
@@ -164,10 +165,12 @@ class PagePackageConfig(BaseModel):
 
     name: str
     """The name (label) of the package."""
-    config_path: str
-    """The path of the generated json file (package.json)."""
-    content_path: Optional[str] = ""
-    """The directory where the content (pages, files) is stored."""
+    config_path: Union[str, Path]
+    """The path of the generated json file (package.json).
+    Will be created automatically if not existing"""
+    content_path: Optional[Union[str, Path]] = ""
+    """The directory where the content (pages, files) is stored.
+    Will be created automatically if not existing."""
     titles: List[str]
     """List of page titles."""
     # replace: Optional[bool] = False
@@ -187,3 +190,53 @@ class PagePackageConfig(BaseModel):
         super().__init__(**data)
         if self.content_path == "":
             self.content_path = os.path.dirname(self.config_path)
+
+
+class PagePackageMetaData(BaseModel):
+    """Metadata for a page package. This data needed to create a page package and
+    included in the page package."""
+
+    name: str
+    """The name (label) of the page package."""
+    repo: str
+    """Page package repository name - usually the GitHub repository name"""
+    id: str
+    """Page package ID - usually the same as package_repo"""
+    subdir: str
+    """Page package subdirectory - usually resembling parts of the package name"""
+    branch: str
+    """Page package branch - usually 'main'."""
+    repo_org: str
+    """(GitHub) Organization hosting the package repository"""
+    description: str
+    """Page package description"""
+    language: str = "en"
+    """Page package language - usually the two-letter IETF language tag for that
+    language"""
+    version = "0.2.1"
+    """Page package version - use semantic versioning"""
+    author: List[str]
+    """Author(s) of the page package"""
+    publisher: str
+    """Publisher of the page package."""
+    page_titles: List[str]
+    """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
+     to be packaged."""
+
+
+# Special namespace mappings (default is namespace_const = "NS_" + namespace.upper())
+NAMESPACE_CONST_TO_NAMESPACE_MAPPING = {
+    # SMW: https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/ebb03c1537810f4ee8c1a25198b8d2e243cc38a1/src/NamespaceManager.php#L119
+    "SMW_NS_PROPERTY": "Property",
+    "SMW_NS_PROPERTY_TALK": "Property_talk",
+    "SMW_NS_CONCEPT": "Concept",
+    "SMW_NS_CONCEPT_TALK": "Concept_talk",
+    "SMW_NS_SCHEMA": "smw/schema",
+    "SMW_NS_SCHEMA_TALK": "smw/schema_talk",
+    "SMW_NS_RULE": "Rule",
+    "SMW_NS_RULE_TALK": "Rule_talk",
+}
+# inverse
+NAMESPACE_TO_NAMESPACE_CONST_MAPPING = {
+    v: k for k, v in NAMESPACE_CONST_TO_NAMESPACE_MAPPING.items()
+}

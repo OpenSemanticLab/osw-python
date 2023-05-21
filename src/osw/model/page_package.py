@@ -222,3 +222,21 @@ class PagePackageMetaData(BaseModel):
     page_titles: List[str]
     """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
      to be packaged."""
+
+
+# Special namespace mappings (default is namespace_const = "NS_" + namespace.upper())
+NAMESPACE_CONST_TO_NAMESPACE_MAPPING = {
+    # SMW: https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/ebb03c1537810f4ee8c1a25198b8d2e243cc38a1/src/NamespaceManager.php#L119
+    "SMW_NS_PROPERTY": "Property",
+    "SMW_NS_PROPERTY_TALK": "Property_talk",
+    "SMW_NS_CONCEPT": "Concept",
+    "SMW_NS_CONCEPT_TALK": "Concept_talk",
+    "SMW_NS_SCHEMA": "smw/schema",
+    "SMW_NS_SCHEMA_TALK": "smw/schema_talk",
+    "SMW_NS_RULE": "Rule",
+    "SMW_NS_RULE_TALK": "Rule_talk",
+}
+# inverse
+NAMESPACE_TO_NAMESPACE_CONST_MAPPING = {
+    v: k for k, v in NAMESPACE_CONST_TO_NAMESPACE_MAPPING.items()
+}

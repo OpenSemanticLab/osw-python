@@ -502,8 +502,10 @@ class WtPage:
             namespace = self.title.split(":")[0]
         else:
             namespace = "Main"
+
         namespace_const = "NS_" + namespace.upper()
-        # namespace_id = self._page.namespace
+        if namespace in package.NAMESPACE_TO_NAMESPACE_CONST_MAPPING:
+            namespace_const = package.NAMESPACE_TO_NAMESPACE_CONST_MAPPING[namespace]
 
         package_page = package.PagePackagePage(
             name=page_name, namespace=namespace_const, slots={}

@@ -19,9 +19,9 @@ class PagePackageController(model.PagePackageMetaData):
         domain: str
         """A string formatted as domain"""
         credentials_file_path: Union[str, FilePath]
-        """Path to a credentials yaml files"""
-        working_dir: Union[str, FilePath]
-        """Working directory"""
+        """Path to a existing credentials yaml files"""
+        working_dir: Union[str, Path]
+        """Working directory. Will be created automatically if not existing."""
         skip_slot_suffix_for_main: bool = False
 
     def create(

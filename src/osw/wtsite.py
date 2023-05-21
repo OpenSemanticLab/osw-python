@@ -464,16 +464,39 @@ class WtPage:
 
     @_basemodel_decorator
     class PageDumpConfig(BaseModel):
-        target_dir: Union[str, FilePath]
+        """Configuration to dump wiki pages to the file system"""
+
+        target_dir: Union[str, Path]
+        """Directory to dump all contents.
+        Will be created automatically if not existing"""
         namespace_as_folder: Optional[bool] = True
+        """Store page contents in subfolders named according to their namespaces"""
         skip_slot_suffix_for_main: Optional[bool] = False
+        """If true, do not include 'main' in the generated content file.
+        Useful for pages / wikis using only the main slot."""
         dump_empty_slots: Optional[bool] = False
+        """If true, dump all configured slots even empty ones.
+        Useful to create initial content in these slots."""
         page_name_as_filename: Optional[bool] = False
+        """Use the (human readable) name of a page also for the file naming.
+        Useful to identify dumped files manually. The mapping to the page title/id
+        (in general a UUID) is ensured anyway through package.json meta data."""
 
         class Config:
             arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
-    def dump(self, config: PageDumpConfig):
+    def dump(self, config: PageDumpConfig) -> package.PagePackagePage:
+        """Dump this page to the file system
+
+        Parameters
+        ----------
+        config
+            see WtPage.PageDumpConfig
+
+        Returns
+        -------
+            Metadata of the generated dump
+        """
         page_name = self.title.split(":")[-1]
         if ":" in self.title:
             namespace = self.title.split(":")[0]

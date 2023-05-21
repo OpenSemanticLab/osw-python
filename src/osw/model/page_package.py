@@ -1,7 +1,8 @@
 import os
+from pathlib import Path
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, FilePath
+from pydantic import BaseModel
 
 
 class PagePackagePageSlot(BaseModel):
@@ -164,10 +165,12 @@ class PagePackageConfig(BaseModel):
 
     name: str
     """The name (label) of the package."""
-    config_path: Union[str, FilePath]
-    """The path of the generated json file (package.json)."""
-    content_path: Optional[Union[str, FilePath]] = ""
-    """The directory where the content (pages, files) is stored."""
+    config_path: Union[str, Path]
+    """The path of the generated json file (package.json).
+    Will be created automatically if not existing"""
+    content_path: Optional[Union[str, Path]] = ""
+    """The directory where the content (pages, files) is stored.
+    Will be created automatically if not existing."""
     titles: List[str]
     """List of page titles."""
     # replace: Optional[bool] = False

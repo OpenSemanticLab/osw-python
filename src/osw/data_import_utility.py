@@ -270,6 +270,18 @@ def flatten_list(nested_list):
     return flattened_list
 
 
+def jsonpath_search_and_return_list_simple(
+    jp_str: str, val_key: str, search_tar: dict
+) -> Union[list, None]:
+    jp_parse = jp.parse(path=jp_str)
+    result = jp_parse.find(search_tar)
+    list_ = []
+    if result:
+        for res in result:
+            list_.append(res.value[val_key])
+    return list_
+
+
 def jsonpath_search_and_return_list(
     jp_str: str, val_key: str, search_tar: dict, class_to_match=None
 ) -> Union[list, None]:

@@ -11,11 +11,13 @@ from typing import List, Optional, Union
 from uuid import UUID
 
 import dask
+from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
+from osw.util import BufferedPrint
 from osw.wtsite import WtSite
 
 
@@ -517,7 +519,11 @@ class OSW(BaseModel):
                 "footer", "{{#invoke:Entity|footer}}"
             )  # required for footer rendering
             page.edit()
-            print(f"({index_+1}/{max_index}) Entity stored at {page.get_url()}")
+            msg = f"({index_+1}/{max_index}) Entity stored at {page.get_url()}"
+            if parallel:
+                print(msg, file=message_buffer)
+            else:
+                print(msg)
 
         tasks = []
         for index, e in enumerate(entity):
@@ -526,7 +532,14 @@ class OSW(BaseModel):
             else:
                 tasks.append(dask.delayed(store_entity)(index, e))
         if parallel:
-            dask.compute(*tasks)
+            message_buffer = BufferedPrint()
+            print(
+                "(Parallel execution) Storing entities. Log will be printed after "
+                "completion."
+            )
+            with ProgressBar():
+                dask.compute(*tasks)
+            message_buffer.flush()
 
     def delete_entity(self, entity, comment: str = None):
         """deletes the given entity from the OSW instance

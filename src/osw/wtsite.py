@@ -298,7 +298,9 @@ class WtPage:
                     #  SLOTS) --> create empty slots
 
     def create_slot(self, slot_key, content_model):
-        self._slots[slot_key] = None
+        self._slots[slot_key] = {}
+        # To avoid TypeError: argument of type 'NoneType' is not iterable in
+        #  set_slot_content()
         self._slots_changed[slot_key] = False
         self._content_model[slot_key] = content_model
 
@@ -320,11 +322,11 @@ class WtPage:
         self.changed = True
 
     def set_slot_content(self, slot_key, content):
-        # todo: get slot content model from page / constant
         if slot_key not in self._slots:
-            content_model = "json"
-            if type(content) == str:
-                content_model = "wikitext"
+            # content_model = "json"
+            # if type(content) == str:
+            #     content_model = "wikitext"
+            content_model = getattr(SLOTS, slot_key)["content_model"]
             self.create_slot(slot_key, content_model)
         if content != self._slots[slot_key]:
             self._slots_changed[slot_key] = True

@@ -527,10 +527,13 @@ class WtPage:
 
     def set_slot_content(self, slot_key, content):
         if slot_key not in self._slots:
-            # content_model = "json"
-            # if type(content) == str:
-            #     content_model = "wikitext"
-            content_model = getattr(SLOTS, slot_key)["content_model"]
+            slot_dict = SLOTS.get(slot_key, None)
+            if slot_dict is None:
+                raise ValueError(
+                    f"Error: Slot '{slot_key}' not defined in 'SLOTS'."
+                    f"Available slots: {list(SLOTS.keys())}"
+                )
+            content_model = slot_dict["content_model"]
             self.create_slot(slot_key, content_model)
         if content != self._slots[slot_key]:
             self._slots_changed[slot_key] = True

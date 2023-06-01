@@ -1,12 +1,5 @@
-"""
-# todo: docstring erzeugen
-
-verwende: beispiel create page package
-https://github.com/OpenSemanticLab/osw-python/blob/main/examples/create_page_package.py
-in wtsite neuen parameter hinzufügen --> label als file name:
-dumpy_empty_slots = False
-https://github.com/OpenSemanticLab/osw-python/blob/main/src/osw/wtsite.py#L112
-"""
+"""This script provides a GUI for downloading an OSW instances page slots, editing
+them locally and uploading them again."""
 import json
 import os
 
@@ -41,6 +34,12 @@ SETTINGS_FILE_PATH_DEFAULT = os.path.join(
 CREDENTIALS_FILE_PATH_DEFAULT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
 )
+PACKAGE_INFO_FILE_NAME = "packages.json"
+# Sub folder to store the slot content of the page in. If None, the content is stored
+#  in the root folder alongside the package info file.
+SUB_LEVEL = None  # "content"
+# Whether to store the page content in a sub folder named after the namespace
+NAMESPACE_AS_FOLDER = False
 
 
 # Definition of functions
@@ -51,22 +50,23 @@ def str_or_none(value):
         return str(value)
 
 
-def create_config_from_setting(settings_: dict):
+def create_config_from_setting(settings_: dict) -> WtPage.PageDumpConfig:
     config_ = WtPage.PageDumpConfig(
         target_dir=settings_["local_working_directory"],
+        namespace_as_folder=settings_["namespace_as_folder"],
         dump_empty_slots=settings_["dump_empty_slots"],
         page_name_as_filename=settings_["page_name_as_filename"],
     )
     return config_
 
 
-def create_page_package(
+def save_as_page_package(
     full_page_name_str,
     wtsite_inst: WtSite,
     dump_config_inst: WtPage.PageDumpConfig,
     label_str: str = None,
     top_level: str = None,
-    sub_level: str = "content",
+    sub_level: str = None,  # "content"
     author: Union[str, list] = "Open Semantic World",
 ):
     if top_level is None:
@@ -89,7 +89,18 @@ def create_page_package(
         author_list = [author]
     else:
         author_list = [""]
-
+    if package_subdir is None:
+        base_url = (
+            f"https://raw.githubusercontent.com/{package_repo_org}/"
+            f"{package_repo}/{package_branch}/"
+        )
+        content_path = target_dir
+    else:
+        base_url = (
+            f"https://raw.githubusercontent.com/{package_repo_org}/"
+            f"{package_repo}/{package_branch}/{package_subdir}/"
+        )
+        content_path = os.path.join(target_dir, package_subdir)
     bundle = package.PagePackageBundle(
         publisher=publisher,
         author=author_list,
@@ -101,22 +112,23 @@ def create_page_package(
                 label=package_name,
                 version="0.0.1",
                 description="Created by the GUI for local editing of OSW pages",
-                baseURL=f"https://raw.githubusercontent.com/{package_repo_org}/"
-                f"{package_repo}/{package_branch}/{package_subdir}/",
+                baseURL=base_url,
             )
         },
     )
+    config = package.PagePackageConfig(
+        name=package_name,
+        config_path=os.path.join(target_dir, PACKAGE_INFO_FILE_NAME),
+        content_path=content_path,
+        bundle=bundle,
+        titles=[full_page_name_str],
+    )
     wtsite_inst.create_page_package(
-        config=package.PagePackageConfig(
-            name=package_name,
-            config_path=os.path.join(target_dir, "packages.json"),
-            content_path=os.path.join(target_dir, package_subdir),
-            bundle=bundle,
-            titles=[full_page_name_str],
-        ),
+        config=config,
         dump_config=dump_config_inst,
         debug=False,
     )
+    return {"Page package bundle": bundle, "Page package config": config}
 
 
 if __name__ == "__main__":
@@ -132,6 +144,7 @@ if __name__ == "__main__":
             "local_working_directory": str(LWD_DEFAULT),
             "settings_file_path": str(SETTINGS_FILE_PATH_DEFAULT),
             "target_page": TARGET_PAGE_DEFAULT,
+            "namespace_as_folder": NAMESPACE_AS_FOLDER,
             "dump_empty_slots": DUMP_EMPTY_SLOTS_DEFAULT,
             "page_name_as_filename": True,
             "slots_to_upload": SLOTS_TO_UPLOAD_DEFAULT,
@@ -142,12 +155,15 @@ if __name__ == "__main__":
     domains, accounts = read_domains_from_credentials_file(
         settings["credentials_file_path"]
     )
-    domain = domains[0]
+    if "wiki-dev.open-semantic-lab.org" in domains:
+        domain = "wiki-dev.open-semantic-lab.org"
+    else:
+        domain = domains[0]
     if settings_read_from_file:
         settings["domain"] = domain
 
     wtsite_obj = WtSite.from_domain(
-        domain=domains[0], password_file="", credentials=accounts[domains[0]]
+        domain=domain, password_file="", credentials=accounts[domain]
     )
     osw_obj = OSW(site=wtsite_obj)
 
@@ -155,6 +171,8 @@ if __name__ == "__main__":
     page = wtsite_obj.get_WtPage(full_page_name)
     label_set = False
     label = None
+    slots_downloaded = False
+    dump_config = create_config_from_setting(settings)
 
     # ----- GUI Definition -----
     # Setting the theme of the GUI
@@ -221,11 +239,7 @@ if __name__ == "__main__":
         # Target OSW instance
         [psg.Text("Target OSW instance", font=("Helvetica", 16))],
         [psg.Text("List of domains is read from accounts.pwd.yaml!")],
-        [
-            psg.Combo(
-                domains, default_value=domains[0], key="-DOMAIN-", enable_events=True
-            )
-        ],
+        [psg.Combo(domains, default_value=domain, key="-DOMAIN-", enable_events=True)],
         # Target page
         [psg.Text("Target page", font=("Helvetica", 16))],
         [
@@ -369,6 +383,8 @@ if __name__ == "__main__":
             )
             osw_obj = OSW(site=wtsite_obj)
         elif event == "Load page":
+            window["-LABEL-"].update("Loading page...")
+            window["-DL_RES-"].update("")
             full_page_name = values["-ADDRESS-"].split("/")[-1].replace("_", " ")
             if (values["-ADDRESS-"].find("/wiki/") != -1) or (
                 values["-ADDRESS-"].find("/w/") != -1
@@ -399,16 +415,18 @@ if __name__ == "__main__":
         elif event == "-EXC_EMPTY-" or event == "-INC_EMPTY-":
             settings["dump_empty_slots"] = values["-INC_EMPTY-"]
         elif event == "-DL-":
+            window["-DL_RES-"].update("Downloading slots...")
             if label_set:
                 dump_config = create_config_from_setting(settings)
-                # _ = page.dump(dump_config)
-                create_page_package(
+                _ = save_as_page_package(
                     full_page_name_str=full_page_name,
                     wtsite_inst=wtsite_obj,
                     dump_config_inst=dump_config,
                     label_str=label,
+                    sub_level=SUB_LEVEL,
                     author=accounts[domains[0]]["username"],
                 )
+                slots_downloaded = True
                 window["-DL_RES-"].update("Slots downloaded!")
             else:
                 window["-DL_RES-"].update("No page loaded!")
@@ -417,17 +435,41 @@ if __name__ == "__main__":
             # All selected: deselect all
             if indices == list(range(len(SLOTS.keys()))):
                 window["-UL_LIST-"].update(set_to_index=[])
+                settings["slots_to_upload"] = []
             else:
                 window["-UL_LIST-"].update(set_to_index=list(range(len(SLOTS.keys()))))
+                settings["slots_to_upload"] = list(SLOTS.keys())
         elif event == "-UL_LIST-":
             indices = list(window["-UL_LIST-"].get_indexes())
             settings["slots_to_upload"] = np_array(list(SLOTS.keys()))[indices].tolist()
         elif event == "-UL-":
-            pass
-            # Success:
-            # window["-UL_RES-"].update("Slots uploaded!")
-            window["-UL_RES-"].update("Not yet implemented!")
-            # todo: no slot selected
+            slots_to_upload = settings["slots_to_upload"]
+            if not label_set:
+                window["-UL_RES-"].update("No page loaded!")
+            elif len(slots_to_upload) == 0:
+                window["-UL_RES-"].update("No slots selected!")
+            else:
+                if not slots_downloaded:
+                    window["-UL_RES-"].update("No slots downloaded!")
+                    dump_config = create_config_from_setting(settings)
+                window["-UL_RES-"].update("Uploading slots...")
+                if SUB_LEVEL is None:
+                    storage_path = Path(dump_config.target_dir)
+                else:
+                    storage_path = Path(dump_config.target_dir).parent
+                pages = wtsite_obj.read_page_package(
+                    storage_path=storage_path,
+                    packages_info_file_name=PACKAGE_INFO_FILE_NAME,
+                    selected_slots=slots_to_upload,
+                    debug=False,
+                )
+                param = wtsite_obj.UploadPageParam(pages=pages, parallel=False)
+                wtsite_obj.upload_page(param)
+                # Success:
+                window["-UL_RES-"].update("Slots uploaded!")
+                # Report in the download section that the slots have been uploaded to
+                #  remind the user that he eventually has to re-download the slots
+                window["-DL_RES-"].update("Slots uploaded!")
 
         # Some debugging output functionality
         if DEBUG:

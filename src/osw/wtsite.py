@@ -188,6 +188,9 @@ class WtSite:
         pages: Union["WtPage", List["WtPage"]]
         parallel: Optional[bool] = False
 
+        class Config:
+            arbitrary_types_allowed = True
+
     @staticmethod
     def upload_page(
         param: Union[UploadPageParam, "WtPage", List["WtPage"]],

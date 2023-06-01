@@ -7,15 +7,20 @@ from datetime import datetime
 from pathlib import Path
 from pprint import pprint
 from time import sleep
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
+import dask
 import mwclient
+from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, FilePath
 
+import osw.model.entity as model
 import osw.model.page_package as package
+import osw.util as ut
 import osw.wiki_tools as wt
 from osw.model.entity import _basemodel_decorator
+from osw.util import BufferedPrint
 
 # Definition of constants
 SLOTS = {
@@ -179,6 +184,56 @@ class WtSite:
             if not dryrun:
                 wtpage.edit(comment)
 
+    class UploadPageParam(model.OswBaseModel):
+        pages: Union["WtPage", List["WtPage"]]
+        parallel: Optional[bool] = False
+
+    @staticmethod
+    def upload_page(
+        param: Union[UploadPageParam, "WtPage", List["WtPage"]],
+    ) -> None:
+        """Uploads a page or a list of pages to the site.
+
+        Parameters
+        ----------
+        param:
+            UploadPageParam object or a WtPage object or a list of WtPage objects.
+        """
+        parallel = False
+        page = param
+        if isinstance(param, WtSite.UploadPageParam):
+            page = param.pages
+            parallel = param.parallel
+        if not isinstance(page, list):
+            page = [page]
+        max_index = len(page)
+        if max_index >= 5:
+            parallel = True
+
+        def upload_page(index_, p_):
+            p_.edit()
+            msg = f"({index_ + 1}/{max_index}): Uploaded page to {p_.get_url()}."
+            if parallel:
+                print(msg, file=message_buffer)
+            else:
+                print(msg)
+
+        tasks = []
+        for index, p in enumerate(page):
+            if not parallel:
+                upload_page(index, p)
+            else:
+                tasks.append(dask.delayed(upload_page)(index, p))
+        if parallel:
+            message_buffer = BufferedPrint()
+            print(
+                "(Parallel execution) Uploading pages. Log will be printed  after "
+                "completion."
+            )
+            with ProgressBar():
+                dask.compute(*tasks)
+            message_buffer.flush()
+
     def create_page_package(
         self,
         config: package.PagePackageConfig,
@@ -239,10 +294,141 @@ class WtSite:
         with open(file_name, "w") as f:
             f.write(content)
 
-    # todo: implement
+    def read_page_package(
+        self,
+        storage_path: Union[str, Path],
+        packages_info_file_name: Union[str, Path] = None,
+        debug: bool = False,
+    ) -> List["WtPage"]:
+        """Read a page package, which is a locally stored collection of wiki pages and
+        their slots' content.
 
-    def upload_page_package(self):
-        pass
+        Parameters
+        ----------
+        storage_path:
+            The path to the directory where the page package is stored.
+        packages_info_file_name:
+            The name of the file that contains the page package information. If not
+            specified, the default value 'packages.json' is used.
+        debug:
+            If True, debug information is printed to the console.
+
+        Returns
+        -------
+        result:
+            A list of WtPage objects.
+        """
+        # Test arguments / set default value
+        if not os.path.exists(storage_path):
+            raise FileNotFoundError(f"Storage path '{storage_path}' does not exist.")
+        if not isinstance(storage_path, Path):
+            storage_path = Path(storage_path)
+        if packages_info_file_name is None:
+            packages_info_file_name = "packages.json"
+        # Get top level content of storage path
+        top_level_content = ut.list_files_and_directories(
+            search_path=storage_path, recursive=False
+        )
+        # Try to find packages info file in storage path
+        pi_fp = os.path.join(storage_path, packages_info_file_name)
+        # Check if packages info file exists in storage path, otherwise use fallback
+        #  option or raise error
+        if os.path.exists(pi_fp) and os.path.isfile(pi_fp):
+            if debug:
+                print(f"Found packages info file at '{pi_fp}'.")
+        else:
+            if debug:
+                print(
+                    f"Did not find packages info file at '{pi_fp}'. Trying default "
+                    f"'packages.json'."
+                )
+            top_level_json_files = [
+                f
+                for f in top_level_content["files"]
+                if f.is_file() and str(f).endswith(".json")
+            ]
+            json_in_top_level = ut.file_in_paths(
+                paths=top_level_json_files, file_name="packages.json"
+            )
+            if json_in_top_level["found"]:
+                pi_fp = json_in_top_level["file path"]
+            elif len(top_level_json_files) > 0:
+                if debug:
+                    print(f"Found JSON files: {top_level_json_files}. Using first one.")
+                pi_fp = top_level_json_files[0]
+            else:
+                raise FileNotFoundError(
+                    f"Error: No JSON files found in '{storage_path}'."
+                )
+        # Read packages info file
+        with open(pi_fp, "r") as f:
+            packages_json = json.load(f)
+        # Assume that the pages files are located in the subdir
+        storage_path_content = ut.list_files_and_directories(
+            search_path=storage_path, recursive=True
+        )
+        sub_dirs = top_level_content["directories"]
+
+        def get_slot_content(
+            parent_dir: List[Union[str, Path]],
+            url_path: str,
+            files_in_storage_path: List[Path],
+        ) -> Union[str, Dict]:
+            for pdir in parent_dir:
+                slot_path = storage_path / pdir / url_path
+                if slot_path in files_in_storage_path:
+                    if url_path.endswith(".json"):
+                        with open(slot_path, "r") as f:
+                            slot_data = json.load(f)
+                        return slot_data
+                    elif url_path.endswith(".wikitext"):
+                        with open(slot_path, "r") as f:
+                            slot_data = f.read()
+                        return slot_data
+
+        # Create WtPage objects
+        pages = []
+        for package_name, package_dict in packages_json["packages"].items():
+            for page in package_dict["pages"]:
+                namespace = page["namespace"].split("_")[-1].capitalize()
+                name = page["name"]
+                # Create the WtPage object
+                page_obj = WtPage(wtSite=self, title=f"{namespace}:{name}")
+                # Main slot is special
+                page_obj.set_slot_content(
+                    slot_key="main",
+                    content=get_slot_content(
+                        parent_dir=sub_dirs,
+                        url_path=page["urlPath"],
+                        files_in_storage_path=storage_path_content["files"],
+                    ),
+                )
+                for slot_name, slot_dict in page["slots"].items():
+                    page_obj.set_slot_content(
+                        slot_key=slot_name,
+                        content=get_slot_content(
+                            parent_dir=sub_dirs,
+                            url_path=slot_dict["urlPath"],
+                            files_in_storage_path=storage_path_content["files"],
+                        ),
+                    )
+                pages.append(page_obj)
+        return pages
+
+    def upload_page_package(
+        self,
+        storage_path: Union[str, Path] = None,
+        pages: List["WtPage"] = None,
+        debug: bool = False,
+    ):
+        if storage_path and pages is None:
+            raise ValueError(
+                "Error: If 'storage_path' is not given, 'pages' must be given."
+            )
+        if pages is None:
+            pages = self.read_page_package(storage_path=storage_path, debug=debug)
+        for page in pages:
+            page.edit()
 
 
 class WtPage:
@@ -365,6 +551,7 @@ class WtPage:
     def update_dict(self, combined: dict, update: dict) -> None:
         for k, v in update.items():
             if isinstance(v, dict):
+                # todo: fix reference for combine_into
                 WtPage.combine_into(v, combined.setdefault(k, {}))
             else:
                 combined[k] = v
@@ -589,11 +776,6 @@ class WtPage:
 
         return package_page
 
-    @_basemodel_decorator
-    class PageUploadConfig(BaseModel):
-        pass
 
-    # todo: implement
-
-    def upload(self, config: PageUploadConfig):
-        pass
+# Updating forwards refs in pydantic models
+WtSite.UploadPageParam.update_forward_refs()

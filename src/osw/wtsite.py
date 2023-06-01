@@ -374,6 +374,10 @@ class WtSite:
             search_path=storage_path, recursive=True
         )
         sub_dirs = top_level_content["directories"]
+        if len(top_level_content["directories"]) == 0:
+            # No subdirectories found, assume that the pages files are located in the
+            #  top level
+            sub_dirs = [storage_path]
 
         def get_slot_content(
             parent_dir: List[Union[str, Path]],

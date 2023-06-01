@@ -387,14 +387,17 @@ class WtSite:
             for pdir in parent_dir:
                 slot_path = storage_path / pdir / url_path
                 if slot_path in files_in_storage_path:
-                    if url_path.endswith(".json"):
-                        with open(slot_path, "r") as f:
-                            slot_data = json.load(f)
-                        return slot_data
-                    elif url_path.endswith(".wikitext"):
-                        with open(slot_path, "r") as f:
-                            slot_data = f.read()
-                        return slot_data
+                    with open(slot_path, "r") as f:
+                        file_content = f.read()
+                    # Makes sure not to open an empty file with json
+                    if len(file_content) > 0:
+                        if url_path.endswith(".json"):
+                            with open(slot_path, "r") as f:
+                                slot_data = json.load(f)
+                            return slot_data
+                        elif url_path.endswith(".wikitext"):
+                            slot_data = file_content
+                            return slot_data
 
         # Create WtPage objects
         pages = []
@@ -404,15 +407,18 @@ class WtSite:
                 name = page["name"]
                 # Create the WtPage object
                 page_obj = WtPage(wtSite=self, title=f"{namespace}:{name}")
-                # Main slot is special
-                page_obj.set_slot_content(
-                    slot_key="main",
-                    content=get_slot_content(
+                if "main" in selected_slots:
+                    # Main slot is special
+                    slot_content = get_slot_content(
                         parent_dir=sub_dirs,
                         url_path=page["urlPath"],
                         files_in_storage_path=storage_path_content["files"],
-                    ),
-                )
+                    )
+                    if slot_content is not None:
+                        page_obj.set_slot_content(
+                            slot_key="main",
+                            content=slot_content,
+                        )
                 if selected_slots is None:
                     _selected_slots = page["slots"]
                 else:
@@ -422,14 +428,16 @@ class WtSite:
                         if slot_name in selected_slots
                     }
                 for slot_name, slot_dict in _selected_slots.items():
-                    page_obj.set_slot_content(
-                        slot_key=slot_name,
-                        content=get_slot_content(
-                            parent_dir=sub_dirs,
-                            url_path=slot_dict["urlPath"],
-                            files_in_storage_path=storage_path_content["files"],
-                        ),
+                    slot_content = get_slot_content(
+                        parent_dir=sub_dirs,
+                        url_path=slot_dict["urlPath"],
+                        files_in_storage_path=storage_path_content["files"],
                     )
+                    if slot_content is not None:
+                        page_obj.set_slot_content(
+                            slot_key=slot_name,
+                            content=slot_content,
+                        )
                 pages.append(page_obj)
         return pages
 

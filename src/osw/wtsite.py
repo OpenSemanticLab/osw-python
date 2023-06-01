@@ -301,6 +301,7 @@ class WtSite:
         self,
         storage_path: Union[str, Path],
         packages_info_file_name: Union[str, Path] = None,
+        selected_slots: List[str] = None,
         debug: bool = False,
     ) -> List["WtPage"]:
         """Read a page package, which is a locally stored collection of wiki pages and
@@ -313,6 +314,8 @@ class WtSite:
         packages_info_file_name:
             The name of the file that contains the page package information. If not
             specified, the default value 'packages.json' is used.
+        selected_slots:
+            A list of slots that should be read. If None, all slots are read.
         debug:
             If True, debug information is printed to the console.
 
@@ -406,7 +409,15 @@ class WtSite:
                         files_in_storage_path=storage_path_content["files"],
                     ),
                 )
-                for slot_name, slot_dict in page["slots"].items():
+                if selected_slots is None:
+                    _selected_slots = page["slots"]
+                else:
+                    _selected_slots = {
+                        slot_name: slot_dict
+                        for slot_name, slot_dict in page["slots"].items()
+                        if slot_name in selected_slots
+                    }
+                for slot_name, slot_dict in _selected_slots.items():
                     page_obj.set_slot_content(
                         slot_key=slot_name,
                         content=get_slot_content(

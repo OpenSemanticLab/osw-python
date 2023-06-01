@@ -186,9 +186,7 @@ class WtSite:
         debug: bool = True,
     ):
         """Create a page package, which is a locally stored collection of wiki pages
-        and their slots, based on a configuration
-        object.
-        """
+        and their slots, based on a configuration object."""
         # Clear the content directory
         try:
             if debug:
@@ -256,11 +254,11 @@ class WtPage:
         self.exists = self._page.exists
         self._original_content = ""
         self._content = ""
-        self.changed = False
+        self.changed: bool = False
         self._dict = []  # todo: named dict but is of type list
-        self._slots = {"main": ""}
-        self._slots_changed = {"main": False}
-        self._content_model = {"main": "wikitext"}
+        self._slots: Dict[str, Union[str, dict]] = {"main": ""}
+        self._slots_changed: Dict[str, bool] = {"main": False}
+        self._content_model: Dict[str, str] = {"main": "wikitext"}
 
         if self.exists:
             self._original_content = self._page.text()
@@ -273,7 +271,8 @@ class WtPage:
                 "query",
                 prop="revisions",
                 titles=title,
-                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|slotsize|slotsha1",
+                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|"
+                "slotsize|slotsha1",
                 rvslots="*",
                 rvlimit="1",
                 format="json",
@@ -289,7 +288,8 @@ class WtPage:
                                 "contentmodel"
                             ]
                             self._slots_changed[slot_key] = False
-                            # self._slots_sha1[slot_key] = revision["slots"][slot_key]["*"]
+                            # self._slots_sha1[slot_key] = \
+                            #     revision["slots"][slot_key]["*"]
                             if self._content_model[slot_key] == "json":
                                 self._slots[slot_key] = json.loads(
                                     self._slots[slot_key]
@@ -392,7 +392,7 @@ class WtPage:
         return self
 
     def edit(self, comment: str = None, mode="action-multislot"):
-        """creates / updates the content of all page slots in the wiki site
+        """Creates / updates the content of all page slots in the wiki site
 
         Parameters
         ----------

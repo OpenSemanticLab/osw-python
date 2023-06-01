@@ -472,7 +472,7 @@ class OSW(BaseModel):
     class StoreEntityParam(model.OswBaseModel):
         entities: Union[model.Entity, List[model.Entity]]
         namespace: Optional[str]
-        parallel: bool = False
+        parallel: Optional[bool] = False
 
     def store_entity(
         self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
@@ -482,11 +482,11 @@ class OSW(BaseModel):
         Parameters
         ----------
         param:
-            StoreParam, the dataclass instance or a list of instances
+            StoreEntityParam, the dataclass instance or a list of instances
         """
 
         namespace = None
-        parallel = None
+        parallel = False
         entity = param
         if isinstance(param, OSW.StoreEntityParam):
             entity = param.entities
@@ -496,7 +496,7 @@ class OSW(BaseModel):
             entity = [entity]
         # entity is a list
         max_index = len(entity)
-        if len(entity) >= 5:
+        if max_index >= 5:
             parallel = True
 
         def store_entity(index_, e_, namespace_=namespace):
@@ -519,7 +519,7 @@ class OSW(BaseModel):
                 "footer", "{{#invoke:Entity|footer}}"
             )  # required for footer rendering
             page.edit()
-            msg = f"({index_+1}/{max_index}) Entity stored at {page.get_url()}"
+            msg = f"({index_+1}/{max_index}) Entity stored at " f"{page.get_url()}."
             if parallel:
                 print(msg, file=message_buffer)
             else:

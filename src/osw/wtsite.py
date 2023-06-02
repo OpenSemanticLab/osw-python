@@ -144,10 +144,24 @@ class WtSite:
                     cookie.domain, cookie.path, cookie.name
                 )
 
-    def prefix_search(self, text):
+    def prefix_search(self, text, limit: int = None, debug: bool = None):
+        kwargs = {}
+        if isinstance(limit, int):
+            kwargs["limit"] = limit
+        if isinstance(debug, bool):
+            kwargs["debug"] = debug
+        if kwargs:
+            return wt.prefix_search(self._site, text, **kwargs)
         return wt.prefix_search(self._site, text)
 
-    def semantic_search(self, query):
+    def semantic_search(self, query, limit: int = None, debug: bool = None):
+        kwargs = {}
+        if isinstance(limit, int):
+            kwargs["limit"] = limit
+        if isinstance(debug, bool):
+            kwargs["debug"] = debug
+        if kwargs:
+            return wt.semantic_search(self._site, query, **kwargs)
         return wt.semantic_search(self._site, query)
 
     def modify_search_results(

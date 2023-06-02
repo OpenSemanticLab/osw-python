@@ -112,7 +112,9 @@ def create_site_object(
 
 # Standard Query
 # api.php?action=query&list=prefixsearch&pssearch=Star Wars
-def prefix_search(site: mwclient.client.Site, text: str, debug: bool = True):
+def prefix_search(
+    site: mwclient.client.Site, text: str, debug: bool = True, limit: int = 1000
+) -> list:
     """
 
     Parameters
@@ -120,8 +122,11 @@ def prefix_search(site: mwclient.client.Site, text: str, debug: bool = True):
     site :
         Site object from mwclient lib
     text :
+        Query text
     debug :
         Whether to print the results
+    limit :
+        Maximum number of results
 
     Returns
     -------
@@ -129,10 +134,11 @@ def prefix_search(site: mwclient.client.Site, text: str, debug: bool = True):
     """
     page_list = []
     result = site.api(
-        "query", list="prefixsearch", pssearch=text, pslimit=1000, format="json"
+        "query", list="prefixsearch", pssearch=text, pslimit=limit, format="json"
     )
-    if len(result["query"]["prefixsearch"]) == 0 and debug:
-        print("No results")
+    if len(result["query"]["prefixsearch"]) == 0:
+        if debug:
+            print("No results")
     else:
         for page in result["query"]["prefixsearch"]:
             title = page["title"]
@@ -143,7 +149,9 @@ def prefix_search(site: mwclient.client.Site, text: str, debug: bool = True):
 
 
 # Semantic Query
-def semantic_search(site: mwclient.client.Site, query: str, debug: bool = True):
+def semantic_search(
+    site: mwclient.client.Site, query: str, debug: bool = True, limit: int = 1000
+):
     """
 
     Parameters
@@ -151,18 +159,22 @@ def semantic_search(site: mwclient.client.Site, query: str, debug: bool = True):
     site :
         Site object from mwclient lib
     query :
+        Query text
     debug :
         Whether to print the results
+    limit :
+        Maximum number of results
 
     Returns
     -------
     page_list : list
     """
     page_list = []
-    query += "|limit=1000"
+    query += f"|limit={limit}"
     result = site.api("ask", query=query, format="json")
-    if len(result["query"]["results"]) == 0 and debug:
-        print("Query '{}' returned no results".format(query))
+    if len(result["query"]["results"]) == 0:
+        if debug:
+            print("Query '{}' returned no results".format(query))
     else:
         if debug:
             print(

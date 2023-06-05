@@ -1,4 +1,5 @@
-# extents mwclient.site
+# Generic extension of mwclient.site, mainly to provide multi-slot page handling and caching
+# OpenSemanticLab specific features are located in osw.core.OSW
 
 import json
 import os
@@ -14,12 +15,15 @@ import mwclient
 from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, FilePath
+from typing_extensions import deprecated
 
 import osw.model.entity as model
 import osw.model.page_package as package
 import osw.util as ut
 import osw.wiki_tools as wt
+from osw.auth import CredentialManager
 from osw.model.entity import _basemodel_decorator
+from osw.model.static import OswBaseModel
 from osw.util import BufferedPrint
 
 # Definition of constants
@@ -38,28 +42,96 @@ SLOTS = {
 
 
 class WtSite:
-    def __init__(self, site: mwclient.Site = None):
-        if site:
-            self._site = site
+    # A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and caching
+
+    class WtSiteConfig(OswBaseModel):
+        """The configuration for a WtSite instance"""
+
+        iri: str
+        """the IRI of the wiki site, typically the domain"""
+        cred_mngr: CredentialManager
+        """the CredentialManager to use for authentication"""
+        login: Optional[str]
+        """the preferred login name when multiple logins are possible (not supported yet)"""
+
+    @deprecated("Use WtSiteConfig instead")
+    class WtSiteLegacyConfig(OswBaseModel):
+        """The legacy configuration for a WtSite instance"""
+
+        site: mwclient.Site
+        """the mwclient.Site to use for communication with the wiki"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def __init__(self, config=Union[WtSiteConfig, WtSiteLegacyConfig]):
+        """creates a new WtSite instance from a WtSiteConfig
+
+        Parameters
+        ----------
+        config
+            the WtSiteConfig or WtSiteLegacyConfig to create the WtSite from
+
+        """
+        if type(config) == WtSite.WtSiteLegacyConfig:
+            self._site = config.site
         else:
-            raise ValueError("Parameter 'site' is None")
+            cred = config.cred_mngr.get_credential(
+                CredentialManager.CredentialConfig(
+                    iri=config.iri, fallback=CredentialManager.CredentialFallback.ask
+                )
+            )
+            if type(cred) == CredentialManager.UserPwdCredential:
+                self._site = mwclient.Site(cred.iri, path="/w/")
+                self._site.login(username=cred.username, password=cred.password)
+            elif type(cred) == CredentialManager.OAuth1Credential:
+                self._site = mwclient.Site(
+                    "wiki-dev.open-semantic-lab.org",
+                    path="/w/",
+                    consumer_token=cred.consumer_token,
+                    consumer_secret=cred.consumer_secret,
+                    access_token=cred.access_token,
+                    access_secret=cred.access_secret,
+                )
+            else:
+                raise ValueError("Unsupported credential type: " + str(type(cred)))
+            del cred
+
+        # the page cache is used to store pages that already have been loaded from the wiki
         self._page_cache = {}
         self._cache_enabled = False
 
     @classmethod
+    @deprecated("Use contructor instead")
     def from_domain(
         cls,
         domain: str = None,
         password_file: Union[str, FilePath] = None,
         credentials: dict = None,
     ):
+        """creates a new WtSite instance from a domain and a password file
+
+        Parameters
+        ----------
+        domain, optional
+            the wiki domain, by default None
+        password_file, optional
+            password file with credentials for the wiki site, by default None
+        credentials, optional
+            credentials of the wiki site, by default None
+
+        Returns
+        -------
+            a new WtSite instance
+        """
         if credentials is None:
             site = wt.create_site_object(domain, password_file)
         else:
             site = wt.create_site_object(domain, "", credentials)
-        return cls(site)
+        return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     @classmethod
+    @deprecated("Use contructor instead")
     def from_credentials(
         cls,
         credentials: Union[Dict[str, Dict[str, str]], str, FilePath],
@@ -93,7 +165,7 @@ class WtSite:
         _credentials: Dict = accounts[_domain]
         # todo: research why nested typing doesn't work as expected fo the dictionary
         site = wt.create_site_object(_domain, "", _credentials)
-        return cls(site)
+        return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     def get_WtPage(self, title: str = None):
         retry = 0

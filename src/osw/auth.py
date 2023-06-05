@@ -16,19 +16,31 @@ class CredentialManager(OswBaseModel):
     cred_filepath: Union[Union[str, FilePath], List[Union[str, FilePath]]]
     """yaml file with credentials for osw and connected services"""
 
-    class Credential(OswBaseModel):
-        """_summary_
+    class BaseCredential(OswBaseModel):
+        """Abstract base class for credentials"""
 
-        Parameters
-        ----------
-        username:
-            the user identifier
-        password:
-            the users password
-        """
+        iri: str
+        """the iri the credential is valid for"""
+
+    class UserPwdCredential(BaseCredential):
+        """a username - password credential"""
 
         username: str
+        """the user identifier"""
         password: str
+        """the users password"""
+
+    class OAuth1Credential(BaseCredential):
+        """OAuth1 credentials. See https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html"""
+
+        consumer_token: str
+        """consumer token"""
+        consumer_secret: str
+        """consumer secret """
+        access_token: str
+        """access token"""
+        access_secret: str
+        """access secret"""
 
     class CredentialFallback(Enum):
         """Modes of handling missing credentials
@@ -45,21 +57,15 @@ class CredentialManager(OswBaseModel):
         none = "none"  # throw error
 
     class CredentialConfig(OswBaseModel):
-        """Reads credentials from a yaml file
-
-        Parameters
-        ----------
-        iri:
-            internationalized resource identifier / address of the service, may contain protocol, domain, port and path
-            matches by "contains" returning the shortest match
-        fallback:
-            The fallback strategy if no credential was found for the given origin
-        """
+        """Reads credentials from a yaml file"""
 
         iri: str
+        """internationalized resource identifier / address of the service, may contain protocol, domain, port and path
+            matches by "contains" returning the shortest match"""
         fallback: Optional[CredentialManager.CredentialFallback] = "none"
+        """The fallback strategy if no credential was found for the given origin"""
 
-    def get_credential(self, config: CredentialConfig) -> Credential:
+    def get_credential(self, config: CredentialConfig) -> BaseCredential:
         """Reads credentials from a yaml file
 
         Parameters
@@ -70,7 +76,7 @@ class CredentialManager(OswBaseModel):
         Returns
         -------
         credential :
-            Credential, contain attributes 'username' and 'password'.
+            Credential, contain attributes 'username' and 'password' and the matching iri.
         """
         filepaths = self.cred_filepath
         if type(filepaths) is not list:
@@ -85,11 +91,17 @@ class CredentialManager(OswBaseModel):
                         accounts = yaml.safe_load(stream)
                         for iri in accounts.keys():
                             if config.iri in iri:
-                                if match_iri == "" or len(match_iri) > len(iri):
+                                if match_iri == "" or len(match_iri) > len(
+                                    iri
+                                ):  # use the less specific match
                                     match_iri = iri
-                                    cred = CredentialManager.Credential(
+                                    cred = CredentialManager.UserPwdCredential(
                                         username=accounts[iri]["username"],
                                         password=accounts[iri]["password"],
+                                        iri=match_iri
+                                        if len(match_iri) > len(iri)
+                                        else iri  # use the more specific iri
+                                        # ToDo: add support for OAuth1Credential
                                     )
                     except yaml.YAMLError as exc:
                         print(exc)
@@ -100,7 +112,7 @@ class CredentialManager(OswBaseModel):
                 )
                 username = input("Enter username")
                 password = getpass.getpass("Enter password")
-                cred = CredentialManager.Credential(
+                cred = CredentialManager.UserPwdCredential(
                     username=username, password=password
                 )
         return cred

@@ -291,6 +291,100 @@ def search_wiki_page(title: str, site: mwclient.client.Site):
         return result_dict
 
 
+def get_file_info_and_usage(
+    site: mwclient.client.Site, title: Union[str, List[str], SearchParam]
+) -> List[Dict[str, Union[Dict[str, str], List[str]]]]:
+    """(For 'File' pages only) Get information about the file and its usage
+
+    Parameters
+    ----------
+    site:
+        Site object from mwclient lib.
+    title:
+        Title(s) of the wiki page(s) or instance of SearchParam.
+
+    Returns
+    -------
+    result:
+        Dictionary with page titles as keys and nested dictionary with keys 'info' and
+        'usage'.
+
+    Notes
+    -----
+    Query to reproduce:
+        action=query
+        format=json
+        prop=imageinfo|fileusage
+        titles=File%3AOSW857d85031d85425aa94db8b4720e84b7.png
+        &iiprop=timestamp%7Cuser&fulimit=5000"
+
+    Resources
+    ---------
+    Use the sandbox to design and test the queries:
+    https://demo.open-semantic-lab.org/wiki/Special:ApiSandbox
+    """
+    if isinstance(title, str):
+        query = SearchParam(query=[title], debug=False)
+    elif isinstance(title, list):
+        query = SearchParam(query=title, debug=False)
+    else:  # SearchParam
+        query = title
+    if len(query.query) > 5:
+        query.parallel = True
+
+    def get_file_info_and_usage_(single_title):
+        api_request_result = site.api(
+            action="query",
+            format="json",
+            prop="imageinfo|fileusage",
+            titles=single_title,
+            iiprop="timestamp|user",
+            fulimit=query.limit,
+        )
+        using_pages = []
+        file_info = {
+            "title": single_title,
+            "author": "File not found",
+            "timestamp": "File not found",
+        }
+
+        if len(api_request_result["query"]["pages"]) == 0:
+            if query.debug:
+                print(f"Page not found: '{single_title}'!")
+        else:
+            image_info: List[Dict[str, str]] = []
+            file_usage: List[Dict[str, Union[str, int]]] = []
+            for page_id, page_dict in api_request_result["query"]["pages"].items():
+                if page_dict["title"] == single_title:
+                    image_info = page_dict.get("imageinfo", [])
+                    file_usage = page_dict.get("fileusage", [])
+            if len(image_info) != 0:
+                file_info["author"] = image_info[0]["user"]
+                file_info["timestamp"] = image_info[0]["timestamp"]
+            if file_usage is not None:
+                for fu_page_dict in file_usage:
+                    using_pages.append(fu_page_dict["title"])
+            if query.debug:
+                # todo: find out why this message is printed (sometimes) when using the
+                #                 #  redirect,  which messes up the Progressbar
+                #                 #  printed messages do not appear in the MessageBuffer
+                print(f"File info for '{single_title}' retrieved.")
+        return {"info": file_info, "usage": using_pages}
+
+    if query.parallel:
+        api_request_results = parallelize(
+            func=get_file_info_and_usage_,
+            iterable=query.query,
+            flush_at_end=query.debug,
+        )
+    else:
+        api_request_results = [
+            get_file_info_and_usage_(single_title=st) for st in query.query
+        ]
+
+    return api_request_results
+
+
 def search_redirection_sources(
     site: mwclient.client.Site, target_title: str, debug: bool = False
 ):

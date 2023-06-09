@@ -463,6 +463,43 @@ class WtSite:
         for page in pages:
             page.edit()
 
+    def get_file_pages(self, limit: int = 1000000) -> List[str]:
+        """Get all file pages in the wiki"""
+        full_page_titles = wt.prefix_search(
+            site=self._site,
+            text=wt.SearchParam(query="File:", debug=False, limit=limit),
+        )
+        return full_page_titles
+
+    def get_file_info_and_usage(
+        self,
+        page_titles: Union[str, List[str], wt.SearchParam],
+    ) -> list:
+        """Get the file info and usage for one or more file pages.
+
+        Parameters
+        ----------
+        page_titles:
+            One or more full page titles of file pages.
+        debug:
+            If True, print debug messages.
+        parallel:
+            If True, use dask to parallelize the queries.
+
+        Returns
+        -------
+        result:
+            Dictionary with page titles as keys and nested dictionary with keys 'info' and
+            'usage'.
+        """
+        if isinstance(page_titles, str):
+            title = wt.SearchParam(query=[page_titles], debug=False, parallel=True)
+        elif isinstance(page_titles, list):
+            title = wt.SearchParam(query=page_titles, debug=False, parallel=True)
+        else:  # SearchParam
+            title = page_titles
+        return wt.get_file_info_and_usage(site=self._site, title=title)
+
 
 class WtPage:
     def __init__(self, wtSite: WtSite = None, title: str = None):
@@ -810,6 +847,14 @@ class WtPage:
             package_page.fileURLPath = path_prefix + file_name
 
         return package_page
+
+    def get_file_info_and_usage(
+        self, debug: bool = False
+    ) -> Dict[str, Union[str, List[str]]]:
+        return wt.get_file_info_and_usage(
+            site=self.wtSite._site,
+            title=wt.SearchParam(query=self.title, debug=debug),
+        )[0]
 
 
 # Updating forwards refs in pydantic models

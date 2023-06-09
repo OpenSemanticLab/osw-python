@@ -678,10 +678,11 @@ def get_entities_from_osw(
     entities_from_osw = []
     if debug:
         print(f"Searching for instances of {category_to_search} in OSW...")
-    entities = wt.semantic_search(
-        site=wtsite_obj._site,
-        query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
-        debug=debug,
+    entities = wtsite_obj.semantic_search(
+        query=wt.SearchParam(
+            query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
+            debug=debug,
+        )
     )
     for entity in entities:
         # entity = full page name

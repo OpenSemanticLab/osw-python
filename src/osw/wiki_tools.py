@@ -1,6 +1,6 @@
 import copy
 import getpass
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
 import mwparserfromhell
@@ -8,6 +8,10 @@ import numpy as np
 import yaml
 from jsonpath_ng.ext import parse
 from pydantic import FilePath
+
+from osw.model.entity import _basemodel_decorator
+from osw.model.static import OswBaseModel
+from osw.util import parallelize
 
 
 def read_domains_from_credentials_file(
@@ -110,93 +114,150 @@ def create_site_object(
     return site
 
 
-# Standard Query
-# api.php?action=query&list=prefixsearch&pssearch=Star Wars
+@_basemodel_decorator
+class SearchParam(OswBaseModel):
+    """Search parameters for semantic and prefix search"""
+
+    query: Union[str, List[str]]
+    parallel: Optional[bool] = False  # is set to true if query is a list longer than 5
+    debug: Optional[bool] = True
+    limit: Optional[int] = 1000
+
+    # todo: @Simon: Bad style? Better to make it explicit in every function using it?
+    def __init__(self, **data):
+        super().__init__(**data)
+        if isinstance(self.query, str):
+            self.query = [self.query]
+        if len(self.query) > 5:
+            self.parallel = True
+
+
 def prefix_search(
-    site: mwclient.client.Site, text: str, debug: bool = True, limit: int = 1000
-) -> list:
-    """
+    site: mwclient.client.Site, text: Union[str, SearchParam]
+) -> List[str]:
+    """Standard query. Equivalent to the following mediawiki API call
+    api.php?action=query&list=prefixsearch&pssearch=Star Wars
 
     Parameters
     ----------
     site :
         Site object from mwclient lib
     text :
-        Query text
-    debug :
-        Whether to print the results
-    limit :
-        Maximum number of results
+        Query text or instance of SearchParam
 
     Returns
     -------
-    page_list : list
+    page_list :
+        List of page titles
     """
-    page_list = []
-    result = site.api(
-        "query", list="prefixsearch", pssearch=text, pslimit=limit, format="json"
-    )
-    if len(result["query"]["prefixsearch"]) == 0:
-        if debug:
-            print("No results")
+    if isinstance(text, str):
+        query = SearchParam(query=[text])
+    elif isinstance(text, list):
+        query = SearchParam(query=text)
     else:
-        for page in result["query"]["prefixsearch"]:
-            title = page["title"]
-            if debug:
-                print(title)
-            page_list.append(title)
-    return page_list
+        query = text
+    if len(text.query) > 5:
+        query.parallel = True
+
+    def prefix_search_(single_text):
+        page_list = list()
+        result = site.api(
+            "query",
+            list="prefixsearch",
+            pssearch=single_text,
+            pslimit=query.limit,
+            format="json",
+        )
+        if len(result["query"]["prefixsearch"]) == 0:
+            if query.debug:
+                print("No results")
+        else:
+            for page in result["query"]["prefixsearch"]:
+                title = page["title"]
+                if query.debug:
+                    print(title)
+                page_list.append(title)
+        return page_list
+
+    if query.parallel:
+        query_results = parallelize(
+            func=prefix_search_, iterable=query.query, flush_at_end=query.debug
+        )
+    else:
+        query_results = [prefix_search_(single_text=sq) for sq in query.query]
+
+    return [item for sublist in query_results for item in sublist]
+    # todo: @Simon: a list of lists of strings (sublist for each query in query list)
+    #  or a list of strings (results of all queries combined)?
+    #  The last option would not change the behavior of the function, but would
+    # return page_list  # original return
 
 
-# Semantic Query
 def semantic_search(
-    site: mwclient.client.Site, query: str, debug: bool = True, limit: int = 1000
-):
-    """
+    site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
+) -> List[List[str]]:
+    """Semantic query
 
     Parameters
     ----------
     site :
         Site object from mwclient lib
     query :
-        Query text
-    debug :
-        Whether to print the results
-    limit :
-        Maximum number of results
+        (List of) query text(s) or instance of SearchParam
 
     Returns
     -------
-    page_list : list
+    page_list:
+        List of page titles
     """
-    page_list = []
-    query += f"|limit={limit}"
-    result = site.api("ask", query=query, format="json")
-    if len(result["query"]["results"]) == 0:
-        if debug:
-            print("Query '{}' returned no results".format(query))
-    else:
-        if debug:
-            print(
-                "Query '{}' returned {} results".format(
-                    query, len(result["query"]["results"])
+    if isinstance(query, str):
+        query = SearchParam(query=[query])
+    elif isinstance(query, list):
+        query = SearchParam(query=query)
+    if len(query.query) > 5:
+        query.parallel = True
+
+    def semantic_search_(single_query):
+        page_list = list()
+        single_query += f"|limit={query.limit}"
+        result = site.api("ask", query=single_query, format="json")
+        if len(result["query"]["results"]) == 0:
+            if query.debug:
+                print("Query '{}' returned no results".format(single_query))
+        else:
+            if query.debug:
+                print(
+                    "Query '{}' returned {} results".format(
+                        single_query, len(result["query"]["results"])
+                    )
                 )
-            )
-        for page in result["query"]["results"].values():
-            # why do we do the following?
-            if "printouts" in page:
-                title = page["fulltext"]
-                if "#" not in title and debug:
-                    print(title)
-                    # original position of "page_list.append(title)" line
-            page_list.append(title)
-    return page_list
+            for page in result["query"]["results"].values():
+                # why do we do the following?
+                if "printouts" in page:
+                    title = page["fulltext"]
+                    if "#" not in title and query.debug:
+                        print(title)
+                        # original position of "page_list.append(title)" line
+                    page_list.append(title)
+        return page_list
+
+    if query.parallel:
+        query_results = parallelize(
+            func=semantic_search_, iterable=query.query, flush_at_end=query.debug
+        )
+    else:
+        query_results = [semantic_search_(single_query=sq) for sq in query.query]
+
+    return [item for sublist in query_results for item in sublist]
+    # todo: @Simon: a list of lists of strings (sublist for each query in query list)
+    #  or a list of strings (results of all queries combined)?
+    #  The last option would not change the behavior of the function, but would
+    # return page_list  # original return
 
 
-# Page search wrapper
 def search_wiki_page(title: str, site: mwclient.client.Site):
-    """Adds exact match functionality with ignore-case on top of the prefix_search()'s
-    functionality
+    """Page search wrapper that adds exact match functionality with ignore-case on
+    top of the  prefix_search()'s functionality.
 
     Parameters
     ----------

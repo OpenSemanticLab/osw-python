@@ -13,16 +13,15 @@ import dask
 import mwclient
 from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel, FilePath
+from pydantic import FilePath
 
 import osw.model.entity as model
 import osw.model.page_package as package
 import osw.util as ut
 import osw.wiki_tools as wt
-from osw.model.entity import _basemodel_decorator
-from osw.util import BufferedPrint
+from osw.util import MessageBuffer
 
-# Definition of constants
+# Constants
 SLOTS = {
     "main": {"content_model": "wikitext", "content_template": ""},
     "header": {"content_model": "wikitext", "content_template": ""},
@@ -37,6 +36,7 @@ SLOTS = {
 }
 
 
+# Classes
 class WtSite:
     def __init__(self, site: mwclient.Site = None):
         if site:
@@ -144,25 +144,18 @@ class WtSite:
                     cookie.domain, cookie.path, cookie.name
                 )
 
-    def prefix_search(self, text, limit: int = None, debug: bool = None):
-        kwargs = {}
-        if isinstance(limit, int):
-            kwargs["limit"] = limit
-        if isinstance(debug, bool):
-            kwargs["debug"] = debug
-        if kwargs:
-            return wt.prefix_search(self._site, text, **kwargs)
+    def prefix_search(self, text: Union[str, wt.SearchParam]):
         return wt.prefix_search(self._site, text)
 
-    def semantic_search(self, query, limit: int = None, debug: bool = None):
-        kwargs = {}
-        if isinstance(limit, int):
-            kwargs["limit"] = limit
-        if isinstance(debug, bool):
-            kwargs["debug"] = debug
-        if kwargs:
-            return wt.semantic_search(self._site, query, **kwargs)
+    def semantic_search(self, query: Union[str, wt.SearchParam]):
         return wt.semantic_search(self._site, query)
+
+    class ModifySearchResultsParam(model.OswBaseModel):
+        mode: str
+        query: wt.SearchParam
+        comment: str = None
+        log: bool = False
+        dryrun: bool = False
 
     def modify_search_results(
         self,
@@ -174,6 +167,8 @@ class WtSite:
         log=False,
         dryrun=False,
     ):
+        # todo: use Param dataclass
+        # todo: add parallel support for modify_page
         titles = []
         if mode == "prefix":
             titles = wt.prefix_search(self._site, query)
@@ -216,33 +211,31 @@ class WtSite:
         param:
             UploadPageParam object or a WtPage object or a list of WtPage objects.
         """
-        parallel = False
-        page = param
-        if isinstance(param, WtSite.UploadPageParam):
-            page = param.pages
-            parallel = param.parallel
-        if not isinstance(page, list):
-            page = [page]
-        max_index = len(page)
+        if isinstance(param, WtPage):
+            param = WtSite.UploadPageParam(pages=[param])
+        elif isinstance(param, list):
+            param = WtSite.UploadPageParam(pages=param)
+
+        max_index = len(param.pages)
         if max_index >= 5:
-            parallel = True
+            param.parallel = True
 
         def upload_page(index_, p_):
             p_.edit()
             msg = f"({index_ + 1}/{max_index}): Uploaded page to {p_.get_url()}."
-            if parallel:
+            if param.parallel:
                 print(msg, file=message_buffer)
             else:
                 print(msg)
 
         tasks = []
-        for index, p in enumerate(page):
-            if not parallel:
+        for index, p in enumerate(param.pages):
+            if not param.parallel:
                 upload_page(index, p)
             else:
                 tasks.append(dask.delayed(upload_page)(index, p))
-        if parallel:
-            message_buffer = BufferedPrint()
+        if param.parallel:
+            message_buffer = MessageBuffer()
             print(
                 "(Parallel execution) Uploading pages. Log will be printed  after "
                 "completion."
@@ -704,8 +697,7 @@ class WtPage:
             self._current_revision["timestamp"].replace("Z", "+00:00")
         )
 
-    @_basemodel_decorator
-    class PageDumpConfig(BaseModel):
+    class PageDumpConfig(model.OswBaseModel):
         """Configuration to dump wiki pages to the file system"""
 
         target_dir: Union[str, Path]

@@ -1,6 +1,13 @@
 # Changelog
 
-## Version v0.8.x (development)
+## Version v0.9.x (development)
+
+## Version v0.8.0
+
+- fix #18
+- fix #19
+
+## Version v0.8.0
 
 - Restructure package package creation
 - fix namespace mappings (e. g. for the SMW Property namespace)

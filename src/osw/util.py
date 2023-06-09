@@ -254,7 +254,11 @@ def redirect_print_explicit(
 
 
 def parallelize(
-    func: Callable, iterable: Iterable, flush_at_end: bool = False, **kwargs
+    func: Callable,
+    iterable: Iterable,
+    flush_at_end: bool = False,
+    progress_bar: bool = True,
+    **kwargs,
 ):
     """A function to parallelize tasks with a progress bar and a message buffer.
 
@@ -267,6 +271,8 @@ def parallelize(
     flush_at_end:
         If True, the message buffer will be printed (flushed) to stdout after parallel
         execution.
+    progress_bar:
+        If True, a progress bar will be displayed.
     kwargs:
         Keyword arguments to be passed to the function.
     """
@@ -276,7 +282,10 @@ def parallelize(
             for item in iterable
         ]
         print(f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks).")
-        with ProgressBar():
+        if progress_bar:
+            with ProgressBar():
+                results = dask.compute(*tasks)
+        else:
             results = dask.compute(*tasks)
     return results
 

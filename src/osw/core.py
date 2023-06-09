@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
-from osw.util import BufferedPrint
+from osw.util import MessageBuffer
 from osw.wtsite import WtSite
 
 
@@ -430,6 +430,9 @@ class OSW(BaseModel):
             if not site_cache_state:
                 self.site.disable_cache()  # restore original state
 
+    # todo: write method "get_instances" to get all instances of a class (e.g.
+    #  WikiFiles) from the wiki
+
     def load_entity(self, entity_title) -> model.Entity:
         """Loads the entity with the given wiki page name from the OSW instance.
             Creates a instance of the class specified by the "type" attribute, default model.Entity
@@ -532,7 +535,7 @@ class OSW(BaseModel):
             else:
                 tasks.append(dask.delayed(store_entity)(index, e))
         if parallel:
-            message_buffer = BufferedPrint()
+            message_buffer = MessageBuffer()
             print(
                 "(Parallel execution) Storing entities. Log will be printed after "
                 "completion."

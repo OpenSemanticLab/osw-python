@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from asyncio import Queue
 from contextlib import redirect_stdout, suppress
@@ -339,3 +340,216 @@ def file_in_paths(
             result = True
             break
     return {"found": result, "file path": path}
+
+
+def async_parallelize(func: Callable, iterable: Iterable, **kwargs):
+    """Work in progress"""
+
+    async def inner(func_, iterable_, **kwargs_):
+        async with AsyncMessageBuffer() as msg_buf:
+            tasks = [
+                dask.delayed(redirect_print_explicit(func_, msg_buf))(item, **kwargs_)
+                for item in iterable_
+            ]
+            print(
+                f"Performing parallel execution of {func.__name__} "
+                f"({len(tasks)} tasks)."
+            )
+            with ProgressBar():
+                results = dask.compute(*tasks)
+        return results
+
+    return asyncio.run(inner(func, iterable, **kwargs))
+
+
+class RedirectStdout(object):
+    """Can be used as a decorator or context manager to temporarily redirect
+    stdout to a buffer.
+
+    Source
+    ------
+    Adapted in accordance to: https://gist.github.com/jasonbartz/8480004
+    """
+
+    def __init__(self, buffer: MessageBuffer, **kwargs):
+        """Init and set vars"""
+        self.buffer: MessageBuffer = buffer
+        self.write_func = self.buffer.write
+        self.kwargs = kwargs
+
+    def __call__(self, function):
+        """Call the function"""
+
+        def wrapped_function(*args, **kwargs):
+            with StringIO() as buf, redirect_stdout(buf):
+                return_val = function(*args, **kwargs)
+                out = buf.getvalue()
+            with suppress(AttributeError):
+                # sys.stdout.close()
+                sys.stdout = sys.__stdout__
+                if sys.stdout.closed:
+                    raise ValueError("sys.stdout is closed.")
+            self.write_func(out)
+            return return_val
+
+        return wrapped_function
+
+
+# todo: fix
+#  - If no message buffer is provided to file_like, the messages are not stored
+
+
+# testing redirect
+if __name__ == "__main__":
+    from datetime import datetime
+    from time import sleep
+
+    print("Redirecting print messages to a buffer.")
+    message_buffer = MessageBuffer()
+    io_buffer = StringIO()
+    file_as_buffer = open("xx.txt", "w")
+
+    def prepend_timestamp(line):
+        return f"{datetime.now().isoformat()}: {line}"
+
+    def create_list_item(i, debug: bool = True):
+        if debug:
+            print(f"Creating item {i + 1}.")
+        sleep(0.1)
+        return i**2
+
+    def create_list_dask(length: int, debug: bool = True) -> list[int]:
+        message_buffer_ = MessageBuffer()
+        # todo: line_print="line_numbers" doesn't return any message
+
+        @redirect_print(
+            file_like=message_buffer_,  # line_print=prepend_timestamp
+        )
+        def in_parallel(i_, length_, debug_: bool = True):
+            if debug_:
+                print(f"Creating item {i_ + 1} of {length_}")
+            sleep(0.1)
+            return i_**2
+
+        tasks = []
+        for i in range(length):
+            tasks.append(dask.delayed(in_parallel)(i, length, debug))
+        with ProgressBar():
+            result = dask.compute(*tasks)
+        sleep(0.1)
+        if debug:
+            print("Messages collected during parallel execution:")
+            message_buffer_.flush()
+
+        return result
+
+    def create_list_dask_1(length: int, debug: bool = True) -> list[int]:
+        @redirect_print
+        def in_parallel(i_, length_, debug_: bool = True):
+            if debug_:
+                print(f"Creating item {i_ + 1} of {length_}")
+            sleep(0.1)
+            return i_**2
+
+        tasks = []
+        for i in range(length):
+            tasks.append(dask.delayed(in_parallel)(i, length, debug))
+        with ProgressBar():
+            result = dask.compute(*tasks)
+
+        return result
+
+    def create_list_dask_2(length: int, debug: bool = True) -> list[int]:
+        message_buffer_ = MessageBuffer()
+
+        @RedirectStdout(buffer=message_buffer_)
+        def in_parallel(i_, length_, debug_: bool = True):
+            if debug_:
+                print(f"Creating item {i_ + 1} of {length_}")
+            sleep(0.1)
+            return i_**2
+
+        tasks = []
+        for i in range(length):
+            tasks.append(dask.delayed(in_parallel)(i, length, debug))
+        with ProgressBar():
+            result = dask.compute(*tasks)
+
+        message_buffer_.flush()
+
+        return result
+
+    @redirect_print(file_like=message_buffer)
+    def create_list(length: int) -> list[int]:
+        print(f"Creating a list of length {length}")
+        for i in range(length):
+            sleep(0.1)
+            print(f"Creating item {i + 1} of {length}")
+        return [i for i in range(length)]
+
+    @redirect_print
+    def create_list_1(length: int) -> list[int]:
+        print(f"Creating a list of length {length}")
+        for i in range(length):
+            sleep(0.1)
+            print(f"Creating item {i + 1} of {length}")
+        return [i for i in range(length)]
+
+    @redirect_print_explicit()
+    def create_list_2(length: int) -> list[int]:
+        print(f"Creating a list of length {length}")
+        for i in range(length):
+            sleep(0.1)
+            print(f"Creating item {i + 1} of {length}")
+        return [i for i in range(length)]
+
+    @redirect_print(file_like=Path("xx.txt"))
+    def create_list_3(length: int) -> list[int]:
+        print(f"Creating a list of length {length}")
+        for i in range(length):
+            sleep(0.1)
+            print(f"Creating item {i + 1} of {length}")
+        return [i for i in range(length)]
+
+    # @redirect_print(file_like=file_as_buffer)
+    # def print_lines(num_lines):
+    #     for i in range(num_lines):
+    #         print(f'Line #{i + 1}')
+
+    @redirect_print(file_like=message_buffer)
+    def print_lines_1(num_lines):
+        for i in range(num_lines):
+            print(f"Line #{i + 1}")
+
+    @redirect_print_explicit(file_like=message_buffer, line_print=prepend_timestamp)
+    def print_lines_2(num_lines):
+        for i in range(num_lines):
+            print(f"Line #{i + 1}")
+
+    @redirect_print
+    def print_lines_3(num_lines):
+        for i in range(num_lines):
+            print(f"Line #{i + 1}")
+
+    print("Pre-execution")
+    # print_lines(10)
+    # print_lines_1(10)
+    # print_lines_2(10)
+    # print_lines_3(10)
+    # test_list_dask = create_list_dask(10)
+    # test_list_dask_1 = create_list_dask_1(10)
+    # test_list_dask_2 = create_list_dask_2(10)
+    test_list_new = parallelize(create_list_item, range(1000), flush_at_end=True)
+    # test_list_new = async_parallelize(create_list_item, range(10), debug=True)
+    # test_list = create_list(10)
+    # test_list_1 = create_list_1(10)
+    # test_list_2 = create_list_2(10)
+    # test_list_3 = create_list_3(10)
+    print("Post-execution")
+    print("Messages from the buffer:")
+    message_buffer.flush()
+    file_as_buffer.close()
+    print("Messages from the file buffer:")
+    with open("xx.txt", "r") as f:
+        for line_ in f.readlines():
+            print(line_, end="")

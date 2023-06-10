@@ -2,6 +2,14 @@
 
 ## Version v0.9.x (development)
 
+- parallelize page operation to increase performance significantly
+- improve local slot editor
+- deprecate WtPage.from_domain()
+- deprecate WtPage.from_credentials()
+- add PagePackage import
+- add utils
+- add additional requirements 'dataimport', 'UI'
+
 ## Version v0.8.0
 
 - fix #18

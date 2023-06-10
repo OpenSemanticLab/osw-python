@@ -9,5 +9,5 @@ import mwclient
 def test_login(wiki_domain, wiki_username, wiki_password):
     site = mwclient.Site(host=wiki_domain)
     site.login(username=wiki_username, password=wiki_password)
-    # wtsite = WtSite(site)
+    # wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
     # osw = OSW(site=wtsite)

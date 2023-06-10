@@ -41,7 +41,7 @@ def test_connect_and_query(
 ):
     site = mwclient.Site(host=wiki_domain)
     site.login(username=wiki_username, password=wiki_password)
-    wtsite = WtSite(site)
+    wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
     osw = OSW(site=wtsite)
 
     osw.fetch_schema(
@@ -81,7 +81,9 @@ def test_connect_and_query(
     db = db.cast(controller.DatabaseController)
     db.connect(
         controller.DatabaseController.ConnectionConfig(
-            cm=CredentialManager.Credential(username=db_username, password=db_password),
+            cm=CredentialManager.UserPwdCredential(
+                iri="", username=db_username, password=db_password
+            ),
             osw=osw,
         )
     )

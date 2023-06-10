@@ -19,12 +19,12 @@ from typing_extensions import deprecated
 
 import osw.model.entity as model
 import osw.model.page_package as package
-import osw.util as ut
+import osw.utils.util as ut
 import osw.wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.model.entity import _basemodel_decorator
 from osw.model.static import OswBaseModel
-from osw.util import BufferedPrint
+from osw.utils.util import BufferedPrint
 
 # Definition of constants
 SLOTS = {

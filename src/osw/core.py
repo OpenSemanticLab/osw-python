@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
-from osw.util import BufferedPrint
+from osw.utils.util import BufferedPrint
 from osw.wtsite import WtSite
 
 

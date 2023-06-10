@@ -18,7 +18,7 @@ from osw.wtsite import WtSite
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
-REGEX_PATTERN: dict[str, str | dict[str, str]] = {
+REGEX_PATTERN: dict[str, Union[str, dict[str, str]]] = {
     "SAP OU number and name from DN": {
         "Pattern": r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
         "Groups": {2: "SAP OU number", 3: "SAP OU name"},
@@ -147,7 +147,7 @@ def transform_attributes_and_merge(
     return {"entities": ent, "entities_as_dict": ent_as_dict}
 
 
-def get_uuid_from_object_via_type(obj: Any) -> uuid_module.UUID | None:
+def get_uuid_from_object_via_type(obj: Any) -> Union[uuid_module.UUID, None]:
     """Get UUID from object via type. THis function assumes that the input object
     'obj' is either a dictionary or an instance of a OswBaseModel that specifies its
     type as a string or a list of strings of the full page title format."""
@@ -173,7 +173,7 @@ def get_uuid_from_object_via_type(obj: Any) -> uuid_module.UUID | None:
         return None
 
 
-def get_lang_specific_label(label: list, lang: str) -> str | None:
+def get_lang_specific_label(label: list, lang: str) -> Union[str, None]:
     """Get the label in a specific language from a list of labels"""
     for ele in label:
         if ele["lang"] == model.LangCode(lang):
@@ -634,7 +634,7 @@ def create_page_name_from_label(label: str) -> str:
 
 
 def get_entities_from_osw(
-    category_to_search: str | uuid_module.UUID,
+    category_to_search: Union[str, uuid_module.UUID],
     model_to_cast_to,
     credentials_fp,
     debug: bool = False,
@@ -687,7 +687,7 @@ def get_entities_from_osw(
 
 
 def uuid_to_full_page_title(
-    uuid: uuid_module.UUID | str, wiki_ns: str = "Item", prefix: str = "OSW"
+    uuid: Union[uuid_module.UUID, str], wiki_ns: str = "Item", prefix: str = "OSW"
 ) -> str:
     """Converts a UUID to a full page title, by prepending the wiki namespace and
     prefix to the UUID after removing dashes."""

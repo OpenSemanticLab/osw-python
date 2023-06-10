@@ -165,7 +165,8 @@ def get_uuid_from_object_via_type(obj: Any) -> Union[uuid_module.UUID, None]:
         else:
             type_str = str(type_)
         match = re.match(
-            pattern=REGEX_PATTERN["UUID from full page title"], string=type_str
+            pattern=REGEX_PATTERN["UUID from full page title"]["Pattern"],
+            string=type_str,
         )
         uuid_str = match.group(3)
         return uuid_module.UUID(uuid_str)

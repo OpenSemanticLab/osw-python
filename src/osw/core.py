@@ -10,11 +10,14 @@ from enum import Enum
 from typing import List, Optional, Union
 from uuid import UUID
 
+import dask
+from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
+from osw.utils.util import BufferedPrint
 from osw.wtsite import WtSite
 
 
@@ -469,41 +472,46 @@ class OSW(BaseModel):
     class StoreEntityParam(model.OswBaseModel):
         entities: Union[model.Entity, List[model.Entity]]
         namespace: Optional[str]
+        parallel: Optional[bool] = False
 
     def store_entity(
         self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
     ) -> None:
-        """stores the given datasclass instance as OSW page by calling BaseModel.json()
+        """stores the given dataclass instance as OSW page by calling BaseModel.json()
 
         Parameters
         ----------
-        entity
-            StoreParam, the datasclass instance or a list of instances
+        param:
+            StoreEntityParam, the dataclass instance or a list of instances
         """
 
         namespace = None
+        parallel = False
         entity = param
         if isinstance(param, OSW.StoreEntityParam):
             entity = param.entities
             namespace = param.namespace
-
+            parallel = param.parallel
         if not isinstance(entity, list):
             entity = [entity]
+        # entity is a list
         max_index = len(entity)
-        for index, e in enumerate(entity):
-            if namespace is None and isinstance(e, model.Item):
-                namespace = "Item"
-            if namespace is not None:
-                entity_title = namespace + ":" + OSW.get_osw_id(e.uuid)
+        if max_index >= 5:
+            parallel = True
+
+        def store_entity(index_, e_, namespace_=namespace):
+            if namespace_ is None and isinstance(e_, model.Item):
+                namespace_ = "Item"
+            if namespace_ is not None:
+                entity_title = namespace_ + ":" + OSW.get_osw_id(e_.uuid)
                 page = self.site.get_WtPage(entity_title)
                 jsondata = json.loads(
-                    e.json(exclude_none=True)
+                    e_.json(exclude_none=True)
                 )  # use pydantic serialization, skip none values
                 page.set_slot_content("jsondata", jsondata)
             else:
                 print("Error: Unsupported entity type")
                 return
-
             page.set_slot_content(
                 "header", "{{#invoke:Entity|header}}"
             )  # required for json parsing and header rendering
@@ -511,7 +519,27 @@ class OSW(BaseModel):
                 "footer", "{{#invoke:Entity|footer}}"
             )  # required for footer rendering
             page.edit()
-            print(f"({index}/{max_index}) Entity stored at {page.get_url()}")
+            msg = f"({index_+1}/{max_index}) Entity stored at " f"{page.get_url()}."
+            if parallel:
+                print(msg, file=message_buffer)
+            else:
+                print(msg)
+
+        tasks = []
+        for index, e in enumerate(entity):
+            if not parallel:
+                store_entity(index, e)
+            else:
+                tasks.append(dask.delayed(store_entity)(index, e))
+        if parallel:
+            message_buffer = BufferedPrint()
+            print(
+                "(Parallel execution) Storing entities. Log will be printed after "
+                "completion."
+            )
+            with ProgressBar():
+                dask.compute(*tasks)
+            message_buffer.flush()
 
     def delete_entity(self, entity, comment: str = None):
         """deletes the given entity from the OSW instance

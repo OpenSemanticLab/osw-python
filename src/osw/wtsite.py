@@ -1,4 +1,5 @@
-# extents mwclient.site
+# Generic extension of mwclient.site, mainly to provide multi-slot page handling and caching
+# OpenSemanticLab specific features are located in osw.core.OSW
 
 import json
 import os
@@ -7,15 +8,23 @@ from datetime import datetime
 from pathlib import Path
 from pprint import pprint
 from time import sleep
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
+import dask
 import mwclient
+from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, FilePath
+from typing_extensions import deprecated
 
+import osw.model.entity as model
 import osw.model.page_package as package
+import osw.utils.util as ut
 import osw.wiki_tools as wt
+from osw.auth import CredentialManager
 from osw.model.entity import _basemodel_decorator
+from osw.model.static import OswBaseModel
+from osw.utils.util import BufferedPrint
 
 # Definition of constants
 SLOTS = {
@@ -33,28 +42,96 @@ SLOTS = {
 
 
 class WtSite:
-    def __init__(self, site: mwclient.Site = None):
-        if site:
-            self._site = site
+    # A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and caching
+
+    class WtSiteConfig(OswBaseModel):
+        """The configuration for a WtSite instance"""
+
+        iri: str
+        """the IRI of the wiki site, typically the domain"""
+        cred_mngr: CredentialManager
+        """the CredentialManager to use for authentication"""
+        login: Optional[str]
+        """the preferred login name when multiple logins are possible (not supported yet)"""
+
+    @deprecated("Use WtSiteConfig instead")
+    class WtSiteLegacyConfig(OswBaseModel):
+        """The legacy configuration for a WtSite instance"""
+
+        site: mwclient.Site
+        """the mwclient.Site to use for communication with the wiki"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def __init__(self, config=Union[WtSiteConfig, WtSiteLegacyConfig]):
+        """creates a new WtSite instance from a WtSiteConfig
+
+        Parameters
+        ----------
+        config
+            the WtSiteConfig or WtSiteLegacyConfig to create the WtSite from
+
+        """
+        if type(config) == WtSite.WtSiteLegacyConfig:
+            self._site = config.site
         else:
-            raise ValueError("Parameter 'site' is None")
+            cred = config.cred_mngr.get_credential(
+                CredentialManager.CredentialConfig(
+                    iri=config.iri, fallback=CredentialManager.CredentialFallback.ask
+                )
+            )
+            if type(cred) == CredentialManager.UserPwdCredential:
+                self._site = mwclient.Site(cred.iri, path="/w/")
+                self._site.login(username=cred.username, password=cred.password)
+            elif type(cred) == CredentialManager.OAuth1Credential:
+                self._site = mwclient.Site(
+                    "wiki-dev.open-semantic-lab.org",
+                    path="/w/",
+                    consumer_token=cred.consumer_token,
+                    consumer_secret=cred.consumer_secret,
+                    access_token=cred.access_token,
+                    access_secret=cred.access_secret,
+                )
+            else:
+                raise ValueError("Unsupported credential type: " + str(type(cred)))
+            del cred
+
+        # the page cache is used to store pages that already have been loaded from the wiki
         self._page_cache = {}
         self._cache_enabled = False
 
     @classmethod
+    @deprecated("Use contructor instead")
     def from_domain(
         cls,
         domain: str = None,
         password_file: Union[str, FilePath] = None,
         credentials: dict = None,
     ):
+        """creates a new WtSite instance from a domain and a password file
+
+        Parameters
+        ----------
+        domain, optional
+            the wiki domain, by default None
+        password_file, optional
+            password file with credentials for the wiki site, by default None
+        credentials, optional
+            credentials of the wiki site, by default None
+
+        Returns
+        -------
+            a new WtSite instance
+        """
         if credentials is None:
             site = wt.create_site_object(domain, password_file)
         else:
             site = wt.create_site_object(domain, "", credentials)
-        return cls(site)
+        return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     @classmethod
+    @deprecated("Use contructor instead")
     def from_credentials(
         cls,
         credentials: Union[Dict[str, Dict[str, str]], str, FilePath],
@@ -88,7 +165,7 @@ class WtSite:
         _credentials: Dict = accounts[_domain]
         # todo: research why nested typing doesn't work as expected fo the dictionary
         site = wt.create_site_object(_domain, "", _credentials)
-        return cls(site)
+        return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     def get_WtPage(self, title: str = None):
         retry = 0
@@ -179,6 +256,59 @@ class WtSite:
             if not dryrun:
                 wtpage.edit(comment)
 
+    class UploadPageParam(model.OswBaseModel):
+        pages: Union["WtPage", List["WtPage"]]
+        parallel: Optional[bool] = False
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    @staticmethod
+    def upload_page(
+        param: Union[UploadPageParam, "WtPage", List["WtPage"]],
+    ) -> None:
+        """Uploads a page or a list of pages to the site.
+
+        Parameters
+        ----------
+        param:
+            UploadPageParam object or a WtPage object or a list of WtPage objects.
+        """
+        parallel = False
+        page = param
+        if isinstance(param, WtSite.UploadPageParam):
+            page = param.pages
+            parallel = param.parallel
+        if not isinstance(page, list):
+            page = [page]
+        max_index = len(page)
+        if max_index >= 5:
+            parallel = True
+
+        def upload_page(index_, p_):
+            p_.edit()
+            msg = f"({index_ + 1}/{max_index}): Uploaded page to {p_.get_url()}."
+            if parallel:
+                print(msg, file=message_buffer)
+            else:
+                print(msg)
+
+        tasks = []
+        for index, p in enumerate(page):
+            if not parallel:
+                upload_page(index, p)
+            else:
+                tasks.append(dask.delayed(upload_page)(index, p))
+        if parallel:
+            message_buffer = BufferedPrint()
+            print(
+                "(Parallel execution) Uploading pages. Log will be printed  after "
+                "completion."
+            )
+            with ProgressBar():
+                dask.compute(*tasks)
+            message_buffer.flush()
+
     def create_page_package(
         self,
         config: package.PagePackageConfig,
@@ -186,9 +316,7 @@ class WtSite:
         debug: bool = True,
     ):
         """Create a page package, which is a locally stored collection of wiki pages
-        and their slots, based on a configuration
-        object.
-        """
+        and their slots, based on a configuration object."""
         # Clear the content directory
         try:
             if debug:
@@ -241,10 +369,164 @@ class WtSite:
         with open(file_name, "w") as f:
             f.write(content)
 
-    # todo: implement
+    def read_page_package(
+        self,
+        storage_path: Union[str, Path],
+        packages_info_file_name: Union[str, Path] = None,
+        selected_slots: List[str] = None,
+        debug: bool = False,
+    ) -> List["WtPage"]:
+        """Read a page package, which is a locally stored collection of wiki pages and
+        their slots' content.
 
-    def upload_page_package(self):
-        pass
+        Parameters
+        ----------
+        storage_path:
+            The path to the directory where the page package is stored.
+        packages_info_file_name:
+            The name of the file that contains the page package information. If not
+            specified, the default value 'packages.json' is used.
+        selected_slots:
+            A list of slots that should be read. If None, all slots are read.
+        debug:
+            If True, debug information is printed to the console.
+
+        Returns
+        -------
+        result:
+            A list of WtPage objects.
+        """
+        # Test arguments / set default value
+        if not os.path.exists(storage_path):
+            raise FileNotFoundError(f"Storage path '{storage_path}' does not exist.")
+        if not isinstance(storage_path, Path):
+            storage_path = Path(storage_path)
+        if packages_info_file_name is None:
+            packages_info_file_name = "packages.json"
+        # Get top level content of storage path
+        top_level_content = ut.list_files_and_directories(
+            search_path=storage_path, recursive=False
+        )
+        # Try to find packages info file in storage path
+        pi_fp = os.path.join(storage_path, packages_info_file_name)
+        # Check if packages info file exists in storage path, otherwise use fallback
+        #  option or raise error
+        if os.path.exists(pi_fp) and os.path.isfile(pi_fp):
+            if debug:
+                print(f"Found packages info file at '{pi_fp}'.")
+        else:
+            if debug:
+                print(
+                    f"Did not find packages info file at '{pi_fp}'. Trying default "
+                    f"'packages.json'."
+                )
+            top_level_json_files = [
+                f
+                for f in top_level_content["files"]
+                if f.is_file() and str(f).endswith(".json")
+            ]
+            json_in_top_level = ut.file_in_paths(
+                paths=top_level_json_files, file_name="packages.json"
+            )
+            if json_in_top_level["found"]:
+                pi_fp = json_in_top_level["file path"]
+            elif len(top_level_json_files) > 0:
+                if debug:
+                    print(f"Found JSON files: {top_level_json_files}. Using first one.")
+                pi_fp = top_level_json_files[0]
+            else:
+                raise FileNotFoundError(
+                    f"Error: No JSON files found in '{storage_path}'."
+                )
+        # Read packages info file
+        with open(pi_fp, "r") as f:
+            packages_json = json.load(f)
+        # Assume that the pages files are located in the subdir
+        storage_path_content = ut.list_files_and_directories(
+            search_path=storage_path, recursive=True
+        )
+        sub_dirs = top_level_content["directories"]
+        if len(top_level_content["directories"]) == 0:
+            # No subdirectories found, assume that the pages files are located in the
+            #  top level
+            sub_dirs = [storage_path]
+
+        def get_slot_content(
+            parent_dir: List[Union[str, Path]],
+            url_path: str,
+            files_in_storage_path: List[Path],
+        ) -> Union[str, Dict]:
+            for pdir in parent_dir:
+                slot_path = storage_path / pdir / url_path
+                if slot_path in files_in_storage_path:
+                    with open(slot_path, "r") as f:
+                        file_content = f.read()
+                    # Makes sure not to open an empty file with json
+                    if len(file_content) > 0:
+                        if url_path.endswith(".json"):
+                            with open(slot_path, "r") as f:
+                                slot_data = json.load(f)
+                            return slot_data
+                        elif url_path.endswith(".wikitext"):
+                            slot_data = file_content
+                            return slot_data
+
+        # Create WtPage objects
+        pages = []
+        for package_name, package_dict in packages_json["packages"].items():
+            for page in package_dict["pages"]:
+                namespace = page["namespace"].split("_")[-1].capitalize()
+                name = page["name"]
+                # Create the WtPage object
+                page_obj = WtPage(wtSite=self, title=f"{namespace}:{name}")
+                if "main" in selected_slots:
+                    # Main slot is special
+                    slot_content = get_slot_content(
+                        parent_dir=sub_dirs,
+                        url_path=page["urlPath"],
+                        files_in_storage_path=storage_path_content["files"],
+                    )
+                    if slot_content is not None:
+                        page_obj.set_slot_content(
+                            slot_key="main",
+                            content=slot_content,
+                        )
+                if selected_slots is None:
+                    _selected_slots = page["slots"]
+                else:
+                    _selected_slots = {
+                        slot_name: slot_dict
+                        for slot_name, slot_dict in page["slots"].items()
+                        if slot_name in selected_slots
+                    }
+                for slot_name, slot_dict in _selected_slots.items():
+                    slot_content = get_slot_content(
+                        parent_dir=sub_dirs,
+                        url_path=slot_dict["urlPath"],
+                        files_in_storage_path=storage_path_content["files"],
+                    )
+                    if slot_content is not None:
+                        page_obj.set_slot_content(
+                            slot_key=slot_name,
+                            content=slot_content,
+                        )
+                pages.append(page_obj)
+        return pages
+
+    def upload_page_package(
+        self,
+        storage_path: Union[str, Path] = None,
+        pages: List["WtPage"] = None,
+        debug: bool = False,
+    ):
+        if storage_path and pages is None:
+            raise ValueError(
+                "Error: If 'storage_path' is not given, 'pages' must be given."
+            )
+        if pages is None:
+            pages = self.read_page_package(storage_path=storage_path, debug=debug)
+        for page in pages:
+            page.edit()
 
 
 class WtPage:
@@ -256,11 +538,11 @@ class WtPage:
         self.exists = self._page.exists
         self._original_content = ""
         self._content = ""
-        self.changed = False
+        self.changed: bool = False
         self._dict = []  # todo: named dict but is of type list
-        self._slots = {"main": ""}
-        self._slots_changed = {"main": False}
-        self._content_model = {"main": "wikitext"}
+        self._slots: Dict[str, Union[str, dict]] = {"main": ""}
+        self._slots_changed: Dict[str, bool] = {"main": False}
+        self._content_model: Dict[str, str] = {"main": "wikitext"}
 
         if self.exists:
             self._original_content = self._page.text()
@@ -273,7 +555,8 @@ class WtPage:
                 "query",
                 prop="revisions",
                 titles=title,
-                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|slotsize|slotsha1",
+                rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|"
+                "slotsize|slotsha1",
                 rvslots="*",
                 rvlimit="1",
                 format="json",
@@ -289,7 +572,8 @@ class WtPage:
                                 "contentmodel"
                             ]
                             self._slots_changed[slot_key] = False
-                            # self._slots_sha1[slot_key] = revision["slots"][slot_key]["*"]
+                            # self._slots_sha1[slot_key] = \
+                            #     revision["slots"][slot_key]["*"]
                             if self._content_model[slot_key] == "json":
                                 self._slots[slot_key] = json.loads(
                                     self._slots[slot_key]
@@ -298,7 +582,9 @@ class WtPage:
                     #  SLOTS) --> create empty slots
 
     def create_slot(self, slot_key, content_model):
-        self._slots[slot_key] = None
+        self._slots[slot_key] = {}
+        # To avoid TypeError: argument of type 'NoneType' is not iterable in
+        #  set_slot_content()
         self._slots_changed[slot_key] = False
         self._content_model[slot_key] = content_model
 
@@ -320,11 +606,14 @@ class WtPage:
         self.changed = True
 
     def set_slot_content(self, slot_key, content):
-        # todo: get slot content model from page / constant
         if slot_key not in self._slots:
-            content_model = "json"
-            if type(content) == str:
-                content_model = "wikitext"
+            slot_dict = SLOTS.get(slot_key, None)
+            if slot_dict is None:
+                raise ValueError(
+                    f"Error: Slot '{slot_key}' not defined in 'SLOTS'."
+                    f"Available slots: {list(SLOTS.keys())}"
+                )
+            content_model = slot_dict["content_model"]
             self.create_slot(slot_key, content_model)
         if content != self._slots[slot_key]:
             self._slots_changed[slot_key] = True
@@ -363,6 +652,7 @@ class WtPage:
     def update_dict(self, combined: dict, update: dict) -> None:
         for k, v in update.items():
             if isinstance(v, dict):
+                # todo: fix reference for combine_into
                 WtPage.combine_into(v, combined.setdefault(k, {}))
             else:
                 combined[k] = v
@@ -392,7 +682,7 @@ class WtPage:
         return self
 
     def edit(self, comment: str = None, mode="action-multislot"):
-        """creates / updates the content of all page slots in the wiki site
+        """Creates / updates the content of all page slots in the wiki site
 
         Parameters
         ----------
@@ -587,11 +877,6 @@ class WtPage:
 
         return package_page
 
-    @_basemodel_decorator
-    class PageUploadConfig(BaseModel):
-        pass
 
-    # todo: implement
-
-    def upload(self, config: PageUploadConfig):
-        pass
+# Updating forwards refs in pydantic models
+WtSite.UploadPageParam.update_forward_refs()

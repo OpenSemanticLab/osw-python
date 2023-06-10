@@ -4,6 +4,7 @@ from typing import Union
 from pydantic import FilePath
 
 import osw.model.page_package as model
+from osw.auth import CredentialManager
 from osw.model import page_package as package
 from osw.model.static import OswBaseModel
 from osw.wtsite import WtSite
@@ -36,9 +37,13 @@ class PagePackageController(model.PagePackageMetaData):
             see PagePackageController.CreationConfig
         """
         # Create a WtSite instance to load pages from the specified domain
-        wtsite = WtSite.from_domain(
-            domain=creation_config.domain,
-            password_file=creation_config.credentials_file_path,
+        wtsite = WtSite(
+            WtSite.WtSiteConfig(
+                iri=creation_config.domain,
+                cred_mngr=CredentialManager(
+                    cred_filepath=creation_config.credentials_file_path
+                ),
+            )
         )
         # Create a PagePackageBundle instance
         bundle = package.PagePackageBundle(

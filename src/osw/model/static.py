@@ -1,7 +1,7 @@
 """
 This module is to be imported in the dynamically created and updated entity.py module.
 """
-from typing import Type, TypeVar
+from typing import Type, TypeVar, Union
 
 from pydantic import BaseModel
 
@@ -18,10 +18,10 @@ class OswBaseModel(BaseModel):
                 #  considered as discriminator
         return d
 
-    def cast(self, cls: Type[T]) -> T:
+    def cast(self, cls: Union[Type[T], type]) -> T:
         return cls(**self.dict())
 
-    def cast_none_to_default(self, cls: Type[T]) -> T:
+    def cast_none_to_default(self, cls: Union[Type[T], type]) -> T:
         """Casting self into target class. If the passed attribute is None or solely
         includes None values, the attribute is not passed to the instance of the
         target class, which will then fall back to the default."""

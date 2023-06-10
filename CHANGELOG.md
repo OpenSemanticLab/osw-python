@@ -9,8 +9,10 @@
 - add PagePackage import
 - add utils
 - add additional requirements 'dataimport', 'UI'
+- reset 'setuptools' and 'pytest' versions to latest
+- extend python version support to 3.11
 
-## Version v0.8.0
+## Version v0.8.1
 
 - fix #18
 - fix #19

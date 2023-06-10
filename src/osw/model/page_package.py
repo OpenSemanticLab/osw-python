@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -38,7 +38,7 @@ class PagePackagePage(BaseModel):
     fileURLPath: Optional[str]
     """Similar to fileURL, but gets appended to the baseURL value set for the package,
     if one was set."""
-    slots: dict[str, PagePackagePageSlot]
+    slots: Dict[str, PagePackagePageSlot]
     """Slots used to store data, e.g., the main slot, storing the wiki text of the
     page. Other slots could be jsondata, jsonschema etc."""
 
@@ -155,7 +155,7 @@ class PagePackageBundle(BaseModel):
     (usually) two-letter IETF language tag for that language."""
     licenseName: Optional[str] = "CC BY-NC 4.0"
     """The default license under which these packages are published."""
-    packages: dict[str, PagePackage]
+    packages: Dict[str, PagePackage]
     """Holds the set of packages, with the package name as the key
     and the set of package parameters as the values."""
 

@@ -124,9 +124,11 @@ def save_as_page_package(
         titles=[full_page_name_str],
     )
     wtsite_inst.create_page_package(
-        config=config,
-        dump_config=dump_config_inst,
-        debug=False,
+        WtSite.CreatePagePackageParam(
+            config=config,
+            dump_config=dump_config_inst,
+            debug=False,
+        )
     )
     return {"Page package bundle": bundle, "Page package config": config}
 
@@ -458,11 +460,13 @@ if __name__ == "__main__":
                 else:
                     storage_path = Path(dump_config.target_dir).parent
                 pages = wtsite_obj.read_page_package(
-                    storage_path=storage_path,
-                    packages_info_file_name=PACKAGE_INFO_FILE_NAME,
-                    selected_slots=slots_to_upload,
-                    debug=False,
-                )
+                    WtSite.ReadPagePackageParam(
+                        storage_path=storage_path,
+                        packages_info_file_name=PACKAGE_INFO_FILE_NAME,
+                        selected_slots=slots_to_upload,
+                        debug=False,
+                    )
+                ).pages
                 param = wtsite_obj.UploadPageParam(pages=pages, parallel=False)
                 wtsite_obj.upload_page(param)
                 # Success:

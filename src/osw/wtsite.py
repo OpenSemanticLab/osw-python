@@ -309,14 +309,32 @@ class WtSite:
                 dask.compute(*tasks)
             message_buffer.flush()
 
-    def create_page_package(
-        self,
-        config: package.PagePackageConfig,
-        dump_config: "WtPage.PageDumpConfig" = None,
-        debug: bool = True,
-    ):
+    class CreatePagePackageParam(model.OswBaseModel):
+        """Parameter object for create_page_package method."""
+
+        config: package.PagePackageConfig
+        """Configuration object for the page package."""
+        dump_config: Optional["WtPage.PageDumpConfig"] = None
+        """Configuration object for the page dump"""
+        debug: Optional[bool] = True
+        """If True, debug messages will be printed."""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def create_page_package(self, param: CreatePagePackageParam):
         """Create a page package, which is a locally stored collection of wiki pages
-        and their slots, based on a configuration object."""
+        and their slots, based on a configuration object.
+
+        Parameters:
+        -----------
+        param:  CreatePagePackageParam
+        """
+
+        debug = param.debug
+        dump_config = param.dump_config
+        config = param.config
+
         # Clear the content directory
         try:
             if debug:
@@ -369,33 +387,42 @@ class WtSite:
         with open(file_name, "w") as f:
             f.write(content)
 
-    def read_page_package(
-        self,
-        storage_path: Union[str, Path],
-        packages_info_file_name: Union[str, Path] = None,
-        selected_slots: List[str] = None,
-        debug: bool = False,
-    ) -> List["WtPage"]:
+    class ReadPagePackageParam(model.OswBaseModel):
+        """Parameter type of read_page_package."""
+
+        storage_path: Union[str, Path]
+        """The path to the directory where the page package is stored."""
+        packages_info_file_name: Optional[Union[str, Path]] = None
+        """The name of the file that contains the page package information. If not
+            specified, the default value 'packages.json' is used."""
+        selected_slots: Optional[List[str]] = None
+        """A list of slots that should be read. If None, all slots are read."""
+        debug: Optional[bool] = False
+        """If True, debug information is printed to the console."""
+
+    class ReadPagePackageResult(model.OswBaseModel):
+        """Return type of read_page_package."""
+
+        pages: List["WtPage"]
+        """A list of WtPage objects."""
+
+    def read_page_package(self, param: ReadPagePackageParam) -> ReadPagePackageResult:
         """Read a page package, which is a locally stored collection of wiki pages and
         their slots' content.
 
         Parameters
         ----------
-        storage_path:
-            The path to the directory where the page package is stored.
-        packages_info_file_name:
-            The name of the file that contains the page package information. If not
-            specified, the default value 'packages.json' is used.
-        selected_slots:
-            A list of slots that should be read. If None, all slots are read.
-        debug:
-            If True, debug information is printed to the console.
+        param: ReadPagePackageParam
 
         Returns
         -------
-        result:
-            A list of WtPage objects.
+        result: ReadPagePackageResult
         """
+        # map params
+        storage_path = param.storage_path
+        packages_info_file_name = param.packages_info_file_name
+        selected_slots = param.selected_slots
+        debug = param.debug
         # Test arguments / set default value
         if not os.path.exists(storage_path):
             raise FileNotFoundError(f"Storage path '{storage_path}' does not exist.")
@@ -511,20 +538,40 @@ class WtSite:
                             content=slot_content,
                         )
                 pages.append(page_obj)
-        return pages
+        return "ReadPagePackageResult"(page_list=pages)
 
-    def upload_page_package(
-        self,
-        storage_path: Union[str, Path] = None,
-        pages: List["WtPage"] = None,
-        debug: bool = False,
-    ):
+    class UploadPagePackageParam(model.OswBaseModel):
+        """Parameter class for upload_page_package method."""
+
+        storage_path: Optional[Union[str, Path]] = None
+        """The path to the storage directory.
+        If 'storage_path' is not given, 'pages' must be given."""
+        pages: Optional[List["WtPage"]] = None
+        """A list of WtPage objects.
+        If 'pages' is not given, 'storage_path' must be given."""
+        debug: Optional[bool] = False
+        """If True, prints debug information."""
+
+    def upload_page_package(self, param: UploadPagePackageParam):
+        """Uploads a page package to the wiki defined by a list of WtPage objects or a storage path.
+
+        Parameters
+        ----------
+        param : UploadPagePackageParam
+
+        """
+        storage_path = param.storage_path
+        pages = param.pages
+        debug = param.debug
+
         if storage_path and pages is None:
             raise ValueError(
                 "Error: If 'storage_path' is not given, 'pages' must be given."
             )
         if pages is None:
-            pages = self.read_page_package(storage_path=storage_path, debug=debug)
+            pages = self.read_page_package(
+                WtSite.ReadPagePackageParam(storage_path=storage_path, debug=debug)
+            ).pages
         for page in pages:
             page.edit()
 
@@ -876,7 +923,3 @@ class WtPage:
             package_page.fileURLPath = path_prefix + file_name
 
         return package_page
-
-
-# Updating forwards refs in pydantic models
-WtSite.UploadPageParam.update_forward_refs()

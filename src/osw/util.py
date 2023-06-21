@@ -2,12 +2,22 @@ import asyncio
 import sys
 from asyncio import Queue
 from contextlib import redirect_stdout, suppress
-from io import StringIO
+from io import StringIO  # , BytesIO,
+
+# import stdio_proxy
 from pathlib import Path
 from typing import IO, Callable, Iterable, Optional, Union
 
 import dask
 from dask.diagnostics import ProgressBar
+
+# dask.config.set(scheduler="threads")
+# with stdio_proxy.redirect_stdout(sys.stdout):
+# "processes" scheduler leads to no messages ending up in the buffer / no flushing
+# "threads" scheduler leads to all messages being printed immediatley without buffering
+# with contextlib.redirect_stdout(sys.stdout):
+# "processes" scheduler leads to no messages ending up in the buffer / no flushing
+# "threads" scheduler leads to all buffered messages as expected
 
 
 class MessageBuffer:
@@ -51,7 +61,7 @@ class MessageBuffer:
         self.messages = []
 
 
-class AsyncMessageBuffer:
+class AsyncMessageBuffer(MessageBuffer):
     """Work in progress.
 
 
@@ -73,9 +83,8 @@ class AsyncMessageBuffer:
     """
 
     def __init__(self, debug: bool = True):
-        self.debug = debug
+        super().__init__(debug=debug)
         self.messages = Queue()
-        self.closed = False  # Always open
 
     async def __aenter__(self):
         return self
@@ -115,6 +124,7 @@ def redirect_print(
         def wrapper(*args, **kwargs):
             # First redirect stdout to a buffer
             with StringIO() as buf, redirect_stdout(buf):
+                # with BytesIO() as buf, stdio_proxy.redirect_stdout(buf):
                 return_val = func_(*args, **kwargs)
                 output = buf.getvalue()
             # Reset stdout to the original value
@@ -150,7 +160,7 @@ def redirect_print(
     return decorator
 
 
-def redirect_print_explicit(
+def redirect_print_explicitly(
     func: Optional[Callable] = None,
     file_like: Optional[Union[IO, Path, MessageBuffer, AsyncMessageBuffer]] = None,
     line_print: Optional[Callable] = None,
@@ -196,6 +206,7 @@ def redirect_print_explicit(
             kwargs_.update(kwargs)
             # First redirect stdout to a buffer
             with StringIO() as buf, redirect_stdout(buf):
+                # with BytesIO() as buf, stdio_proxy.redirect_stdout(buf):
                 return_val = func_(*args_, **kwargs_)
                 output = buf.getvalue()
             # Reset stdout to the original value
@@ -275,11 +286,11 @@ def parallelize(
     progress_bar:
         If True, a progress bar will be displayed.
     kwargs:
-        Keyword arguments to be passed to the function.
+        Keyword arguments to be passed to the function.z
     """
     with MessageBuffer(flush_at_end) as msg_buf:
         tasks = [
-            dask.delayed(redirect_print_explicit(func, msg_buf))(item, **kwargs)
+            dask.delayed(redirect_print_explicitly(func, msg_buf))(item, **kwargs)
             for item in iterable
         ]
         print(f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks).")
@@ -348,7 +359,7 @@ def async_parallelize(func: Callable, iterable: Iterable, **kwargs):
     async def inner(func_, iterable_, **kwargs_):
         async with AsyncMessageBuffer() as msg_buf:
             tasks = [
-                dask.delayed(redirect_print_explicit(func_, msg_buf))(item, **kwargs_)
+                dask.delayed(redirect_print_explicitly(func_, msg_buf))(item, **kwargs_)
                 for item in iterable_
             ]
             print(
@@ -495,7 +506,7 @@ if __name__ == "__main__":
             print(f"Creating item {i + 1} of {length}")
         return [i for i in range(length)]
 
-    @redirect_print_explicit()
+    @redirect_print_explicitly()
     def create_list_2(length: int) -> list[int]:
         print(f"Creating a list of length {length}")
         for i in range(length):
@@ -521,7 +532,7 @@ if __name__ == "__main__":
         for i in range(num_lines):
             print(f"Line #{i + 1}")
 
-    @redirect_print_explicit(file_like=message_buffer, line_print=prepend_timestamp)
+    @redirect_print_explicitly(file_like=message_buffer, line_print=prepend_timestamp)
     def print_lines_2(num_lines):
         for i in range(num_lines):
             print(f"Line #{i + 1}")
@@ -539,7 +550,11 @@ if __name__ == "__main__":
     # test_list_dask = create_list_dask(10)
     # test_list_dask_1 = create_list_dask_1(10)
     # test_list_dask_2 = create_list_dask_2(10)
-    test_list_new = parallelize(create_list_item, range(1000), flush_at_end=True)
+    test_list_new = parallelize(
+        create_list_item,
+        range(1000),
+        flush_at_end=True,
+    )
     # test_list_new = async_parallelize(create_list_item, range(10), debug=True)
     # test_list = create_list(10)
     # test_list_1 = create_list_1(10)

@@ -688,7 +688,8 @@ class WtPage:
                     self._slots_changed[slot_key] = False
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
-                        content = json.dumps(content)
+                        if not isinstance(content, str):
+                            content = json.dumps(content)
                     params["slot_" + slot_key] = content
             if changed:
                 self.wtSite._site.api(

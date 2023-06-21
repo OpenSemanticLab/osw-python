@@ -195,7 +195,7 @@ def prefix_search(
 
 def semantic_search(
     site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
-) -> List[List[str]]:
+) -> List[str]:
     """Semantic query
 
     Parameters
@@ -344,8 +344,10 @@ def get_file_info_and_usage(
         using_pages = []
         file_info = {
             "title": single_title,
-            "author": "File not found",
-            "timestamp": "File not found",
+            "author": "File not found or no creation logged",
+            "timestamp": "File not found or no creation logged",
+            "editor": [],
+            "editing_timestamp": [],
         }
 
         if len(api_request_result["query"]["pages"]) == 0:
@@ -361,13 +363,16 @@ def get_file_info_and_usage(
             if len(image_info) != 0:
                 file_info["author"] = image_info[0]["user"]
                 file_info["timestamp"] = image_info[0]["timestamp"]
+                for ii in image_info:
+                    file_info["editor"].append(ii["user"])
+                    file_info["editing_timestamp"].append(ii["timestamp"])
             if file_usage is not None:
                 for fu_page_dict in file_usage:
                     using_pages.append(fu_page_dict["title"])
             if query.debug:
                 # todo: find out why this message is printed (sometimes) when using the
-                #                 #  redirect,  which messes up the Progressbar
-                #                 #  printed messages do not appear in the MessageBuffer
+                #  redirect,  which messes up the Progressbar
+                #  printed messages do not appear in the MessageBuffer
                 print(f"File info for '{single_title}' retrieved.")
         return {"info": file_info, "usage": using_pages}
 
@@ -440,11 +445,11 @@ def update_template_within_wikitext(
     delete : bool
         If true, params not defined in <template_text> get removed from <text>
     remove_empty_lines : bool
-        If true, function will cleanup empty lines within the template code created by
+        If true, function will clean-up empty lines within the template code created by
         the underlying mwparserfromhell lib (wanted), but also within the wiki text
         around it (unwanted)
     overwrite_with_empty : bool
-        If true, parameters in the existing tempalte will be overwritten even if the
+        If true, parameters in the existing template will be overwritten even if the
         parameter value in the template_text is empty
 
     Returns

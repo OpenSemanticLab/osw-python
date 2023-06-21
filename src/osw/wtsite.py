@@ -9,9 +9,7 @@ from pprint import pprint
 from time import sleep
 from typing import Dict, List, Optional, Union
 
-import dask
 import mwclient
-from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import FilePath
 
@@ -19,7 +17,7 @@ import osw.model.entity as model
 import osw.model.page_package as package
 import osw.util as ut
 import osw.wiki_tools as wt
-from osw.util import MessageBuffer
+from osw.util import parallelize
 
 # Constants
 SLOTS = {
@@ -201,8 +199,8 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
-    @staticmethod
     def upload_page(
+        self,
         param: Union[UploadPageParam, "WtPage", List["WtPage"]],
     ) -> None:
         """Uploads a page or a list of pages to the site.
@@ -221,29 +219,28 @@ class WtSite:
         if max_index >= 5:
             param.parallel = True
 
-        def upload_page(index_, p_):
-            p_.edit()
-            msg = f"({index_ + 1}/{max_index}): Uploaded page to {p_.get_url()}."
-            if param.parallel:
-                print(msg, file=message_buffer)
-            else:
-                print(msg)
+        def upload_page_(page, index: int = None):
+            # Before uploading: Check if the page is uploaded to the WtSite that is
+            #  defining this method
+            if page.wtSite != self:
+                raise AssertionError(
+                    f"The WtSite in page '{page.title}' and the "
+                    f"WtSite from which this method is called from "
+                    f"are not matching!"
+                )
+            page.edit()
 
-        tasks = []
-        for index, p in enumerate(param.pages):
-            if not param.parallel:
-                upload_page(index, p)
+            if index is None:
+                print(f"Uploaded page to {page.get_url()}.")
             else:
-                tasks.append(dask.delayed(upload_page)(index, p))
+                print(
+                    f"({index + 1}/{max_index}): Uploaded page to " f"{page.get_url()}."
+                )
+
         if param.parallel:
-            message_buffer = MessageBuffer()
-            print(
-                "(Parallel execution) Uploading pages. Log will be printed  after "
-                "completion."
-            )
-            with ProgressBar():
-                dask.compute(*tasks)
-            message_buffer.flush()
+            _ = parallelize(upload_page_, param.pages, flush_at_end=param.debug)
+        else:
+            _ = [upload_page_(p, i) for i, p in enumerate(param.pages)]
 
     def create_page_package(
         self,

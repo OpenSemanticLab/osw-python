@@ -196,6 +196,7 @@ class WtSite:
     class UploadPageParam(model.OswBaseModel):
         pages: Union["WtPage", List["WtPage"]]
         parallel: Optional[bool] = False
+        debug: Optional[bool] = False
 
         class Config:
             arbitrary_types_allowed = True

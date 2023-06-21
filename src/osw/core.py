@@ -65,7 +65,8 @@ class OSW(BaseModel):
 
     @staticmethod
     def get_osw_id(uuid: uuid) -> str:
-        """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing all "-" from the uuid-string
+        """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing
+        all '-' from the uuid-string
 
         Parameters
         ----------
@@ -117,7 +118,8 @@ class OSW(BaseModel):
         schema_bases: List[str] = ["Category:Item"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
-        """registers a new or updated schema in OSW by creating the corresponding category page
+        """Registers a new or updated schema in OSW by creating the corresponding
+        category page.
 
         Parameters
         ----------
@@ -246,7 +248,8 @@ class OSW(BaseModel):
         schema_title:
             the title (wiki page name) of the schema (default: Category:Item)
         root:
-            marks the root iteration for a recursive fetch (internal param, default: True)
+            marks the root iteration for a recursive fetch (internal param,
+            default: True)
         mode:
             append or replace (default) current schema, see FetchSchemaMode
         """
@@ -258,12 +261,13 @@ class OSW(BaseModel):
         ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
-        """loads the given schema from the OSW instance and autogenerates python datasclasses within osw.model.entity from it
+        """Loads the given schema from the OSW instance and autogenerates python
+        datasclasses within osw.model.entity from it
 
         Parameters
         ----------
         fetchSchemaParam, optional
-            see FetchSchemaParam, by default None
+            See FetchSchemaParam, by default None
         """
         site_cache_state = self.site.get_cache_enabled()
         self.site.enable_cache()
@@ -334,7 +338,10 @@ class OSW(BaseModel):
                 print("Error: datamodel-codegen not found")
                 return
             os.system(
-                f"{exec_path}  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
+                f"{exec_path}  \
+                --input {schema_path} \
+                --input-file-type jsonschema \
+                --output {temp_model_path} \
                 --base-class OswBaseModel \
                 --use-default \
                 --enum-field-as-literal one \
@@ -435,8 +442,9 @@ class OSW(BaseModel):
 
     def load_entity(self, entity_title) -> model.Entity:
         """Loads the entity with the given wiki page name from the OSW instance.
-            Creates a instance of the class specified by the "type" attribute, default model.Entity
-            Instance of model.Entity can be casted to any subclass with .cast(model.<class>)
+        Creates an instance of the class specified by the "type" attribute, default
+        model.Entity. An instance of model.Entity can be cast to any subclass with
+        .cast(model.<class>) .
 
         Parameters
         ----------

@@ -37,21 +37,27 @@ Notes
 * Work with dask for the processing (but not for the queries)
 
 """
+import json
+import uuid as uuid_module
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
+import osw.data.import_utility as iu
 import osw.wiki_tools as wt
+from osw.core import OSW
 from osw.data.mining import (
     RegExPatternExtended,
     match_first_regex_pattern,
     test_regex_pattern,
 )
-from osw.wiki_tools import SearchParam, get_file_info_and_usage
-from osw.wtsite import WtSite
+from osw.model.entity import Label, WikiFile
+from osw.util import parallelize
+from osw.wtsite import WtPage, WtSite
 
 # Constants
 PWD_FILE_PATH = Path(r"C:\Users\gold\ownCloud\Personal") / "accounts.pwd.yaml"
 WIKIFILE_PAGE_NAME = "OSW11a53cdfbdc24524bf8ac435cbf65d9d"
+WIKIFILE_NS = uuid_module.UUID(WIKIFILE_PAGE_NAME[3:])
 REGEX_PATTERN_LIST = [
     RegExPatternExtended(
         description="File page full page title (new format) to label",
@@ -169,29 +175,43 @@ LABEL_REGEX_PATTERNS = [
         "File page full page title with one suffix",
     ]
 ]
+FILENAME_REGEX_PATTERNS = [
+    REGEX_PATTERN_LIB[key]
+    for key in [
+        "File page full page title with two suffixes",
+        "File page full page title with one suffix",
+    ]
+]
 
 
 # Functions
-def get_label_and_suffix_from_page_title(page_title: str):
+def get_label_and_suffix_from_page_title(page_title: str) -> Dict[str, str]:
     match_res = match_first_regex_pattern(
         patterns=LABEL_REGEX_PATTERNS,
         strings=page_title,
     )
+    id_ = ""
+    label = ""
+    suffix = ""
     if match_res[0].match is None:
-        label = ""
-        suffix = ""
+        pass
     else:
         label = match_res[0].groups["Label"]
         suffix = match_res[0].groups["Suffix(es)"]
-    return {"label": label, "suffix": suffix}
+        for key in ["ISC-ID", "OSW-ID"]:
+            val = match_res[0].groups.get(key, None)
+            if val is not None:
+                id_ = val
+                break
+    return {"label": label, "suffix": suffix, "id": id_}
 
 
 def get_file_info_and_usage_single(
     wtsite_obj: WtSite, page_title: str, debug: bool = False
 ) -> dict:
-    result = get_file_info_and_usage(
+    result = wt.get_file_info_and_usage(
         site=wtsite_obj._site,
-        title=SearchParam(
+        title=wt.SearchParam(
             query=page_title,
             debug=debug,
         ),
@@ -199,24 +219,18 @@ def get_file_info_and_usage_single(
     other_info = get_label_and_suffix_from_page_title(page_title=page_title)
     result["info"]["label"] = other_info["label"]
     result["info"]["suffix"] = other_info["suffix"]
+    result["info"]["id"] = other_info["id"]
     return result
 
 
-def get_file_info_and_usage_(
-    wt_site_obj: WtSite,
+def get_file_info_and_usage_extended(
+    wtsite_obj: WtSite,
     page_titles: List[str],
     debug: bool = False,
 ) -> List[dict]:
-    # result = wt_site_obj.get_file_info_and_usage(
-    #     SearchParam(
-    #         query=page_titles,
-    #         debug=debug,
-    #         parallel=True,
-    #     )
-    # )
-    result = get_file_info_and_usage(
-        site=wt_site_obj._site,
-        title=SearchParam(
+    result = wt.get_file_info_and_usage(
+        site=wtsite_obj._site,
+        title=wt.SearchParam(
             query=page_titles,
             debug=debug,
             parallel=True,
@@ -231,20 +245,149 @@ def get_file_info_and_usage_(
         other_info = get_label_and_suffix_from_page_title(page_title=page_tile)
         result[i]["info"]["label"] = other_info["label"]
         result[i]["info"]["suffix"] = other_info["suffix"]
+        result[i]["info"]["id"] = other_info["id"]
+    return result
+
+
+def make_the_move_and_redirect_references(
+    file_pages: List[str],
+    wtsite_obj: WtSite,
+    parallel: bool = True,
+    debug: bool = False,
+):
+    def handle_single_using_page(
+        full_page_title_: str,
+        wtsite_obj_: WtSite,
+        file_name_: str,
+        uuid_: uuid_module.UUID,
+    ):
+        """Adds an uuid reference to the template of the using page's (main slot)
+        content."""
+        file_name_with_underscores_ = file_name_.replace(" ", "_")
+        using_page = WtPage(wtSite=wtsite_obj_, title=full_page_title_)
+        main_slot_content = using_page.get_slot_content(slot_key="main")
+        parsed_content = wt.create_flat_content_structure_from_wikitext(
+            main_slot_content
+        )
+        # Loop through lines of the using page's content
+        for ii, list_item in enumerate(parsed_content):
+            if isinstance(list_item, dict):
+                # Loop through template dict
+                for template_key, template_val in list_item.items():
+                    if isinstance(template_val, dict):
+                        # Look for file_name key
+                        # template_fn is of type list!
+                        template_fn = template_val.get("file_name", None)
+                        # In case of a match, add uuid key with uuid value (new page
+                        #  uuid)
+                        if (
+                            file_name_ in template_fn
+                            or file_name_with_underscores_ in template_fn
+                        ):
+                            parsed_content[ii][template_key]["uuid"] = str(uuid_)
+        modified_content = wt.get_wikitext_from_flat_content_structure(parsed_content)
+        using_page.set_slot_content(slot_key="main", content=modified_content)
+        using_page.edit(comment="Edited by bot to comply with new Wiki-File schema")
+
+    def handle_single_file_page(file_info_: dict, wtsite_obj_: WtSite):
+        page_title = file_info_["info"]["title"]
+        file_page = WtPage(wtSite=wtsite_obj_, title=page_title)
+        match_res = match_first_regex_pattern(
+            patterns=FILENAME_REGEX_PATTERNS,
+            strings=page_title,
+        )
+        if match_res[0].match is None:
+            raise ValueError(
+                f"Could not match page title '{page_title}' to any of the "
+                f"supported patterns"
+            )
+        else:
+            file_name = match_res[0].groups["Label"]
+        info = file_info_["info"]
+        usage = file_info_["usage"]
+        id_str = info["id"]
+        if len(usage) == 0:
+            creation_context = ""
+        else:
+            creation_context = usage[0]
+        if id_str != "":
+            # try to find a page with the same id in the usage list
+            for full_page_title in usage:
+                if id_str in full_page_title:
+                    creation_context = full_page_title
+                    break
+        # Generate UUID for the new page name
+        rnd_uuid = uuid_module.uuid4()
+        uuid = uuid_module.uuid5(namespace=WIKIFILE_NS, name=str(rnd_uuid))
+        # Generate full page title from UUID
+        new_fpt_without_suffix = iu.uuid_to_full_page_title(
+            uuid=uuid, wiki_ns="File", prefix="OSW"
+        )
+        new_fpt = new_fpt_without_suffix + info["suffix"]
+        # Rename the page
+        file_page.move(new_title=new_fpt, redirect=False)
+        # Make sure the slot content to be set is in accordance with the JSON schema
+        #  of the category
+        wiki_file_instance = WikiFile(
+            uuid=str(uuid),
+            label=[Label(text=info["label"])],
+            creator=[info["author"]],
+            creation_context=[creation_context],
+            # todo: new filename here? -> Name?
+            name=iu.create_page_name_from_label(label=info["label"]),
+            editor=info["editor"],
+            editing_context=usage,
+        )
+        # Get jsondata for the new wiki file page from the WikiFile instance with
+        #  dict() or json()
+        jsondata = json.loads(wiki_file_instance.json())
+        file_page.set_slot_content(slot_key="jsondata", content=jsondata)
+        # Actually edit the page in the OSL instance
+        file_page.edit(comment="Edited by bot to comply with new Wiki-File schema")
+        # Alternatively, use the following to edit the page in the OSL instance
+        # osw_obj = OSW(site=wtsite_obj_)
+        # osw_obj.store_entity(OSW.StoreEntityParam(
+        #     entities=[wiki_file_instance],
+        # ))
+        # Loop through using pages
+        for full_page_title in usage:
+            handle_single_using_page(
+                full_page_title_=full_page_title,
+                wtsite_obj_=wtsite_obj_,
+                file_name_=file_name,
+                uuid_=uuid,
+            )
+        return new_fpt
+
+    # This is executed in parallel first (!)
+    file_infos = get_file_info_and_usage_extended(
+        wtsite_obj=wtsite_obj,
+        page_titles=file_pages,
+        debug=debug,
+    )
+    # Loop through file_pages
+    if parallel:
+        result = parallelize(
+            handle_single_file_page,
+            file_infos,
+            wtsite_obj_=wtsite_obj,
+            flush_at_end=debug,
+        )
+    else:
+        result = []
+        for fi in file_infos:
+            result.append(
+                handle_single_file_page(file_info_=fi, wtsite_obj_=wtsite_obj)
+            )
     return result
 
 
 def get_wiki_file_pages(wtsite_obj: WtSite, limit: int = 1000) -> List[str]:
-    # todo: move to osw.core.OSW as method
-    # todo: rename with "get entity"
-    # todo: replace with method
-    full_page_titles = wt.semantic_search(
-        site=wtsite_obj._site,
-        query=wt.SearchParam(
-            query=f"[[HasType::Category:{WIKIFILE_PAGE_NAME}]]",
-            debug=False,
+    full_page_titles = OSW(site=wtsite_obj).query_instances(
+        category=OSW.QueryInstancesParam(
+            categories=[WIKIFILE_PAGE_NAME],
             limit=limit,
-        ),
+        )
     )
     return full_page_titles
 
@@ -257,14 +400,14 @@ if __name__ == "__main__":
     )
     wiki_file_pages = get_wiki_file_pages(wtsite_obj=wtsite, limit=5000)  # replace with
     # OSW.get_instances_of(Cat:WIkiFile)
-    file_pages = wtsite.get_file_pages()
-    file_pages_to_modify = list(set(file_pages) - set(wiki_file_pages))
+    file_pages_ = wtsite.get_file_pages()
+    file_pages_to_modify = list(set(file_pages_) - set(wiki_file_pages))
     print(f"Number of file pages to modify: {len(file_pages_to_modify)}")
     print("Collecting info and usage for file pages...")
-    infos = get_file_info_and_usage_(
-        wt_site_obj=wtsite,
+    file_infos = get_file_info_and_usage_extended(
+        wtsite_obj=wtsite,
         page_titles=file_pages_to_modify,
-        debug=True,
+        debug=False,
     )
 
     regex_test = test_regex_pattern(patterns_to_test, file_pages_to_modify)

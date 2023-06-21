@@ -27,19 +27,27 @@ class RegExPatternExtended(OswBaseModel):
     (index 1!)."""
     example_str: Optional[str]
     """An example string that can be used to test the pattern."""
+    expected_groups: Optional[List[str]]
+    """A list strings that are expected in the example_match.groups.values(). This is
+    used to test the pattern by asserting list(self.example_match.groups.values()) ==
+    self.expected_groups"""
 
     def __init__(self, **data):
         super().__init__(**data)
         if isinstance(self.pattern, str):
             self.pattern = re.compile(self.pattern)
 
+    def match(self, string: str) -> "MatchResult":
+        """Return the match result of the given string and the pattern."""
+        return MatchResult(match=re.match(self.pattern, string), pattern=self)
+
     @property
-    def example_match(self):  # todo: write unit test
+    def example_match(self) -> "MatchResult":
         """Return the match result of the example string and the pattern."""
-        return MatchResult(match=re.match(self.pattern, self.example_str), pattern=self)
+        return self.match(string=self.example_str)
 
     @validator("group_keys")
-    def validate_group_keys(cls, group_keys, values):
+    def validate_group_keys(cls, group_keys, values) -> List[str]:
         """Validate that the number of group keys matches the number of match groups,
         defined in the pattern."""
         pattern = values.get("pattern")
@@ -50,6 +58,14 @@ class RegExPatternExtended(OswBaseModel):
                 f"the number of match groups ({group_count})."
             )
         return group_keys
+
+    def test_pattern(self) -> bool:
+        """Test the pattern by asserting self.example_match.groups.values()) ==
+        self.expected_groups"""
+        if list(self.example_match.groups.values()) == self.expected_groups:
+            return True
+        else:
+            return False
 
     class Config:
         arbitrary_types_allowed = True

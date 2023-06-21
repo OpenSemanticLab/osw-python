@@ -855,6 +855,9 @@ class WtPage:
             title=wt.SearchParam(query=self.title, debug=debug),
         )[0]
 
+    def purge(self):
+        self._page.purge()
+
 
 # Updating forwards refs in pydantic models
 WtSite.UploadPageParam.update_forward_refs()

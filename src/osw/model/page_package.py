@@ -223,6 +223,15 @@ class PagePackageMetaData(BaseModel):
     """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
      to be packaged."""
 
+    requiredExtensions: Optional[List[str]]
+    """The default value for PagePackage.requiredExtensions.
+    An array of the names of any extensions required for this package to work. (In
+    the future, this parameter may also allow defining specific versions that are
+    required for specific extensions, but this is not currently possible.)"""
+    requiredPackages: Optional[List[str]]
+    """The default value for PagePackage.requiredPackages.
+    An array of the names of any additional packages required by this package."""
+
 
 # Special namespace mappings (default is namespace_const = "NS_" + namespace.upper())
 NAMESPACE_CONST_TO_NAMESPACE_MAPPING = {

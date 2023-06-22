@@ -56,6 +56,8 @@ class PagePackageController(model.PagePackageMetaData):
                     globalID=f"{self.id}",
                     label=self.name,
                     version=self.version,
+                    requiredExtensions=self.requiredExtensions,
+                    requiredPackages=self.requiredPackages,
                     description=self.description,
                     baseURL=f"https://raw.githubusercontent.com/"
                     f"{self.repo_org}/"
@@ -75,4 +77,4 @@ class PagePackageController(model.PagePackageMetaData):
             skip_slot_suffix_for_main=creation_config.skip_slot_suffix_for_main,
         )
         # Create the page package in the working directory
-        wtsite.create_page_package(config=config)
+        wtsite.create_page_package(WtSite.CreatePagePackageParam(config=config))

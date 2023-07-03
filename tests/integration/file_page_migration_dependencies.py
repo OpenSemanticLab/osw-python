@@ -95,8 +95,8 @@ def main(wiki_domain: str = None, wiki_username: str = None, wiki_password: str 
         # For local testing without tox
         if wiki_domain is None:
             # Make sure that the password file is available
-            cwd = Path.cwd()
-            pw_fp = cwd.parents[0] / "examples" / "accounts.pwd.yaml"
+            cwd = Path(__file__).parent.absolute()
+            pw_fp = cwd.parents[1] / "examples" / "accounts.pwd.yaml"
             wtsite = WtSite.from_domain(
                 domain="wiki-dev.open-semantic-lab.org",
                 password_file=str(pw_fp),

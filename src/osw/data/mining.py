@@ -10,6 +10,26 @@ from osw.model.static import OswBaseModel
 class RegExPatternExtended(OswBaseModel):
     """A class that extends the re.Pattern class with additional attributes.
 
+    Example
+    -------
+    Definition
+    >>> pattern = RegExPatternExtended(
+    >>>     description="File page full page title (new format) to label",
+    >>>     pattern=r"File:(OS[WL]{1}[[a-f0-9]{32})"
+    >>>     "(\\.[a-zA-Z0-9]*[a-zA-Z]+[a-zA-Z0-9]*)",
+    >>>     group_keys=["Label", "Suffix(es)"],  # ["OSW-ID", "Suffix(es)"]
+    >>>     example_str="File:OSW11a53cdfbdc24524bf8ac435cbf65d9d.svg",
+    >>>     expected_groups=["OSW11a53cdfbdc24524bf8ac435cbf65d9d", ".svg"],
+    >>> )
+    Usage
+    >>> some_str = pattern.example_str
+    >>> match = pattern.match(some_str)
+    >>> label = match.groups["label"]
+    >>> suffix = match.groups["Suffix(es)"]
+    Testing
+    >>> pattern.test_pattern()
+
+
     Resources
     ---------
     https://regex101.com/
@@ -243,7 +263,6 @@ def test_regex_pattern(
             for key, val in patterns.items()
         ]
     matching_results = list()
-    # todo: rework to include MatchResult objects
     for i, pattern in enumerate(patterns):
         result = {
             "Pattern": pattern.pattern,

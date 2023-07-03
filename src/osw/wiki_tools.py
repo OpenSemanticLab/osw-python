@@ -9,7 +9,6 @@ import yaml
 from jsonpath_ng.ext import parse
 from pydantic import FilePath
 
-from osw.model.entity import _basemodel_decorator
 from osw.model.static import OswBaseModel
 from osw.util import parallelize
 
@@ -114,7 +113,6 @@ def create_site_object(
     return site
 
 
-@_basemodel_decorator
 class SearchParam(OswBaseModel):
     """Search parameters for semantic and prefix search"""
 

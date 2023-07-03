@@ -94,7 +94,6 @@ class OSW(BaseModel):
         """
         return UUID(osw_id.replace("OSW", ""))
 
-    @model._basemodel_decorator
     class SchemaRegistration(BaseModel):
         """
         dataclass param of register_schema()
@@ -179,7 +178,6 @@ class OSW(BaseModel):
         page.edit()
         print("Entity stored at " + page.get_url())
 
-    @model._basemodel_decorator
     class SchemaUnregistration(BaseModel):
         """
         dataclass param of register_schema()
@@ -239,7 +237,6 @@ class OSW(BaseModel):
         append = "append"  # append to the current model
         replace = "replace"  # replace the current model
 
-    @model._basemodel_decorator
     class FetchSchemaParam(BaseModel):
         """_summary_
 
@@ -371,20 +368,19 @@ class OSW(BaseModel):
             os.remove(temp_model_path)
 
             content = re.sub(
-                r"(import OswBaseModel)", "from pydantic import BaseModel", content, 1
+                r"(import OswBaseModel)",
+                "from pydantic import BaseModel, Field",
+                content,
+                1,
             )  # remove import statement
 
             if fetchSchemaParam.mode == "replace":
 
                 header = (
                     "from uuid import uuid4\n"
-                    "from typing import TYPE_CHECKING, Type, TypeVar\n"
-                    "from osw.model.static import OswBaseModel, Ontology\n"
-                    "\n"
-                    "if TYPE_CHECKING:\n"
-                    "    from dataclasses import dataclass as _basemodel_decorator\n"
-                    "else:\n"
-                    "    _basemodel_decorator = lambda x: x  # noqa: E731\n"
+                    "from typing import Type, TypeVar\n"
+                    "from osw.model.static import _basemodel_decorator, OswBaseModel, "
+                    "Ontology\n"
                     "\n"
                 )
 
@@ -394,11 +390,11 @@ class OSW(BaseModel):
                     content,
                     1,
                 )  # replace first match
-                content = re.sub(
-                    r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
-                    r"@_basemodel_decorator\n\1",
-                    content,
-                )
+                # content = re.sub(
+                #     r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
+                #     r"@_basemodel_decorator\n\1",
+                #     content,
+                # )
                 content = re.sub(
                     r"(UUID = Field\(...)",
                     r"UUID = Field(default_factory=uuid4",

@@ -27,7 +27,6 @@ def controller_mixin(cls) -> Type:
         return mixin_cls
 
 
-@model._basemodel_decorator
 class ControllerTest(model.Entity):
     pass
 
@@ -35,7 +34,6 @@ class ControllerTest(model.Entity):
 ControllerTest = controller_mixin(ControllerTest)
 
 
-@model._basemodel_decorator
 class ControllerTestSubclass(ControllerTest):
     pass
 

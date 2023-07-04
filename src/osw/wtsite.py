@@ -1,5 +1,6 @@
-# Generic extension of mwclient.site, mainly to provide multi-slot page handling and caching
-# OpenSemanticLab specific features are located in osw.core.OSW
+"""Generic extension of mwclient.site, mainly to provide multi-slot page handling and
+caching OpenSemanticLab specific features are located in osw.core.OSW
+"""
 
 import json
 import os
@@ -544,7 +545,7 @@ class WtSite:
                             content=slot_content,
                         )
                 pages.append(page_obj)
-        return "ReadPagePackageResult"(page_list=pages)
+        return WtSite.ReadPagePackageResult(page_list=pages)
 
     class UploadPagePackageParam(model.OswBaseModel):
         """Parameter class for upload_page_package method."""

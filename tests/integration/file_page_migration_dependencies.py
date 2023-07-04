@@ -1,10 +1,7 @@
-import random
 from importlib import reload
 from pathlib import Path
 
 import mwclient
-import svgwrite
-from PIL import Image
 
 import osw.model.entity as model
 from osw.core import OSW
@@ -15,59 +12,6 @@ DEPENDENCIES = {
     "Item": "Category:Item",
     "WikiFile": "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",
 }
-
-
-def random_image(
-    file_path: Path, width: int = 640, height: int = 480, file_type: str = None
-) -> None:
-    if file_type is None:
-        file_type = file_path.suffix[1:].upper()
-    if file_type not in ["PNG", "SVG"]:
-        raise ValueError(f"Unsupported image format: {file_type}")
-
-    if file_type == "PNG":
-        # Define the image dimensions
-        width = 640
-        height = 480
-
-        # Create a new image with random pixel values
-        image = Image.new("RGB", (width, height))
-        pixels = image.load()
-
-        for y in range(height):
-            for x in range(width):
-                # Generate random RGB values for each pixel
-                red = random.randint(0, 255)
-                green = random.randint(0, 255)
-                blue = random.randint(0, 255)
-
-                # Set the pixel color
-                pixels[x, y] = (red, green, blue)
-
-        # Save the image
-        with open(file_path, "wb") as file:
-            image.save(file)
-        # image.save(fp=file_path)
-    elif file_type == "SVG":
-        dwg = svgwrite.Drawing(str(file_path), profile="full", size=(width, height))
-
-        # Generate random shapes or elements
-        for _ in range(10):  # Generate 10 random shapes
-            shape_type = random.choice(["circle", "rect"])
-
-            if shape_type == "circle":
-                cx = random.randint(0, width)
-                cy = random.randint(0, height)
-                r = random.randint(10, 50)
-                dwg.add(dwg.circle(center=(cx, cy), r=r))
-            elif shape_type == "rect":
-                x = random.randint(0, width)
-                y = random.randint(0, height)
-                w = random.randint(10, 100)
-                h = random.randint(10, 100)
-                dwg.add(dwg.rect(insert=(x, y), size=(w, h)))
-
-        dwg.save()
 
 
 def fetch_dependencies(wtsite_obj: WtSite):
@@ -89,11 +33,11 @@ def check_dependencies():
     return dependencies_met
 
 
-def main(wiki_domain: str = None, wiki_username: str = None, wiki_password: str = None):
+def main(wiki_domain: str, wiki_username: str, wiki_password: str):
     dependencies_met = check_dependencies()
     if not dependencies_met:
         # For local testing without tox
-        if wiki_domain is None:
+        if wiki_domain is None or wiki_domain == "None":
             # Make sure that the password file is available
             cwd = Path(__file__).parent.absolute()
             pw_fp = cwd.parents[1] / "examples" / "accounts.pwd.yaml"

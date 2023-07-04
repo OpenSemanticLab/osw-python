@@ -8,40 +8,38 @@ import osw.wiki_tools as wt
 from osw.data.import_utility import uuid_to_full_page_title
 from osw.wtsite import WtPage, WtSite
 
-# Make sure model dependencies are available before importing osw.model.entity
-from tests.integration import file_page_migration_dependencies as fpmd
+# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# run locally with: tox -e test -- --wiki_domain None --wiki_username None --wiki_password None
+# This will trigger the fallback option (and not the skip condition)
+
 
 # Make non-package scripts available for import
 cwd = Path(__file__).parent.absolute()
-import_dir = cwd.parents[1] / "scripts" / "migration"
-sys.path.append(str(import_dir))
+migration_import_dir = cwd.parents[1] / "scripts" / "migration"
+sys.path.append(str(migration_import_dir))
+# integration_import_dir = cwd.parents[1] / "tests" / "integration"
+# sys.path.append(str(integration_import_dir))
 
 
-# run with:
-#  tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
-
-
-def test_dependencies(
-    wiki_domain: str = None, wiki_username: str = None, wiki_password: str = None
-):
+def test_dependencies(wiki_domain: str, wiki_username: str, wiki_password: str):
     """This test makes sure that all dependencies are available. First the dependencies
     are fetched from the wiki if necessary, then the dependencies are checked.
     """
+    import file_page_migration_dependencies as fpmd
+
     fpmd.main(wiki_domain, wiki_username, wiki_password)
     assert fpmd.check_dependencies()
 
 
 def test_regex_pattern():
-    from file_page_migration import REGEX_PATTERN_LIB
+    from regex_pattern import REGEX_PATTERN_LIB
 
     for key, pattern in REGEX_PATTERN_LIB.items():
         assert pattern.test_pattern()
     pass
 
 
-def test_file_page_migration(
-    wiki_domain: str = None, wiki_username: str = None, wiki_password: str = None
-):
+def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password: str):
     from file_page_migration import (
         PWD_FILE_PATH,
         WikiFile,
@@ -49,7 +47,7 @@ def test_file_page_migration(
     )
 
     # For local testing without tox
-    if wiki_domain is None:
+    if wiki_domain is None or wiki_domain == "None":
         wtsite = WtSite.from_domain(
             domain="wiki-dev.open-semantic-lab.org",
             password_file=str(PWD_FILE_PATH),

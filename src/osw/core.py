@@ -16,7 +16,7 @@ from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
-from osw.util import parallelize
+from osw.utils.util import parallelize
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 

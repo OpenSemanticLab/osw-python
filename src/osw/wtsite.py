@@ -15,9 +15,9 @@ from pydantic import FilePath
 
 import osw.model.entity as model
 import osw.model.page_package as package
-import osw.util as ut
+import osw.utils.util as ut
 import osw.wiki_tools as wt
-from osw.util import parallelize
+from osw.utils.util import parallelize
 
 # Constants
 SLOTS = {

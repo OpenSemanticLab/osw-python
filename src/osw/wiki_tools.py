@@ -10,7 +10,7 @@ from jsonpath_ng.ext import parse
 from pydantic import FilePath
 
 from osw.model.static import OswBaseModel
-from osw.util import parallelize
+from osw.utils.util import parallelize
 
 
 def read_domains_from_credentials_file(

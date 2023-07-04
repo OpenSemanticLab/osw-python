@@ -1,5 +1,6 @@
-# Generic extension of mwclient.site, mainly to provide multi-slot page handling and caching
-# OpenSemanticLab specific features are located in osw.core.OSW
+"""Generic extension of mwclient.site, mainly to provide multi-slot page handling and
+caching OpenSemanticLab specific features are located in osw.core.OSW
+"""
 
 import json
 import os
@@ -10,11 +11,9 @@ from pprint import pprint
 from time import sleep
 from typing import Dict, List, Optional, Union
 
-import dask
 import mwclient
-from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel, FilePath
+from pydantic import FilePath
 from typing_extensions import deprecated
 
 import osw.model.entity as model
@@ -22,11 +21,10 @@ import osw.model.page_package as package
 import osw.utils.util as ut
 import osw.wiki_tools as wt
 from osw.auth import CredentialManager
-from osw.model.entity import _basemodel_decorator
 from osw.model.static import OswBaseModel
-from osw.utils.util import BufferedPrint
+from osw.utils.util import parallelize
 
-# Definition of constants
+# Constants
 SLOTS = {
     "main": {"content_model": "wikitext", "content_template": ""},
     "header": {"content_model": "wikitext", "content_template": ""},
@@ -41,18 +39,21 @@ SLOTS = {
 }
 
 
+# Classes
 class WtSite:
-    # A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and caching
+    """A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and
+    caching"""
 
     class WtSiteConfig(OswBaseModel):
         """The configuration for a WtSite instance"""
 
         iri: str
-        """the IRI of the wiki site, typically the domain"""
+        """The IRI of the wiki site, typically the domain"""
         cred_mngr: CredentialManager
-        """the CredentialManager to use for authentication"""
+        """The CredentialManager to use for authentication"""
         login: Optional[str]
-        """the preferred login name when multiple logins are possible (not supported yet)"""
+        """The preferred login name when multiple logins are possible (not supported
+        yet)"""
 
     @deprecated("Use WtSiteConfig instead")
     class WtSiteLegacyConfig(OswBaseModel):
@@ -97,7 +98,8 @@ class WtSite:
                 raise ValueError("Unsupported credential type: " + str(type(cred)))
             del cred
 
-        # the page cache is used to store pages that already have been loaded from the wiki
+        # The page cache is used to store pages that already have been loaded from
+        #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
 
@@ -216,11 +218,18 @@ class WtSite:
                     cookie.domain, cookie.path, cookie.name
                 )
 
-    def prefix_search(self, text):
+    def prefix_search(self, text: Union[str, wt.SearchParam]):
         return wt.prefix_search(self._site, text)
 
-    def semantic_search(self, query):
+    def semantic_search(self, query: Union[str, wt.SearchParam]):
         return wt.semantic_search(self._site, query)
+
+    class ModifySearchResultsParam(model.OswBaseModel):
+        mode: str
+        query: wt.SearchParam
+        comment: str = None
+        log: bool = False
+        dryrun: bool = False
 
     def modify_search_results(
         self,
@@ -259,12 +268,13 @@ class WtSite:
     class UploadPageParam(model.OswBaseModel):
         pages: Union["WtPage", List["WtPage"]]
         parallel: Optional[bool] = False
+        debug: Optional[bool] = False
 
         class Config:
             arbitrary_types_allowed = True
 
-    @staticmethod
     def upload_page(
+        self,
         param: Union[UploadPageParam, "WtPage", List["WtPage"]],
     ) -> None:
         """Uploads a page or a list of pages to the site.
@@ -274,40 +284,37 @@ class WtSite:
         param:
             UploadPageParam object or a WtPage object or a list of WtPage objects.
         """
-        parallel = False
-        page = param
-        if isinstance(param, WtSite.UploadPageParam):
-            page = param.pages
-            parallel = param.parallel
-        if not isinstance(page, list):
-            page = [page]
-        max_index = len(page)
+        if isinstance(param, WtPage):
+            param = WtSite.UploadPageParam(pages=[param])
+        elif isinstance(param, list):
+            param = WtSite.UploadPageParam(pages=param)
+
+        max_index = len(param.pages)
         if max_index >= 5:
-            parallel = True
+            param.parallel = True
 
-        def upload_page(index_, p_):
-            p_.edit()
-            msg = f"({index_ + 1}/{max_index}): Uploaded page to {p_.get_url()}."
-            if parallel:
-                print(msg, file=message_buffer)
-            else:
-                print(msg)
+        def upload_page_(page, index: int = None):
+            # Before uploading: Check if the page is uploaded to the WtSite that is
+            #  defining this method
+            if page.wtSite != self:
+                raise AssertionError(
+                    f"The WtSite in page '{page.title}' and the "
+                    f"WtSite from which this method is called from "
+                    f"are not matching!"
+                )
+            page.edit()
 
-        tasks = []
-        for index, p in enumerate(page):
-            if not parallel:
-                upload_page(index, p)
+            if index is None:
+                print(f"Uploaded page to {page.get_url()}.")
             else:
-                tasks.append(dask.delayed(upload_page)(index, p))
-        if parallel:
-            message_buffer = BufferedPrint()
-            print(
-                "(Parallel execution) Uploading pages. Log will be printed  after "
-                "completion."
-            )
-            with ProgressBar():
-                dask.compute(*tasks)
-            message_buffer.flush()
+                print(
+                    f"({index + 1}/{max_index}): Uploaded page to " f"{page.get_url()}."
+                )
+
+        if param.parallel:
+            _ = parallelize(upload_page_, param.pages, flush_at_end=param.debug)
+        else:
+            _ = [upload_page_(p, i) for i, p in enumerate(param.pages)]
 
     class CreatePagePackageParam(model.OswBaseModel):
         """Parameter object for create_page_package method."""
@@ -538,7 +545,7 @@ class WtSite:
                             content=slot_content,
                         )
                 pages.append(page_obj)
-        return "ReadPagePackageResult"(page_list=pages)
+        return WtSite.ReadPagePackageResult(page_list=pages)
 
     class UploadPagePackageParam(model.OswBaseModel):
         """Parameter class for upload_page_package method."""
@@ -553,7 +560,8 @@ class WtSite:
         """If True, prints debug information."""
 
     def upload_page_package(self, param: UploadPagePackageParam):
-        """Uploads a page package to the wiki defined by a list of WtPage objects or a storage path.
+        """Uploads a page package to the wiki defined by a list of WtPage objects or
+        a storage path.
 
         Parameters
         ----------
@@ -574,6 +582,39 @@ class WtSite:
             ).pages
         for page in pages:
             page.edit()
+
+    def get_file_pages(self, limit: int = 1000000) -> List[str]:
+        """Get all file pages in the wiki"""
+        full_page_titles = wt.prefix_search(
+            site=self._site,
+            text=wt.SearchParam(query="File:", debug=False, limit=limit),
+        )
+        return full_page_titles
+
+    def get_file_info_and_usage(
+        self,
+        page_titles: Union[str, List[str], wt.SearchParam],
+    ) -> list:
+        """Get the file info and usage for one or more file pages.
+
+        Parameters
+        ----------
+        page_titles:
+            One or more full page titles of file pages or wiki_tools.SearchParam.
+
+        Returns
+        -------
+        result:
+            Dictionary with page titles as keys and nested dictionary with keys 'info'
+            and 'usage'.
+        """
+        if isinstance(page_titles, str):
+            title = wt.SearchParam(query=[page_titles], debug=False, parallel=True)
+        elif isinstance(page_titles, list):
+            title = wt.SearchParam(query=page_titles, debug=False, parallel=True)
+        else:  # SearchParam
+            title = page_titles
+        return wt.get_file_info_and_usage(site=self._site, title=title)
 
 
 class WtPage:
@@ -765,7 +806,8 @@ class WtPage:
                     self._slots_changed[slot_key] = False
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
-                        content = json.dumps(content)
+                        if not isinstance(content, str):
+                            content = json.dumps(content)
                     params["slot_" + slot_key] = content
             if changed:
                 self.wtSite._site.api(
@@ -809,8 +851,7 @@ class WtPage:
             self._current_revision["timestamp"].replace("Z", "+00:00")
         )
 
-    @_basemodel_decorator
-    class PageDumpConfig(BaseModel):
+    class PageDumpConfig(model.OswBaseModel):
         """Configuration to dump wiki pages to the file system"""
 
         target_dir: Union[str, Path]
@@ -923,3 +964,18 @@ class WtPage:
             package_page.fileURLPath = path_prefix + file_name
 
         return package_page
+
+    def get_file_info_and_usage(
+        self, debug: bool = False
+    ) -> Dict[str, Union[str, List[str]]]:
+        return wt.get_file_info_and_usage(
+            site=self.wtSite._site,
+            title=wt.SearchParam(query=self.title, debug=debug),
+        )[0]
+
+    def purge(self):
+        self._page.purge()
+
+
+# Updating forwards refs in pydantic models
+WtSite.UploadPageParam.update_forward_refs()

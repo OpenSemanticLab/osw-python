@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from osw.core import OSW
-from osw.utils.data_import_utility import get_uuid_from_object_via_type
+from osw.data.import_utility import get_uuid_from_object_via_type
 
 
 def get_uuid_from_object_via_type_test():

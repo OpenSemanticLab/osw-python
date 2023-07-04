@@ -65,7 +65,6 @@ di.print()
 print(type(di))
 
 # create custom model
-# @model._basemodel_decorator
 # class MyModel(model.BaseModel, metaclass=OswClassMetaclass, osw_template="MyTemplate", osw_footer_template="MyFooterTemplate"):
 #    my_property_2: Optional[str]
 #    my_property: Optional[int] =  Field(None, title="My Property")

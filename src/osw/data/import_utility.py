@@ -11,6 +11,7 @@ from geopy import Nominatim
 from jsonpath_ng import ext as jp
 
 from osw import wiki_tools as wt
+from osw.data.mining import RegExPatternExtended
 from osw.model import entity as model
 from osw.wtsite import WtSite
 
@@ -42,6 +43,36 @@ REGEX_PATTERN: dict[str, Union[str, dict[str, str]]] = {
         "Groups": {1: "Namespace", 2: "Prefix", 3: "UUID"},
     },
 }
+REGEX_PATTERN_LIST = [
+    RegExPatternExtended(
+        description="SAP OU number and name from DN",
+        pattern=r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
+        group_keys=["Something", "SAP OU number", "SAP OU name"],
+    ),
+    RegExPatternExtended(
+        description="Location name from DN",
+        pattern=r"CN=[A-Za-z]+\-(\d+)_L_([^_]+),OU=Standorte",
+        group_keys=["SAP institute number", "Location name"],
+    ),
+    RegExPatternExtended(
+        description="Location/Site parts from DN",
+        pattern=r"CN=[A-Za-z]+\-(\d+)_L_(([^_^ ^-]+)-([^_^ ]+) (\d+))," r"OU=Standorte",
+        group_keys=[
+            "SAP institute number",
+            "Site name",
+            "City",
+            "Street",
+            "House number",
+        ],
+    ),
+    RegExPatternExtended(
+        description="UUID from full page title",
+        pattern=r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
+        group_keys=["Namespace", "Prefix", "UUID"],
+    ),
+]
+REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
+REGEX_PATTERN_LIB = {rep.description: rep for rep in REGEX_PATTERN_LIST}
 
 
 # Classes
@@ -672,10 +703,11 @@ def get_entities_from_osw(
     entities_from_osw = []
     if debug:
         print(f"Searching for instances of {category_to_search} in OSW...")
-    entities = wt.semantic_search(
-        site=wtsite_obj._site,
-        query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
-        debug=debug,
+    entities = wtsite_obj.semantic_search(
+        query=wt.SearchParam(
+            query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
+            debug=debug,
+        )
     )
     for entity in entities:
         # entity = full page name

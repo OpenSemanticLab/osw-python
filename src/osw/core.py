@@ -7,17 +7,17 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 from uuid import UUID
 
-import dask
-from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
-from osw.utils.util import BufferedPrint
+from osw.model.static import OswBaseModel
+from osw.utils.util import parallelize
+from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
 
@@ -65,7 +65,8 @@ class OSW(BaseModel):
 
     @staticmethod
     def get_osw_id(uuid: uuid) -> str:
-        """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing all "-" from the uuid-string
+        """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing
+        all '-' from the uuid-string
 
         Parameters
         ----------
@@ -93,7 +94,6 @@ class OSW(BaseModel):
         """
         return UUID(osw_id.replace("OSW", ""))
 
-    @model._basemodel_decorator
     class SchemaRegistration(BaseModel):
         """
         dataclass param of register_schema()
@@ -117,7 +117,8 @@ class OSW(BaseModel):
         schema_bases: List[str] = ["Category:Item"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
-        """registers a new or updated schema in OSW by creating the corresponding category page
+        """Registers a new or updated schema in OSW by creating the corresponding
+        category page.
 
         Parameters
         ----------
@@ -177,7 +178,6 @@ class OSW(BaseModel):
         page.edit()
         print("Entity stored at " + page.get_url())
 
-    @model._basemodel_decorator
     class SchemaUnregistration(BaseModel):
         """
         dataclass param of register_schema()
@@ -237,7 +237,6 @@ class OSW(BaseModel):
         append = "append"  # append to the current model
         replace = "replace"  # replace the current model
 
-    @model._basemodel_decorator
     class FetchSchemaParam(BaseModel):
         """_summary_
 
@@ -246,7 +245,8 @@ class OSW(BaseModel):
         schema_title:
             the title (wiki page name) of the schema (default: Category:Item)
         root:
-            marks the root iteration for a recursive fetch (internal param, default: True)
+            marks the root iteration for a recursive fetch (internal param,
+            default: True)
         mode:
             append or replace (default) current schema, see FetchSchemaMode
         """
@@ -258,12 +258,13 @@ class OSW(BaseModel):
         ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
-        """loads the given schema from the OSW instance and autogenerates python datasclasses within osw.model.entity from it
+        """Loads the given schema from the OSW instance and autogenerates python
+        datasclasses within osw.model.entity from it
 
         Parameters
         ----------
-        fetchSchemaParam, optional
-            see FetchSchemaParam, by default None
+        fetchSchemaParam
+            See FetchSchemaParam, by default None
         """
         site_cache_state = self.site.get_cache_enabled()
         self.site.enable_cache()
@@ -334,7 +335,10 @@ class OSW(BaseModel):
                 print("Error: datamodel-codegen not found")
                 return
             os.system(
-                f"{exec_path}  --input {schema_path} --input-file-type jsonschema --output {temp_model_path} \
+                f"{exec_path}  \
+                --input {schema_path} \
+                --input-file-type jsonschema \
+                --output {temp_model_path} \
                 --base-class OswBaseModel \
                 --use-default \
                 --enum-field-as-literal one \
@@ -364,20 +368,19 @@ class OSW(BaseModel):
             os.remove(temp_model_path)
 
             content = re.sub(
-                r"(import OswBaseModel)", "from pydantic import BaseModel", content, 1
+                r"(import OswBaseModel)",
+                "from pydantic import BaseModel, Field",
+                content,
+                1,
             )  # remove import statement
 
             if fetchSchemaParam.mode == "replace":
 
                 header = (
                     "from uuid import uuid4\n"
-                    "from typing import TYPE_CHECKING, Type, TypeVar\n"
-                    "from osw.model.static import OswBaseModel, Ontology\n"
-                    "\n"
-                    "if TYPE_CHECKING:\n"
-                    "    from dataclasses import dataclass as _basemodel_decorator\n"
-                    "else:\n"
-                    "    _basemodel_decorator = lambda x: x  # noqa: E731\n"
+                    "from typing import Type, TypeVar\n"
+                    "from osw.model.static import _basemodel_decorator, OswBaseModel, "
+                    "Ontology\n"
                     "\n"
                 )
 
@@ -387,11 +390,11 @@ class OSW(BaseModel):
                     content,
                     1,
                 )  # replace first match
-                content = re.sub(
-                    r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
-                    r"@_basemodel_decorator\n\1",
-                    content,
-                )
+                # content = re.sub(
+                #     r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
+                #     r"@_basemodel_decorator\n\1",
+                #     content,
+                # )
                 content = re.sub(
                     r"(UUID = Field\(...)",
                     r"UUID = Field(default_factory=uuid4",
@@ -432,8 +435,9 @@ class OSW(BaseModel):
 
     def load_entity(self, entity_title) -> model.Entity:
         """Loads the entity with the given wiki page name from the OSW instance.
-            Creates a instance of the class specified by the "type" attribute, default model.Entity
-            Instance of model.Entity can be casted to any subclass with .cast(model.<class>)
+        Creates an instance of the class specified by the "type" attribute, default
+        model.Entity. An instance of model.Entity can be cast to any subclass with
+        .cast(model.<class>) .
 
         Parameters
         ----------
@@ -473,6 +477,7 @@ class OSW(BaseModel):
         entities: Union[model.Entity, List[model.Entity]]
         namespace: Optional[str]
         parallel: Optional[bool] = False
+        debug: Optional[bool] = False
 
     def store_entity(
         self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
@@ -484,29 +489,27 @@ class OSW(BaseModel):
         param:
             StoreEntityParam, the dataclass instance or a list of instances
         """
+        if isinstance(param, model.Entity):
+            param = OSW.StoreEntityParam(entities=[param])
+        if isinstance(param, list):
+            param = OSW.StoreEntityParam(entities=param)
+        if not isinstance(param.entities, list):
+            param.entities = [param.entities]
 
-        namespace = None
-        parallel = False
-        entity = param
-        if isinstance(param, OSW.StoreEntityParam):
-            entity = param.entities
-            namespace = param.namespace
-            parallel = param.parallel
-        if not isinstance(entity, list):
-            entity = [entity]
-        # entity is a list
-        max_index = len(entity)
+        max_index = len(param.entities)
         if max_index >= 5:
-            parallel = True
+            param.parallel = True
 
-        def store_entity(index_, e_, namespace_=namespace):
-            if namespace_ is None and isinstance(e_, model.Item):
+        def store_entity_(
+            entity: model.Entity, index: int = None, namespace_=param.namespace
+        ) -> None:
+            if namespace_ is None and isinstance(entity, model.Item):
                 namespace_ = "Item"
             if namespace_ is not None:
-                entity_title = namespace_ + ":" + OSW.get_osw_id(e_.uuid)
+                entity_title = namespace_ + ":" + OSW.get_osw_id(entity.uuid)
                 page = self.site.get_WtPage(entity_title)
                 jsondata = json.loads(
-                    e_.json(exclude_none=True)
+                    entity.json(exclude_none=True)
                 )  # use pydantic serialization, skip none values
                 page.set_slot_content("jsondata", jsondata)
             else:
@@ -519,49 +522,107 @@ class OSW(BaseModel):
                 "footer", "{{#invoke:Entity|footer}}"
             )  # required for footer rendering
             page.edit()
-            msg = f"({index_+1}/{max_index}) Entity stored at " f"{page.get_url()}."
-            if parallel:
-                print(msg, file=message_buffer)
+            if index is None:
+                print(f"Entity stored at {page.get_url()}.")
             else:
-                print(msg)
+                print(
+                    f"({index + 1}/{max_index}) Entity stored at " f"{page.get_url()}."
+                )
 
-        tasks = []
-        for index, e in enumerate(entity):
-            if not parallel:
-                store_entity(index, e)
+        if param.parallel:
+            _ = parallelize(store_entity_, param.entities, flush_at_end=param.debug)
+        else:
+            _ = [store_entity_(e, i) for i, e in enumerate(param.entities)]
+
+    class DeleteEntityParam(model.OswBaseModel):
+        entities: List[model.Entity]
+        comment: Optional[str] = None
+        parallel: Optional[bool] = False
+        debug: Optional[bool] = False
+
+    def delete_entity(self, entity: Union[Any, DeleteEntityParam], comment: str = None):
+
+        """Deletes the given entity/entities from the OSW instance."""
+        if not isinstance(entity, OSW.DeleteEntityParam):
+            if isinstance(entity, list):
+                entity = OSW.DeleteEntityParam(entities=entity)
             else:
-                tasks.append(dask.delayed(store_entity)(index, e))
-        if parallel:
-            message_buffer = BufferedPrint()
-            print(
-                "(Parallel execution) Storing entities. Log will be printed after "
-                "completion."
+                entity = OSW.DeleteEntityParam(entities=[entity])
+        if comment is not None:
+            entity.comment = comment
+        if len(entity.entities) >= 5:
+            entity.parallel = True
+
+        def delete_entity_(entity_, comment_: str = None):
+            """Deletes the given entity from the OSW instance.
+
+            Parameters
+            ----------
+            entity_:
+                The dataclass instance to delete
+            comment_:
+                Command for the change log, by default None
+            """
+            if isinstance(entity_, model.Item):
+                entity_title = "Item:" + OSW.get_osw_id(entity_.uuid)
+                page = self.site.get_WtPage(entity_title)
+            else:
+                print("Error: Unsupported entity type")
+                return
+            if page.exists:
+                page.delete(comment_)
+                print("Entity deleted: " + page.get_url())
+            else:
+                print(f"Entity '{entity_title}' does not exist!")
+
+        if entity.parallel:
+            _ = parallelize(
+                delete_entity_,
+                entity.entities,
+                flush_at_end=entity.debug,
+                comment_=entity.comment,
             )
-            with ProgressBar():
-                dask.compute(*tasks)
-            message_buffer.flush()
-
-    def delete_entity(self, entity, comment: str = None):
-        """deletes the given entity from the OSW instance
-
-        Parameters
-        ----------
-        entity
-            the dataclass instance to delete
-        comment, optional
-            command for the change log, by default None
-        """
-        if isinstance(entity, model.Item):
-            entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
-            page = self.site.get_WtPage(entity_title)
         else:
-            print("Error: Unsupported entity type")
-            return
-        if page.exists:
-            page.delete(comment)
-            print("Entity deleted: " + page.get_url())
+            _ = [delete_entity_(e, entity.comment) for e in entity.entities]
+
+    class QueryInstancesParam(model.OswBaseModel):
+        categories: List[Union[str, OswBaseModel]]
+        parallel: Optional[bool] = False
+        debug: Optional[bool] = False
+        limit: Optional[int] = 1000
+
+    def query_instances(
+        self, category: Union[str, OswBaseModel, OSW.QueryInstancesParam]
+    ) -> List[str]:
+        def get_page_title(category_: Union[str, OswBaseModel]) -> str:
+            error_msg = (
+                "Category must be a string, a dataclass instance with "
+                "a 'type' attribute or osw.wiki_tools.SearchParam."
+            )
+            if isinstance(category_, str):
+                return category_.split(":")[-1]  # page title w/o namespace
+            elif isinstance(category_, model.OswBaseModel):
+                type_ = getattr(category_, "type", None)
+                if type_:
+                    full_page_title = type_[0]
+                    return full_page_title.split(":")[-1]  # page title w/o namespace
+                else:
+                    raise TypeError(error_msg)
+            else:
+                raise TypeError(error_msg)
+
+        if isinstance(category, OSW.QueryInstancesParam):
+            page_titles = [get_page_title(cat) for cat in category.categories]
         else:
-            print(f"Entity '{entity_title}' does not exist!")
+            page_titles = [get_page_title(category)]
+            category = OSW.QueryInstancesParam(category=page_titles)
+
+        search_param = SearchParam(
+            query=[f"[[HasType::Category:{page_title}]]" for page_title in page_titles],
+            **category.dict(exclude={"categories"}),
+        )
+        full_page_titles = self.site.semantic_search(search_param)
+        return full_page_titles
 
     class _ImportOntologyParam(model.OswBaseModel):
         ontology: model.Ontology

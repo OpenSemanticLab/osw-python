@@ -1,0 +1,10 @@
+<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+ <!-- Created with SVG-edit - https://github.com/SVG-Edit/svgedit-->
+
+ <g class="layer">
+  <title>Layer 1</title>
+  <line fill="none" id="svg_1" stroke="#000000" stroke-width="5" x1="178.46667" x2="332.46667" y1="152.5" y2="182.5"/>
+  <ellipse cx="235.46667" cy="127.5" fill="#FF0000" id="svg_2" rx="25" ry="47" stroke="#000000"/>
+  <text fill="#000000" font-family="Serif" font-size="24" id="svg_3" stroke="#000000" stroke-width="0" style="cursor: move;" text-anchor="middle" x="257.29834" xml:space="preserve" y="231.5">This is just a test file</text>
+ </g>
+</svg>

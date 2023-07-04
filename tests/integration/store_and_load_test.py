@@ -10,7 +10,7 @@ from osw.wtsite import WtSite
 def test_store_and_load(wiki_domain, wiki_username, wiki_password):
     site = mwclient.Site(host=wiki_domain)
     site.login(username=wiki_username, password=wiki_password)
-    wtsite = WtSite(site)
+    wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
     osw = OSW(site=wtsite)
 
     my_entity = model.Item(label=[model.Label(text="MyItem")])

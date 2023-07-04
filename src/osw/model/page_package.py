@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -38,7 +38,7 @@ class PagePackagePage(BaseModel):
     fileURLPath: Optional[str]
     """Similar to fileURL, but gets appended to the baseURL value set for the package,
     if one was set."""
-    slots: dict[str, PagePackagePageSlot]
+    slots: Dict[str, PagePackagePageSlot]
     """Slots used to store data, e.g., the main slot, storing the wiki text of the
     page. Other slots could be jsondata, jsonschema etc."""
 
@@ -155,7 +155,7 @@ class PagePackageBundle(BaseModel):
     (usually) two-letter IETF language tag for that language."""
     licenseName: Optional[str] = "CC BY-NC 4.0"
     """The default license under which these packages are published."""
-    packages: dict[str, PagePackage]
+    packages: Dict[str, PagePackage]
     """Holds the set of packages, with the package name as the key
     and the set of package parameters as the values."""
 
@@ -222,6 +222,15 @@ class PagePackageMetaData(BaseModel):
     page_titles: List[str]
     """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
      to be packaged."""
+
+    requiredExtensions: Optional[List[str]]
+    """The default value for PagePackage.requiredExtensions.
+    An array of the names of any extensions required for this package to work. (In
+    the future, this parameter may also allow defining specific versions that are
+    required for specific extensions, but this is not currently possible.)"""
+    requiredPackages: Optional[List[str]]
+    """The default value for PagePackage.requiredPackages.
+    An array of the names of any additional packages required by this package."""
 
 
 # Special namespace mappings (default is namespace_const = "NS_" + namespace.upper())

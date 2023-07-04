@@ -1,6 +1,23 @@
 # Changelog
 
-## Version v0.8.x (development)
+## Version v0.9.x (development)
+
+- parallelize page operation to increase performance significantly
+- improve local slot editor
+- deprecate WtPage.from_domain()
+- deprecate WtPage.from_credentials()
+- add PagePackage import
+- add utils
+- add additional requirements 'dataimport', 'UI'
+- reset 'setuptools' and 'pytest' versions to latest
+- extend python version support to 3.11
+
+## Version v0.8.1
+
+- fix #18
+- fix #19
+
+## Version v0.8.0
 
 - Restructure package package creation
 - fix namespace mappings (e. g. for the SMW Property namespace)

@@ -16,7 +16,7 @@ from osw.data.mining import (
     test_regex_pattern,
 )
 from osw.model.entity import Label, WikiFile
-from osw.util import parallelize
+from osw.utils.util import parallelize
 from osw.wtsite import WtPage, WtSite
 
 # Constants

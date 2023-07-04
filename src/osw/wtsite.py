@@ -1,4 +1,5 @@
-# extents mwclient.site
+# Generic extension of mwclient.site, mainly to provide multi-slot page handling and caching
+# OpenSemanticLab specific features are located in osw.core.OSW
 
 import json
 import os
@@ -12,11 +13,14 @@ from typing import Dict, List, Optional, Union
 import mwclient
 from jsonpath_ng.ext import parse
 from pydantic import FilePath
+from typing_extensions import deprecated
 
 import osw.model.entity as model
 import osw.model.page_package as package
 import osw.utils.util as ut
 import osw.wiki_tools as wt
+from osw.auth import CredentialManager
+from osw.model.static import OswBaseModel
 from osw.utils.util import parallelize
 
 # Constants
@@ -36,28 +40,99 @@ SLOTS = {
 
 # Classes
 class WtSite:
-    def __init__(self, site: mwclient.Site = None):
-        if site:
-            self._site = site
+    """A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and
+    caching"""
+
+    class WtSiteConfig(OswBaseModel):
+        """The configuration for a WtSite instance"""
+
+        iri: str
+        """The IRI of the wiki site, typically the domain"""
+        cred_mngr: CredentialManager
+        """The CredentialManager to use for authentication"""
+        login: Optional[str]
+        """The preferred login name when multiple logins are possible (not supported
+        yet)"""
+
+    @deprecated("Use WtSiteConfig instead")
+    class WtSiteLegacyConfig(OswBaseModel):
+        """The legacy configuration for a WtSite instance"""
+
+        site: mwclient.Site
+        """the mwclient.Site to use for communication with the wiki"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def __init__(self, config=Union[WtSiteConfig, WtSiteLegacyConfig]):
+        """creates a new WtSite instance from a WtSiteConfig
+
+        Parameters
+        ----------
+        config
+            the WtSiteConfig or WtSiteLegacyConfig to create the WtSite from
+
+        """
+        if type(config) == WtSite.WtSiteLegacyConfig:
+            self._site = config.site
         else:
-            raise ValueError("Parameter 'site' is None")
+            cred = config.cred_mngr.get_credential(
+                CredentialManager.CredentialConfig(
+                    iri=config.iri, fallback=CredentialManager.CredentialFallback.ask
+                )
+            )
+            if type(cred) == CredentialManager.UserPwdCredential:
+                self._site = mwclient.Site(cred.iri, path="/w/")
+                self._site.login(username=cred.username, password=cred.password)
+            elif type(cred) == CredentialManager.OAuth1Credential:
+                self._site = mwclient.Site(
+                    "wiki-dev.open-semantic-lab.org",
+                    path="/w/",
+                    consumer_token=cred.consumer_token,
+                    consumer_secret=cred.consumer_secret,
+                    access_token=cred.access_token,
+                    access_secret=cred.access_secret,
+                )
+            else:
+                raise ValueError("Unsupported credential type: " + str(type(cred)))
+            del cred
+
+        # The page cache is used to store pages that already have been loaded from
+        #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
 
     @classmethod
+    @deprecated("Use contructor instead")
     def from_domain(
         cls,
         domain: str = None,
         password_file: Union[str, FilePath] = None,
         credentials: dict = None,
     ):
+        """creates a new WtSite instance from a domain and a password file
+
+        Parameters
+        ----------
+        domain, optional
+            the wiki domain, by default None
+        password_file, optional
+            password file with credentials for the wiki site, by default None
+        credentials, optional
+            credentials of the wiki site, by default None
+
+        Returns
+        -------
+            a new WtSite instance
+        """
         if credentials is None:
             site = wt.create_site_object(domain, password_file)
         else:
             site = wt.create_site_object(domain, "", credentials)
-        return cls(site)
+        return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     @classmethod
+    @deprecated("Use contructor instead")
     def from_credentials(
         cls,
         credentials: Union[Dict[str, Dict[str, str]], str, FilePath],
@@ -91,7 +166,7 @@ class WtSite:
         _credentials: Dict = accounts[_domain]
         # todo: research why nested typing doesn't work as expected fo the dictionary
         site = wt.create_site_object(_domain, "", _credentials)
-        return cls(site)
+        return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     def get_WtPage(self, title: str = None):
         retry = 0
@@ -165,8 +240,6 @@ class WtSite:
         log=False,
         dryrun=False,
     ):
-        # todo: use Param dataclass
-        # todo: add parallel support for modify_page
         titles = []
         if mode == "prefix":
             titles = wt.prefix_search(self._site, query)
@@ -242,14 +315,32 @@ class WtSite:
         else:
             _ = [upload_page_(p, i) for i, p in enumerate(param.pages)]
 
-    def create_page_package(
-        self,
-        config: package.PagePackageConfig,
-        dump_config: "WtPage.PageDumpConfig" = None,
-        debug: bool = True,
-    ):
+    class CreatePagePackageParam(model.OswBaseModel):
+        """Parameter object for create_page_package method."""
+
+        config: package.PagePackageConfig
+        """Configuration object for the page package."""
+        dump_config: Optional["WtPage.PageDumpConfig"] = None
+        """Configuration object for the page dump"""
+        debug: Optional[bool] = True
+        """If True, debug messages will be printed."""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def create_page_package(self, param: CreatePagePackageParam):
         """Create a page package, which is a locally stored collection of wiki pages
-        and their slots, based on a configuration object."""
+        and their slots, based on a configuration object.
+
+        Parameters:
+        -----------
+        param:  CreatePagePackageParam
+        """
+
+        debug = param.debug
+        dump_config = param.dump_config
+        config = param.config
+
         # Clear the content directory
         try:
             if debug:
@@ -302,33 +393,42 @@ class WtSite:
         with open(file_name, "w") as f:
             f.write(content)
 
-    def read_page_package(
-        self,
-        storage_path: Union[str, Path],
-        packages_info_file_name: Union[str, Path] = None,
-        selected_slots: List[str] = None,
-        debug: bool = False,
-    ) -> List["WtPage"]:
+    class ReadPagePackageParam(model.OswBaseModel):
+        """Parameter type of read_page_package."""
+
+        storage_path: Union[str, Path]
+        """The path to the directory where the page package is stored."""
+        packages_info_file_name: Optional[Union[str, Path]] = None
+        """The name of the file that contains the page package information. If not
+            specified, the default value 'packages.json' is used."""
+        selected_slots: Optional[List[str]] = None
+        """A list of slots that should be read. If None, all slots are read."""
+        debug: Optional[bool] = False
+        """If True, debug information is printed to the console."""
+
+    class ReadPagePackageResult(model.OswBaseModel):
+        """Return type of read_page_package."""
+
+        pages: List["WtPage"]
+        """A list of WtPage objects."""
+
+    def read_page_package(self, param: ReadPagePackageParam) -> ReadPagePackageResult:
         """Read a page package, which is a locally stored collection of wiki pages and
         their slots' content.
 
         Parameters
         ----------
-        storage_path:
-            The path to the directory where the page package is stored.
-        packages_info_file_name:
-            The name of the file that contains the page package information. If not
-            specified, the default value 'packages.json' is used.
-        selected_slots:
-            A list of slots that should be read. If None, all slots are read.
-        debug:
-            If True, debug information is printed to the console.
+        param: ReadPagePackageParam
 
         Returns
         -------
-        result:
-            A list of WtPage objects.
+        result: ReadPagePackageResult
         """
+        # map params
+        storage_path = param.storage_path
+        packages_info_file_name = param.packages_info_file_name
+        selected_slots = param.selected_slots
+        debug = param.debug
         # Test arguments / set default value
         if not os.path.exists(storage_path):
             raise FileNotFoundError(f"Storage path '{storage_path}' does not exist.")
@@ -444,20 +544,41 @@ class WtSite:
                             content=slot_content,
                         )
                 pages.append(page_obj)
-        return pages
+        return "ReadPagePackageResult"(page_list=pages)
 
-    def upload_page_package(
-        self,
-        storage_path: Union[str, Path] = None,
-        pages: List["WtPage"] = None,
-        debug: bool = False,
-    ):
+    class UploadPagePackageParam(model.OswBaseModel):
+        """Parameter class for upload_page_package method."""
+
+        storage_path: Optional[Union[str, Path]] = None
+        """The path to the storage directory.
+        If 'storage_path' is not given, 'pages' must be given."""
+        pages: Optional[List["WtPage"]] = None
+        """A list of WtPage objects.
+        If 'pages' is not given, 'storage_path' must be given."""
+        debug: Optional[bool] = False
+        """If True, prints debug information."""
+
+    def upload_page_package(self, param: UploadPagePackageParam):
+        """Uploads a page package to the wiki defined by a list of WtPage objects or
+        a storage path.
+
+        Parameters
+        ----------
+        param : UploadPagePackageParam
+
+        """
+        storage_path = param.storage_path
+        pages = param.pages
+        debug = param.debug
+
         if storage_path and pages is None:
             raise ValueError(
                 "Error: If 'storage_path' is not given, 'pages' must be given."
             )
         if pages is None:
-            pages = self.read_page_package(storage_path=storage_path, debug=debug)
+            pages = self.read_page_package(
+                WtSite.ReadPagePackageParam(storage_path=storage_path, debug=debug)
+            ).pages
         for page in pages:
             page.edit()
 
@@ -478,17 +599,13 @@ class WtSite:
         Parameters
         ----------
         page_titles:
-            One or more full page titles of file pages.
-        debug:
-            If True, print debug messages.
-        parallel:
-            If True, use dask to parallelize the queries.
+            One or more full page titles of file pages or wiki_tools.SearchParam.
 
         Returns
         -------
         result:
-            Dictionary with page titles as keys and nested dictionary with keys 'info' and
-            'usage'.
+            Dictionary with page titles as keys and nested dictionary with keys 'info'
+            and 'usage'.
         """
         if isinstance(page_titles, str):
             title = wt.SearchParam(query=[page_titles], debug=False, parallel=True)

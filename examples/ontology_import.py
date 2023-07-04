@@ -1,34 +1,57 @@
 import json
-import os
+
+# import os
 import re
 from uuid import UUID
 
+import mwclient
 from pyld import jsonld
 from rdflib import Graph
 
 import osw.model.entity as model
+
+# from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.wtsite import WtSite
 
 # create/update the password file under examples/accounts.pwd.yaml
-pwd_file_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
-)
-wtsite = WtSite.from_domain("onto-wiki.eu", pwd_file_path)
+# pwd_file_path = os.path.join(
+#     os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
+# )
+# cm = CredentialManager(cred_filepath=pwd_file_path)
+# wtsite = WtSite(WtSite.WtSiteConfig(
+#     iri="http://localhost:18081",
+#     cred_mngr=cm
+# ))
+
+# or use a hardocded login
+site = mwclient.Site(scheme="http", host="localhost:18081", path="/w/")
+site.login("Admin", "change_me123123")
+wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
+
 osw = OSW(site=wtsite)
 
-# load the EmmoTerm schema => run this code only once
-# osw.fetch_schema(
-#    osw.FetchSchemaParam(
-#        schema_title="Category:OSW57beed5e1294434ba77bb6516e461456", mode="replace" # EmmoTerm
-#    )
-# )
+
+# load the EmmoTerm schema => run the script a second time after the schema was loaded
+try:
+    model.EmmoTerm
+except AttributeError:
+    # name 'EmmoTerm' is not defined
+    osw.fetch_schema(
+        osw.FetchSchemaParam(
+            schema_title="Category:OSW57beed5e1294434ba77bb6516e461456",
+            mode="replace",  # EmmoTerm
+        )
+    )
 
 # load the ontology
 g = Graph()
-# g.parse("http://www.w3.org/People/Berners-Lee/card")
-# g.parse("https://raw.githubusercontent.com/emmo-repo/domain-battery/master/battery.ttl", format="n3")
-g.parse(r"BVCO_inferred.ttl")
+g.parse(
+    "https://raw.githubusercontent.com/emmo-repo/domain-battery/master/battery.ttl",
+    format="n3",
+)
+# g.parse("https://github.com/Battery-Value-Chain-Ontology/ontology/releases/download/v0.3.0/BVCO_inferred.ttl", format="n3")
+# g.parse(r"BVCO_inferred.ttl")
 
 # convert to json-ld dict
 g = json.loads(g.serialize(format="json-ld", auto_compact=True))
@@ -41,7 +64,7 @@ context = {
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "skos": "http://www.w3.org/2004/02/skos/core#",
     "dc": "http://purl.org/dc/terms/",
-    # "emmo": "http://emmo.info/emmo#", #keep values with full uri
+    "emmo": "http://emmo.info/emmo#",  # keep values with full uri
     "uri": {"@id": "@id"},
     "rdf_type": {"@id": "@type"},
     # "label": "rdfs:label",
@@ -49,7 +72,7 @@ context = {
     "altLabel": {"@id": "skos:altLabel"},
     "text": {"@id": "@value"},
     "lang": {"@id": "@language"},
-    "subClassOf": {"@id": "rdfs:subClassOf", "@type": "@id"},
+    "subclass_of": {"@id": "rdfs:subClassOf", "@type": "@id"},
     "source": "dc:source",
     "disjointUnionOf": "owl:disjointUnionOf",
     "disjointWith": "owl:disjointWith",
@@ -88,10 +111,10 @@ ensure_array = [
     "altLabel",
     "comment",
     "description",
-    "subClassOf",
+    "subclass_of",
 ]
-map_uuid_uri = []
-remove_unnamed = ["subClassOf"]  # , 'equivalentClass']
+map_uuid_uri = ["subclass_of"]
+remove_unnamed = ["subclass_of"]  # , 'equivalentClass']
 
 # postprocess json-ld
 for node in compacted["@graph"]:
@@ -110,25 +133,29 @@ for node in compacted["@graph"]:
     for key in ensure_array:
         if key in node and not isinstance(node[key], list):
             node[key] = [node[key]]
-    for key in map_uuid_uri:
-        if key in node:
-            if isinstance(node[key], list):
-                for i, val in enumerate(node[key]):
-                    node[key][i] = "Category:OSW" + str(
-                        UUID(re.sub(r"[^A-Fa-f0-9]", "", node[key][i])[-32:])
-                    )
-            if isinstance(node[key], str):
-                node[key][i] = "Category:OSW" + str(
-                    UUID(re.sub(r"[^A-Fa-f0-9]", "", node[key][i])[-32:])
-                )
     for key in remove_unnamed:
         if key in node:
             if isinstance(node[key], list):
                 node[key] = [value for value in node[key] if not value.startswith("_:")]
             elif isinstance(node[key], str) and node[key].startswith("_:"):
                 del node[key]
+    for key in map_uuid_uri:
+        if key in node:
+            if isinstance(node[key], list):
+                for i, val in enumerate(node[key]):
+                    node[key][i] = "Category:OSW" + str(
+                        UUID(re.sub(r"[^A-Fa-f0-9]", "", node[key][i])[-32:])
+                    ).replace("-", "")
+            if isinstance(node[key], str):
+                node[key][i] = "Category:OSW" + str(
+                    UUID(re.sub(r"[^A-Fa-f0-9]", "", node[key][i])[-32:])
+                ).replace("-", "")
 
-    if "rdf_type" in node and node["rdf_type"] == "owl:Class":
+    if (
+        "rdf_type" in node
+        and node["rdf_type"] == "owl:Class"
+        and not node["uri"].startswith("_:")
+    ):
         node["uuid"] = str(UUID(re.sub(r"[^A-Fa-f0-9]", "", node["uri"])[-32:]))
 
         if "prefLabel" in node:
@@ -205,6 +232,7 @@ bvco = model.Ontology(
 )
 
 ontologies = [emmo, battinfo, electrochemistry, periodictable, gpo, bvco]
+# ontologies = [battinfo]
 
 # import ontologies
 osw.import_ontology(OSW.ImportOntologyParam(ontologies=ontologies, entities=entities))

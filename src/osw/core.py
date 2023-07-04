@@ -263,7 +263,7 @@ class OSW(BaseModel):
 
         Parameters
         ----------
-        fetchSchemaParam, optional
+        fetchSchemaParam
             See FetchSchemaParam, by default None
         """
         site_cache_state = self.site.get_cache_enabled()
@@ -432,9 +432,6 @@ class OSW(BaseModel):
             importlib.reload(model)  # reload the updated module
             if not site_cache_state:
                 self.site.disable_cache()  # restore original state
-
-    # todo: write method "get_instances" to get all instances of a class (e.g.
-    #  WikiFiles) from the wiki
 
     def load_entity(self, entity_title) -> model.Entity:
         """Loads the entity with the given wiki page name from the OSW instance.

@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Union
 
 import mwclient
 from jsonpath_ng.ext import parse
-from pydantic import FilePath
+from pydantic import ConfigDict, FilePath
 from typing_extensions import deprecated
 
 import osw.model.entity as model
@@ -51,7 +51,7 @@ class WtSite:
         """The IRI of the wiki site, typically the domain"""
         cred_mngr: CredentialManager
         """The CredentialManager to use for authentication"""
-        login: Optional[str]
+        login: Optional[str] = None
         """The preferred login name when multiple logins are possible (not supported
         yet)"""
 
@@ -61,9 +61,7 @@ class WtSite:
 
         site: mwclient.Site
         """the mwclient.Site to use for communication with the wiki"""
-
-        class Config:
-            arbitrary_types_allowed = True
+        model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def __init__(self, config=Union[WtSiteConfig, WtSiteLegacyConfig]):
         """creates a new WtSite instance from a WtSiteConfig
@@ -269,9 +267,7 @@ class WtSite:
         pages: Union["WtPage", List["WtPage"]]
         parallel: Optional[bool] = False
         debug: Optional[bool] = False
-
-        class Config:
-            arbitrary_types_allowed = True
+        model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def upload_page(
         self,
@@ -325,9 +321,7 @@ class WtSite:
         """Configuration object for the page dump"""
         debug: Optional[bool] = True
         """If True, debug messages will be printed."""
-
-        class Config:
-            arbitrary_types_allowed = True
+        model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def create_page_package(self, param: CreatePagePackageParam):
         """Create a page package, which is a locally stored collection of wiki pages
@@ -869,9 +863,7 @@ class WtPage:
         """Use the (human readable) name of a page also for the file naming.
         Useful to identify dumped files manually. The mapping to the page title/id
         (in general a UUID) is ensured anyway through package.json meta data."""
-
-        class Config:
-            arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
+        model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def dump(self, config: PageDumpConfig) -> package.PagePackagePage:
         """Dump this page to the file system

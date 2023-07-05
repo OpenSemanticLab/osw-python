@@ -1,5 +1,6 @@
 from typing import Optional, Union
 
+from pydantic import ConfigDict
 from sqlalchemy import URL, create_engine
 from sqlalchemy import text as sql_text
 from sqlalchemy.engine import Engine
@@ -21,9 +22,7 @@ class DatabaseController(model.Database):
     """ CredentialManager to login to the database"""
     engine: Optional[Engine]
     """ the internal sqlalchemy engine """
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     class ConnectionString(OswBaseModel):
         """the sqlalchemy database connection string"""
@@ -40,7 +39,7 @@ class DatabaseController(model.Database):
         """ the database port """
         database: str
         """ the database name / identifier """
-        driver: Optional[str]
+        driver: Optional[str] = None
         """ specific driver, e. g. psycopg2 """
 
         def __str__(self):

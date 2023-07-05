@@ -15,7 +15,9 @@ class CredentialManager(OswBaseModel):
 
     cred_filepath: Union[Union[str, FilePath], List[Union[str, FilePath]]]
     """Filepath to yaml file with credentials for osw and connected services"""
-    cert_filepath: Optional[Union[Union[str, FilePath], List[Union[str, FilePath]]]]
+    cert_filepath: Optional[
+        Union[Union[str, FilePath], List[Union[str, FilePath]]]
+    ] = None
     """Filepath to the certificates for osw and connected services"""
 
     class BaseCredential(OswBaseModel):

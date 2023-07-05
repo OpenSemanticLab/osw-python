@@ -38,7 +38,7 @@ class Description(OswBaseModel):
 
 
 class CommonDefinitions(OswBaseModel):
-    __root__: Any
+    __root__: Any = None
 
 
 class Entity(OswBaseModel):

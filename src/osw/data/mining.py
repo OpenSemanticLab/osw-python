@@ -1,7 +1,7 @@
 import re
 from typing import Dict, List, Optional, Union
 
-from pydantic import validator
+from pydantic import ConfigDict, validator
 
 from osw.model.static import OswBaseModel
 
@@ -45,9 +45,9 @@ class RegExPatternExtended(OswBaseModel):
     result. The number of keys must match the number of match groups in the pattern.
     So the first key (list index 0) will be used to access the first match group
     (index 1!)."""
-    example_str: Optional[str]
+    example_str: Optional[str] = None
     """An example string that can be used to test the pattern."""
-    expected_groups: Optional[List[str]]
+    expected_groups: Optional[List[str]] = None
     """A list strings that are expected in the example_match.groups.values(). This is
     used to test the pattern by asserting list(self.example_match.groups.values()) ==
     self.expected_groups"""
@@ -66,6 +66,8 @@ class RegExPatternExtended(OswBaseModel):
         """Return the match result of the example string and the pattern."""
         return self.match(string=self.example_str)
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("group_keys")
     def validate_group_keys(cls, group_keys, values) -> List[str]:
         """Validate that the number of group keys matches the number of match groups,
@@ -87,13 +89,12 @@ class RegExPatternExtended(OswBaseModel):
         else:
             return False
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class MatchResult(OswBaseModel):
-    match: Union[re.Match, None]
-    pattern: Union[RegExPatternExtended, None]
+    match: Union[re.Match, None] = None
+    pattern: Union[RegExPatternExtended, None] = None
 
     @property
     def groups(self):
@@ -107,8 +108,7 @@ class MatchResult(OswBaseModel):
             for key in keys
         }
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 # Functions

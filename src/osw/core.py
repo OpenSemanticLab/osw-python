@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
@@ -57,9 +57,7 @@ class OSW(BaseModel):
         "_osl_template",
         "_osl_footer",
     )  # private properties included in model export
-
-    class Config:
-        arbitrary_types_allowed = True  # neccessary to allow e.g. np.array as type
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     site: WtSite
 
@@ -108,8 +106,7 @@ class OSW(BaseModel):
             list of base schemas (referenced by allOf)
         """
 
-        class Config:
-            arbitrary_types_allowed = True  # allow any class as type
+        model_config = ConfigDict(arbitrary_types_allowed=True)
 
         model_cls: ModelMetaclass
         schema_uuid = str  # Optional[str] = model_cls.__uuid__
@@ -192,8 +189,7 @@ class OSW(BaseModel):
             list of base schemas (referenced by allOf)
         """
 
-        class Config:
-            arbitrary_types_allowed = True  # allow any class as type
+        model_config = ConfigDict(arbitrary_types_allowed=True)
 
         model_cls: Optional[ModelMetaclass]
         model_uuid: Optional[str]

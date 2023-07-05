@@ -1186,8 +1186,7 @@
 <span class="normal">677</span>
 <span class="normal">678</span>
 <span class="normal">679</span>
-<span class="normal">680</span>
-<span class="normal">681</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">680</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -1517,8 +1516,7 @@
                 <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="s2">&quot;from uuid import uuid4</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;from typing import Type, TypeVar</span><span class="se">\n</span><span class="s2">&quot;</span>
-                    <span class="s2">&quot;from osw.model.static import _basemodel_decorator, OswBaseModel, &quot;</span>
-                    <span class="s2">&quot;Ontology</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;from osw.model.static import OswBaseModel, Ontology</span><span class="se">\n</span><span class="s2">&quot;</span>
                     <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="p">)</span>
 
@@ -2336,7 +2334,8 @@ default: True)</p>
 
       <details class="quote">
         <summary>Source code in <code>src/osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">543</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">542</span>
+<span class="normal">543</span>
 <span class="normal">544</span>
 <span class="normal">545</span>
 <span class="normal">546</span>
@@ -2378,8 +2377,7 @@ default: True)</p>
 <span class="normal">582</span>
 <span class="normal">583</span>
 <span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">DeleteEntityParam</span><span class="p">],</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="normal">585</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">DeleteEntityParam</span><span class="p">],</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Deletes the given entity/entities from the OSW instance.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">DeleteEntityParam</span><span class="p">):</span>
@@ -2647,8 +2645,7 @@ datasclasses within osw.model.entity from it</p>
 <span class="normal">430</span>
 <span class="normal">431</span>
 <span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">433</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads the given schema from the OSW instance and autogenerates python</span>
 <span class="sd">    datasclasses within osw.model.entity from it</span>
 
@@ -2770,8 +2767,7 @@ datasclasses within osw.model.entity from it</p>
             <span class="n">header</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="s2">&quot;from uuid import uuid4</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;from typing import Type, TypeVar</span><span class="se">\n</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;from osw.model.static import _basemodel_decorator, OswBaseModel, &quot;</span>
-                <span class="s2">&quot;Ontology</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;from osw.model.static import OswBaseModel, Ontology</span><span class="se">\n</span><span class="s2">&quot;</span>
                 <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
             <span class="p">)</span>
 
@@ -3105,7 +3101,8 @@ model.Entity. An instance of model.Entity can be cast to any subclass with
 
       <details class="quote">
         <summary>Source code in <code>src/osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">436</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">435</span>
+<span class="normal">436</span>
 <span class="normal">437</span>
 <span class="normal">438</span>
 <span class="normal">439</span>
@@ -3142,8 +3139,7 @@ model.Entity. An instance of model.Entity can be cast to any subclass with
 <span class="normal">470</span>
 <span class="normal">471</span>
 <span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
+<span class="normal">473</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads the entity with the given wiki page name from the OSW instance.</span>
 <span class="sd">    Creates an instance of the class specified by the &quot;type&quot; attribute, default</span>
 <span class="sd">    model.Entity. An instance of model.Entity can be cast to any subclass with</span>
@@ -3404,7 +3400,8 @@ category page.</p>
 
       <details class="quote">
         <summary>Source code in <code>src/osw/core.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">482</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">481</span>
+<span class="normal">482</span>
 <span class="normal">483</span>
 <span class="normal">484</span>
 <span class="normal">485</span>
@@ -3456,8 +3453,7 @@ category page.</p>
 <span class="normal">531</span>
 <span class="normal">532</span>
 <span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">534</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>

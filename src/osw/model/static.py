@@ -1,19 +1,13 @@
 """
 This module is to be imported in the dynamically created and updated entity.py module.
 """
-from typing import TYPE_CHECKING, Type, TypeVar, Union
+from typing import Type, TypeVar, Union
 
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
-if TYPE_CHECKING:
-    from dataclasses import dataclass as _basemodel_decorator
-else:
-    _basemodel_decorator = lambda x: x  # noqa: E731
 
-
-@_basemodel_decorator
 class OswBaseModel(BaseModel):
     def full_dict(self, **kwargs):  # extent BaseClass export function
         d = super().dict(**kwargs)

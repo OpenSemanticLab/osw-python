@@ -379,8 +379,7 @@ class OSW(BaseModel):
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import Type, TypeVar\n"
-                    "from osw.model.static import _basemodel_decorator, OswBaseModel, "
-                    "Ontology\n"
+                    "from osw.model.static import OswBaseModel, Ontology\n"
                     "\n"
                 )
 

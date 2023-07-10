@@ -413,6 +413,9 @@ class WtSite:
         pages: List["WtPage"]
         """A list of WtPage objects."""
 
+        class Config:
+            arbitrary_types_allowed = True
+
     def read_page_package(self, param: ReadPagePackageParam) -> ReadPagePackageResult:
         """Read a page package, which is a locally stored collection of wiki pages and
         their slots' content.
@@ -545,7 +548,7 @@ class WtSite:
                             content=slot_content,
                         )
                 pages.append(page_obj)
-        return WtSite.ReadPagePackageResult(page_list=pages)
+        return WtSite.ReadPagePackageResult(pages=pages)
 
     class UploadPagePackageParam(model.OswBaseModel):
         """Parameter class for upload_page_package method."""
@@ -558,6 +561,9 @@ class WtSite:
         If 'pages' is not given, 'storage_path' must be given."""
         debug: Optional[bool] = False
         """If True, prints debug information."""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def upload_page_package(self, param: UploadPagePackageParam):
         """Uploads a page package to the wiki defined by a list of WtPage objects or
@@ -979,3 +985,6 @@ class WtPage:
 
 # Updating forwards refs in pydantic models
 WtSite.UploadPageParam.update_forward_refs()
+WtSite.CreatePagePackageParam.update_forward_refs()
+WtSite.UploadPagePackageParam.update_forward_refs()
+WtSite.ReadPagePackageResult.update_forward_refs()

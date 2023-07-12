@@ -24,6 +24,7 @@ import osw.wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.model.entity import _basemodel_decorator
 from osw.model.static import OswBaseModel
+from osw.utils.jsonldschema import JsonLdSchema
 from osw.utils.util import BufferedPrint
 
 # Definition of constants
@@ -167,6 +168,93 @@ class WtSite:
         site = wt.create_site_object(_domain, "", _credentials)
         return cls(WtSite.WtSiteLegacyConfig(site=site))
 
+    class GetPageParam(model.OswBaseModel):
+        titles: Union[str, List[str]]
+        """title string or list of title strings of the pages to download"""
+        parallel: Optional[bool] = None
+        """whether to download the pages in parallel or sequentially
+        Defaults to True if more than 5 pages are requested, False otherwise"""
+        retries: Optional[int] = 5
+        """How often to retry downloading a page if an error occurs"""
+        retry_delay_s: Optional[int] = 5
+        """Retry delay in seconds"""
+
+    class GetPageResult(model.OswBaseModel):
+        pages: List["WtPage"]
+        """List of pages that have been downloaded"""
+        errors: List[Exception]
+        """List of errors that occurred while downloading pages"""
+
+        class Config:
+            arbitrary_types_allowed = True  # allows to use WtPage in type hints
+
+    def get_page(self, param: GetPageParam) -> GetPageResult:
+        """Downloads a page or a list of pages from the site.
+
+        Parameters
+        ----------
+        param:
+            GetPageParam object
+        """
+        # ensure that titles is a list
+        if not isinstance(param.titles, list):
+            param.titles = [param.titles]
+        max_index = len(param.titles)
+        if param.parallel is None and max_index >= 5:
+            param.parallel = True
+
+        exeptions = []
+        pages = []
+
+        def _get_page(index, title):
+            retry = 0
+            wtpage = None
+            while retry < param.retries:
+                msg = ""
+                try:
+                    if self._cache_enabled and title in self._page_cache:
+                        wtpage = self._page_cache[title]
+                        msg += f"({index + 1}/{max_index}): Page loaded from cache."
+                    else:
+                        wtpage = WtPage(self, title)
+                        msg += f"({index + 1}/{max_index}): Page loaded"
+                        if self._cache_enabled:
+                            self._page_cache[title] = wtpage
+                    pages.append(wtpage)
+                    break
+                except Exception as e:
+                    exeptions.append(e)
+                    msg += str(e)
+                    if retry < param.retries:
+                        retry += 1
+                        msg = f"({index + 1}/{max_index}): Page load failed. Retry ({retry}/{param.retries})"
+                        sleep(5)
+                if param.parallel:
+                    print(msg, file=message_buffer)
+                else:
+                    print(msg)
+            self._clear_cookies()
+            return wtpage
+
+        tasks = []
+        for index, t in enumerate(param.titles):
+            if not param.parallel:
+                _get_page(index, t)
+            else:
+                tasks.append(dask.delayed(_get_page)(index, t))
+        if param.parallel:
+            message_buffer = BufferedPrint()
+            print(
+                "(Parallel execution) Uploading pages. Log will be printed  after "
+                "completion."
+            )
+            with ProgressBar():
+                dask.compute(*tasks)
+            message_buffer.flush()
+
+        return WtPage.GetPageResult(pages=pages, errors=exeptions)
+
+    @deprecated("Use get_page instead")
     def get_WtPage(self, title: str = None):
         retry = 0
         max_retry = 5
@@ -368,6 +456,20 @@ class WtSite:
             else:
                 added_titles.append(title)
             page = self.get_WtPage(title)
+
+            page_schema = page.get_slot_content("jsonschema")
+            if debug and page_schema is not None:
+                property_titles = (
+                    JsonLdSchema(schema_dict=page_schema)
+                    .get_internal_properties()
+                    .property_titles
+                )
+                for property_title in property_titles:
+                    if property_title not in config.titles:
+                        print(
+                            f"'{property_title}' referenced in '{title}' not in included titles"
+                        )
+
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
                 for file in page._page.images():

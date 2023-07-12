@@ -19,6 +19,19 @@
 
 > Python toolset for data processing, queries, wikicode generation and page manipulation
 
+## Installation
+```
+pip install osw
+```
+
+## Troubleshooting
+
+### `Error: datamodel-codegen not found`
+make sure datamodel-codegen is installed and included in PATH, e. g. on jupyterlab:
+```
+os.environ["PATH"] += os.pathsep + "/home/jovyan/.local/bin"
+```
+
 ## Documentation
 
 https://opensemanticlab.github.io/osw-python/

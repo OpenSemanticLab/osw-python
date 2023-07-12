@@ -63,7 +63,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#testing" class="md-skip">
+        <a href="#setup" class="md-skip">
           Skip to content
         </a>
       
@@ -324,21 +324,32 @@
                   
 
 
+<h1 id="setup">Setup</h1>
+<ol>
+<li>create a virtual environment</li>
+</ol>
+<pre><code class="language-bash">python -m venv .venv
+</code></pre>
+<ol>
+<li>install requirements + extras</li>
+</ol>
+<pre><code class="language-bash">pip install -e .[dev,testing]
+</code></pre>
 <h1 id="testing">Testing</h1>
 <ol>
 <li>
 <p>Create new test (file name test_*.py) under /tests</p>
 </li>
 <li>
-<p>Install pytest</p>
+<p>Run pytest in the project root dir</p>
 </li>
 </ol>
-<pre><code>pip install pytest
+<pre><code class="language-bash">tox -e test
 </code></pre>
 <ol>
-<li>Run pytest in the project root dir</li>
+<li>To run integration test with credentials, run</li>
 </ol>
-<pre><code>pytest
+<pre><code class="language-bash">tox -e test -- --wiki_domain &quot;&lt;domain&gt;&quot; --wiki_username &quot;&lt;login&gt;&quot; --wiki_password &quot;&lt;password&gt;&quot;
 </code></pre>
 
 

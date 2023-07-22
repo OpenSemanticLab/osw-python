@@ -17,7 +17,7 @@
         <link rel="next" href="../dev/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.19">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.26e3688c.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.eebd395e.min.css">
       
       
 
@@ -710,20 +710,19 @@
 
 <a id="osw.controller.Entity"></a>
   <div class="doc doc-contents first">
-      <p class="doc doc-class-bases">
-        Bases: <code><span title="osw.model.entity">model</span>.<a class="autorefs autorefs-internal" title="osw.model.entity.Entity" href="../model/#osw.model.entity.Entity">Entity</a></code></p>
+          <p class="doc doc-class-bases">
+            Bases: <code><a class="autorefs autorefs-internal" title="osw" href="../osw/#osw">model</a>.<span title="osw.Entity">Entity</span></code></p>
 
 
-
-        <details class="quote">
-          <summary>Source code in <code>src/osw/controller/entity.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4</span>
+            <details class="quote">
+              <summary>Source code in <code>src/osw/controller/entity.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4</span>
 <span class="normal">5</span>
 <span class="normal">6</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Entity</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">explain</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity with label &#39;</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-        </details>
+            </details>
 
   
 
@@ -751,16 +750,15 @@
 
 <a id="osw.controller.DatabaseController"></a>
   <div class="doc doc-contents first">
-      <p class="doc doc-class-bases">
-        Bases: <code><span title="osw.model.entity">model</span>.<span title="osw.model.entity.Database">Database</span></code></p>
+          <p class="doc doc-class-bases">
+            Bases: <code><a class="autorefs autorefs-internal" title="osw" href="../osw/#osw">model</a>.<span title="osw.Database">Database</span></code></p>
 
   
       <p>Provides a sqlalchemy engine for the specified database</p>
 
-
-        <details class="quote">
-          <summary>Source code in <code>src/osw/controller/database.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 13</span>
+            <details class="quote">
+              <summary>Source code in <code>src/osw/controller/database.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 13</span>
 <span class="normal"> 14</span>
 <span class="normal"> 15</span>
 <span class="normal"> 16</span>
@@ -1002,7 +1000,7 @@
             <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">result_set</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-        </details>
+            </details>
 
   
 
@@ -1083,23 +1081,22 @@
 
 
 <h3 id="osw.controller.database.DatabaseController.ConnectionConfig" class="doc doc-heading">
-        <code>ConnectionConfig</code>
+          <code>ConnectionConfig</code>
 
 
 </h3>
 
 
   <div class="doc doc-contents ">
-      <p class="doc doc-class-bases">
-        Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
+          <p class="doc doc-class-bases">
+            Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
 
   
       <p>Database connection configuration</p>
 
-
-        <details class="quote">
-          <summary>Source code in <code>src/osw/controller/database.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">66</span>
+            <details class="quote">
+              <summary>Source code in <code>src/osw/controller/database.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
 <span class="normal">69</span>
@@ -1113,7 +1110,7 @@
     <span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">Credential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; CredentialManager or direct Credential to login to the database&quot;&quot;&quot;</span>
 </code></pre></div></td></tr></table></div>
-        </details>
+            </details>
 
   
 
@@ -1182,23 +1179,22 @@
 
 
 <h3 id="osw.controller.database.DatabaseController.ConnectionString" class="doc doc-heading">
-        <code>ConnectionString</code>
+          <code>ConnectionString</code>
 
 
 </h3>
 
 
   <div class="doc doc-contents ">
-      <p class="doc doc-class-bases">
-        Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
+          <p class="doc doc-class-bases">
+            Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
 
   
       <p>the sqlalchemy database connection string</p>
 
-
-        <details class="quote">
-          <summary>Source code in <code>src/osw/controller/database.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">28</span>
+            <details class="quote">
+              <summary>Source code in <code>src/osw/controller/database.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">28</span>
 <span class="normal">29</span>
 <span class="normal">30</span>
 <span class="normal">31</span>
@@ -1272,7 +1268,7 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">url</span><span class="o">.</span><span class="n">render_as_string</span><span class="p">(</span><span class="n">hide_password</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-        </details>
+            </details>
 
   
 
@@ -1433,6 +1429,7 @@
 
 
 
+
 <div class="doc doc-object doc-function">
 
 
@@ -1446,6 +1443,8 @@
   <div class="doc doc-contents ">
   
       <p>generates the string representation</p>
+
+
 
   <p><strong>Returns:</strong></p>
   <table>
@@ -1469,9 +1468,9 @@
     </tbody>
   </table>
 
-      <details class="quote">
-        <summary>Source code in <code>src/osw/controller/database.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">46</span>
+          <details class="quote">
+            <summary>Source code in <code>src/osw/controller/database.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">46</span>
 <span class="normal">47</span>
 <span class="normal">48</span>
 <span class="normal">49</span>
@@ -1509,7 +1508,7 @@
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">url</span><span class="o">.</span><span class="n">render_as_string</span><span class="p">(</span><span class="n">hide_password</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-      </details>
+          </details>
   </div>
 
 </div>
@@ -1521,6 +1520,7 @@
   </div>
 
 </div>
+
 
 
 <div class="doc doc-object doc-function">
@@ -1536,6 +1536,8 @@
   <div class="doc doc-contents ">
   
       <p>Initializes the connection to the database by creating a sqlalchemy engine</p>
+
+
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1565,9 +1567,9 @@
     </tbody>
   </table>
 
-      <details class="quote">
-        <summary>Source code in <code>src/osw/controller/database.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 74</span>
+          <details class="quote">
+            <summary>Source code in <code>src/osw/controller/database.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 74</span>
 <span class="normal"> 75</span>
 <span class="normal"> 76</span>
 <span class="normal"> 77</span>
@@ -1661,10 +1663,11 @@
 
     <span class="bp">self</span><span class="o">.</span><span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cstr</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
-      </details>
+          </details>
   </div>
 
 </div>
+
 
 <div class="doc doc-object doc-function">
 
@@ -1679,6 +1682,8 @@
   <div class="doc doc-contents ">
   
       <p>Executes a plain sql string</p>
+
+
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1708,9 +1713,9 @@
     </tbody>
   </table>
 
-      <details class="quote">
-        <summary>Source code in <code>src/osw/controller/database.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">122</span>
+          <details class="quote">
+            <summary>Source code in <code>src/osw/controller/database.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
 <span class="normal">125</span>
@@ -1734,7 +1739,7 @@
         <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">result_set</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-      </details>
+          </details>
   </div>
 
 </div>

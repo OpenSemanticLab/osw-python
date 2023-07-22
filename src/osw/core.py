@@ -134,7 +134,9 @@ class OSW(BaseModel):
 
         if issubclass(entity, BaseModel):
             entity_title = "Category:" + OSW.get_osw_id(schema_registration.schema_uuid)
-            page = self.site.get_WtPage(entity_title)
+            page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
+                0
+            ]
 
             page.set_slot_content("jsondata", jsondata)
 
@@ -220,7 +222,7 @@ class OSW(BaseModel):
             print("Error: Neither model nor model id provided")
 
         entity_title = "Category:" + OSW.get_osw_id(uuid)
-        page = self.site.get_WtPage(entity_title)
+        page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[0]
         page.delete(schema_unregistration.comment)
 
     class FetchSchemaMode(Enum):
@@ -273,7 +275,7 @@ class OSW(BaseModel):
         schema_title = fetchSchemaParam.schema_title
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
-        page = self.site.get_WtPage(schema_title)
+        page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[0]
         if schema_title.startswith("Category:"):
             schema_str = json.dumps(page.get_slot_content("jsonschema"))
         else:
@@ -520,11 +522,15 @@ class OSW(BaseModel):
         """
         entity = None
         schemas = []
-        page = self.site.get_WtPage(entity_title)
+        page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[0]
         jsondata = page.get_slot_content("jsondata")
         if jsondata:
             for category in jsondata["type"]:
-                schema = self.site.get_WtPage(category).get_slot_content("jsonschema")
+                schema = (
+                    self.site.get_page(WtSite.GetPageParam(titles=[category]))
+                    .pages[0]
+                    .get_slot_content("jsonschema")
+                )
                 schemas.append(schema)
 
         if len(schemas) == 0:
@@ -577,7 +583,9 @@ class OSW(BaseModel):
                 namespace_ = "Item"
             if namespace_ is not None:
                 entity_title = namespace_ + ":" + OSW.get_osw_id(entity.uuid)
-                page = self.site.get_WtPage(entity_title)
+                page = self.site.get_page(
+                    WtSite.GetPageParam(titles=[entity_title])
+                ).pages[0]
                 jsondata = json.loads(
                     entity.json(exclude_none=True)
                 )  # use pydantic serialization, skip none values
@@ -635,7 +643,9 @@ class OSW(BaseModel):
             """
             if isinstance(entity_, model.Item):
                 entity_title = "Item:" + OSW.get_osw_id(entity_.uuid)
-                page = self.site.get_WtPage(entity_title)
+                page = self.site.get_page(
+                    WtSite.GetPageParam(titles=[entity_title])
+                ).pages[0]
             else:
                 print("Error: Unsupported entity type")
                 return
@@ -700,9 +710,11 @@ class OSW(BaseModel):
         properties: Optional[List[model.Entity]]
 
     def _import_ontology(self, param: _ImportOntologyParam):
-        import_page = self.site.get_WtPage(
-            "MediaWiki:Smw_import_" + param.ontology.prefix_name
-        )
+        import_page = self.get_page(
+            WtSite.GetPageParam(
+                titles=["MediaWiki:Smw_import_" + param.ontology.prefix_name]
+            )
+        ).pages[0]
         text = f"{param.ontology.prefix}|[{param.ontology.link} {param.ontology.name}]"
         for e in param.entities:
             iri = None

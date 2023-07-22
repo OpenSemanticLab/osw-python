@@ -169,33 +169,94 @@ class WtSite:
         site = wt.create_site_object(_domain, "", _credentials)
         return cls(WtSite.WtSiteLegacyConfig(site=site))
 
-    def get_WtPage(self, title: str = None):
-        retry = 0
-        max_retry = 5
-        page = None
-        while retry < max_retry:
-            try:
-                page = self._get_WtPage(title)
-                break
-            except Exception as e:
-                print(e)
-                if retry < max_retry:
-                    retry += 1
-                    print(f"Page load failed. Retry ({retry}/{max_retry})")
-                    sleep(5)
-        self._clear_cookies()
-        return page
+    class GetPageParam(model.OswBaseModel):
+        titles: Union[str, List[str]]
+        """title string or list of title strings of the pages to download"""
+        parallel: Optional[bool] = None
+        """whether to download the pages in parallel or sequentially
+        Defaults to True if more than 5 pages are requested, False otherwise"""
+        retries: Optional[int] = 5
+        """How often to retry downloading a page if an error occurs"""
+        retry_delay_s: Optional[int] = 5
+        """Retry delay in seconds"""
+        debug: Optional[bool] = False
+        """Whether to print debug messages"""
 
-    def _get_WtPage(self, title: str = None):
+    class GetPageResult(model.OswBaseModel):
+        pages: List["WtPage"]
+        """List of pages that have been downloaded"""
+        errors: List[Exception]
+        """List of errors that occurred while downloading pages"""
 
-        if self._cache_enabled and title in self._page_cache:
-            return self._page_cache[title]
+        class Config:
+            arbitrary_types_allowed = True  # allows to use WtPage in type hints
+
+    def get_page(self, param: GetPageParam) -> GetPageResult:
+        """Downloads a page or a list of pages from the site.
+
+        Parameters
+        ----------
+        param:
+            GetPageParam object
+        """
+        # ensure that titles is a list
+        if not isinstance(param.titles, list):
+            param.titles = [param.titles]
+        max_index = len(param.titles)
+        if param.parallel is None and max_index >= 5:
+            param.parallel = True
+
+        exeptions = []
+        pages = []
+
+        def get_page_(title, index):
+            retry = 0
+            wtpage = None
+            while retry < param.retries:
+                msg = ""
+                try:
+                    if self._cache_enabled and title in self._page_cache:
+                        wtpage = self._page_cache[title]
+                        msg += f"({index + 1}/{max_index}): Page loaded from cache."
+                    else:
+                        wtpage = WtPage(self, title)
+                        msg += f"({index + 1}/{max_index}): Page loaded"
+                        if self._cache_enabled:
+                            self._page_cache[title] = wtpage
+                    pages.append(wtpage)
+                    break
+                except Exception as e:
+                    exeptions.append(e)
+                    msg += str(e)
+                    if retry < param.retries:
+                        retry += 1
+                        msg = f"({index + 1}/{max_index}): Page load failed. Retry ({retry}/{param.retries})"
+                        sleep(5)
+                print(msg)
+            self._clear_cookies()
+            return wtpage
+
+        if param.parallel:
+            _ = parallelize(get_page_, param.titles, flush_at_end=param.debug)
         else:
-            wtpage = WtPage(self, title)
-            if self._cache_enabled:
-                self._page_cache[title] = wtpage
+            _ = [get_page_(p, i) for i, p in enumerate(param.titles)]
 
-        return wtpage
+        return self.GetPageResult(pages=pages, errors=exeptions)
+
+    @deprecated("Use get_page instead")
+    def get_WtPage(self, title: str = None):
+        """Creates a new WtPage object for the given title
+           and loads the page from the site if the page already exists.
+           Deprecated in favor of WtSite.get_page.
+
+        Parameters
+        ----------
+        title:
+            title of the page to load / create
+
+        """
+        result = self.get_page(WtSite.GetPageParam(titles=title))
+        return result.pages[0]
 
     def enable_cache(self):
         self._cache_enabled = True
@@ -251,7 +312,7 @@ class WtSite:
         if log:
             print(f"Found: {titles}")
         for title in titles:
-            wtpage = self.get_WtPage(title)
+            wtpage = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
             modify_page(wtpage)
             if log:
                 print(f"\n======= {title} =======")
@@ -374,6 +435,8 @@ class WtSite:
                 continue  # prevent duplicates
             else:
                 added_titles.append(title)
+            page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
+
             page = self.get_WtPage(title)
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
@@ -382,7 +445,9 @@ class WtSite:
                         continue  # prevent duplicates
                     else:
                         added_titles.append(file.name)
-                    file_page = self.get_WtPage(file.name)
+                    file_page = self.get_page(
+                        WtSite.GetPageParam(titles=[file.name])
+                    ).pages[0]
                     bundle.packages[config.name].pages.append(
                         file_page.dump(dump_config)
                     )
@@ -979,3 +1044,4 @@ class WtPage:
 
 # Updating forwards refs in pydantic models
 WtSite.UploadPageParam.update_forward_refs()
+WtSite.GetPageResult.update_forward_refs()

@@ -74,6 +74,9 @@ jobs:
           pipx run tox
           --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
           -- -rFEx --durations 10 --color yes
+          --wiki_domain "${{ secrets.INTEGR_TEST_WIKI_DOMAIN }}"
+          --wiki_username "${{ secrets.INTEGR_TEST_WIKI_USERNAME }}"
+          --wiki_password "${{ secrets.INTEGR_TEST_WIKI_PASSWORD }}"
       - name: Generate coverage report
         run: pipx run coverage lcov -o coverage.lcov
       - name: Upload partial coverage report

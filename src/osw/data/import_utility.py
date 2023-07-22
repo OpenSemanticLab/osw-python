@@ -711,7 +711,7 @@ def get_entities_from_osw(
     )
     for entity in entities:
         # entity = full page name
-        page = wtsite_obj.get_WtPage(entity)
+        page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[entity])).pages[0]
         if page.exists:
             jsondata = page.get_slot_content("jsondata")
             jsondata["full_page_title"] = entity

@@ -70,7 +70,7 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
     file_fpt = "File:" + file_page_name
     path_to_test_file = cwd / "test.svg"
     # Make sure the state is clean - delete the file if it exists, otherwise create it
-    file_page = wtsite.get_WtPage(file_page_name)
+    file_page = wtsite.get_page(WtSite.GetPageParam(titles=[file_page_name])).pages[0]
     if file_page.exists:
         file_page.delete()
     with open(path_to_test_file, "r") as file:
@@ -104,14 +104,16 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
     )
     ###############################################
     new_full_page_name = result[0]
-    new_file_page = wtsite.get_WtPage(new_full_page_name)
+    new_file_page = wtsite.get_page(
+        WtSite.GetPageParam(titles=[new_full_page_name])
+    ).pages[0]
     # Assert that the result is as expected
     exception = None
     try:
         # # Make sure the changes are propagated / Caches are invalidated
         # new_file_page.purge()
         # # Get the new file page after purging
-        # new_file_page = wtsite.get_WtPage(new_full_page_name)
+        # new_file_page = wtsite.get_page(WtSite.GetPageParam(titles=[new_full_page_name])).pages[0]
         print(f"Fetching jsondata of {new_full_page_name}")
         assert new_file_page.exists
         assert new_file_page.is_file_page
@@ -121,7 +123,9 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
                 "jsondata is None - meta data was not written to the file " "page!"
             )
         assert jsondata["type"] == WikiFile.__fields__["type"].default
-        modified_using_page = wtsite.get_WtPage(using_page_fpt)
+        modified_using_page = wtsite.get_page(
+            WtSite.GetPageParam(titles=[using_page_fpt])
+        ).pages[0]
         main_slot_content = modified_using_page.get_slot_content("main")
         parsed_content = wt.create_flat_content_structure_from_wikitext(
             main_slot_content

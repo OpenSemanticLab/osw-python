@@ -339,7 +339,7 @@ class OSW(BaseModel):
                 --input {schema_path} \
                 --input-file-type jsonschema \
                 --output {temp_model_path} \
-                --base-class OswBaseModel \
+                --base-class osw.model.static.OswBaseModel \
                 --use-default \
                 --enum-field-as-literal one \
                 --use-title-as-name \
@@ -347,6 +347,8 @@ class OSW(BaseModel):
                 --use-field-description \
                 --encoding utf-8 \
                 --use-double-quotes \
+                --collapse-root-models \
+                --reuse-model \
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
@@ -358,6 +360,9 @@ class OSW(BaseModel):
             # --use-schema-description: Use schema description to populate class docstring
             # --use-field-description: Use schema description to populate field docstring
             # --use-title-as-name: use titles as class names of models, e. g. for the footer templates
+            # --collapse-root-models: Models generated with a root-type field will be merged
+            # into the models using that root-type model, e. g. for Entity.statements
+            # --reuse-model: Re-use models on the field when a module has the model with the same content
 
             # this is dirty, but required for autocompletion: https://stackoverflow.com/questions/62884543/pydantic-autocompletion-in-vs-code
             # idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
@@ -367,12 +372,82 @@ class OSW(BaseModel):
                 content = f.read()
             os.remove(temp_model_path)
 
+            # Statement and its subclasses are a complex case that needs manual fixing
+
+            # datamodel-codegen <= 0.15.0
+            # make statement classes subclasses of Statement
             content = re.sub(
-                r"(import OswBaseModel)",
-                "from pydantic import BaseModel, Field",
+                r"ObjectStatement\(OswBaseModel\)",
+                r"ObjectStatement(Statement)",
                 content,
-                1,
-            )  # remove import statement
+            )
+            content = re.sub(
+                r"DataStatement\(OswBaseModel\)", r"DataStatement(Statement)", content
+            )
+            content = re.sub(
+                r"QuantityStatement\(OswBaseModel\)",
+                r"QuantityStatement(Statement)",
+                content,
+            )
+            # make statement lists union of all statement types
+            content = re.sub(
+                r"List\[Statement\]",
+                r"List[Union[ObjectStatement, DataStatement, QuantityStatement]]",
+                content,
+            )
+            # remove Statement class
+            content = re.sub(
+                r"(class\s*"
+                + "Statement"
+                + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
+                "",
+                content,
+                count=1,
+            )
+            # rename Statement1 to Statement
+            content = re.sub(r"Statement1", r"Statement", content)
+            # add forward refs
+            content = re.sub(
+                r"Statement.update_forward_refs\(\)",
+                r"Statement.update_forward_refs()\nObjectStatement.update_forward_refs()\nDataStatement.update_forward_refs()\nQuantityStatement.update_forward_refs()",
+                content,
+            )
+            pattern = re.compile(
+                r"(class\s*"
+                + "Statement"
+                + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})"
+            )  # match Statement class definition
+            for cls in re.findall(pattern, content):
+                # remove class
+                content = re.sub(
+                    r"(class\s*"
+                    + "Statement"
+                    + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
+                    "",
+                    content,
+                    count=1,
+                )
+                content = re.sub(
+                    r"(class\s*\S*\s*\(\s*Statement\s*\)\s*:.*\n)",
+                    cls + r"\1",
+                    content,
+                    1,
+                )  # insert class definition before first reference
+                break
+
+            # datamodel-codegen > 0.15.0
+            # Rename statement classes (ObjectStatement, DataStatement, QuantityStatement)
+            # content = re.sub(r"ObjectStatement", r"_ObjectStatement", content)
+            # content = re.sub(r"DataStatement", r"_DataStatement", content)
+            # content = re.sub(r"QuantityStatement", r"_QuantityStatement", content)
+            # class Statement1(_ObjectStatement):
+            # content = re.sub(r"class\s*\S*(\s*\(\s*_ObjectStatement\s*\))", r"class ObjectStatement\1", content)
+            # content = re.sub(r"class\s*\S*(\s*\(\s*_DataStatement\s*\))", r"class DataStatement\1", content)
+            # content = re.sub(r"class\s*\S*(\s*\(\s*_QuantityStatement\s*\))", r"class QuantityStatement\1", content)
+            # Union[Statement1, Statement2, Statement3] and Statement<x>.update_forward_refs()
+            # content = re.sub(r"Statement1", r"ObjectStatement", content)
+            # content = re.sub(r"Statement2", r"DataStatement", content)
+            # content = re.sub(r"Statement3", r"QuantityStatement", content)
 
             if fetchSchemaParam.mode == "replace":
 
@@ -388,12 +463,8 @@ class OSW(BaseModel):
                     header + r"\n\n\n\1",
                     content,
                     1,
-                )  # replace first match
-                # content = re.sub(
-                #     r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
-                #     r"@_basemodel_decorator\n\1",
-                #     content,
-                # )
+                )  # add header before first class declaration
+
                 content = re.sub(
                     r"(UUID = Field\(...)",
                     r"UUID = Field(default_factory=uuid4",

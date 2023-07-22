@@ -56,8 +56,7 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
     else:
         site = mwclient.Site(host=wiki_domain)
         site.login(username=wiki_username, password=wiki_password)
-        # wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
-        wtsite = WtSite(site=site)
+        wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
 
     # Path to the test file:
     bare_file_name = "test"

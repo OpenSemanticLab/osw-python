@@ -170,7 +170,7 @@ if __name__ == "__main__":
     osw_obj = OSW(site=wtsite_obj)
 
     full_page_name = settings["target_page"].split("/")[-1].replace("_", " ")
-    page = wtsite_obj.get_WtPage(full_page_name)
+    page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[full_page_name])).pages[0]
     label_set = False
     label = None
     slots_downloaded = False
@@ -401,7 +401,9 @@ if __name__ == "__main__":
                 label_set = False
             else:
                 # use connection
-                page = wtsite_obj.get_WtPage(full_page_name)
+                page = wtsite_obj.get_page(
+                    WtSite.GetPageParam(titles=[full_page_name])
+                ).pages[0]
                 if page.exists:
                     jsondata = page.get_slot_content("jsondata")
                     if jsondata is None:

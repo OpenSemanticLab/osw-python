@@ -17,6 +17,7 @@ from pydantic.main import ModelMetaclass
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
 from osw.utils.util import parallelize
+from osw.utils.wiki import get_namespace
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
@@ -579,20 +580,28 @@ class OSW(BaseModel):
         def store_entity_(
             entity: model.Entity, index: int = None, namespace_=param.namespace
         ) -> None:
-            if namespace_ is None and isinstance(entity, model.Item):
-                namespace_ = "Item"
-            if namespace_ is not None:
-                entity_title = namespace_ + ":" + OSW.get_osw_id(entity.uuid)
-                page = self.site.get_page(
-                    WtSite.GetPageParam(titles=[entity_title])
-                ).pages[0]
-                jsondata = json.loads(
-                    entity.json(exclude_none=True)
-                )  # use pydantic serialization, skip none values
-                page.set_slot_content("jsondata", jsondata)
-            else:
+            title_ = None
+            namespace_ = None
+            if entity.meta and entity.meta.wiki_page:
+                if entity.meta.wiki_page.title:
+                    title_ = entity.meta.wiki_page.title
+                if entity.meta.wiki_page.namespace:
+                    namespace_ = entity.meta.wiki_page.namespace
+            if namespace_ is None:
+                namespace_ = get_namespace(entity)
+            if title_ is None:
+                title_ = OSW.get_osw_id(entity.uuid)
+            if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
+            entity_title = namespace_ + ":" + title_
+            page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
+                0
+            ]
+            jsondata = json.loads(
+                entity.json(exclude_none=True)
+            )  # use pydantic serialization, skip none values
+            page.set_slot_content("jsondata", jsondata)
             page.set_slot_content(
                 "header", "{{#invoke:Entity|header}}"
             )  # required for json parsing and header rendering

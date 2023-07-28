@@ -18,7 +18,7 @@ def get_namespace(entity: model.Entity) -> Union[str, None]:
         try:
             if issubclass(entity, model.Entity):
                 namespace = "Category"
-        except (AttributeError):
+        except (TypeError, AttributeError):
             pass
     if namespace is None:
         try:

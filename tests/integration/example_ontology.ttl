@@ -1,0 +1,86 @@
+@prefix : <http://example.com/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@base <http://example.com/> .
+
+<http://example.com> rdf:type owl:Ontology .
+
+#################################################################
+#    Annotation properties
+#################################################################
+
+###  http://example.com/R7k3ssL7gUxsfWuVsXWDXYF
+<http://example.com/R7k3ssL7gUxsfWuVsXWDXYF> rdf:type owl:AnnotationProperty ;
+                                                         rdfs:label "description"@en .
+
+
+#################################################################
+#    Object Properties
+#################################################################
+
+###  http://example.com/R9avr2pWFWEML712PSKDfcq
+<http://example.com/R9avr2pWFWEML712PSKDfcq> rdf:type owl:ObjectProperty ;
+                                                         rdfs:subPropertyOf <http://example.com/REh2qNSARmKpPuwrJmr5Pu> ;
+                                                         rdfs:domain <http://example.com/RDDfNZfAHDafrgYXW6rtT14> ;
+                                                         rdfs:range <http://example.com/RDnVhTMcRkWFpWWnAprFlO0> ;
+                                                         rdfs:label "SubpropertyA"@en .
+
+
+###  http://example.com/REh2qNSARmKpPuwrJmr5Pu
+<http://example.com/REh2qNSARmKpPuwrJmr5Pu> rdf:type owl:ObjectProperty ;
+                                                        rdfs:subPropertyOf owl:topObjectProperty ;
+                                                        rdfs:domain <http://example.com/RBfJambxhZvFDQYeKK2zzeH> ;
+                                                        rdfs:range <http://example.com/RDnVhTMcRkWFpWWnAprFlO0> ;
+                                                        rdfs:label "ObjectPropertyA"@en .
+
+
+#################################################################
+#    Data properties
+#################################################################
+
+###  http://example.com/RqSw2tmyIfMbLNbk0NPkKa
+<http://example.com/RqSw2tmyIfMbLNbk0NPkKa> rdf:type owl:DatatypeProperty ;
+                                                        rdfs:subPropertyOf owl:topDataProperty ;
+                                                        rdfs:label "DataPropertyA"@en .
+
+
+#################################################################
+#    Classes
+#################################################################
+
+###  http://example.com/RBfJambxhZvFDQYeKK2zzeH
+<http://example.com/RBfJambxhZvFDQYeKK2zzeH> rdf:type owl:Class ;
+                                                         rdfs:subClassOf [ rdf:type owl:Restriction ;
+                                                                           owl:onProperty <http://example.com/REh2qNSARmKpPuwrJmr5Pu> ;
+                                                                           owl:someValuesFrom <http://example.com/RDnVhTMcRkWFpWWnAprFlO0>
+                                                                         ] ;
+                                                         <http://example.com/R7k3ssL7gUxsfWuVsXWDXYF> "a test class"^^xsd:string ;
+                                                         rdfs:label "ClassA"@en .
+
+
+###  http://example.com/RDDfNZfAHDafrgYXW6rtT14
+<http://example.com/RDDfNZfAHDafrgYXW6rtT14> rdf:type owl:Class ;
+                                                         rdfs:subClassOf <http://example.com/RBfJambxhZvFDQYeKK2zzeH> ,
+                                                                         [ rdf:type owl:Restriction ;
+                                                                           owl:onProperty <http://example.com/REh2qNSARmKpPuwrJmr5Pu> ;
+                                                                           owl:someValuesFrom <http://example.com/RDnVhTMcRkWFpWWnAprFlO0>
+                                                                         ] ;
+                                                         rdfs:label "SubclassA"@en .
+
+
+###  http://example.com/RDnVhTMcRkWFpWWnAprFlO0
+<http://example.com/RDnVhTMcRkWFpWWnAprFlO0> rdf:type owl:Class ;
+                                                         rdfs:label "ClassB"@en .
+
+
+#################################################################
+#    Individuals
+#################################################################
+
+###  http://example.com/RD2X6TQT0bKVpXehgObBb7O
+<http://example.com/RD2X6TQT0bKVpXehgObBb7O> rdf:type owl:NamedIndividual ,
+                                                                  <http://example.com/RDDfNZfAHDafrgYXW6rtT14> ;
+                                                         rdfs:label "IndividualA"@en .

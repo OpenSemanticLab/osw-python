@@ -142,10 +142,10 @@ class CredentialManager(OswBaseModel):
                 print(
                     f"No credentials for {config.iri} found. Please use the prompt to login"
                 )
-                username = input("Enter username")
-                password = getpass.getpass("Enter password")
+                username = input("Enter username: ")
+                password = getpass.getpass("Enter password: ")
                 cred = CredentialManager.UserPwdCredential(
-                    username=username, password=password
+                    username=username, password=password, iri=config.iri
                 )
         return cred
 

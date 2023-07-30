@@ -70,7 +70,7 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
         WtSite.GetPageParam(titles=["MediaWiki:Smw_import_example"])
     ).pages[0]
 
-    expected = """http://example.com/|[http://example.com Example]
+    expected = """http://example.com/ | [http://example.com Example]
  R7k3ssL7gUxsfWuVsXWDXYF|Type:Text
  R9avr2pWFWEML712PSKDfcq|Type:Page
  REh2qNSARmKpPuwrJmr5Pu|Type:Page
@@ -83,8 +83,15 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
     actual = smw_import_page._content  # get_slot_content("main")
     assert actual == expected
 
+    property_name = None
+    if import_config.property_naming_policy == "label":
+        property_name = "ObjectPropertyA"
+    elif import_config.property_naming_policy == "prefixed_label":
+        property_name = (
+            f"example{import_config.property_naming_prefix_delimiter}ObjectPropertyA"
+        )
     search_param = SearchParam(
-        query="[[Example:ObjectPropertyA::Category:OSWb1e6910f1e3d567aaed30b83ac887708]]"
+        query=f"[[{property_name}::Category:OSWb1e6910f1e3d567aaed30b83ac887708]]"
     )
     full_page_titles = osw.site.semantic_search(search_param)
     assert "Category:OSW51f195014de65ebe9f08994b21498cae" in full_page_titles

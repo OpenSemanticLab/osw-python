@@ -64,6 +64,7 @@ class ImportConfig(OswBaseModel):
     property_naming_policy: Optional[
         Literal["UUID", "label", "prefixed_label"]
     ] = "prefixed_label"
+    property_naming_prefix_delimiter: Optional[str] = ":"
 
     class Config:
         arbitrary_types_allowed = True
@@ -386,12 +387,17 @@ class OntologyImporter(OswBaseModel):
             elif self.import_config.property_naming_policy == "prefixed_label":
                 prefix = None
                 for onto in self.import_config.ontologies:
-                    if onto.iri in node["iri"] or onto.prefix_name + ":" in node["iri"]:
+                    if (
+                        onto.iri in node["iri"]
+                        or onto.prefix_name
+                        + self.import_config.property_naming_prefix_delimiter
+                        in node["iri"]
+                    ):
                         prefix = onto.prefix_name
                         break
 
                 if prefix:
-                    title = f"{prefix}:{node['name']}"
+                    title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{node['name']}"
                 else:
                     raise ValueError(
                         f"Could not find prefix for property {node['iri']}"
@@ -578,7 +584,9 @@ class OntologyImporter(OswBaseModel):
                 titles=["MediaWiki:Smw_import_" + param.ontology.prefix_name]
             )
         ).pages[0]
-        text = f"{param.ontology.prefix}|[{param.ontology.link} {param.ontology.name}]"
+        text = (
+            f"{param.ontology.prefix} | [{param.ontology.link} {param.ontology.name}]"
+        )
         for e in param.entities:
             namespace = get_namespace(e)
 

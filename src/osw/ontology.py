@@ -2,7 +2,7 @@ import json
 import os
 import re
 import uuid
-from typing import Any, Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 import pyld
 from pydantic import PrivateAttr
@@ -19,8 +19,13 @@ from osw.wtsite import WtSite
 
 
 class ParserSettings(OswBaseModel):
+    """Settings for the ontology parser"""
+
     flatten_subclassof_restrictions: Optional[bool] = False
+    """If True, the parser will directly asign the property and the value class of the restriction to the restricted class
+    """
     subclassof_restrictions_keyword: Optional[str] = "restrictions"
+    """Keyword to separate the owl restrictions from rdfs subclassof. Only used if flatten_subclassof_restrictions is False."""
     ensure_multilang: Optional[List[str]] = [
         "label",
         "prefLabel",
@@ -28,6 +33,7 @@ class ParserSettings(OswBaseModel):
         "comment",
         "description",
     ]
+    """List of properties that should be multilang / have a @lang containter. If the property is not multilang, the parser will create a multilang property with "en" as default language."""
     ensure_array: Optional[List[str]] = [
         "rdf_type",
         "label",
@@ -38,6 +44,7 @@ class ParserSettings(OswBaseModel):
         "subclass_of",
         "restrictions",
     ]
+    """List of properties that should be arrays. If the property is not an array, the parser will create an array with the value as single element."""
     map_uuid_iri: Optional[List[str]] = [
         "subclass_of",
         "on_property",
@@ -47,34 +54,54 @@ class ParserSettings(OswBaseModel):
         "range",
         "subproperty_of",
     ]
+    """List of properties whose values should be mapped to (OSW) UUIDs. If the value is not a UUID, the parser will create a UUIDv5 from the value with the URL namespace."""
     remove_unnamed: Optional[List[str]] = []  # ['subclass_of'] #, 'equivalentClass']
+    """List of properties whose values should be removed if they are unnamed nodes ("_:...")"""
 
 
 class ImportConfig(OswBaseModel):
+    """Configuration for the ontology importer"""
+
     file: str
+    """the path or url to the ontology file"""
     ontology_name: str
+    """the name of the ontology"""
     ontologies: List[model.Ontology]
+    """Ontology metadata, inluding imported ontologies"""
     base_class: ModelMetaclass
+    """Base class for the ontology model. For OWL Ontologies, this should be model.OwlClass or a subclass of it."""
     base_class_title: Optional[
         str
     ] = "Category:OSW725a3cf5458f4daea86615fcbd0029f8"  # OwlClass
+    """Title of the base class schema"""
     dump_files: Optional[bool] = False
+    """If True, the parsed ontology will be dumped to a jsonld file"""
     dump_path: Optional[str] = None
+    """Path to the directory where the parsed ontology will be dumped"""
     dry_run: Optional[bool] = False
+    """If True, the parsed ontology will not be imported into the wiki"""
     property_naming_policy: Optional[
         Literal["UUID", "label", "prefixed_label"]
     ] = "prefixed_label"
+    """Policy for naming properties. If "UUID", the property will be named with a UUIDv5.
+    If "label", the property will be named with the label of the property.
+    If "prefixed_label", the property will be named with the label of the property prefixed with the label of the ontology."""
     property_naming_prefix_delimiter: Optional[str] = ":"
+    """Delimiter for the prefixed_label property naming policy"""
 
     class Config:
         arbitrary_types_allowed = True
 
 
 class OntologyImporter(OswBaseModel):
+    """Class for importing ontologies into OSW"""
 
     osw: OSW
+    """A OSW instance"""
     parser_settings: Optional[ParserSettings] = ParserSettings()
+    """Settings for the ontology parser"""
     import_config: Optional[ImportConfig] = None
+    """Configuration for the ontology importer"""
 
     _context: Optional[Dict] = PrivateAttr()
     _id_dict: Optional[Dict] = PrivateAttr()
@@ -85,7 +112,17 @@ class OntologyImporter(OswBaseModel):
     _entities_json: Optional[List] = PrivateAttr()
 
     def import_ontology(self, config: ImportConfig):
+        """Imports an ontology into OSW
 
+        Parameters
+        ----------
+        config
+            see ImportConfig
+
+        Returns
+        -------
+            None
+        """
         # overwrite the default document loader to load relative context from the wiki
         def myloader(*args, **kwargs):
             requests_loader = pyld.documentloader.requests.requests_document_loader(
@@ -572,11 +609,7 @@ class OntologyImporter(OswBaseModel):
 
     class StoreOntologyParam(model.OswBaseModel):
         ontology: model.Ontology
-        entities: List[Any]  # goes to NS Category
-        # classes: List[model.Entity]  # goes to NS Category
-        # properties: List[model.Entity]  # goes to NS Property
-        # individuals: List[model.Entity]  # goes to NS Item
-        # properties: Optional[List[model.Entity]]
+        entities: List[model.OswBaseModel]
 
     def _store_ontology(self, param: StoreOntologyParam):
         import_page = self.osw.site.get_page(
@@ -617,7 +650,7 @@ class OntologyImporter(OswBaseModel):
 
     @deprecated("use ontology.OntologyImporter.StoreOntologiesParam instead")
     class StoreOntologiesParam(model.OswBaseModel):
-        entities: Optional[List[Any]]
+        entities: Optional[List[model.OswBaseModel]]
         """if we use model.Entity here, all instances are casted to model.Entity
         see: https://stackoverflow.com/questions/67366187/how-to-make-a-pydantic-field-accept-subclasses-using-type
         """

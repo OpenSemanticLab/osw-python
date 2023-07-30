@@ -7,7 +7,7 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
@@ -277,6 +277,9 @@ class OSW(BaseModel):
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
         page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[0]
+        if not page.exists:
+            print(f"Error: Page {schema_title} does not exist")
+            return
         if schema_title.startswith("Category:"):
             schema_str = json.dumps(page.get_slot_content("jsonschema"))
         else:
@@ -551,13 +554,13 @@ class OSW(BaseModel):
         return entity
 
     class StoreEntityParam(model.OswBaseModel):
-        entities: Union[model.Entity, List[model.Entity]]
+        entities: Union[OswBaseModel, List[OswBaseModel]]
         namespace: Optional[str]
         parallel: Optional[bool] = False
         debug: Optional[bool] = False
 
     def store_entity(
-        self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
+        self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
     ) -> None:
         """stores the given dataclass instance as OSW page by calling BaseModel.json()
 
@@ -580,9 +583,11 @@ class OSW(BaseModel):
         def store_entity_(
             entity: model.Entity, index: int = None, namespace_=param.namespace
         ) -> None:
+
+            # ToDo: Move this to a separate function entity_to_page()...
             title_ = None
             namespace_ = None
-            if entity.meta and entity.meta.wiki_page:
+            if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
                 if entity.meta.wiki_page.title:
                     title_ = entity.meta.wiki_page.title
                 if entity.meta.wiki_page.namespace:
@@ -598,6 +603,7 @@ class OSW(BaseModel):
             page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
                 0
             ]
+
             jsondata = json.loads(
                 entity.json(exclude_none=True)
             )  # use pydantic serialization, skip none values
@@ -622,12 +628,14 @@ class OSW(BaseModel):
             _ = [store_entity_(e, i) for i, e in enumerate(param.entities)]
 
     class DeleteEntityParam(model.OswBaseModel):
-        entities: List[model.Entity]
+        entities: List[model.OswBaseModel]
         comment: Optional[str] = None
         parallel: Optional[bool] = False
         debug: Optional[bool] = False
 
-    def delete_entity(self, entity: Union[Any, DeleteEntityParam], comment: str = None):
+    def delete_entity(
+        self, entity: Union[model.OswBaseModel, DeleteEntityParam], comment: str = None
+    ):
 
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
@@ -640,24 +648,35 @@ class OSW(BaseModel):
         if len(entity.entities) >= 5:
             entity.parallel = True
 
-        def delete_entity_(entity_, comment_: str = None):
+        def delete_entity_(entity, comment_: str = None):
             """Deletes the given entity from the OSW instance.
 
             Parameters
             ----------
-            entity_:
+            entity:
                 The dataclass instance to delete
             comment_:
                 Command for the change log, by default None
             """
-            if isinstance(entity_, model.Item):
-                entity_title = "Item:" + OSW.get_osw_id(entity_.uuid)
-                page = self.site.get_page(
-                    WtSite.GetPageParam(titles=[entity_title])
-                ).pages[0]
-            else:
+            title_ = None
+            namespace_ = None
+            if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
+                if entity.meta.wiki_page.title:
+                    title_ = entity.meta.wiki_page.title
+                if entity.meta.wiki_page.namespace:
+                    namespace_ = entity.meta.wiki_page.namespace
+            if namespace_ is None:
+                namespace_ = get_namespace(entity)
+            if title_ is None:
+                title_ = OSW.get_osw_id(entity.uuid)
+            if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
+            entity_title = namespace_ + ":" + title_
+            page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
+                0
+            ]
+
             if page.exists:
                 page.delete(comment_)
                 print("Entity deleted: " + page.get_url())

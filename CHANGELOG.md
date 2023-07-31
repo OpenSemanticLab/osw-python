@@ -1,6 +1,25 @@
 # Changelog
 
-## Version v0.9.x (development)
+## Version v0.12.0
+ - rework ontology import (BREAKING, see examples/ontology_import.py)
+ - add in-memory credentials in CredentialManager
+ - fix: 'value is not a valid enumeration member' errors
+ - improve namespace detection
+ - parallelize get_page
+
+## Version v0.11.0
+ - fix code generator for Statement
+ - parallelize page operations
+ - add legacy file page migration script
+ - refactor search function in wiki_tools
+ - add file info to utils
+ - refactor WtSite to work directly with CredentialManager
+
+## Version v0.10.0
+ - refactor PagePackage creation
+ - add requiredExtensions, requiredPackages
+
+## Version v0.9.0
 
 - parallelize page operation to increase performance significantly
 - improve local slot editor

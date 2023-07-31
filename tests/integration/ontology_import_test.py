@@ -98,8 +98,9 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
     # not reliable, because the SMW store is not updated immediately
     # assert "Category:OSW51f195014de65ebe9f08994b21498cae" in full_page_titles
 
-    osw.delete_entity(
-        OSW.DeleteEntityParam(
-            entities=importer._entities, comment="[bot] delete test data"
-        )
-    )
+    # not reliable due to parallel test execution using the same osw instance and page ids
+    # osw.delete_entity(
+    #     OSW.DeleteEntityParam(
+    #         entities=importer._entities, comment="[bot] delete test data"
+    #     )
+    # )

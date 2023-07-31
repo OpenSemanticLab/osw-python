@@ -7,7 +7,7 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
@@ -17,6 +17,7 @@ from pydantic.main import ModelMetaclass
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
 from osw.utils.util import parallelize
+from osw.utils.wiki import get_namespace
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
@@ -276,6 +277,9 @@ class OSW(BaseModel):
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
         page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[0]
+        if not page.exists:
+            print(f"Error: Page {schema_title} does not exist")
+            return
         if schema_title.startswith("Category:"):
             schema_str = json.dumps(page.get_slot_content("jsonschema"))
         else:
@@ -343,7 +347,7 @@ class OSW(BaseModel):
                 --output {temp_model_path} \
                 --base-class osw.model.static.OswBaseModel \
                 --use-default \
-                --enum-field-as-literal one \
+                --enum-field-as-literal all \
                 --use-title-as-name \
                 --use-schema-description \
                 --use-field-description \
@@ -358,7 +362,7 @@ class OSW(BaseModel):
             # --custom-template-dir src/model/template_data/
             # --extra-template-data src/model/template_data/extra.json
             # --use-default: Use default value even if a field is required
-            # --enum-field-as-literal one: for static properties like osl_template
+            # --enum-field-as-literal all: prevent 'value is not a valid enumeration member' errors after schema reloading
             # --use-schema-description: Use schema description to populate class docstring
             # --use-field-description: Use schema description to populate field docstring
             # --use-title-as-name: use titles as class names of models, e. g. for the footer templates
@@ -550,13 +554,13 @@ class OSW(BaseModel):
         return entity
 
     class StoreEntityParam(model.OswBaseModel):
-        entities: Union[model.Entity, List[model.Entity]]
+        entities: Union[OswBaseModel, List[OswBaseModel]]
         namespace: Optional[str]
         parallel: Optional[bool] = False
         debug: Optional[bool] = False
 
     def store_entity(
-        self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
+        self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
     ) -> None:
         """stores the given dataclass instance as OSW page by calling BaseModel.json()
 
@@ -579,20 +583,31 @@ class OSW(BaseModel):
         def store_entity_(
             entity: model.Entity, index: int = None, namespace_=param.namespace
         ) -> None:
-            if namespace_ is None and isinstance(entity, model.Item):
-                namespace_ = "Item"
-            if namespace_ is not None:
-                entity_title = namespace_ + ":" + OSW.get_osw_id(entity.uuid)
-                page = self.site.get_page(
-                    WtSite.GetPageParam(titles=[entity_title])
-                ).pages[0]
-                jsondata = json.loads(
-                    entity.json(exclude_none=True)
-                )  # use pydantic serialization, skip none values
-                page.set_slot_content("jsondata", jsondata)
-            else:
+
+            # ToDo: Move this to a separate function entity_to_page()...
+            title_ = None
+            namespace_ = None
+            if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
+                if entity.meta.wiki_page.title:
+                    title_ = entity.meta.wiki_page.title
+                if entity.meta.wiki_page.namespace:
+                    namespace_ = entity.meta.wiki_page.namespace
+            if namespace_ is None:
+                namespace_ = get_namespace(entity)
+            if title_ is None:
+                title_ = OSW.get_osw_id(entity.uuid)
+            if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
+            entity_title = namespace_ + ":" + title_
+            page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
+                0
+            ]
+
+            jsondata = json.loads(
+                entity.json(exclude_none=True)
+            )  # use pydantic serialization, skip none values
+            page.set_slot_content("jsondata", jsondata)
             page.set_slot_content(
                 "header", "{{#invoke:Entity|header}}"
             )  # required for json parsing and header rendering
@@ -613,12 +628,14 @@ class OSW(BaseModel):
             _ = [store_entity_(e, i) for i, e in enumerate(param.entities)]
 
     class DeleteEntityParam(model.OswBaseModel):
-        entities: List[model.Entity]
+        entities: List[model.OswBaseModel]
         comment: Optional[str] = None
         parallel: Optional[bool] = False
         debug: Optional[bool] = False
 
-    def delete_entity(self, entity: Union[Any, DeleteEntityParam], comment: str = None):
+    def delete_entity(
+        self, entity: Union[model.OswBaseModel, DeleteEntityParam], comment: str = None
+    ):
 
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
@@ -631,24 +648,35 @@ class OSW(BaseModel):
         if len(entity.entities) >= 5:
             entity.parallel = True
 
-        def delete_entity_(entity_, comment_: str = None):
+        def delete_entity_(entity, comment_: str = None):
             """Deletes the given entity from the OSW instance.
 
             Parameters
             ----------
-            entity_:
+            entity:
                 The dataclass instance to delete
             comment_:
                 Command for the change log, by default None
             """
-            if isinstance(entity_, model.Item):
-                entity_title = "Item:" + OSW.get_osw_id(entity_.uuid)
-                page = self.site.get_page(
-                    WtSite.GetPageParam(titles=[entity_title])
-                ).pages[0]
-            else:
+            title_ = None
+            namespace_ = None
+            if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
+                if entity.meta.wiki_page.title:
+                    title_ = entity.meta.wiki_page.title
+                if entity.meta.wiki_page.namespace:
+                    namespace_ = entity.meta.wiki_page.namespace
+            if namespace_ is None:
+                namespace_ = get_namespace(entity)
+            if title_ is None:
+                title_ = OSW.get_osw_id(entity.uuid)
+            if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
+            entity_title = namespace_ + ":" + title_
+            page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
+                0
+            ]
+
             if page.exists:
                 page.delete(comment_)
                 print("Entity deleted: " + page.get_url())
@@ -703,61 +731,3 @@ class OSW(BaseModel):
         )
         full_page_titles = self.site.semantic_search(search_param)
         return full_page_titles
-
-    class _ImportOntologyParam(model.OswBaseModel):
-        ontology: model.Ontology
-        entities: List[model.Entity]
-        properties: Optional[List[model.Entity]]
-
-    def _import_ontology(self, param: _ImportOntologyParam):
-        import_page = self.get_page(
-            WtSite.GetPageParam(
-                titles=["MediaWiki:Smw_import_" + param.ontology.prefix_name]
-            )
-        ).pages[0]
-        text = f"{param.ontology.prefix}|[{param.ontology.link} {param.ontology.name}]"
-        for e in param.entities:
-            iri = None
-            if hasattr(e, "iri"):
-                iri = e.iri
-            if hasattr(e, "uri"):
-                iri = e.uri
-            if iri is not None:
-                text += f"\n {iri.replace(param.ontology.prefix, '')}|Category"
-            else:
-                print("Error: Entity has not iri/uri property")
-        import_page.set_slot_content("main", text)
-        import_page.edit("import ontology")
-
-        self.store_entity(
-            OSW.StoreEntityParam(namespace="Category", entities=param.entities)
-        )
-
-    class ImportOntologyParam(model.OswBaseModel):
-        entities: List[model.Entity]
-        ontologies: List[model.Ontology]
-
-    def import_ontology(self, param: ImportOntologyParam):
-        prefix_dict = {}
-        for e in param.entities:
-            if "#" in e.uri:
-                key = e.uri.split("#")[0] + "#"
-            else:
-                key = e.uri.replace(e.uri.split("/")[-1], "")
-            if key not in prefix_dict:
-                prefix_dict[key] = []
-            prefix_dict[key].append(e)
-
-        for prefix in prefix_dict.keys():
-            onto = None
-            for o in param.ontologies:
-                if o.prefix == prefix:
-                    onto = o
-            if onto is None:
-                print(f"Error: No ontology defined for prefix {prefix}")
-            else:
-                self._import_ontology(
-                    OSW._ImportOntologyParam(
-                        ontology=onto, entities=prefix_dict[prefix]
-                    )
-                )

@@ -35,8 +35,17 @@ def test_credential_manager():
         cred = cm.get_credential(
             CredentialManager.CredentialConfig(iri="domain.com:80")
         )
-        print(cred)
         assert (
             cred.username == data2["domain.com:80"]["username"]
             and cred.password == data2["domain.com:80"]["password"]
+        )
+
+        extra_cred = CredentialManager.UserPwdCredential(
+            username="testuserX", password="pass123X", iri="domainX.com"
+        )
+        cm.add_credential(extra_cred)
+        cred = cm.get_credential(CredentialManager.CredentialConfig(iri="domainX.com"))
+        assert (
+            cred.username == extra_cred.username
+            and cred.password == extra_cred.password
         )

@@ -74,6 +74,9 @@ class WtSite:
             the WtSiteConfig or WtSiteLegacyConfig to create the WtSite from
 
         """
+
+        scheme = "https"
+
         if type(config) == WtSite.WtSiteLegacyConfig:
             self._site = config.site
         else:
@@ -82,13 +85,17 @@ class WtSite:
                     iri=config.iri, fallback=CredentialManager.CredentialFallback.ask
                 )
             )
+            if "//" in config.iri:
+                scheme = config.iri.split("://")[0]
+                config.iri = config.iri.split("://")[1]
             if type(cred) == CredentialManager.UserPwdCredential:
-                self._site = mwclient.Site(cred.iri, path="/w/")
+                self._site = mwclient.Site(config.iri, path="/w/", scheme=scheme)
                 self._site.login(username=cred.username, password=cred.password)
             elif type(cred) == CredentialManager.OAuth1Credential:
                 self._site = mwclient.Site(
-                    "wiki-dev.open-semantic-lab.org",
+                    config.iri,
                     path="/w/",
+                    scheme=scheme,
                     consumer_token=cred.consumer_token,
                     consumer_secret=cred.consumer_secret,
                     access_token=cred.access_token,

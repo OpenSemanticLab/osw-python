@@ -64,6 +64,8 @@ class ImportConfig(OswBaseModel):
 
     file: str
     """the path or url to the ontology file"""
+    file_format: Literal["xml", "n3", "nt", "trix"] = "n3"
+    """the serialization format. for turtle, use 'n3' (see rdflib docs)"""
     ontology_name: str
     """the name of the ontology"""
     ontologies: List[model.Ontology]
@@ -156,7 +158,7 @@ class OntologyImporter(OswBaseModel):
 
         self.import_config = config
         rdf_graph = Graph()
-        rdf_graph.parse(self.import_config.file)
+        rdf_graph.parse(self.import_config.file, format=self.import_config.file_format)
         if self.import_config.dump_files:
             rdf_graph.serialize(
                 destination=os.path.join(
@@ -173,10 +175,11 @@ class OntologyImporter(OswBaseModel):
         def node_sort(n):
             # sort nodes by type and id
             rank = 10
-            if "Property" in n["@type"]:
-                rank = 0
-            if "Class" in n["@type"]:
-                rank = 1
+            if "@type" in n:
+                if "Property" in n["@type"]:
+                    rank = 0
+                if "Class" in n["@type"]:
+                    rank = 1
             return (rank, n["@id"])
 
         self._g["@graph"] = sorted(self._g["@graph"], key=lambda n: node_sort(n))
@@ -434,7 +437,15 @@ class OntologyImporter(OswBaseModel):
                         break
 
                 if prefix:
-                    title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{node['name']}"
+                    name = None
+                    if 'name' in node: name = node['name']
+                    if ':' in node['iri']: name = node['iri'].split(':')[-1]
+                    if (name): 
+                        title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{name}"
+                    else:
+                        raise ValueError(
+                        f"Could not find name for property {node['iri']}"
+                    )
                 else:
                     raise ValueError(
                         f"Could not find prefix for property {node['iri']}"

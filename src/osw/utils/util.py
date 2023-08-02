@@ -6,7 +6,7 @@ from io import StringIO  # , BytesIO,
 
 # import stdio_proxy
 from pathlib import Path
-from typing import IO, Callable, Iterable, Optional, Union
+from typing import IO, Callable, Dict, Iterable, List, Optional, Union
 
 import dask
 from dask.diagnostics import ProgressBar
@@ -304,7 +304,7 @@ def parallelize(
 
 def list_files_and_directories(
     search_path: Union[str, Path], recursive: bool = True
-) -> dict[str, list[Path]]:
+) -> Dict[str, List[Path]]:
     """List files and subdirectories in the specified path. Return them as list
     nested in a directory.
 
@@ -342,8 +342,8 @@ def list_files_and_directories(
 
 
 def file_in_paths(
-    paths: list[Union[str, Path]], file_name: Union[str, Path]
-) -> dict[str, Union[bool, Path]]:
+    paths: List[Union[str, Path]], file_name: Union[str, Path]
+) -> Dict[str, Union[bool, Path]]:
     result = False
     path = None
     for path in paths:
@@ -429,7 +429,7 @@ if __name__ == "__main__":
         sleep(0.1)
         return i**2
 
-    def create_list_dask(length: int, debug: bool = True) -> list[int]:
+    def create_list_dask(length: int, debug: bool = True) -> List[int]:
         message_buffer_ = MessageBuffer()
         # todo: line_print="line_numbers" doesn't return any message
 
@@ -454,7 +454,7 @@ if __name__ == "__main__":
 
         return result
 
-    def create_list_dask_1(length: int, debug: bool = True) -> list[int]:
+    def create_list_dask_1(length: int, debug: bool = True) -> List[int]:
         @redirect_print
         def in_parallel(i_, length_, debug_: bool = True):
             if debug_:
@@ -470,7 +470,7 @@ if __name__ == "__main__":
 
         return result
 
-    def create_list_dask_2(length: int, debug: bool = True) -> list[int]:
+    def create_list_dask_2(length: int, debug: bool = True) -> List[int]:
         message_buffer_ = MessageBuffer()
 
         @RedirectStdout(buffer=message_buffer_)
@@ -491,7 +491,7 @@ if __name__ == "__main__":
         return result
 
     @redirect_print(file_like=message_buffer)
-    def create_list(length: int) -> list[int]:
+    def create_list(length: int) -> List[int]:
         print(f"Creating a list of length {length}")
         for i in range(length):
             sleep(0.1)
@@ -499,7 +499,7 @@ if __name__ == "__main__":
         return [i for i in range(length)]
 
     @redirect_print
-    def create_list_1(length: int) -> list[int]:
+    def create_list_1(length: int) -> List[int]:
         print(f"Creating a list of length {length}")
         for i in range(length):
             sleep(0.1)
@@ -507,7 +507,7 @@ if __name__ == "__main__":
         return [i for i in range(length)]
 
     @redirect_print_explicitly()
-    def create_list_2(length: int) -> list[int]:
+    def create_list_2(length: int) -> List[int]:
         print(f"Creating a list of length {length}")
         for i in range(length):
             sleep(0.1)
@@ -515,7 +515,7 @@ if __name__ == "__main__":
         return [i for i in range(length)]
 
     @redirect_print(file_like=Path("xx.txt"))
-    def create_list_3(length: int) -> list[int]:
+    def create_list_3(length: int) -> List[int]:
         print(f"Creating a list of length {length}")
         for i in range(length):
             sleep(0.1)

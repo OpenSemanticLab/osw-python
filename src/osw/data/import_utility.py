@@ -3,7 +3,7 @@ import re
 import uuid as uuid_module
 import warnings
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import deepl
 import numpy as np
@@ -19,7 +19,7 @@ from osw.wtsite import WtSite
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
-REGEX_PATTERN: dict[str, Union[str, dict[str, str]]] = {
+REGEX_PATTERN: Dict[str, Union[str, Dict[str, str]]] = {
     "SAP OU number and name from DN": {
         "Pattern": r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
         "Groups": {2: "SAP OU number", 3: "SAP OU name"},
@@ -446,10 +446,10 @@ def regex_match_list(pattern: str, list_of_strings: List[str]) -> List[str]:
 
 
 def sort_dict_of_entities_as_dict_by_type(
-    entities_as_dict: dict[str, dict],
+    entities_as_dict: Dict[str, Dict],
     inplace: bool = True,
     sublevel_key: str = "jsondata",
-) -> dict:
+) -> Dict:
     """
 
     Parameters

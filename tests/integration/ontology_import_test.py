@@ -10,7 +10,6 @@ from osw.wtsite import WtSite
 
 
 def test_ontology_import(wiki_domain, wiki_username, wiki_password):
-
     cm = CredentialManager()
     cm.add_credential(
         CredentialManager.UserPwdCredential(

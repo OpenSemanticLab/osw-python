@@ -77,7 +77,7 @@ class WtSite:
 
         scheme = "https"
 
-        if type(config) == WtSite.WtSiteLegacyConfig:
+        if isinstance(config, WtSite.WtSiteLegacyConfig):
             self._site = config.site
         else:
             cred = config.cred_mngr.get_credential(
@@ -88,10 +88,10 @@ class WtSite:
             if "//" in config.iri:
                 scheme = config.iri.split("://")[0]
                 config.iri = config.iri.split("://")[1]
-            if type(cred) == CredentialManager.UserPwdCredential:
+            if isinstance(cred, CredentialManager.UserPwdCredential):
                 self._site = mwclient.Site(config.iri, path="/w/", scheme=scheme)
                 self._site.login(username=cred.username, password=cred.password)
-            elif type(cred) == CredentialManager.OAuth1Credential:
+            elif isinstance(cred, CredentialManager.OAuth1Credential):
                 self._site = mwclient.Site(
                     config.iri,
                     path="/w/",

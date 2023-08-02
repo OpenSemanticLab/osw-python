@@ -125,6 +125,7 @@ class OntologyImporter(OswBaseModel):
         -------
             None
         """
+
         # overwrite the default document loader to load relative context from the wiki
         def myloader(*args, **kwargs):
             requests_loader = pyld.documentloader.requests.requests_document_loader(
@@ -132,7 +133,6 @@ class OntologyImporter(OswBaseModel):
             )
 
             def loader(url, options={}):
-
                 if "/wiki/" in url:
                     title = url.replace("/wiki/", "").split("?")[0]
                     page = self.osw.site.get_page(
@@ -403,7 +403,7 @@ class OntologyImporter(OswBaseModel):
             # try to get last 32 hex digits and convert it to uuid
             # e. g. http://emmo.info/emmo/EMMO_4db96fb7_e9e0_466d_942b_f6f17bfdc145
             node_uuid = uuid.UUID(re.sub(r"[^A-Fa-f0-9]", "", node_name)[-32:])
-        except (Exception):
+        except Exception:
             node_uuid = uuid.uuid5(uuid.NAMESPACE_URL, iri)
         return node_uuid
 
@@ -438,14 +438,16 @@ class OntologyImporter(OswBaseModel):
 
                 if prefix:
                     name = None
-                    if 'name' in node: name = node['name']
-                    if ':' in node['iri']: name = node['iri'].split(':')[-1]
-                    if (name): 
+                    if "name" in node:
+                        name = node["name"]
+                    if ":" in node["iri"]:
+                        name = node["iri"].split(":")[-1]
+                    if name:
                         title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{name}"
                     else:
                         raise ValueError(
-                        f"Could not find name for property {node['iri']}"
-                    )
+                            f"Could not find name for property {node['iri']}"
+                        )
                 else:
                     raise ValueError(
                         f"Could not find prefix for property {node['iri']}"
@@ -506,7 +508,6 @@ class OntologyImporter(OswBaseModel):
                     "owl:NamedIndividual",
                 ]
             ):
-
                 node["uuid"] = str(self._get_uuid_from_iri(node["iri"]))
 
                 # name = ""
@@ -647,7 +648,6 @@ class OntologyImporter(OswBaseModel):
             if hasattr(e, "uri"):
                 iri = e.uri
             if iri is not None:
-
                 text += f"\n {iri.replace(param.ontology.prefix, '').replace(param.ontology.prefix_name + ':', '')}|{smw_import_type}"
             else:
                 print("Error: Entity has not iri/uri property")

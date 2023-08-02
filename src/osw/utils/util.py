@@ -187,6 +187,7 @@ def redirect_print_explicitly(
     Adapted from: https://bytepawn.com/python-decorators-for-data-scientists.html
 
     """
+
     # Code here is executed at decoration - when the decorator is used
     def decorator(func_: Callable, **kwargs) -> Callable:
         """

@@ -24,25 +24,25 @@ def get_namespace(entity: model.Entity) -> Union[str, None]:
         try:
             if isinstance(entity, model.Item):
                 namespace = "Item"
-        except (AttributeError):
+        except AttributeError:
             pass
     if namespace is None:
         try:
             if isinstance(entity, model.Category):
                 namespace = "Category"
-        except (AttributeError):
+        except AttributeError:
             pass
     if namespace is None:
         try:
             if isinstance(entity, model.Property):
                 namespace = "Property"
-        except (AttributeError):
+        except AttributeError:
             pass
     if namespace is None:
         try:
             if isinstance(entity, model.WikiFile):
                 namespace = "File"
-        except (AttributeError):
+        except AttributeError:
             pass
 
     return namespace

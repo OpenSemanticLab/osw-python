@@ -6,7 +6,6 @@ from SPARQLWrapper import BASIC, JSON, POST, SPARQLWrapper
 
 class SmwSparqlClient:
     def __init__(self, endpoint, domain, auth="none", user="", password=""):
-
         self.create_sparql_client(endpoint, auth, user, password)
 
         self.prefix_dict = {

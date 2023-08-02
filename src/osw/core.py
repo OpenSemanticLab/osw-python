@@ -456,7 +456,6 @@ class OSW(BaseModel):
             # content = re.sub(r"Statement3", r"QuantityStatement", content)
 
             if fetchSchemaParam.mode == "replace":
-
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import Type, TypeVar\n"
@@ -583,7 +582,6 @@ class OSW(BaseModel):
         def store_entity_(
             entity: model.Entity, index: int = None, namespace_=param.namespace
         ) -> None:
-
             # ToDo: Move this to a separate function entity_to_page()...
             title_ = None
             namespace_ = None
@@ -636,7 +634,6 @@ class OSW(BaseModel):
     def delete_entity(
         self, entity: Union[model.OswBaseModel, DeleteEntityParam], comment: str = None
     ):
-
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
             if isinstance(entity, list):

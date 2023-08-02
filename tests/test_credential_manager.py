@@ -7,7 +7,6 @@ from osw.auth import CredentialManager
 
 
 def test_credential_manager():
-
     data = {"test.domain.com": {"username": "testuser", "password": "pass123"}}
     data2 = {
         "test.domain.com:80": {"username": "testuser2", "password": "pass1234"},

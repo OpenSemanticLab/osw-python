@@ -18,8 +18,21 @@ class OswBaseModel(BaseModel):
                 #  considered as discriminator
         return d
 
-    def cast(self, cls: Union[Type[T], type]) -> T:
-        return cls(**self.dict())
+    def cast(self, cls: Union[Type[T], type], **kwargs) -> T:
+        """Casting self into target class
+
+        Parameters
+        ----------
+            cls
+                target class
+            kwargs
+                additional attributes to be set
+
+        Returns
+        -------
+        instance of target class
+        """
+        return cls(**{**self.dict(), **kwargs})
 
     def cast_none_to_default(self, cls: Union[Type[T], type]) -> T:
         """Casting self into target class. If the passed attribute is None or solely

@@ -17,7 +17,12 @@ from pydantic.main import ModelMetaclass
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
 from osw.utils.util import parallelize
-from osw.utils.wiki import get_namespace
+from osw.utils.wiki import (
+    get_namespace,
+    get_title,
+    namespace_from_full_title,
+    title_from_full_title,
+)
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
@@ -549,6 +554,12 @@ class OSW(BaseModel):
                 bases.append(eval("model." + schema["title"]))
             cls = create_model("Test", __base__=tuple(bases))
             entity = cls(**jsondata)
+            entity.meta = model.Meta(
+                wiki_page=model.WikiPage(
+                    namespace=namespace_from_full_title(entity_title),
+                    title=title_from_full_title(entity_title),
+                )
+            )
 
         return entity
 
@@ -580,20 +591,11 @@ class OSW(BaseModel):
             param.parallel = True
 
         def store_entity_(
-            entity: model.Entity, index: int = None, namespace_=param.namespace
+            entity: model.Entity, namespace_: str = None, index: int = None
         ) -> None:
-            # ToDo: Move this to a separate function entity_to_page()...
-            title_ = None
-            namespace_ = None
-            if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
-                if entity.meta.wiki_page.title:
-                    title_ = entity.meta.wiki_page.title
-                if entity.meta.wiki_page.namespace:
-                    namespace_ = entity.meta.wiki_page.namespace
+            title_ = get_title(entity)
             if namespace_ is None:
                 namespace_ = get_namespace(entity)
-            if title_ is None:
-                title_ = OSW.get_osw_id(entity.uuid)
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
@@ -621,9 +623,17 @@ class OSW(BaseModel):
                 )
 
         if param.parallel:
-            _ = parallelize(store_entity_, param.entities, flush_at_end=param.debug)
+            _ = parallelize(
+                store_entity_,
+                param.entities,
+                flush_at_end=param.debug,
+                namespace_=param.namespace,
+            )
         else:
-            _ = [store_entity_(e, i) for i, e in enumerate(param.entities)]
+            _ = [
+                store_entity_(e, param.namespace, i)
+                for i, e in enumerate(param.entities)
+            ]
 
     class DeleteEntityParam(model.OswBaseModel):
         entities: List[model.OswBaseModel]

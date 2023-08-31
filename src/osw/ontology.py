@@ -440,7 +440,7 @@ class OntologyImporter(OswBaseModel):
                     name = None
                     if "name" in node:
                         name = node["name"]
-                    if ":" in node["iri"]:
+                    elif ":" in node["iri"]:
                         name = node["iri"].split(":")[-1]
                     if name:
                         title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{name}"
@@ -655,9 +655,7 @@ class OntologyImporter(OswBaseModel):
         import_page.set_slot_content("main", text)
         import_page.edit("import ontology")
 
-        self.osw.store_entity(
-            OSW.StoreEntityParam(namespace="Category", entities=param.entities)
-        )
+        self.osw.store_entity(OSW.StoreEntityParam(entities=param.entities))
 
     @deprecated("use ontology.OntologyImporter.StoreOntologiesParam instead")
     class StoreOntologiesParam(model.OswBaseModel):

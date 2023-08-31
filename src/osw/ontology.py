@@ -77,7 +77,11 @@ class ImportConfig(OswBaseModel):
     base_class_title: Optional[
         str
     ] = "Category:OSW725a3cf5458f4daea86615fcbd0029f8"  # OwlClass
-    """Title of the base class schema"""
+    """Title of the base class schema. Defaults to OwlClass"""
+    meta_class_title: Optional[
+        str
+    ] = "Category:OSW379d5a1589c74c82bc0de47938264d00"  # OwlThing
+    """Title of the meta class schema. Defaults to OwlThing"""
     dump_files: Optional[bool] = False
     """If True, the parsed ontology will be dumped to a jsonld file"""
     dump_path: Optional[str] = None
@@ -709,6 +713,10 @@ class OntologyImporter(OswBaseModel):
             # see https://www.semantic-mediawiki.org/wiki/Help:Import_vocabulary
             if namespace == "Category":
                 smw_import_type = "Category"
+                if not hasattr(e, "subclass_of"):
+                    e.subclass_of = []
+                if len(e.subclass_of) == 0:
+                    e.subclass_of = self.import_config.meta_class_title
             elif namespace == "Property":
                 smw_import_type = "Type:" + e.cast(model.Property).property_type
             else:

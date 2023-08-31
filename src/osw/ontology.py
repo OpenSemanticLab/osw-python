@@ -70,6 +70,8 @@ class ImportConfig(OswBaseModel):
     """the name of the ontology"""
     ontologies: List[model.Ontology]
     """Ontology metadata, inluding imported ontologies"""
+    import_mapping: Optional[Dict[str, str]] = {}
+    """Mapping of imported ontologies iri to their resolveable file url in case both are not identical"""
     base_class: ModelMetaclass
     """Base class for the ontology model. For OWL Ontologies, this should be model.OwlClass or a subclass of it."""
     base_class_title: Optional[
@@ -112,6 +114,62 @@ class OntologyImporter(OswBaseModel):
     _g: Optional[Dict] = PrivateAttr()
     _entities: Optional[List] = PrivateAttr()
     _entities_json: Optional[List] = PrivateAttr()
+
+    _imported_ontologies: Optional[List[str]] = PrivateAttr()
+
+    @staticmethod
+    def _recursive_ontology_import(
+        file, format="turtle", imported_ontologies=[], import_mapping={}
+    ):
+        """Recursively import ontologies from owl:imports statements in the given ontology file
+
+        Parameters:
+            file (str): path or url to the ontology file
+            format (str): the serialization format (see rdflib docs)
+            imported_ontologies (list): list of already imported ontologies
+
+        Returns:
+            graph (rdflib.Graph): graph of the imported ontologies"""
+        rdf_graph = Graph()
+        rdf_graph.parse(file, format=format)
+
+        # load the graph into a dict
+        _g = json.loads(rdf_graph.serialize(format="json-ld", auto_compact=True))
+
+        ontologies_to_import = []
+
+        def handle_node(node):
+            if "owl:imports" in node:
+                if not isinstance(node["owl:imports"], list):
+                    node["owl:imports"] = [node["owl:imports"]]
+                for import_ in node["owl:imports"]:
+                    onto = import_["@id"]
+                    if onto not in imported_ontologies:
+                        if onto in import_mapping:
+                            ontologies_to_import.append(import_mapping[onto])
+                        else:
+                            ontologies_to_import.append(onto)
+                        imported_ontologies.append(onto)
+                        # print(node["owl:imports"]["@id"])
+
+        if "@graph" in _g:
+            for node in _g["@graph"]:
+                handle_node(node)
+        else:
+            handle_node(_g)
+
+        # load the imported ontologies and merge them into the main graph
+        for onto in ontologies_to_import:
+            print(f"Importing {onto}")
+            _rdf_graph = OntologyImporter._recursive_ontology_import(
+                onto,
+                format=format,
+                imported_ontologies=imported_ontologies,
+                import_mapping=import_mapping,
+            )
+            rdf_graph += _rdf_graph
+
+        return rdf_graph
 
     def import_ontology(self, config: ImportConfig):
         """Imports an ontology into OSW
@@ -157,8 +215,16 @@ class OntologyImporter(OswBaseModel):
         jsonld.set_document_loader(myloader())
 
         self.import_config = config
-        rdf_graph = Graph()
-        rdf_graph.parse(self.import_config.file, format=self.import_config.file_format)
+
+        # load the ontology file
+        self._imported_ontologies = []
+        rdf_graph = self._recursive_ontology_import(
+            self.import_config.file,
+            self.import_config.file_format,
+            self._imported_ontologies,
+            self.import_config.import_mapping,
+        )
+
         if self.import_config.dump_files:
             rdf_graph.serialize(
                 destination=os.path.join(
@@ -278,6 +344,8 @@ class OntologyImporter(OswBaseModel):
                 node[key] = types
             # remove 'www.' from @id
             node["@id"] = node["@id"].replace("www.", "")
+
+            # handle subClassOf and subPropertyOf
             if "rdfs:subClassOf" in node:
                 if not isinstance(node["rdfs:subClassOf"], list):
                     node["rdfs:subClassOf"] = [node["rdfs:subClassOf"]]
@@ -311,6 +379,8 @@ class OntologyImporter(OswBaseModel):
                             node["rdfs:subClassOf"].pop(i)
                             if id in self._g["@graph"]:
                                 self._delete_node(self._g["@graph"], id)
+                        # else:
+                        #    print("Warning: rdfs:subClassOf is not a Restriction: ", superclass)
 
     def _delete_node(self, id: str, key: str = "@id") -> bool:
         """Delete a node from a graph by id
@@ -413,50 +483,51 @@ class OntologyImporter(OswBaseModel):
 
         node_uuid = self._get_uuid_from_iri(node["iri"])
 
-        if "owl:Class" in node["rdf_type"]:
-            ns = "Category"
-            title = OSW.get_osw_id(node_uuid)
-        elif (
-            "owl:ObjectProperty" in node["rdf_type"]
-            or "owl:DatatypeProperty" in node["rdf_type"]
-            or "owl:AnnotationProperty" in node["rdf_type"]
-        ):
-            ns = "Property"
-            if self.import_config.property_naming_policy == "label":
-                title = node["name"]
-            elif self.import_config.property_naming_policy == "prefixed_label":
-                prefix = None
-                for onto in self.import_config.ontologies:
-                    if (
-                        onto.iri in node["iri"]
-                        or onto.prefix_name
-                        + self.import_config.property_naming_prefix_delimiter
-                        in node["iri"]
-                    ):
-                        prefix = onto.prefix_name
-                        break
+        if "rdf_type" in node:
+            if "owl:Class" in node["rdf_type"]:
+                ns = "Category"
+                title = OSW.get_osw_id(node_uuid)
+            elif (
+                "owl:ObjectProperty" in node["rdf_type"]
+                or "owl:DatatypeProperty" in node["rdf_type"]
+                or "owl:AnnotationProperty" in node["rdf_type"]
+            ):
+                ns = "Property"
+                if self.import_config.property_naming_policy == "label":
+                    title = node["name"]
+                elif self.import_config.property_naming_policy == "prefixed_label":
+                    prefix = None
+                    for onto in self.import_config.ontologies:
+                        if (
+                            onto.iri in node["iri"]
+                            or onto.prefix_name
+                            + self.import_config.property_naming_prefix_delimiter
+                            in node["iri"]
+                        ):
+                            prefix = onto.prefix_name
+                            break
 
-                if prefix:
-                    name = None
-                    if "name" in node:
-                        name = node["name"]
-                    elif ":" in node["iri"]:
-                        name = node["iri"].split(":")[-1]
-                    if name:
-                        title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{name}"
+                    if prefix:
+                        name = None
+                        if "name" in node:
+                            name = node["name"]
+                        elif ":" in node["iri"]:
+                            name = node["iri"].split(":")[-1]
+                        if name:
+                            title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{name}"
+                        else:
+                            raise ValueError(
+                                f"Could not find name for property {node['iri']}"
+                            )
                     else:
                         raise ValueError(
-                            f"Could not find name for property {node['iri']}"
+                            f"Could not find prefix for property {node['iri']}"
                         )
-                else:
-                    raise ValueError(
-                        f"Could not find prefix for property {node['iri']}"
-                    )
-            if self.import_config.property_naming_policy == "uuid":
+                if self.import_config.property_naming_policy == "uuid":
+                    title = OSW.get_osw_id(node_uuid)
+            elif "owl:NamedIndividual" in node["rdf_type"]:
+                ns = "Item"
                 title = OSW.get_osw_id(node_uuid)
-        elif "owl:NamedIndividual" in node["rdf_type"]:
-            ns = "Item"
-            title = OSW.get_osw_id(node_uuid)
         else:  # e. g. owl:Axiom
             return None
 

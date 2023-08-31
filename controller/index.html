@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.6">
     
     
       
@@ -982,7 +982,7 @@
 
         <span class="n">osw</span><span class="p">:</span> <span class="n">OSW</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot; OSW instance to fetch related resources (host, server, etc.) &quot;&quot;&quot;</span>
-        <span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">Credential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span>
+        <span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot; CredentialManager or direct Credential to login to the database&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">ConnectionConfig</span><span class="p">):</span>
@@ -1011,7 +1011,7 @@
         <span class="p">)</span>
         <span class="n">dbtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">osw</span><span class="o">.</span><span class="n">load_entity</span><span class="p">(</span><span class="n">dbtype_title</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">DatabaseType</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cm</span><span class="p">)</span> <span class="ow">is</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">Credential</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cm</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">):</span>
             <span class="n">db_server_cred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cm</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">db_server_cred</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">get_credential</span><span class="p">(</span>
@@ -1157,7 +1157,7 @@
 
     <span class="n">osw</span><span class="p">:</span> <span class="n">OSW</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; OSW instance to fetch related resources (host, server, etc.) &quot;&quot;&quot;</span>
-    <span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">Credential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span>
+    <span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; CredentialManager or direct Credential to login to the database&quot;&quot;&quot;</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -1178,7 +1178,7 @@
 
 
 <h4 id="osw.controller.DatabaseController.ConnectionConfig.cm" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">Credential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span></code>
+          <code class="highlight language-python"><span class="n">cm</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
@@ -1703,7 +1703,7 @@
     <span class="p">)</span>
     <span class="n">dbtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">osw</span><span class="o">.</span><span class="n">load_entity</span><span class="p">(</span><span class="n">dbtype_title</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">DatabaseType</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cm</span><span class="p">)</span> <span class="ow">is</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">Credential</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cm</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">):</span>
         <span class="n">db_server_cred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cm</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">db_server_cred</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">get_credential</span><span class="p">(</span>

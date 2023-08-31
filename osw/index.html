@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.5">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.2.6">
     
     
       
@@ -602,8 +602,7 @@
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 58</span>
-<span class="normal"> 59</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 59</span>
 <span class="normal"> 60</span>
 <span class="normal"> 61</span>
 <span class="normal"> 62</span>
@@ -1284,7 +1283,22 @@
 <span class="normal">737</span>
 <span class="normal">738</span>
 <span class="normal">739</span>
-<span class="normal">740</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -1796,6 +1810,7 @@
         <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
         <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
         <span class="n">parallel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">meta_category_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Category:Category&quot;</span>
         <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
@@ -1818,6 +1833,10 @@
         <span class="n">max_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">max_index</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">:</span>
             <span class="n">param</span><span class="o">.</span><span class="n">parallel</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">meta_category</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_page</span><span class="p">(</span>
+            <span class="n">WtSite</span><span class="o">.</span><span class="n">GetPageParam</span><span class="p">(</span><span class="n">titles</span><span class="o">=</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">meta_category_title</span><span class="p">])</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="k">def</span> <span class="nf">store_entity_</span><span class="p">(</span>
             <span class="n">entity</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">namespace_</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1843,6 +1862,15 @@
             <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span>
                 <span class="s2">&quot;footer&quot;</span><span class="p">,</span> <span class="s2">&quot;{{#invoke:Entity|footer}}&quot;</span>
             <span class="p">)</span>  <span class="c1"># required for footer rendering</span>
+            <span class="k">if</span> <span class="n">namespace_</span> <span class="o">==</span> <span class="s2">&quot;Category&quot;</span><span class="p">:</span>
+                <span class="n">template</span> <span class="o">=</span> <span class="n">meta_category</span><span class="o">.</span><span class="n">get_slot_content</span><span class="p">(</span><span class="s2">&quot;schema_template&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">template</span><span class="p">:</span>
+                    <span class="n">schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+                        <span class="n">eval_handlebars_template</span><span class="p">(</span>
+                            <span class="n">template</span><span class="p">,</span> <span class="n">jsondata</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;_page_title&quot;</span><span class="p">:</span> <span class="n">entity_title</span><span class="p">}</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;jsonschema&quot;</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
             <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity stored at </span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
@@ -2037,8 +2065,7 @@
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">234</span>
-<span class="normal">235</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
@@ -2049,7 +2076,8 @@
 <span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
-<span class="normal">246</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FetchSchemaMode</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="normal">246</span>
+<span class="normal">247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FetchSchemaMode</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Modes of the FetchSchemaParam class</span>
 
 <span class="sd">    Attributes</span>
@@ -2155,8 +2183,7 @@ default: True)</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">248</span>
-<span class="normal">249</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
@@ -2173,7 +2200,8 @@ default: True)</p>
 <span class="normal">263</span>
 <span class="normal">264</span>
 <span class="normal">265</span>
-<span class="normal">266</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FetchSchemaParam</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">266</span>
+<span class="normal">267</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FetchSchemaParam</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;_summary_</span>
 
 <span class="sd">    Attributes</span>
@@ -2284,8 +2312,7 @@ default: True)</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">103</span>
-<span class="normal">104</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">104</span>
 <span class="normal">105</span>
 <span class="normal">106</span>
 <span class="normal">107</span>
@@ -2304,7 +2331,8 @@ default: True)</p>
 <span class="normal">120</span>
 <span class="normal">121</span>
 <span class="normal">122</span>
-<span class="normal">123</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">123</span>
+<span class="normal">124</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SchemaRegistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    dataclass param of register_schema()</span>
 
@@ -2415,8 +2443,7 @@ default: True)</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">189</span>
-<span class="normal">190</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">190</span>
 <span class="normal">191</span>
 <span class="normal">192</span>
 <span class="normal">193</span>
@@ -2434,7 +2461,8 @@ default: True)</p>
 <span class="normal">205</span>
 <span class="normal">206</span>
 <span class="normal">207</span>
-<span class="normal">208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SchemaUnregistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">208</span>
+<span class="normal">209</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SchemaUnregistration</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    dataclass param of register_schema()</span>
 
@@ -2496,22 +2524,7 @@ default: True)</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">659</span>
 <span class="normal">660</span>
 <span class="normal">661</span>
 <span class="normal">662</span>
@@ -2553,7 +2566,22 @@ default: True)</p>
 <span class="normal">698</span>
 <span class="normal">699</span>
 <span class="normal">700</span>
-<span class="normal">701</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">DeleteEntityParam</span><span class="p">],</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Deletes the given entity/entities from the OSW instance.&quot;&quot;&quot;</span>
@@ -2666,8 +2694,7 @@ datasclasses within osw.model.entity from it</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">268</span>
-<span class="normal">269</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
 <span class="normal">272</span>
@@ -2912,7 +2939,8 @@ datasclasses within osw.model.entity from it</p>
 <span class="normal">511</span>
 <span class="normal">512</span>
 <span class="normal">513</span>
-<span class="normal">514</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">514</span>
+<span class="normal">515</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fetch_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fetchSchemaParam</span><span class="p">:</span> <span class="n">FetchSchemaParam</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads the given schema from the OSW instance and autogenerates python</span>
 <span class="sd">    datasclasses within osw.model.entity from it</span>
 
@@ -3242,8 +3270,7 @@ all '-' from the uuid-string</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">72</span>
-<span class="normal">73</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">73</span>
 <span class="normal">74</span>
 <span class="normal">75</span>
 <span class="normal">76</span>
@@ -3256,7 +3283,8 @@ all '-' from the uuid-string</p>
 <span class="normal">83</span>
 <span class="normal">84</span>
 <span class="normal">85</span>
-<span class="normal">86</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">86</span>
+<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span> <span class="nf">get_osw_id</span><span class="p">(</span><span class="n">uuid</span><span class="p">:</span> <span class="n">uuid</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generates a OSW-ID based on the given uuid by prefixing &quot;OSW&quot; and removing</span>
 <span class="sd">    all &#39;-&#39; from the uuid-string</span>
@@ -3352,8 +3380,7 @@ all '-' from the uuid-string</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 88</span>
-<span class="normal"> 89</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 89</span>
 <span class="normal"> 90</span>
 <span class="normal"> 91</span>
 <span class="normal"> 92</span>
@@ -3365,7 +3392,8 @@ all '-' from the uuid-string</p>
 <span class="normal"> 98</span>
 <span class="normal"> 99</span>
 <span class="normal">100</span>
-<span class="normal">101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">101</span>
+<span class="normal">102</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span> <span class="nf">get_uuid</span><span class="p">(</span><span class="n">osw_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">uuid</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns the uuid for a given OSW-ID</span>
 
@@ -3459,8 +3487,7 @@ model.Entity. An instance of model.Entity can be cast to any subclass with
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">516</span>
-<span class="normal">517</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">517</span>
 <span class="normal">518</span>
 <span class="normal">519</span>
 <span class="normal">520</span>
@@ -3507,7 +3534,8 @@ model.Entity. An instance of model.Entity can be cast to any subclass with
 <span class="normal">561</span>
 <span class="normal">562</span>
 <span class="normal">563</span>
-<span class="normal">564</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
+<span class="normal">564</span>
+<span class="normal">565</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads the entity with the given wiki page name from the OSW instance.</span>
 <span class="sd">    Creates an instance of the class specified by the &quot;type&quot; attribute, default</span>
 <span class="sd">    model.Entity. An instance of model.Entity can be cast to any subclass with</span>
@@ -3611,8 +3639,7 @@ category page.</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">125</span>
-<span class="normal">126</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">126</span>
 <span class="normal">127</span>
 <span class="normal">128</span>
 <span class="normal">129</span>
@@ -3673,7 +3700,8 @@ category page.</p>
 <span class="normal">184</span>
 <span class="normal">185</span>
 <span class="normal">186</span>
-<span class="normal">187</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
+<span class="normal">187</span>
+<span class="normal">188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">register_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_registration</span><span class="p">:</span> <span class="n">SchemaRegistration</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Registers a new or updated schema in OSW by creating the corresponding</span>
 <span class="sd">    category page.</span>
 
@@ -3790,9 +3818,7 @@ category page.</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">574</span>
 <span class="normal">575</span>
 <span class="normal">576</span>
 <span class="normal">577</span>
@@ -3854,7 +3880,22 @@ category page.</p>
 <span class="normal">633</span>
 <span class="normal">634</span>
 <span class="normal">635</span>
-<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>
@@ -3874,6 +3915,10 @@ category page.</p>
     <span class="n">max_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">max_index</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">:</span>
         <span class="n">param</span><span class="o">.</span><span class="n">parallel</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">meta_category</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_page</span><span class="p">(</span>
+        <span class="n">WtSite</span><span class="o">.</span><span class="n">GetPageParam</span><span class="p">(</span><span class="n">titles</span><span class="o">=</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">meta_category_title</span><span class="p">])</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">store_entity_</span><span class="p">(</span>
         <span class="n">entity</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">namespace_</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span>
@@ -3899,6 +3944,15 @@ category page.</p>
         <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span>
             <span class="s2">&quot;footer&quot;</span><span class="p">,</span> <span class="s2">&quot;{{#invoke:Entity|footer}}&quot;</span>
         <span class="p">)</span>  <span class="c1"># required for footer rendering</span>
+        <span class="k">if</span> <span class="n">namespace_</span> <span class="o">==</span> <span class="s2">&quot;Category&quot;</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">meta_category</span><span class="o">.</span><span class="n">get_slot_content</span><span class="p">(</span><span class="s2">&quot;schema_template&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">template</span><span class="p">:</span>
+                <span class="n">schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+                    <span class="n">eval_handlebars_template</span><span class="p">(</span>
+                        <span class="n">template</span><span class="p">,</span> <span class="n">jsondata</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;_page_title&quot;</span><span class="p">:</span> <span class="n">entity_title</span><span class="p">}</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;jsonschema&quot;</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
         <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity stored at </span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
@@ -3973,8 +4027,7 @@ category page.</p>
 
           <details class="quote">
             <summary>Source code in <code>src/osw/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">210</span>
-<span class="normal">211</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
 <span class="normal">214</span>
@@ -3995,7 +4048,8 @@ category page.</p>
 <span class="normal">229</span>
 <span class="normal">230</span>
 <span class="normal">231</span>
-<span class="normal">232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">unregister_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_unregistration</span><span class="p">:</span> <span class="n">SchemaUnregistration</span><span class="p">):</span>
+<span class="normal">232</span>
+<span class="normal">233</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">unregister_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema_unregistration</span><span class="p">:</span> <span class="n">SchemaUnregistration</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;deletes the corresponding category page</span>
 
 <span class="sd">    Parameters</span>

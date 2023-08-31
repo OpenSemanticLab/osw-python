@@ -1,5 +1,4 @@
 from osw.auth import CredentialManager
-from osw.controller.file.wiki import WikiFileController
 from osw.core import OSW, model
 from osw.wtsite import WtSite
 
@@ -30,11 +29,11 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
         osw.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
 
     from osw.controller.file.local import LocalFileController
+    from osw.controller.file.wiki import WikiFileController
 
     lf = model.LocalFile(label=[model.Label(text="Test File")]).cast(
-        LocalFileController
+        LocalFileController, path="tests/integration/test.svg"
     )
-    lf.path = "tests/integration/test.svg"
 
     # wf = WikiFileController.from_local(lf) # does not work due to missing attributes 'title' and 'osw'
     wf = WikiFileController(label=[model.Label(text="Test File")], osw=osw)
@@ -44,9 +43,7 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
     title = wf.namespace + ":" + wf.title
     # title = "File:OSW1b3fea404fe344c78ffd2d7a46bb468e.svg"
     wf2 = osw.load_entity(title).cast(WikiFileController, osw=osw)
-    lf2 = LocalFileController(
-        label=[model.Label(text="Test File2")], path="tests/integration/test2.svg"
-    )
+    lf2 = LocalFileController(path="tests/integration/test2.svg")
     lf2.put_from(wf2)
     # wf2.get_to(lf2)
 

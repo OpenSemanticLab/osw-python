@@ -2,7 +2,7 @@ import functools
 import os
 from typing import IO, Optional
 
-from osw.controller.file.file import FileController
+from osw.controller.file.base import FileController
 from osw.controller.file.remote import RemoteFileController
 from osw.core import OSW, model
 from osw.utils.wiki import get_namespace, get_title

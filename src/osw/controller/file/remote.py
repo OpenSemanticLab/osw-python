@@ -1,8 +1,10 @@
 from abc import abstractmethod
 from typing import IO
 
-from osw.controller.file.file import FileController
+from osw.controller.file.base import FileController
 from osw.core import model
+
+# TODO: add addional remove file with https://docs.prefect.io/2.11.4/concepts/filesystems/
 
 
 # note: the order of the base classes is important

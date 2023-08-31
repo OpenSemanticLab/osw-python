@@ -68,7 +68,7 @@ class DatabaseController(model.Database):
 
         osw: OSW
         """ OSW instance to fetch related resources (host, server, etc.) """
-        cm: Union[CredentialManager.Credential, CredentialManager]
+        cm: Union[CredentialManager.BaseCredential, CredentialManager]
         """ CredentialManager or direct Credential to login to the database"""
 
     def connect(self, config: ConnectionConfig):
@@ -97,7 +97,7 @@ class DatabaseController(model.Database):
         )
         dbtype = self.osw.load_entity(dbtype_title[0]).cast(model.DatabaseType)
 
-        if type(self.cm) is CredentialManager.Credential:
+        if isinstance(self.cm, CredentialManager.BaseCredential):
             db_server_cred = self.cm
         else:
             db_server_cred = config.cm.get_credential(

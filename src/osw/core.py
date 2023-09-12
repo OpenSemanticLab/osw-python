@@ -16,7 +16,10 @@ from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
-from osw.utils.templates import eval_handlebars_template
+from osw.utils.templates import (
+    compile_handlebars_template,
+    eval_compiled_handlebars_template,
+)
 from osw.utils.util import parallelize
 from osw.utils.wiki import (
     get_namespace,
@@ -595,6 +598,9 @@ class OSW(BaseModel):
         meta_category = self.site.get_page(
             WtSite.GetPageParam(titles=[param.meta_category_title])
         ).pages[0]
+        meta_category_template = meta_category.get_slot_content("schema_template")
+        if meta_category_template:
+            meta_category_template = compile_handlebars_template(meta_category_template)
 
         def store_entity_(
             entity: model.Entity, namespace_: str = None, index: int = None
@@ -621,14 +627,19 @@ class OSW(BaseModel):
                 "footer", "{{#invoke:Entity|footer}}"
             )  # required for footer rendering
             if namespace_ == "Category":
-                template = meta_category.get_slot_content("schema_template")
-                if template:
-                    schema = json.loads(
-                        eval_handlebars_template(
-                            template, jsondata, {"_page_title": entity_title}
+                if meta_category_template:
+                    try:
+                        schema_str = eval_compiled_handlebars_template(
+                            meta_category_template,
+                            jsondata,
+                            {"_page_title": entity_title},
                         )
-                    )
-                    page.set_slot_content("jsonschema", schema)
+                        schema = json.loads(schema_str)
+                        page.set_slot_content("jsonschema", schema)
+                    except Exception as e:
+                        print(
+                            f"Schema generation from template failed for {entity}: {e}"
+                        )
             page.edit()
             if index is None:
                 print(f"Entity stored at {page.get_url()}.")

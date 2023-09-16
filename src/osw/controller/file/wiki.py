@@ -1,6 +1,6 @@
 import functools
 import os
-from typing import IO, Optional
+from typing import IO, List, Optional
 
 from osw.controller.file.base import FileController
 from osw.controller.file.remote import RemoteFileController
@@ -10,13 +10,25 @@ from osw.wtsite import WtSite
 
 
 class WikiFileController(model.WikiFile, RemoteFileController):
+    """File controller for wiki files"""
+
+    label: Optional[List[model.Label]] = [model.Label(text="Unnamed file")]
+    """the label of the file, defaults to 'Unnamed file'"""
     osw: OSW
+    """the OSW instance to connect with"""
     namespace: Optional[str] = "File"
+    """the namespace of the file, defaults to 'File'"""
     title: Optional[str] = None
+    """the title of the file, defaults to the auto-generated OSW-ID"""
     suffix: Optional[str] = None
+    """the suffix of the file, defaults to the suffix of the title"""
 
     class Config:
         arbitrary_types_allowed = True
+
+    @classmethod
+    def from_other(cls, other: FileController, osw: OSW) -> "WikiFileController":
+        return super().from_other(other, osw=osw)
 
     def get(self) -> IO:
         self._init()
@@ -76,7 +88,10 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         #    lf = file.cast(LocalFileController)
         #    self.meta.wiki_page.title.removesuffix(lf.path.suffix)
         #    self.meta.wiki_page.title += lf.path.suffix
-        return super().put_from(other)
+        # copy over metadata
+        if self.label == [model.Label(text="Unnamed file")]:
+            self.label = other.label
+        super().put_from(other)
 
     def delete(self):
         file_page_name = f"{self.namespace}:{self.title}"

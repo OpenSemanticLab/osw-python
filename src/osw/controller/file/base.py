@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import IO
+from typing import IO, Any
 
 from osw.core import model
 
@@ -52,3 +52,17 @@ class FileController(model.File):
         """
         with self.get() as f:
             other.put(f)
+
+    @classmethod
+    def from_other(cls, other: "FileController", **kwargs: Any) -> "FileController":
+        """Create an instance based on another file controller
+        copying all common attributes
+
+        Parameters
+        ----------
+        other
+            another file controller to copy from
+        kwargs
+            additional attributes to be set
+        """
+        return other.cast(cls, **kwargs)

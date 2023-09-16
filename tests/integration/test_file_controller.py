@@ -28,11 +28,16 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
             mode = "replace"
         osw.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
 
+    run_test(osw, "tests/integration/test.svg", "tests/integration/test2.svg")
+    run_test(osw, "tests/integration/test.png", "tests/integration/test2.png")
+
+
+def run_test(osw, file_path_1, file_path_2):
     from osw.controller.file.local import LocalFileController
     from osw.controller.file.wiki import WikiFileController
 
     lf = model.LocalFile(label=[model.Label(text="Test File")]).cast(
-        LocalFileController, path="tests/integration/test.svg"
+        LocalFileController, path=file_path_1
     )
 
     # wf = WikiFileController.from_local(lf) # does not work due to missing attributes 'title' and 'osw'
@@ -43,7 +48,7 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
     title = wf.namespace + ":" + wf.title
     # title = "File:OSW1b3fea404fe344c78ffd2d7a46bb468e.svg"
     wf2 = osw.load_entity(title).cast(WikiFileController, osw=osw)
-    lf2 = LocalFileController(path="tests/integration/test2.svg")
+    lf2 = LocalFileController(path=file_path_2)
     lf2.put_from(wf2)
     # wf2.get_to(lf2)
 

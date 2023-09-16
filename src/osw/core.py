@@ -250,7 +250,44 @@ class OSW(BaseModel):
         replace = "replace"  # replace the current model
 
     class FetchSchemaParam(BaseModel):
-        """_summary_
+        """Param for fetch_schema()
+
+        Attributes
+        ----------
+        schema_title:
+            one or multiple titles (wiki page name) of schemas (default: Category:Item)
+        mode:
+            append or replace (default) current schema, see FetchSchemaMode
+        """
+
+        schema_title: Optional[Union[List[str], str]] = "Category:Item"
+        mode: Optional[
+            str
+        ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+
+    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
+        """Loads the given schemas from the OSW instance and autogenerates python
+        datasclasses within osw.model.entity from it
+
+        Parameters
+        ----------
+        fetchSchemaParam
+            See FetchSchemaParam, by default None
+        """
+        if not isinstance(fetchSchemaParam.schema_title, list):
+            fetchSchemaParam.schema_title = [fetchSchemaParam.schema_title]
+        first = True
+        for schema_title in fetchSchemaParam.schema_title:
+            mode = fetchSchemaParam.mode
+            if not first:  # 'replace' makes only sense for the first schema
+                mode = "append"
+            self._fetch_schema(
+                OSW._FetchSchemaParam(schema_title=schema_title, mode=mode)
+            )
+            first = False
+
+    class _FetchSchemaParam(BaseModel):
+        """Internal param for _fetch_schema()
 
         Attributes
         ----------
@@ -269,7 +306,7 @@ class OSW(BaseModel):
             str
         ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
-    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
+    def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python
         datasclasses within osw.model.entity from it
 
@@ -281,7 +318,7 @@ class OSW(BaseModel):
         site_cache_state = self.site.get_cache_enabled()
         self.site.enable_cache()
         if fetchSchemaParam is None:
-            fetchSchemaParam = OSW.FetchSchemaParam()
+            fetchSchemaParam = OSW._FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
@@ -314,8 +351,8 @@ class OSW(BaseModel):
             if (
                 ref_schema_title != schema_title
             ):  # prevent recursion in case of self references
-                self.fetch_schema(
-                    OSW.FetchSchemaParam(schema_title=ref_schema_title, root=False)
+                self._fetch_schema(
+                    OSW._FetchSchemaParam(schema_title=ref_schema_title, root=False)
                 )  # resolve references recursive
 
         model_dir_path = os.path.join(

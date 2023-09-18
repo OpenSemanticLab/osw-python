@@ -10,6 +10,7 @@ import numpy as np
 from geopy import Nominatim
 from jsonpath_ng import ext as jp
 
+import osw.data.mining as dm
 from osw import wiki_tools as wt
 from osw.data.mining import RegExPatternExtended
 from osw.model import entity as model
@@ -217,6 +218,8 @@ def get_coordinates(address):
     """Get the coordinates of an address, using the Nominatim API"""
     geolocator = Nominatim(user_agent="myapplication")
     location = geolocator.geocode(address)
+    if location is None:
+        return None, None
     return location.latitude, location.longitude
 
 
@@ -315,7 +318,7 @@ def jsonpath_search_and_return_list_simple(
 
 
 def jsonpath_search_and_return_list(
-    jp_str: str, val_key: str, search_tar: dict, class_to_match=None
+    jp_str: str, val_key: str, search_tar: dict, class_to_match=None, warn: bool = True
 ) -> Union[list, None]:
     """
 
@@ -330,6 +333,8 @@ def jsonpath_search_and_return_list(
     class_to_match:
         The class to match with the search results. Specifying this argument,
         reduces the search space dramatically and thus speeds up the search.
+    warn:
+        Whether to warn if the search return no results
 
     Returns
     -------
@@ -365,6 +370,11 @@ def jsonpath_search_and_return_list(
                 list_.append(res.value[val_key])
             elif isclass(res.value, class_to_match):
                 list_.append(res.value[val_key])
+    if len(list_) == 0 and warn:
+        warnings.warn(
+            f"jsonpath_search_and_return_list() did not find any "
+            f"results for the jsonpath string '{jp_str}'"
+        )
     return list(set(flatten_list(list_)))
 
 
@@ -425,7 +435,9 @@ def nan_empty_or_none(inp: Any) -> bool:
     return False
 
 
-def regex_match_list(pattern: str, list_of_strings: List[str]) -> List[str]:
+def regex_match_list(
+    pattern: Union[str, dm.RegExPatternExtended], list_of_strings: List[str]
+) -> List[Union[str, dm.MatchResult]]:
     """Returns a subset of the 'list_of_strings' that matched the regex 'pattern'.
 
     Parameters
@@ -438,11 +450,24 @@ def regex_match_list(pattern: str, list_of_strings: List[str]) -> List[str]:
     matches:
         A lost of strings that matched the regex 'pattern'.
     """
-    matches = []
-    for string in list_of_strings:
-        if re.match(pattern=pattern, string=string):
-            matches.append(string)
-    return matches
+    if isinstance(pattern, str) or isinstance(pattern, re.Pattern):
+        matches = []
+        for string in list_of_strings:
+            if re.match(pattern=pattern, string=string):
+                matches.append(string)
+        return matches
+    elif isinstance(pattern, dm.RegExPatternExtended):
+        matches = []
+        for string in list_of_strings:
+            match_result_obj = pattern.match(string)
+            if match_result_obj.match:
+                matches.append(match_result_obj)
+        return matches
+    else:
+        raise TypeError(
+            f"regex_match_list() received an invalid type for the argument "
+            f"'pattern': {type(pattern)}"
+        )
 
 
 def sort_dict_of_entities_as_dict_by_type(

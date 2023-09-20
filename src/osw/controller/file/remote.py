@@ -11,11 +11,11 @@ from osw.core import model
 # the data class must be the first base class, otherwise subclass controllers fall back to the data model of the controller superclass
 class RemoteFileController(model.RemoteFile, FileController):
     @abstractmethod
-    def get() -> IO:
+    def get(self) -> IO:
         pass
 
     @abstractmethod
-    def put(file: IO):
+    def put(self, file: IO):
         pass
 
     # @classmethod

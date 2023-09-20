@@ -16,14 +16,12 @@ cm = CredentialManager(
     # )
 )
 # change the domain to your osw instance
-osw = OSW(
-    wtsite=WtSite(
-        WtSite.WtSiteConfig(iri="wiki-dev.open-semantic-lab.org", cred_mngr=cm)
-    )
+osw_obj = OSW(
+    site=WtSite(WtSite.WtSiteConfig(iri="wiki-dev.open-semantic-lab.org", cred_mngr=cm))
 )
 
 # load the required schemas / data classes
-osw.fetch_schema(
+osw_obj.fetch_schema(
     OSW.FetchSchemaParam(
         schema_title=[
             "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",  # WikiFile
@@ -43,15 +41,15 @@ from osw.controller.file.wiki import WikiFileController  # noqa (ignore flake8 w
 # create a local file
 # with open("dummy.txt", "w") as f:
 #    f.write("Hello World!")
-lf = LocalFileController(path="dummy.txt")
+lf = LocalFileController(path="dummy.txt")  # here an uuid already exists
 lf.put(StringIO("Hello World!"))
 
 # create a remote file (here: a wiki file)
-wf = WikiFileController(osw=osw)
+wf = WikiFileController(osw=osw_obj)
 # or cast to wiki wile to keep all common attributes
-wf = lf.cast(WikiFileController, osw=osw)
+wf = lf.cast(WikiFileController, osw=osw_obj)
 # which is equivalent to
-wf = WikiFileController.from_other(lf, osw=osw)
+wf = WikiFileController.from_other(lf, osw=osw_obj)
 
 # upload the local file to the remote file
 wf.put_from(lf)
@@ -59,8 +57,8 @@ wf.put_from(lf)
 wf.put(StringIO("Some new content"))
 
 # get an existing file
-file = osw.load_entity(f"{wf.namespace}:{wf.title}")  # the file
-wf2 = file.cast(WikiFileController, osw=osw)  # the file controller
+file = osw_obj.load_entity(f"{wf.namespace}:{wf.title}")  # the file
+wf2 = file.cast(WikiFileController, osw=osw_obj)  # the file controller
 lf2 = LocalFileController.from_other(wf2, path="dummy2.txt")
 lf2.put_from(wf2)
 

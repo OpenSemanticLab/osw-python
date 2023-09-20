@@ -32,9 +32,11 @@ class OswBaseModel(BaseModel):
         -------
         instance of target class
         """
-        return cls(**{**self.dict(), **kwargs})
+        combined_args = {**self.dict(), **kwargs}
+        del combined_args["type"]
+        return cls(**combined_args)
 
-    def cast_none_to_default(self, cls: Union[Type[T], type]) -> T:
+    def cast_none_to_default(self, cls: Union[Type[T], type], **kwargs) -> T:
         """Casting self into target class. If the passed attribute is None or solely
         includes None values, the attribute is not passed to the instance of the
         target class, which will then fall back to the default."""
@@ -49,13 +51,12 @@ class OswBaseModel(BaseModel):
                     return True
             return False
 
-        return cls(
-            **{
-                k: v
-                for k, v in self.dict().items()
-                if not test_if_empty_list_or_none(v)
-            }
-        )
+        self_args = {
+            k: v for k, v in self.dict().items() if not test_if_empty_list_or_none(v)
+        }
+        combined_args = {**self_args, **kwargs}
+        del combined_args["type"]
+        return cls(**combined_args)
 
 
 class Ontology(OswBaseModel):

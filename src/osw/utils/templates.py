@@ -15,12 +15,12 @@ def compile_handlebars_template(template):
         the compiled template
     """
     compiler = Compiler()
-    template = compiler.compile(template)
-    return template
+    compiled_template = compiler.compile(template)
+    return compiled_template
 
 
 def eval_compiled_handlebars_template(
-    compiled_template, data, helpers={}, partials={}, add_self_as_partial=True
+    compiled_template, data, helpers=None, partials=None, add_self_as_partial=True
 ):
     """evaluates a compiled handlebars template with the given data
 
@@ -41,6 +41,10 @@ def eval_compiled_handlebars_template(
     -------
         the evaluated template as a string
     """
+    if helpers is None:
+        helpers = {}
+    if partials is None:
+        partials = {}
     if add_self_as_partial:
         partials["self"] = compiled_template
     return compiled_template(data, helpers=helpers, partials=partials)

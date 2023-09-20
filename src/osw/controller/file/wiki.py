@@ -122,7 +122,9 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         if self.namespace is None:
             self.namespace = get_namespace(self)
         # update meta information
-        if not hasattr(self, "meta") or self.meta is None:
+        if not hasattr(self, "meta"):
+            self.meta = model.Meta()
+        elif self.meta is None:
             self.meta = model.Meta()
         if not hasattr(self.meta, "wiki_page") or self.meta.wiki_page is None:
             self.meta.wiki_page = model.WikiPage()

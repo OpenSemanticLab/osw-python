@@ -342,6 +342,20 @@ def jsonpath_search_and_return_list(
         List of values with key 'val_key', matching the jsonpath string 'jp_str'
         within the 'search_tar' dictionary
 
+    Example
+    -------
+    Searching through entites of type HelperWikiFile within all entities (
+    entities_as_dict) and returning the full_page_title of entities matching filename
+    by the attribute name. Afterwards the attribute image is set to the result if it any
+    >>> res = diu.jsonpath_search_and_return_list(
+    >>>     jp_str=f'*[?name = "{filename}"]',
+    >>>     val_key="full_page_title",
+    >>>     search_tar=entities_as_dict,
+    >>>     class_to_match=HelperWikiFile,
+    >>> )
+    >>> if len(res) > 0:
+    >>>     self.image = res[0]
+
     """
     jp_parse = jp.parse(path=jp_str)
     if search_tar.get("sorted") is not None:

@@ -154,7 +154,7 @@ def prefix_search(
         query = SearchParam(query=text)
     else:
         query = text
-    if len(text.query) > 5:
+    if len(query.query) > 5:
         query.parallel = True
 
     def prefix_search_(single_text):

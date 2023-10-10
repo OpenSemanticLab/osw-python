@@ -12,6 +12,8 @@ from jsonpath_ng import ext as jp
 
 import osw.data.mining as dm
 from osw import wiki_tools as wt
+from osw.auth import CredentialManager
+from osw.core import OSW
 from osw.data.mining import RegExPatternExtended
 from osw.model import entity as model
 from osw.wtsite import WtSite
@@ -86,7 +88,11 @@ class HelperModel(model.OswBaseModel):
 
     def transform_attributes(self, dd: dict) -> bool:
         if not self.attributes_transformed:
-            self.full_page_title = uuid_to_full_page_title(uuid=uuid_module.uuid4())
+            uuid = uuid_module.uuid4()
+            if hasattr(self, "uuid"):
+                if self.uuid is not None:
+                    uuid = self.uuid
+            self.full_page_title = uuid_to_full_page_title(uuid=uuid)
             # All set successfully
             self.attributes_transformed = True
         return True
@@ -708,6 +714,7 @@ def get_entities_from_osw(
     category_to_search: Union[str, uuid_module.UUID],
     model_to_cast_to,
     credentials_fp,
+    domain,
     debug: bool = False,
 ) -> list:
     """Gets entities from OSW, based on a category. The category can be specified by
@@ -734,11 +741,9 @@ def get_entities_from_osw(
         category_uuid = category_to_search.split("OSW")[-1]
     else:  # elif isinstance(category_to_search, uuid_module.UUID):
         category_uuid = str(category_to_search)
-    domains, accounts = wt.read_domains_from_credentials_file(credentials_fp)
-    domain = domains[3]
-    wtsite_obj = WtSite.from_domain(
-        domain=domain, password_file="", credentials=accounts[domain]
-    )
+    cred_man = CredentialManager(cred_filepath=credentials_fp)
+    osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_man)))
+    wtsite_obj = osw_obj.site
     entities_from_osw = []
     if debug:
         print(f"Searching for instances of {category_to_search} in OSW...")
@@ -759,11 +764,14 @@ def get_entities_from_osw(
 
 
 def uuid_to_full_page_title(
-    uuid: Union[uuid_module.UUID, str], wiki_ns: str = "Item", prefix: str = "OSW"
+    uuid: Union[uuid_module.UUID, str],
+    wiki_ns: str = "Item",
+    prefix: str = "OSW",
+    suffix: str = "",
 ) -> str:
     """Converts a UUID to a full page title, by prepending the wiki namespace and
     prefix to the UUID after removing dashes."""
-    return f"{wiki_ns}:{prefix}{str(uuid).replace('-', '')}"
+    return f"{wiki_ns}:{prefix}{str(uuid).replace('-', '')}{suffix}"
 
 
 def create_full_page_title(

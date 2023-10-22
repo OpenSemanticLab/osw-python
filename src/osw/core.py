@@ -372,20 +372,22 @@ class OSW(BaseModel):
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if root:
             exec_name = "datamodel-codegen"
+            # default: assume datamodel-codegen is in PATH
+            exec_path = exec_name
             if platform.system() == "Windows":
                 exec_name += ".exe"
-            exec_path = os.path.join(
-                os.path.dirname(os.path.abspath(sys.executable)), exec_name
-            )
-            if not os.path.isfile(exec_path):
                 exec_path = os.path.join(
-                    os.path.dirname(os.path.abspath(sys.executable)),
-                    "Scripts",
-                    exec_name,
+                    os.path.dirname(os.path.abspath(sys.executable)), exec_name
                 )
-            if not os.path.isfile(exec_path):
-                print("Error: datamodel-codegen not found")
-                return
+                if not os.path.isfile(exec_path):
+                    exec_path = os.path.join(
+                        os.path.dirname(os.path.abspath(sys.executable)),
+                        "Scripts",
+                        exec_name,
+                    )
+                if not os.path.isfile(exec_path):
+                    print("Error: datamodel-codegen not found")
+                    return
             os.system(
                 f"{exec_path}  \
                 --input {schema_path} \

@@ -1,15 +1,3 @@
-<!-- These are examples of badges you might want to add to your README:
-     please update the URLs accordingly
-
-[![Built Status](https://api.cirrus-ci.com/github/<USER>/osw.svg?branch=main)](https://cirrus-ci.com/github/<USER>/osw)
-[![ReadTheDocs](https://readthedocs.org/projects/osw/badge/?version=latest)](https://osw.readthedocs.io/en/stable/)
-[![Coveralls](https://img.shields.io/coveralls/github/<USER>/osw/main.svg)](https://coveralls.io/r/<USER>/osw)
-[![PyPI-Server](https://img.shields.io/pypi/v/osw.svg)](https://pypi.org/project/osw/)
-[![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/osw.svg)](https://anaconda.org/conda-forge/osw)
-[![Monthly Downloads](https://pepy.tech/badge/osw/month)](https://pepy.tech/project/osw)
-[![Twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter)](https://twitter.com/osw)
--->
-
 [![PyPI-Server](https://img.shields.io/pypi/v/osw.svg)](https://pypi.org/project/osw/)
 [![DOI](https://zenodo.org/badge/458130867.svg)](https://zenodo.org/badge/latestdoi/458130867)
 [![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticLab/osw-python/main.svg)](https://coveralls.io/r/<USER>/osw)
@@ -17,7 +5,8 @@
 
 # osw
 
-> Python toolset for data processing, queries, wikicode generation and page manipulation
+Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab. 
+General features for object oriented interaction with knowledge graphs are planned to be moved to a standalone package: [oold-python](https://github.com/OpenSemanticWorld/oold-python)
 
 ## Installation
 ```

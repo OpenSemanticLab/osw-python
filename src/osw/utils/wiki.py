@@ -112,6 +112,26 @@ def get_title(entity: model.Entity) -> Union[str, None]:
     return title
 
 
+def get_full_title(entity: model.Entity) -> Union[str, None]:
+    """determines the wiki full title (namespace:title) based on the entity's data
+
+    Parameters
+    ----------
+    entity
+        the entity to determine the full title for
+
+    Returns
+    -------
+        the full title as a string or None if the title could not be determined
+    """
+    namespace = get_namespace(entity)
+    title = get_title(entity)
+    if namespace is not None and title is not None:
+        return namespace + ":" + title
+    else:
+        return title
+
+
 def namespace_from_full_title(full_title: str) -> str:
     """extracts the namespace from a full title (namespace:title)
 

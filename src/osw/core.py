@@ -795,7 +795,7 @@ class OSW(BaseModel):
             page_titles = [get_page_title(cat) for cat in category.categories]
         else:
             page_titles = [get_page_title(category)]
-            category = OSW.QueryInstancesParam(category=page_titles)
+            category = OSW.QueryInstancesParam(categories=page_titles)
 
         search_param = SearchParam(
             query=[f"[[HasType::Category:{page_title}]]" for page_title in page_titles],

@@ -556,7 +556,31 @@ class OSW(BaseModel):
             if not site_cache_state:
                 self.site.disable_cache()  # restore original state
 
-    def load_entity(self, entity_title) -> model.Entity:
+    class LoadEntityParam(BaseModel):
+        """Param for load_entity()
+
+        Attributes
+        ----------
+        titles:
+            one or multiple titles (wiki page name) of entities
+        """
+
+        titles: Union[str, List[str]]
+
+    class LoadEntityResult(BaseModel):
+        """Result of load_entity()
+
+        Attributes
+        ----------
+        entities:
+            the dataclass instance(s)
+        """
+
+        entities: Union[model.Entity, List[model.Entity]]
+
+    def load_entity(
+        self, entity_title: Union[str, List[str], LoadEntityParam]
+    ) -> Union[model.Entity, List[model.Entity], LoadEntityResult]:
         """Loads the entity with the given wiki page name from the OSW instance.
         Creates an instance of the class specified by the "type" attribute, default
         model.Entity. An instance of model.Entity can be cast to any subclass with
@@ -569,42 +593,67 @@ class OSW(BaseModel):
 
         Returns
         -------
-            the dataclass instance
+            the dataclass instance if only a single title is given
+            a list of dataclass instances if a list of titles is given
+            a LoadEntityResult instance if a LoadEntityParam is given
         """
-        entity = None
-        schemas = []
-        page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[0]
-        jsondata = page.get_slot_content("jsondata")
-        if jsondata:
-            for category in jsondata["type"]:
-                schema = (
-                    self.site.get_page(WtSite.GetPageParam(titles=[category]))
-                    .pages[0]
-                    .get_slot_content("jsonschema")
+
+        titles = []
+        if isinstance(entity_title, str):  # single title
+            titles = [entity_title]
+        if isinstance(entity_title, list):  # list of titles
+            titles = entity_title
+        if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
+            titles = entity_title.titles
+        entities = []
+
+        # store original cache state
+        cache_state = self.site.get_cache_enabled()
+        # enable cache to speed up loading
+        self.site.enable_cache()
+        pages = self.site.get_page(WtSite.GetPageParam(titles=titles)).pages
+        for page in pages:
+            entity = None
+            schemas = []
+            jsondata = page.get_slot_content("jsondata")
+            if jsondata:
+                for category in jsondata["type"]:
+                    schema = (
+                        self.site.get_page(WtSite.GetPageParam(titles=[category]))
+                        .pages[0]
+                        .get_slot_content("jsonschema")
+                    )
+                    schemas.append(schema)
+
+            if len(schemas) == 0:
+                print("Error: no schema defined")
+
+            elif len(schemas) == 1:
+                cls = schemas[0]["title"]
+                entity = eval(f"model.{cls}(**jsondata)")
+
+            else:
+                bases = []
+                for schema in schemas:
+                    bases.append(eval("model." + schema["title"]))
+                cls = create_model("Test", __base__=tuple(bases))
+                entity = cls(**jsondata)
+                entity.meta = model.Meta(
+                    wiki_page=model.WikiPage(
+                        namespace=namespace_from_full_title(entity_title),
+                        title=title_from_full_title(entity_title),
+                    )
                 )
-                schemas.append(schema)
-
-        if len(schemas) == 0:
-            print("Error: no schema defined")
-
-        elif len(schemas) == 1:
-            cls = schemas[0]["title"]
-            entity = eval(f"model.{cls}(**jsondata)")
-
-        else:
-            bases = []
-            for schema in schemas:
-                bases.append(eval("model." + schema["title"]))
-            cls = create_model("Test", __base__=tuple(bases))
-            entity = cls(**jsondata)
-            entity.meta = model.Meta(
-                wiki_page=model.WikiPage(
-                    namespace=namespace_from_full_title(entity_title),
-                    title=title_from_full_title(entity_title),
-                )
-            )
-
-        return entity
+            entities.append(entity)
+        # restore original cache state
+        if not cache_state:
+            self.site.disable_cache()
+        if isinstance(entity_title, str):  # single title
+            return entities[0]
+        if isinstance(entity_title, list):  # list of titles
+            return entities
+        if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
+            return OSW.LoadEntityResult(entities=entities)
 
     class StoreEntityParam(model.OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]

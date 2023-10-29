@@ -216,18 +216,20 @@ class WtSite:
         exeptions = []
         pages = []
 
-        def get_page_(title, index):
+        def get_page_(title: str, index: int = None):
             retry = 0
             wtpage = None
             while retry < param.retries:
                 msg = ""
+                if index is not None:
+                    msg = f"({index + 1}/{max_index}) "
                 try:
                     if self._cache_enabled and title in self._page_cache:
                         wtpage = self._page_cache[title]
-                        msg += f"({index + 1}/{max_index}): Page loaded from cache."
+                        msg += "Page loaded from cache. "
                     else:
                         wtpage = WtPage(self, title)
-                        msg += f"({index + 1}/{max_index}): Page loaded"
+                        msg += "Page loaded. "
                         if self._cache_enabled:
                             self._page_cache[title] = wtpage
                     pages.append(wtpage)
@@ -237,7 +239,7 @@ class WtSite:
                     msg += str(e)
                     if retry < param.retries:
                         retry += 1
-                        msg = f"({index + 1}/{max_index}): Page load failed. Retry ({retry}/{param.retries})"
+                        msg = f"Page load failed. Retry ({retry}/{param.retries}). "
                         sleep(5)
                 print(msg)
             self._clear_cookies()

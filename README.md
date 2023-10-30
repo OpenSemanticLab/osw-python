@@ -5,7 +5,7 @@
 
 # osw
 
-Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab. 
+Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab.
 General features for object oriented interaction with knowledge graphs are planned to be moved to a standalone package: [oold-python](https://github.com/OpenSemanticWorld/oold-python)
 
 ## Installation

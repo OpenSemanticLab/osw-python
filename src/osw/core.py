@@ -638,12 +638,19 @@ class OSW(BaseModel):
                     bases.append(eval("model." + schema["title"]))
                 cls = create_model("Test", __base__=tuple(bases))
                 entity = cls(**jsondata)
-                entity.meta = model.Meta(
-                    wiki_page=model.WikiPage(
-                        namespace=namespace_from_full_title(entity_title),
-                        title=title_from_full_title(entity_title),
-                    )
-                )
+
+            if entity is not None:
+                # make sure we do not override existing meta data
+                if not hasattr(entity, "meta") or entity.meta is None:
+                    entity.meta = model.Meta()
+                if (
+                    not hasattr(entity.meta, "wiki_page")
+                    or entity.meta.wiki_page is None
+                ):
+                    entity.meta.wiki_page = model.WikiPage()
+                entity.meta.wiki_page.namespace = namespace_from_full_title(page.title)
+                entity.meta.wiki_page.title = title_from_full_title(page.title)
+
             entities.append(entity)
         # restore original cache state
         if not cache_state:

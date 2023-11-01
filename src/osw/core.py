@@ -649,7 +649,10 @@ class OSW(BaseModel):
         if not cache_state:
             self.site.disable_cache()
         if isinstance(entity_title, str):  # single title
-            return entities[0]
+            if len(entities) >= 1:
+                return entities[0]
+            else:
+                return None
         if isinstance(entity_title, list):  # list of titles
             return entities
         if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam

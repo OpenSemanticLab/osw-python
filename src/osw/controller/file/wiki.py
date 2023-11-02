@@ -35,9 +35,42 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         file = self.osw.site._site.images[self.title]
         # return file.download() # in-memory - limited by available RAM
 
-        response = self.osw.site._site.connection.get(
-            file.imageinfo["url"], stream=True
-        )
+        # use web api
+        full_title = f"{self.namespace}:{self.title}"
+        web_api_failed = False
+        try:
+            url = f"{self.osw.site._site.scheme}://{self.osw.site._site.host}{self.osw.site._site.path}api.php?action=download&format=json&title={full_title}"
+            # print("Use web api: ", url)
+            response = self.osw.site._site.connection.get(url, stream=True)
+            api_error = response.headers.get("Mediawiki-Api-Error")
+            if api_error is not None:
+                if api_error == "download-notfound":
+                    # File does not exist
+                    raise Exception("File does not exist: " + full_title)
+                elif api_error == "badvalue":
+                    # Extension FileApi not installed on the server
+                    web_api_failed = True
+                elif api_error == "readapidenied":
+                    # no read permissions on file
+                    response.status_code = 403
+
+        except Exception:
+            web_api_failed = True
+        if web_api_failed:
+            # fallback: use direct download
+            url = file.imageinfo["url"]
+            print(
+                "Extension FileApi not installed on the server. Fallback: use direct download from ",
+                url,
+            )
+            response = self.osw.site._site.connection.get(url, stream=True)
+
+        if response.status_code != 200:
+            raise Exception(
+                "Download failed. Please note that bot or OAuth logins have in general no permission for direct downloads. Error: "
+                + response.text
+            )
+
         # for chunk in response.iter_content(1024):
         #    destination.write(chunk)
         # see https://stackoverflow.com/questions/16694907/download-large-file-in-python-with-requests

@@ -11,6 +11,7 @@ import PySimpleGUI as psg
 from numpy import array as np_array
 
 import osw.model.page_package as package
+from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.wiki_tools import read_domains_from_credentials_file
 from osw.wtsite import SLOTS, WtPage, WtSite
@@ -164,10 +165,9 @@ if __name__ == "__main__":
     if settings_read_from_file:
         settings["domain"] = domain
 
-    wtsite_obj = WtSite.from_domain(
-        domain=domain, password_file="", credentials=accounts[domain]
-    )
-    osw_obj = OSW(site=wtsite_obj)
+    cm = CredentialManager(cred_filepath=settings["credentials_file_path"])
+    osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cm)))
+    wtsite_obj = osw_obj.site
 
     full_page_name = settings["target_page"].split("/")[-1].replace("_", " ")
     page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[full_page_name])).pages[0]
@@ -378,12 +378,10 @@ if __name__ == "__main__":
         elif event == "-DOMAIN-":
             settings["domain"] = values["-DOMAIN-"]
             domain = settings["domain"].split("//")[-1]
-            wtsite_obj = WtSite.from_domain(
-                domain=settings["domain"],
-                password_file="",
-                credentials=accounts[settings["domain"]],
+            osw_obj = OSW(
+                site=WtSite(WtSite.WtSiteConfig(iri=settings["domain"], cred_mngr=cm))
             )
-            osw_obj = OSW(site=wtsite_obj)
+            wtsite_obj = osw_obj.site
         elif event == "Load page":
             window["-LABEL-"].update("Loading page...")
             window["-DL_RES-"].update("")

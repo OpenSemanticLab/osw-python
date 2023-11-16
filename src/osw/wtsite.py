@@ -742,9 +742,6 @@ class WtPage:
                             if self._content_model[slot_key] == "json":
                                 self._slots[slot_key] = json.loads(
                                     self._slots[slot_key],
-                                    ensure_ascii=False
-                                    # todo: fix - adding ensure_ascii=False causes
-                                    #  the page load to fail
                                 )
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots

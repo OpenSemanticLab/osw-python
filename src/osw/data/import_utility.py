@@ -312,28 +312,38 @@ def flatten_list(nested_list):
 
 
 def jsonpath_search_and_return_list_simple(
-    jp_str: str, val_key: str, search_tar: dict
+    jp_str: str, val_key: Union[str, None], search_tar: dict
 ) -> Union[list, None]:
     jp_parse = jp.parse(path=jp_str)
     result = jp_parse.find(search_tar)
     list_ = []
     if result:
         for res in result:
-            list_.append(res.value[val_key])
+            if val_key is None:
+                list_.append(res.value)
+            else:
+                list_.append(res.value[val_key])
     return list_
 
 
 def jsonpath_search_and_return_list(
-    jp_str: str, val_key: str, search_tar: dict, class_to_match=None, warn: bool = True
+    jp_str: str,
+    val_key: Union[str, None],
+    search_tar: dict,
+    class_to_match=None,
+    warn: bool = True,
 ) -> Union[list, None]:
-    """
+    """Searches through a dictionary for a set json path string and returns the
+    values of matching results or a certain value matching val_key as a list.
+    class_to_match can be specified to filter results by class.
 
     Parameters
     ----------
     jp_str:
         The jsonpath string to search for
     val_key:
-        The key of the value (of the search results) to be returned in a list
+        The key of the value (of the search results) to be returned in a list. If set to
+         None, the value of the search result is returned.
     search_tar:
         The dictionary to search in with jsonpath
     class_to_match:
@@ -386,10 +396,17 @@ def jsonpath_search_and_return_list(
         for res in result:
             res_type = res.value["type"]
             res_type.sort()
+            append = False
             if class_to_match is None:
-                list_.append(res.value[val_key])
+                append = True
             elif isclass(res.value, class_to_match):
-                list_.append(res.value[val_key])
+                append = True
+            if append:
+                if val_key is None:
+                    list_.append(res.value)
+                else:
+                    list_.append(res.value[val_key])
+
     if len(list_) == 0 and warn:
         warnings.warn(
             f"jsonpath_search_and_return_list() did not find any "

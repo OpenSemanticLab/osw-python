@@ -327,9 +327,14 @@ class OSW(BaseModel):
             print(f"Error: Page {schema_title} does not exist")
             return
         if schema_title.startswith("Category:"):
-            schema_str = json.dumps(page.get_slot_content("jsonschema"))
+            schema_str = ""
+            if page.get_slot_content("jsonschema"):
+                schema_str = json.dumps(page.get_slot_content("jsonschema"))
         else:
             schema_str = page.get_content()
+        if (schema_str is None) or (schema_str == ""):
+            print(f"Error: Schema {schema_title} does not exist")
+            return
         schema = json.loads(
             schema_str.replace("$ref", "dollarref")
         )  # '$' is a special char for root object in jsonpath
@@ -566,6 +571,9 @@ class OSW(BaseModel):
         """
 
         titles: Union[str, List[str]]
+        """the pages titles to load"""
+        autofetch_schema: Optional[bool] = True
+        """if true, load the corresponding schemas / categories ad-hoc if not already present"""
 
     class LoadEntityResult(BaseModel):
         """Result of load_entity()
@@ -599,11 +607,13 @@ class OSW(BaseModel):
         """
 
         titles = []
+        load_param = OSW.LoadEntityParam()
         if isinstance(entity_title, str):  # single title
             titles = [entity_title]
         if isinstance(entity_title, list):  # list of titles
             titles = entity_title
         if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
+            load_param = entity_title
             titles = entity_title.titles
         entities = []
 
@@ -615,6 +625,7 @@ class OSW(BaseModel):
         for page in pages:
             entity = None
             schemas = []
+            schemas_fetched = True
             jsondata = page.get_slot_content("jsondata")
             if jsondata:
                 for category in jsondata["type"]:
@@ -624,6 +635,22 @@ class OSW(BaseModel):
                         .get_slot_content("jsonschema")
                     )
                     schemas.append(schema)
+                    # generate model if not already exists
+                    cls = schema["title"]
+                    if not hasattr(model, cls):
+                        if load_param.autofetch_schema:
+                            self.fetch_schema(
+                                OSW.FetchSchemaParam(
+                                    schema_title=category, mode="append"
+                                )
+                            )
+                    if not hasattr(model, cls):
+                        schemas_fetched = False
+                        print(
+                            f"Error: Model {cls} not found. Schema {category} needs to be fetched first."
+                        )
+            if not schemas_fetched:
+                continue
 
             if len(schemas) == 0:
                 print("Error: no schema defined")
@@ -696,6 +723,7 @@ class OSW(BaseModel):
         meta_category = self.site.get_page(
             WtSite.GetPageParam(titles=[param.meta_category_title])
         ).pages[0]
+        # ToDo: we have to do this iteratively to support meta categories inheritance
         meta_category_template = meta_category.get_slot_content("schema_template")
         if meta_category_template:
             meta_category_template = compile_handlebars_template(meta_category_template)

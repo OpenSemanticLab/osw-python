@@ -5,7 +5,9 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 import json
 import os
 import shutil
+import xml.etree.ElementTree as et
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from pprint import pprint
 from time import sleep
@@ -1055,6 +1057,171 @@ class WtPage:
 
     def purge(self):
         self._page.purge()
+
+    class ExportConfig(model.OswBaseModel):
+        """Configuration to export a page to XML"""
+
+        full_history: Optional[bool] = True
+        """if true, export the full history of the page, else only the current revision"""
+        include_templates: Optional[bool] = False
+        """if true, export the templates used in the page"""
+
+    class ExportResult(model.OswBaseModel):
+        """Return type of export_xml"""
+
+        xml: str
+        """the XML string"""
+        success: bool
+        """if true, the export was successful, else false"""
+
+    def export_xml(
+        self, config: Optional[ExportConfig] = ExportConfig()
+    ) -> ExportResult:
+        """Exports the page to XML
+
+        Parameters
+        ----------
+        config, optional
+            see ExportConfig
+
+        Returns
+        -------
+            ExportResult
+        """
+        url = (
+            self.wtSite._site.scheme
+            + "://"
+            + self.wtSite._site.host
+            + self.wtSite._site.path
+            + "index.php?title=Special:Export/"
+            + self.title
+        )
+        data = {
+            "title": "Special:Export",
+            "catname": "",
+            "pages": self.title,
+            "wpEditToken": self.wtSite._site.get_token("csrf"),
+            "wpDownload": "1",
+        }
+        if not config.full_history:
+            data["curonly"] = "1"
+        if config.include_templates:
+            data["templates"] = "1"
+        response = self.wtSite._site.connection.post(url, data=data)
+        if response.status_code != 200:
+            return WtPage.ExportResult(success=False, xml="")
+        else:
+            return WtPage.ExportResult(success=True, xml=response.text)
+
+    class ImportConfig(model.OswBaseModel):
+        """Configuration to import a page from XML.
+        see also https://www.mediawiki.org/wiki/Manual:Importing_XML_dumps"""
+
+        xml: str
+        """the XML string to import (see WtPage.export_xml)"""
+        summary: str
+        """the edit summary to use for the import"""
+        source_domain: str
+        """the domain of the instance from which the XML was exported, e.g. mywiki.com"""
+        full_history: Optional[bool] = True
+        """if true, import the full history of the page, else only the current revision"""
+        include_templates: Optional[bool] = False
+        """if true, import the templates used in the page if contained in the XML"""
+        namespace_mapping: Optional[Dict[str, str]] = {
+            "Main": 0,
+            "File": 6,
+            "Template": 10,
+            "Category": 14,
+            "Item": 7000,
+        }
+        """mapping of namespaces names to IDs in the target instance"""
+        username_mapping: Optional[Dict[str, str]] = {}
+        """mapping of usernames in the XML to usernames in the target instance"""
+
+    class ImportResult(model.OswBaseModel):
+        """Return type of import_xml"""
+
+        success: bool
+        """if true, the import was successful, else false"""
+        imported_title: str
+        imported_revisions: int
+        error_msg: Optional[str] = None
+
+    def import_xml(self, config: ImportConfig) -> ImportResult:
+        """Imports the page from an XML export
+
+        Parameters
+        ----------
+        config
+            see ImportConfig
+
+        Returns
+        -------
+            ExportResult
+        """
+
+        # remove default namespace definition (see https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace)
+        config.xml = config.xml.replace(
+            'xmlns="http://www.mediawiki.org', '_xmlns="http://www.mediawiki.org'
+        )
+        print(config.xml)
+        tree = et.fromstring(config.xml)
+
+        # replace title and namespace with the requested ones
+        tree.find(".//title").text = self.title.split(":")[1]
+        tree.find(".//ns").text = str(
+            config.namespace_mapping.get(self.title.split(":")[0], 0)
+        )
+        # apply username mapping (user in the target system might have different names)
+        for e in tree.findall(".//username"):
+            e.text = config.username_mapping.get(e.text, e.text)
+
+        config.xml = et.tostring(tree, encoding="unicode")
+        # restore default namespace definition
+        config.xml = config.xml.replace(
+            '_xmlns="http://www.mediawiki.org', 'xmlns="http://www.mediawiki.org'
+        )
+
+        api_url = (
+            self.wtSite._site.scheme
+            + "://"
+            + self.wtSite._site.host
+            + self.wtSite._site.path
+            + "api.php"
+        )
+        response = self.wtSite._site.connection.post(
+            url=api_url,
+            data={
+                "action": "import",
+                "token": self.wtSite._site.get_token("csrf"),
+                "fullhistory": "1" if config.full_history else "0",
+                "templates": "1" if config.include_templates else "0",
+                "assignknownusers": "1",
+                "interwikiprefix": config.source_domain,
+                # "namespace": self.title.split(":")[0],
+                "summary": config.summary,
+                "format": "json",
+            },
+            files={
+                "xml": (
+                    "xml",
+                    StringIO(config.xml),
+                    "text/xml",
+                )  # read config.xml as file
+            },
+        )
+
+        json = response.json()
+        if "error" in json:
+            # print("Error: ", json)
+            return WtPage.ImportResult(success=False, error_msg=json["error"]["info"])
+        else:
+            # print("Imported: ", json["import"][0]["title"], " with ", json["import"][0]["revisions"], " revisions")
+            return WtPage.ImportResult(
+                success=True,
+                imported_title=json["import"][0]["title"],
+                imported_revisions=json["import"][0]["revisions"],
+            )
 
 
 # Updating forwards refs in pydantic models

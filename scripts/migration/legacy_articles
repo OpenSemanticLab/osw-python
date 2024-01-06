@@ -1,0 +1,42 @@
+# exports and re-imports the a page with its full history
+
+import os
+
+from osw.auth import CredentialManager
+from osw.core import OSW
+from osw.wtsite import WtPage, WtSite
+
+# use credentials from file. if none are found, the user will be prompted to enter them
+cm = CredentialManager(
+    cred_filepath=os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "examples", "accounts.pwd.yaml"
+    )
+)
+
+# create the site object
+# wtsite = WtSite(WtSite.WtSiteConfig(iri="http://<your-instance>:18081", cred_mngr=cm))
+wtsite = WtSite(
+    WtSite.WtSiteConfig(
+        # iri="stacktest.digital.isc.fraunhofer.de", cred_mngr=cm
+        iri="wiki-dev.open-semantic-lab.org", cred_mngr=cm
+    )
+)
+osw = OSW(site=wtsite)
+
+# export the page
+p = osw.site.get_page(WtSite.GetPageParam(titles=["Main_Page"])).pages[0]
+res = p.export_xml()
+
+#with open("Main_Page.xml", "w", encoding="utf8") as f:
+#    f.write(xml)
+
+# re-import the page (typically in a different instance)
+p2 = osw.site.get_page(WtSite.GetPageParam(titles=["Item:TestImport"])).pages[0]
+p2.import_xml(WtPage.ImportConfig(
+    xml=res.xml,
+    summary="test import",
+    source_domain="wiki-dev.open-semantic-lab.org",
+    username_mapping={
+        "TestUser": "New User",
+    }
+))

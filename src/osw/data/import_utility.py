@@ -801,13 +801,25 @@ def create_full_page_title(
 
 
 def translate_list_with_deepl(
-    seq: list, credentials_file_path: Union[str, Path] = None
-) -> list:
+    seq: list,
+    credentials_file_path: Union[str, Path] = None,
+    target_lang: str = "EN-US",
+    translations: dict = None,
+) -> dict:
     """Translates a list of strings with DeepL."""
     if credentials_file_path is None:
         credentials_file_path = CREDENTIALS_FILE_PATH_DEFAULT
+    if translations is None:
+        translations = {}
     domains, accounts = wt.read_domains_from_credentials_file(credentials_file_path)
     domain = "api-free.deepl.com"
     auth = accounts[domain]["password"]
     translator = deepl.Translator(auth)
-    return [translator.translate_text(ele, target_lang="EN-US").text for ele in seq]
+
+    translated = [
+        translator.translate_text(ele, target_lang=target_lang).text
+        if ele not in translations.keys()
+        else translations.get(ele)
+        for ele in seq
+    ]
+    return dict(zip(seq, translated))

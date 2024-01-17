@@ -222,7 +222,6 @@ class PagePackageMetaData(BaseModel):
     page_titles: List[str]
     """List of the page titles (full page titles with namespace, e.g. 'Category:Entity')
      to be packaged."""
-
     requiredExtensions: Optional[List[str]]
     """The default value for PagePackage.requiredExtensions.
     An array of the names of any extensions required for this package to work. (In
@@ -231,11 +230,38 @@ class PagePackageMetaData(BaseModel):
     requiredPackages: Optional[List[str]]
     """The default value for PagePackage.requiredPackages.
     An array of the names of any additional packages required by this package."""
+    requiredPages: Optional[List[str]]
+    """The default value for PagePackage.requiredPages.
+    A list of the names of pages required by this package. This list will be loaded from
+    disk if it exists, otherwise it will be generated from the content of the slots of the
+    pages in the package."""
 
 
 # Special namespace mappings (default is namespace_const = "NS_" + namespace.upper())
 NAMESPACE_CONST_TO_NAMESPACE_MAPPING = {
-    # SMW: https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/ebb03c1537810f4ee8c1a25198b8d2e243cc38a1/src/NamespaceManager.php#L119
+    # MW: https://www.mediawiki.org/wiki/Manual:Namespace_constants
+    "NS_MAIN": "Main",
+    "NS_TALK": "Talk",
+    "NS_USER": "User",
+    "NS_USER_TALK": "User talk",
+    "NS_PROJECT": "Project",
+    "NS_PROJECT_TALK": "Project talk",
+    "NS_FILE": "File",
+    "NS_FILE_TALK": "File talk",
+    "NS_MEDIAWIKI": "MediaWiki",
+    "NS_MEDIAWIKI_TALK": "MediaWiki talk",
+    "NS_TEMPLATE": "Template",
+    "NS_TEMPLATE_TALK": "Template talk",
+    "NS_HELP": "Help",
+    "NS_HELP_TALK": "Help talk",
+    "NS_CATEGORY": "Category",
+    "NS_CATEGORY_TALK": "Category talk",
+    "NS_SPECIAL": "Special",
+    "NS_MEDIA": "Media",
+    "NS_MODULE": "Module",
+    "NS_JSONSCHEMA": "JsonSchema",
+    # SMW: https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/
+    # ebb03c1537810f4ee8c1a25198b8d2e243cc38a1/src/NamespaceManager.php#L119
     "SMW_NS_PROPERTY": "Property",
     "SMW_NS_PROPERTY_TALK": "Property_talk",
     "SMW_NS_CONCEPT": "Concept",
@@ -248,4 +274,30 @@ NAMESPACE_CONST_TO_NAMESPACE_MAPPING = {
 # inverse
 NAMESPACE_TO_NAMESPACE_CONST_MAPPING = {
     v: k for k, v in NAMESPACE_CONST_TO_NAMESPACE_MAPPING.items()
+}
+
+NAMESPACE_CONST_TO_NAMESPACE_NUMBER_MAPPING = {
+    "NS_MAIN": 0,
+    "NS_TALK": 1,
+    "NS_USER": 2,
+    "NS_USER_TALK": 3,
+    "NS_PROJECT": 4,
+    "NS_PROJECT_TALK": 5,
+    "NS_FILE": 6,
+    "NS_FILE_TALK": 7,
+    "NS_MEDIAWIKI": 8,
+    "NS_MEDIAWIKI_TALK": 9,
+    "NS_TEMPLATE": 10,
+    "NS_TEMPLATE_TALK": 11,
+    "NS_HELP": 12,
+    "NS_HELP_TALK": 13,
+    "NS_CATEGORY": 14,
+    "NS_CATEGORY_TALK": 15,
+    "NS_SPECIAL": -1,
+    "NS_MEDIA": -2,
+}
+
+# inverse
+NAMESPACE_NUMBER_TO_NAMESPACE_CONST_MAPPING = {
+    v: k for k, v in NAMESPACE_CONST_TO_NAMESPACE_NUMBER_MAPPING.items()
 }

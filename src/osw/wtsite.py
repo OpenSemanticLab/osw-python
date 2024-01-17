@@ -448,7 +448,7 @@ class WtSite:
                 added_titles.append(title)
             page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
 
-            page = self.get_WtPage(title)
+            # page = self.get_WtPage(title)  # avoid DeprecationWarning
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
                 for file in page._page.images():

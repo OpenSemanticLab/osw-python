@@ -454,12 +454,6 @@ class PagePackageController(model.PagePackageMetaData):
         script_dir: Union[str, Path] = None
         """Path to the directory where the package creation script is stored.
         Only required if read_listed_pages_from_script is True"""
-        missing_pages: List[str] = None
-        """List of pages that are missing in the package and packages
-        listed as requiredPackages"""
-        listed_pages: List[str] = None
-        """List of pages that are listed in the package and packages
-        listed as requiredPackages"""
         label_missing_pages: bool = None
         """Whether to get the labels of the missing pages from the OSW"""
 
@@ -474,10 +468,6 @@ class PagePackageController(model.PagePackageMetaData):
         listed as requiredPackages. Simultaneously checks for redundant pages
         along the dependency chain.
         """
-        if params.missing_pages is None:
-            params.missing_pages = []
-        if params.listed_pages is None:
-            params.listed_pages = []
         if params.label_missing_pages is None:
             params.label_missing_pages = params.direct_call
 
@@ -616,9 +606,10 @@ class PagePackageController(model.PagePackageMetaData):
             missing_pages_labeled = {}
             # Only query pages that are not yet labeled
             pages_to_query = list(
-                set(missing_pages) - set(prev_missing_page_labels.keys())
+                set(missing_pages) - set(list(prev_missing_page_labels.keys()))
             )  # pages that are not yet labeled
 
+            found_pages = {}
             if not len(pages_to_query) == 0:
                 # Get the labels of the missing pages from the OSW
                 wtsite_obj = WtSite(
@@ -634,7 +625,6 @@ class PagePackageController(model.PagePackageMetaData):
                     WtSite.GetPageParam(titles=pages_to_query)
                 ).pages
                 # Process returned pages
-                found_pages = {}
                 for page in pages:
                     title = page.title
                     jsondata = page.get_slot_content("jsondata")
@@ -646,17 +636,16 @@ class PagePackageController(model.PagePackageMetaData):
                             label = jsondata["label"][0]["text"]
                     found_pages[title] = label
 
-                # Add found pages to missing_pages_labeled_new
-                for missing_page in missing_pages:
-                    if prev_missing_page_labels.get(missing_page):
-                        missing_pages_labeled[
-                            missing_page
-                        ] = prev_missing_page_labels.get(missing_page)
-                    else:
-                        missing_pages_labeled[missing_page] = found_pages.get(
-                            missing_page,
-                            f"Page not found in {params.creation_config.domain}.",
-                        )
+            # Add found pages to missing_pages_labeled_new
+            for page_ in missing_pages:
+                if prev_missing_page_labels.get(page_):
+                    missing_pages_labeled[page_] = prev_missing_page_labels[page_]
+                elif found_pages.get(page_):
+                    missing_pages_labeled[page_] = found_pages[page_]
+                else:
+                    missing_pages_labeled[
+                        page_
+                    ] = f"Page not found in {params.creation_config.domain}."
             with open(missing_pages_labeled_fp, "w", encoding="utf-8") as f:
                 json.dump(missing_pages_labeled, f, indent=4, ensure_ascii=False)
 

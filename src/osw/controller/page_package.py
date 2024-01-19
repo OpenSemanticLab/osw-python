@@ -116,8 +116,6 @@ PATTERNS_PER_SLOT = {
     ]
 }
 """
-# todo: consider only checking jsondata and jsonschema for requirements
-#  + revise exceptions
 
 EXCEPTIONS = [
     "de",
@@ -187,7 +185,7 @@ def import_module_from_file(module_name: str, file_path: Path):
     return module
 
 
-def read_package_info(script_fp: Path, package_name: str = None) -> dict:
+def read_package_script_file(script_fp: Path, package_name: str = None) -> dict:
     """Reads the package info from a script file"""
     if package_name is None:
         package_name = script_fp.stem.replace(".", "_").replace("-", "_")
@@ -195,18 +193,25 @@ def read_package_info(script_fp: Path, package_name: str = None) -> dict:
     return {
         "package_meta_data": package_module.package_meta_data,
         "package_creation_config": package_module.package_creation_config,
+        "package_creation_script_fp": script_fp,
     }
 
 
-def get_listed_pages_from_package_info(package_info: Union[dict, Path]) -> List[str]:
-    """Takes in the output of read_package_info and returns a list of
+def get_listed_pages_from_package_script(package_script: dict) -> List[str]:
+    """Takes in the output of read_package_script_file and returns a list of
     pages listed in the package"""
-    if isinstance(package_info, Path):
-        package_info = read_package_info_from_file(package_info)
-    return package_info["package_meta_data"].page_titles
+    return getattr(package_script["package_meta_data"], "page_titles")
 
 
-def read_package_info_from_file(
+def get_required_packages_from_package_script(package_script: dict) -> List[str]:
+    """Takes in the output of read_package_script_file and returns a list of
+    packages listed in the package"""
+    if getattr(package_script["package_meta_data"], "requiredPackages"):
+        return getattr(package_script["package_meta_data"], "requiredPackages")
+    return []
+
+
+def read_package_info_file(
     package_dir: Path, package_info_fn: str = "packages.json"
 ) -> dict:
     """Reads the package info from a file in the package directory"""
@@ -220,13 +225,11 @@ def read_package_info_from_file(
         return package_info
 
 
-def get_listed_pages_from_package_info_file(
-    package_info: Union[dict, Path]
-) -> List[str]:
-    """Takes in the output of read_package_info_from_file and returns a list of
+def get_listed_pages_from_package_info(package_info: Union[dict, Path]) -> List[str]:
+    """Takes in the output of read_package_info_file and returns a list of
     pages listed in the package"""
     if isinstance(package_info, Path):
-        package_info = read_package_info_from_file(package_info)
+        package_info = read_package_info_file(package_info)
     listed_pages = []
     for val in package_info["packages"].values():
         for page in val["pages"]:
@@ -239,7 +242,7 @@ def get_listed_pages_from_package_info_file(
 
 
 def get_required_packages_from_package_info_file(package_info: dict) -> List[str]:
-    """Takes in the output of read_package_info_from_file and returns a list of
+    """Takes in the output of read_package_info_file and returns a list of
     packages listed in the package"""
     required_packages = []
     for val in package_info["packages"].values():
@@ -280,13 +283,9 @@ def get_required_pages_from_file(fp: Union[str, Path]) -> List[str]:
         if match_res:
             if "category" in pattern.group_keys:
                 for match in match_res:
-                    # if check_for_exceptions(match):
-                    #     continue
                     required_pages.append(match)
             elif "property" in pattern.group_keys:
                 for match in match_res:
-                    # if check_for_exceptions(match):
-                    #     continue
                     if '"' in match:
                         results = match.split('"')
                     else:
@@ -306,6 +305,7 @@ def get_required_pages_from_file(fp: Union[str, Path]) -> List[str]:
                                 for s in intermediate
                                 if not s.startswith("Property:")
                                 and not check_for_exceptions(s)
+                                # only here to catch exceptions early
                             ]
                         )
             elif "template" in pattern.group_keys:
@@ -446,12 +446,20 @@ class PagePackageController(model.PagePackageMetaData):
     class CheckRequiredPagesParams(OswBaseModel):
         creation_config: "PagePackageController.CreationConfig"
         direct_call: bool = True
-        """Whether this function is called directly and therefore to call get_required_pages()
-        before checking for missing pages"""
+        """Whether this function is called directly and therefore to call
+        get_required_pages() before checking for missing pages"""
+        read_listed_pages_from_script: bool = False
+        """Whether to read the listed pages and package info from the script
+        file or from the package info file (default: packages.json)"""
+        script_dir: Union[str, Path] = None
+        """Path to the directory where the package creation script is stored.
+        Only required if read_listed_pages_from_script is True"""
         missing_pages: List[str] = None
-        """List of pages that are missing in the package and packages listed as requiredPackages"""
+        """List of pages that are missing in the package and packages
+        listed as requiredPackages"""
         listed_pages: List[str] = None
-        """List of pages that are listed in the package and packages listed as requiredPackages"""
+        """List of pages that are listed in the package and packages
+        listed as requiredPackages"""
         label_missing_pages: bool = None
         """Whether to get the labels of the missing pages from the OSW"""
 
@@ -460,23 +468,12 @@ class PagePackageController(model.PagePackageMetaData):
 
     def check_required_pages(
         self,
-        params: Union[CheckRequiredPagesParams, "PagePackageController.CreationConfig"],
+        params: CheckRequiredPagesParams,
     ):
-        """Idea
-        * Check which of the required pages are missing in the package
-        * Check the list of pages in the packages.json of each package listed in requiredPackages
-            * read the packages.json
-            * navigate to ["packages"][0]["pages"]
-            * list the pages here
-                * read the namespace from the dict key "namespace"
-                * use a dictionary
-        * Check if the required pages are in the listed in the page package
-        * Check if the required pages are also listed in the required pages of the required package
-            * if the required_pages.json does not exist, create it
-        * Report on missing dependencies
+        """Checks if all required pages are listed in the package and packages
+        listed as requiredPackages. Simultaneously checks for redundant pages
+        along the dependency chain.
         """
-        if isinstance(params, self.CreationConfig):
-            params = self.CheckRequiredPagesParams(creation_config=params)
         if params.missing_pages is None:
             params.missing_pages = []
         if params.listed_pages is None:
@@ -484,83 +481,144 @@ class PagePackageController(model.PagePackageMetaData):
         if params.label_missing_pages is None:
             params.label_missing_pages = params.direct_call
 
+        # Set self.requiredPages (either load from file or generate list)
         if params.direct_call:
-            # Set self.requiredPages (either load from file or generate list)
             self.get_required_pages(
                 PagePackageController.GetRequiredPagesParams(**params.dict())
             )
+        # For debugging the recursive function
+        rec_count = 0
 
-        def get_listed_pages_one_iter(
-            listed_pages: List[str] = None,
-            required_packages: List[str] = None,
-            redundant_pages: Dict[str, list] = None,
-        ) -> Dict[str, Union[List[str], Dict[str, list]]]:
-            if listed_pages is None:
-                listed_pages = []
-            if required_packages is None:
-                required_packages = []
-            if redundant_pages is None:
-                redundant_pages = {}
-            new_required_packages = []
-            for pck in required_packages:
-                package_info = read_package_info_from_file(
-                    params.creation_config.working_dir.parent / pck
+        def recursive(
+            package_to_process: str,
+            processed_packages: List[str],
+            listed_pages: Dict[str, List[str]],
+            redundant_pages: Dict[str, List[str]],
+        ):
+            nonlocal rec_count
+            rec_count += 1
+            # else:
+            if params.read_listed_pages_from_script:
+                package_script = read_package_script_file(
+                    params.script_dir / f"{package_to_process}.py"
                 )
-                new_listed_pages = get_listed_pages_from_package_info_file(package_info)
-                new_redundant_pages = list(set(new_listed_pages) & set(listed_pages))
-                listed_pages.extend(new_listed_pages)
-                for pg in new_redundant_pages:
-                    if redundant_pages.get(pg):
-                        if pck not in redundant_pages[pg]:
-                            redundant_pages[pg].append(pck)
+                new_listed_pages = get_listed_pages_from_package_script(package_script)
+                required_packages = get_required_packages_from_package_script(
+                    package_script
+                )
+            else:
+                package_info = read_package_info_file(
+                    params.creation_config.working_dir.parent / package_to_process
+                )
+                new_listed_pages = get_listed_pages_from_package_info(package_info)
+                required_packages = get_required_packages_from_package_info_file(
+                    package_info
+                )
+            # Check for redundant pages
+            for pack_ in listed_pages.keys():
+                new_redundant_pages = list(
+                    set(new_listed_pages) & set(listed_pages[pack_])
+                )
+                for page_ in new_redundant_pages:
+                    if redundant_pages.get(page_):
+                        if pack_ not in redundant_pages[page_]:
+                            redundant_pages[page_].append(package_to_process)
                     else:
-                        redundant_pages[pg] = [self.id, pck]
-                new_required_packages.extend(
-                    get_required_packages_from_package_info_file(package_info)
-                )
-            return {
-                # Avoid duplicates:
-                "listed_pages": list(set(listed_pages)),
-                "required_packages": list(set(new_required_packages)),
+                        redundant_pages[page_] = [pack_, package_to_process]
+            # Add new listed pages to listed_pages
+            listed_pages[package_to_process] = new_listed_pages
+            # Document that this package has been processed
+            processed_packages.append(package_to_process)
+            # Prepare the return value
+            return_val = {
+                "processed_packages": processed_packages,
+                "listed_pages": listed_pages,
                 "redundant_pages": redundant_pages,
             }
+            # Recursion Base case
+            if len(required_packages) == 0:
+                return return_val
+            else:  # Recursion
+                for pack_ in required_packages:
+                    # Don't process packages that have already been processed
+                    if pack_ in processed_packages:
+                        continue
+                    ret = recursive(
+                        package_to_process=pack_,
+                        processed_packages=processed_packages,
+                        listed_pages=listed_pages,
+                        redundant_pages=redundant_pages,
+                    )
+                    # Combine the returns
+                    for pack__ in ret["listed_pages"].keys():
+                        if return_val["listed_pages"].get(pack__):
+                            return_val["listed_pages"][pack__].extend(
+                                ret["listed_pages"][pack__]
+                            )
+                        else:
+                            return_val["listed_pages"][pack__] = ret["listed_pages"][
+                                pack__
+                            ]
+                    for pack__ in ret["processed_packages"]:
+                        if pack__ not in return_val["processed_packages"]:
+                            return_val["processed_packages"].append(pack__)
+                    for page__ in ret["redundant_pages"].keys():
+                        if return_val["redundant_pages"].get(page__):
+                            for pack__ in ret["redundant_pages"][page__]:
+                                if pack__ not in return_val["redundant_pages"][page__]:
+                                    return_val["redundant_pages"][page__].append(pack__)
+                        else:
+                            return_val["redundant_pages"][page__] = ret[
+                                "redundant_pages"
+                            ][page__]
 
-        # Recursively list all page_titles of the required packages
-        rec_params = {
-            "listed_pages": self.page_titles,
-            "required_packages": self.requiredPackages if self.requiredPackages else [],
-            "redundant_pages": {},
-        }
-        while len(rec_params["required_packages"]) > 0:
-            rec_params = get_listed_pages_one_iter(**rec_params)
-        # Report on redundant pages
-        for key in rec_params["redundant_pages"].keys():
-            pks = rec_params["redundant_pages"][key]
-            warn(f"Page {key} is listed in the more than one package!: {pks}")
+                return return_val
 
-        missing_pages = list(set(self.requiredPages) - set(rec_params["listed_pages"]))
+        # Call recursive function
+        rec_ret = recursive(
+            package_to_process=self.repo,
+            processed_packages=[],
+            listed_pages={},
+            redundant_pages={},
+        )
+        # print(f"Recursive function called {rec_count} times.")
+        # Report on redundantly listed pages
+        for pg in rec_ret["redundant_pages"].keys():
+            pks = rec_ret["redundant_pages"][pg]
+            warn(f"Page {pg} is listed in {len(pks)} packages!: {pks}")
+        # Get all listed pages
+        all_listed_pages = []
+        for pck in rec_ret["listed_pages"].keys():
+            all_listed_pages.extend(rec_ret["listed_pages"][pck])
+        # Check if all required pages are listed
+        missing_pages = list(set(self.requiredPages) - set(all_listed_pages))
         missing_pages.sort()
         # Save the missing pages to a file
         if params.direct_call:
             with open(
-                Path(params.creation_config.working_dir) / "missing_pages.json",
-                "w",
+                file=Path(params.creation_config.working_dir) / "missing_pages.json",
+                mode="w",
                 encoding="utf-8",
             ) as f:
                 json.dump(missing_pages, f, indent=4, ensure_ascii=False)
 
         if params.label_missing_pages:
-            # Reading missing pages from file if it already exists
+            # Reading missing page labels from file if it already exists
             missing_pages_labeled_fp = (
                 Path(params.creation_config.working_dir) / "missing_pages_labeled.json"
             )
-            missing_pages_labeled = {}
+            prev_missing_page_labels = {}
             if missing_pages_labeled_fp.exists():
                 with open(missing_pages_labeled_fp, "r", encoding="utf-8") as f:
-                    missing_pages_labeled = json.load(f)
+                    prev_missing_page_labels = json.load(f)
+            # Create a new dict for the labels of missing pages to avoid unwanted
+            # migration of "old" keys
+            missing_pages_labeled = {}
+            # Only query pages that are not yet labeled
             pages_to_query = list(
-                set(missing_pages) - set(missing_pages_labeled.keys())
+                set(missing_pages) - set(prev_missing_page_labels.keys())
             )  # pages that are not yet labeled
+
             if not len(pages_to_query) == 0:
                 # Get the labels of the missing pages from the OSW
                 wtsite_obj = WtSite(
@@ -587,18 +645,18 @@ class PagePackageController(model.PagePackageMetaData):
                         if jsondata.get("label"):
                             label = jsondata["label"][0]["text"]
                     found_pages[title] = label
-                # Add found pages to missing_pages_labeled
+
+                # Add found pages to missing_pages_labeled_new
                 for missing_page in missing_pages:
-                    if not missing_pages_labeled.get(missing_page):
+                    if prev_missing_page_labels.get(missing_page):
+                        missing_pages_labeled[
+                            missing_page
+                        ] = prev_missing_page_labels.get(missing_page)
+                    else:
                         missing_pages_labeled[missing_page] = found_pages.get(
                             missing_page,
                             f"Page not found in {params.creation_config.domain}.",
                         )
-            # missing_pages_labeled = {
-            #     title: found_pages.get(
-            #         title, f"Page not found in {params.creation_config.domain}."
-            #     ) for title in missing_pages
-            # }
             with open(missing_pages_labeled_fp, "w", encoding="utf-8") as f:
                 json.dump(missing_pages_labeled, f, indent=4, ensure_ascii=False)
 

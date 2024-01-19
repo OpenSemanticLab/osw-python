@@ -65,12 +65,24 @@ PATTERNS = {
         pattern=r"\"\/wiki\/(.*:.*)\?action",
         group_keys=["template"],
     ),
+    "File strings": RegExPatternExtended(
+        description="Match: File:OSW<uuid>.<suffix>",
+        pattern=r"(File:OSW[a-f0-9]{32}\.[^\\^\/^\"^\s]+)",
+        group_keys=["file"],
+    ),
+    "Item strings": RegExPatternExtended(
+        description="Match: Item:OSW<uuid>",
+        pattern=r"(Item:OSW[a-f0-9]{32})",
+        group_keys=["item"],
+    ),
 }
 
 PATTERNS_PER_SLOT = {
     "jsondata": [
         PATTERNS["Category string with prefix in quotes"],
         PATTERNS["Property sting with prefix in quotes"],
+        PATTERNS["Item strings"],
+        PATTERNS["File strings"],
     ],
     "jsonschema": [
         PATTERNS["Category string with prefix in context and allOf"],
@@ -79,6 +91,8 @@ PATTERNS_PER_SLOT = {
         PATTERNS["Property strings in general queries"],
         PATTERNS["Property sting with prefix in quotes"],
         PATTERNS["Template strings"],
+        PATTERNS["Item strings"],
+        PATTERNS["File strings"],
     ],
 }
 """
@@ -296,8 +310,12 @@ def get_required_pages_from_file(fp: Union[str, Path]) -> List[str]:
                         )
             elif "template" in pattern.group_keys:
                 for match in match_res:
-                    # if check_for_exceptions(match):
-                    #     continue
+                    required_pages.append(match)
+            elif "item" in pattern.group_keys:
+                for match in match_res:
+                    required_pages.append(match)
+            elif "file" in pattern.group_keys:
+                for match in match_res:
                     required_pages.append(match)
     return_obj = list(
         set(entry for entry in required_pages if not check_for_exceptions(entry))

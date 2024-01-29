@@ -272,7 +272,11 @@ def get_required_pages_from_file(fp: Union[str, Path]) -> List[str]:
 
     required_pages = []
     # suffix = fp.suffix
-    pre_suffix = fp.suffixes[-2]
+    try:
+        pre_suffix = fp.suffixes[-2]
+    except IndexError:
+        pre_suffix = ".slot_main"
+
     slot_name = pre_suffix.split(".slot_")[-1]
     with open(fp, "r", encoding="utf-8") as f:
         content = f.read()
@@ -425,7 +429,10 @@ class PagePackageController(model.PagePackageMetaData):
                     # For now: skip non (!) wikitext and json files
                     if file.suffix not in [".wikitext", ".json"]:
                         continue
-                    pre_suffix = file.suffixes[-2]
+                    try:
+                        pre_suffix = file.suffixes[-2]
+                    except IndexError:
+                        pre_suffix = ".slot_main"
                     slot_name = pre_suffix.split(".slot_")[-1]
                     required_pages = get_required_pages_from_file(file)
                     """File specific required pages"""

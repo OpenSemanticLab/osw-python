@@ -448,7 +448,6 @@ class WtSite:
                 added_titles.append(title)
             page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
 
-            page = self.get_WtPage(title)
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
                 for file in page._page.images():
@@ -463,11 +462,11 @@ class WtSite:
                         file_page.dump(dump_config)
                     )
 
-        content = bundle.json(exclude_none=True, indent=4)
+        content = bundle.json(exclude_none=True, indent=4, ensure_ascii=False)
         # This will create the JSON (e.g., package.json) with the PagePackageConfig,
         #  which contains the PagePackageBundle
         file_name = f"{config.config_path}"
-        with open(file_name, "w") as f:
+        with open(file_name, "w", encoding="utf-8") as f:
             f.write(content)
 
     class ReadPagePackageParam(model.OswBaseModel):
@@ -552,7 +551,7 @@ class WtSite:
                     f"Error: No JSON files found in '{storage_path}'."
                 )
         # Read packages info file
-        with open(pi_fp, "r") as f:
+        with open(pi_fp, "r", encoding="utf-8") as f:
             packages_json = json.load(f)
         # Assume that the pages files are located in the subdir
         storage_path_content = ut.list_files_and_directories(
@@ -572,12 +571,12 @@ class WtSite:
             for pdir in parent_dir:
                 slot_path = storage_path / pdir / url_path
                 if slot_path in files_in_storage_path:
-                    with open(slot_path, "r") as f:
+                    with open(slot_path, "r", encoding="utf-8") as f:
                         file_content = f.read()
                     # Makes sure not to open an empty file with json
                     if len(file_content) > 0:
                         if url_path.endswith(".json"):
-                            with open(slot_path, "r") as f:
+                            with open(slot_path, "r", encoding="utf-8") as f:
                                 slot_data = json.load(f)
                             return slot_data
                         elif url_path.endswith(".wikitext"):
@@ -746,7 +745,7 @@ class WtPage:
                             #     revision["slots"][slot_key]["*"]
                             if self._content_model[slot_key] == "json":
                                 self._slots[slot_key] = json.loads(
-                                    self._slots[slot_key]
+                                    self._slots[slot_key],
                                 )
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots
@@ -889,7 +888,7 @@ class WtPage:
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
                         if not isinstance(content, str):
-                            content = json.dumps(content)
+                            content = json.dumps(content, ensure_ascii=False)
                     params["slot_" + slot_key] = content
             if changed:
                 self.wtSite._site.api(
@@ -906,7 +905,7 @@ class WtPage:
                 if self._slots_changed[slot_key]:
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
-                        content = json.dumps(content)
+                        content = json.dumps(content, ensure_ascii=False)
                     self.wtSite._site.api(
                         "editslot",
                         token=self.wtSite._site.get_token("csrf"),
@@ -1008,7 +1007,7 @@ class WtPage:
 
         def dump_slot_content(slot_key_, content_type_, content_):
             if isinstance(content_, dict):
-                content_ = json.dumps(content_, indent=4)
+                content_ = json.dumps(content_, indent=4, ensure_ascii=False)
             if content_type_ == "Scribunto":
                 content_type_ = "lua"
             if slot_key_ == "main" and config.skip_slot_suffix_for_main:

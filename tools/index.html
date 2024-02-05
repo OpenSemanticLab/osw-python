@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.3">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.7">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.50c56a3b.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.f2e4d321.min.css">
       
       
 
@@ -379,30 +379,6 @@
       get_file_info_and_usage
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="get_file_info_and_usage">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#osw.wiki_tools.get_file_info_and_usage--notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Notes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#osw.wiki_tools.get_file_info_and_usage--resources" class="md-nav__link">
-    <span class="md-ellipsis">
-      Resources
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -778,30 +754,6 @@
       get_file_info_and_usage
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="get_file_info_and_usage">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#osw.wiki_tools.get_file_info_and_usage--notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      Notes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#osw.wiki_tools.get_file_info_and_usage--resources" class="md-nav__link">
-    <span class="md-ellipsis">
-      Resources
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2066,21 +2018,26 @@ overwritten with an empty value</p>
 
   <div class="doc doc-contents ">
   
-      <pre><code>Parameters
-----------
-domain :
+
+<details class="----parameters" open>
+  <summary><pre><code>Parameters
+</code></pre></summary>
+  <pre><code>domain :
     Domain of the OSW instance, as specifed in the yaml file
 password_file :
     path to file with &lt;username&gt;
 </code></pre>
 <p><password>
     credentials :
-        Dictionary with the credentials (username, password)
-    Returns
-    -------
-    site : mwclient.client.Site
-        Site object from mwclient lib</p>
-
+        Dictionary with the credentials (username, password)</p>
+</details>
+<details class="----returns" open>
+  <summary><pre><code>Returns
+</code></pre></summary>
+  <pre><code>site : mwclient.client.Site
+    Site object from mwclient lib
+</code></pre>
+</details>
           <details class="quote">
             <summary>Source code in <code>src/osw/wiki_tools.py</code></summary>
             <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 79</span>
@@ -3145,17 +3102,21 @@ and appends them to the list</p>
         </tr>
     </tbody>
   </table>
-      <h4 id="osw.wiki_tools.get_file_info_and_usage--notes">Notes</h4>
-<p>Query to reproduce:
+
+<details class="notes" open>
+  <summary>Notes</summary>
+  <p>Query to reproduce:
     action=query
     format=json
     prop=imageinfo|fileusage
     titles=File%3AOSW857d85031d85425aa94db8b4720e84b7.png
     &amp;iiprop=timestamp%7Cuser&amp;fulimit=5000"</p>
-<h4 id="osw.wiki_tools.get_file_info_and_usage--resources">Resources</h4>
-<p>Use the sandbox to design and test the queries:
+</details>
+<details class="resources" open>
+  <summary>Resources</summary>
+  <p>Use the sandbox to design and test the queries:
 https://demo.open-semantic-lab.org/wiki/Special:ApiSandbox</p>
-
+</details>
           <details class="quote">
             <summary>Source code in <code>src/osw/wiki_tools.py</code></summary>
             <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
@@ -4441,10 +4402,21 @@ e.g.: {"osl_template": "HeaderTemplate", "param": "value",
               <em>required</em>
           </td>
         </tr>
+        <tr>
+          <td><code>isRoot</code></td>
+          <td>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>indicates first call in recursion</p>
+            </div>
+          </td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
     </tbody>
   </table>
-      <p>isRoot: boolean
-    indicates first call in recursion</p>
 
 
 
@@ -5625,11 +5597,23 @@ e.g.: {"HeaderTemplate": {"param": "value"}}</p>
               <em>required</em>
           </td>
         </tr>
+        <tr>
+          <td><code>footerWikiJson</code></td>
+          <td>
+                <code>list</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>wiki footer template representation
+e.g.: {"FooterTemplate": {"param2": "value2"}}</p>
+            </div>
+          </td>
+          <td>
+                <code>None</code>
+          </td>
+        </tr>
     </tbody>
   </table>
-      <p>footerWikiJson : list
-    wiki footer template representation
-    e.g.: {"FooterTemplate": {"param2": "value2"}}</p>
 
 
 
@@ -5927,10 +5911,10 @@ e.g.: {"osl_template": "HeaderTemplate", "param": "value",
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7c377c4.min.js"></script>
+      <script src="../assets/javascripts/bundle.caa56a14.min.js"></script>
       
     
   </body>

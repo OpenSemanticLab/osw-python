@@ -61,6 +61,13 @@ class RegExPatternExtended(OswBaseModel):
         """Return the match result of the given string and the pattern."""
         return MatchResult(match=re.match(self.pattern, string), pattern=self)
 
+    def finditer(self, string: str) -> List["MatchResult"]:
+        """Return a list of all match results of the given string and the pattern."""
+        return [
+            MatchResult(match=match, pattern=self)
+            for match in re.finditer(self.pattern, string)
+        ]
+
     @property
     def example_match(self) -> "MatchResult":
         """Return the match result of the example string and the pattern."""

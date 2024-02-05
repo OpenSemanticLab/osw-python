@@ -1040,6 +1040,7 @@ class WtPage:
             file = self.wtSite._site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
             file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages
+            # The following will return KeyError "url" if the file is not found
             with open(file_path, "wb") as fd:
                 file.download(fd)
             package_page.fileURLPath = path_prefix + file_name

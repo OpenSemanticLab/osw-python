@@ -607,11 +607,11 @@ class OSW(BaseModel):
         """
 
         titles = []
-        load_param = OSW.LoadEntityParam()
         if isinstance(entity_title, str):  # single title
             titles = [entity_title]
         if isinstance(entity_title, list):  # list of titles
             titles = entity_title
+        load_param = OSW.LoadEntityParam(titles=titles)
         if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
             load_param = entity_title
             titles = entity_title.titles

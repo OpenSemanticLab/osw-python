@@ -27,7 +27,7 @@ def read_domains_from_credentials_file(
     -------
 
     """
-    with open(credentials_file_path, "r") as stream_:
+    with open(credentials_file_path, "r", encoding="utf-8") as stream_:
         try:
             accounts_dict = yaml.safe_load(stream_)
             domains_list = list(accounts_dict.keys())

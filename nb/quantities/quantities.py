@@ -2,12 +2,13 @@ import json
 import os
 from pathlib import Path
 from utils import dict_to_json, json_to_dict
-from quantityFunctions import QuantityFetcher, Quantities
+from quantityClasses import QuantityFetcher, Quantities
 from pprint import pprint
 
 # fetch quantities
 # set fetch_data to True on first run
-fetch_data = False # './data' directory must exist
+# './data' directory must exist
+fetch_data = False
 if fetch_data:
     QuantityFetcher() 
 

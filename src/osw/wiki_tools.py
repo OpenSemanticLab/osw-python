@@ -1,62 +1,127 @@
 import copy
 import getpass
+from typing import Dict, List, Tuple, Union
 
 import mwclient
 import mwparserfromhell
 import numpy as np
 import yaml
 from jsonpath_ng.ext import parse
+from pydantic import FilePath
 
 
-def create_site_object(domain, password_file=""):
-    """
+def read_domains_from_credentials_file(
+    credentials_file_path: Union[str, FilePath]
+) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
+    """Reads domains and credentials from a yaml file
 
     Parameters
     ----------
-    domain : str
-    password_file : str (path to file with <username>\n<password>)
+    credentials_file_path
+        Path to the yaml file with the credentials
 
     Returns
     -------
-    site : mwclient.client.Site
-        Site object from mwclient lib
+
     """
-    domain_dict = {"wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"}}
-    if domain in domain_dict.keys():
-        domain = domain_dict[domain]["Address"]
+    with open(credentials_file_path, "r") as stream_:
+        try:
+            accounts_dict = yaml.safe_load(stream_)
+            domains_list = list(accounts_dict.keys())
+            if len(domains_list) == 0:
+                raise ValueError("No domain found in accounts.pwd.yaml!")
+            return domains_list, accounts_dict
+        except yaml.YAMLError as exc_:
+            print(exc_)
 
-    site = mwclient.Site(domain, path="/w/")
 
+def read_credentials_from_yaml(
+    password_file: Union[str, FilePath], domain: str = None
+) -> dict:
+    """Reads credentials from a yaml file
+
+    Parameters
+    ----------
+    password_file :
+        Path to the yaml file with the credentials.
+    domain:
+        Domain of the OSW instance, as specifed in the yaml file.
+
+    Returns
+    -------
+    credentials :
+        Dictionary with the credentials, expected to
+        contain keys 'username' and 'password'.
+    """
     if password_file != "":
         with open(password_file, "r") as stream:
             try:
                 accounts = yaml.safe_load(stream)
-                for domain in accounts:
-                    if domain == domain:
-                        user = accounts[domain]["username"]
-                        password = accounts[domain]["password"]
+                if domain is not None and domain in accounts.keys():
+                    domain = domain
+                elif len(accounts.keys()) > 0:
+                    domain = list(accounts.keys())[0]
+                    if len(accounts.keys()) > 0:
+                        domain = list(accounts.keys())[0]
+                user = accounts[domain]["username"]
+                password = accounts[domain]["password"]
             except yaml.YAMLError as exc:
                 print(exc)
     else:
         user = input("Enter bot username (username@botname)")
         password = getpass.getpass("Enter bot password")
+    return {"username": user, "password": password}
 
-    site.login(user, password)
-    del user
-    del password
+
+def create_site_object(
+    domain: str, password_file: Union[str, FilePath] = "", credentials: dict = None
+) -> mwclient.client.Site:
+    """
+    Parameters
+    ----------
+    domain :
+        Domain of the OSW instance, as specifed in the yaml file
+    password_file :
+        path to file with <username>\n<password>
+    credentials :
+        Dictionary with the credentials (username, password)
+    Returns
+    -------
+    site : mwclient.client.Site
+        Site object from mwclient lib
+    """
+    domain_dict = {
+        "wiki-dev": {"Address": "wiki-dev.open-semantic-lab.org"},
+        "onterface": {"Address": "onterface.open-semantic-lab.org:"},
+    }
+    if domain in domain_dict.keys():
+        domain = domain_dict[domain]["Address"]
+
+    site = mwclient.Site(domain, path="/w/")
+    if credentials is None:
+        credentials = read_credentials_from_yaml(password_file, domain)
+    # else:
+    #     credentials = credentials
+    # Login with dictionary unpacking:
+    # site.login(**credentials)
+    # Explicit login:
+    site.login(username=credentials["username"], password=credentials["password"])
+    del credentials
     return site
 
 
 # Standard Query
 # api.php?action=query&list=prefixsearch&pssearch=Star Wars
-def prefix_search(site, text):
+def prefix_search(site: mwclient.client.Site, text: str, debug: bool = True):
     """
 
     Parameters
     ----------
-    site : mwclient.client.Site
+    site :
         Site object from mwclient lib
-    text : str
+    text :
+    debug :
+        Whether to print the results
 
     Returns
     -------
@@ -66,25 +131,28 @@ def prefix_search(site, text):
     result = site.api(
         "query", list="prefixsearch", pssearch=text, pslimit=1000, format="json"
     )
-    if len(result["query"]["prefixsearch"]) == 0:
+    if len(result["query"]["prefixsearch"]) == 0 and debug:
         print("No results")
     else:
         for page in result["query"]["prefixsearch"]:
             title = page["title"]
-            print(title)
+            if debug:
+                print(title)
             page_list.append(title)
     return page_list
 
 
 # Semantic Query
-def semantic_search(site, query):
+def semantic_search(site: mwclient.client.Site, query: str, debug: bool = True):
     """
 
     Parameters
     ----------
-    site : mwclient.client.Site
+    site :
         Site object from mwclient lib
-    query
+    query :
+    debug :
+        Whether to print the results
 
     Returns
     -------
@@ -93,19 +161,20 @@ def semantic_search(site, query):
     page_list = []
     query += "|limit=1000"
     result = site.api("ask", query=query, format="json")
-    if len(result["query"]["results"]) == 0:
+    if len(result["query"]["results"]) == 0 and debug:
         print("Query '{}' returned no results".format(query))
     else:
-        print(
-            "Query '{}' returned {} results".format(
-                query, len(result["query"]["results"])
+        if debug:
+            print(
+                "Query '{}' returned {} results".format(
+                    query, len(result["query"]["results"])
+                )
             )
-        )
         for page in result["query"]["results"].values():
             # why do we do the following?
             if "printouts" in page:
                 title = page["fulltext"]
-                if "#" not in title:
+                if "#" not in title and debug:
                     print(title)
                     # original position of "page_list.append(title)" line
             page_list.append(title)
@@ -113,14 +182,15 @@ def semantic_search(site, query):
 
 
 # Page search wrapper
-def search_wiki_page(title, site):
-    """Adds exact match functionality with ignore-case on top of the prefix_search()'s functionality
+def search_wiki_page(title: str, site: mwclient.client.Site):
+    """Adds exact match functionality with ignore-case on top of the prefix_search()'s
+    functionality
 
     Parameters
     ----------
-    title : str
-        Title of the wiki page, e. g. User:Someone1234
-    site : mwclient.client.Site
+    title :
+        Title of the wiki page, e.g., User:Someone1234
+    site :
         Site object from mwclient lib
 
     Returns
@@ -148,15 +218,20 @@ def search_wiki_page(title, site):
         return result_dict
 
 
-def search_redirection_sources(site, target_title, debug=False):
-    """Returns a list of pages redirecting to the page with target_title per #REDIRECT [[target]] syntax
+def search_redirection_sources(
+    site: mwclient.client.Site, target_title: str, debug: bool = False
+):
+    """Returns a list of pages redirecting to the page with target_title per #REDIRECT
+    [[target]] syntax
 
     Parameters
     ----------
-    site : mwclient.client.Site
+    site :
         Site object from mwclient lib
-    target_title : str
+    target_title :
         Title of the target wiki page
+    debug:
+        Whether to print debugging messages
 
     Returns
     -------
@@ -186,7 +261,8 @@ def update_template_within_wikitext(
     remove_empty_lines=False,
     overwrite_with_empty=False,
 ):
-    """Updates the template parameters in an existing wiki <text> with a provided new <template_text>
+    """Updates the template parameters in an existing wiki <text> with a provided new
+    <template_text>
 
     Parameters
     ----------
@@ -197,11 +273,12 @@ def update_template_within_wikitext(
     delete : bool
         If true, params not defined in <template_text> get removed from <text>
     remove_empty_lines : bool
-        If true, function will cleanup empty lines within the template code created by the underlying mwparserfromhell
-        lib (wanted), but also within the wiki text around it (unwanted)
+        If true, function will cleanup empty lines within the template code created by
+        the underlying mwparserfromhell lib (wanted), but also within the wiki text
+        around it (unwanted)
     overwrite_with_empty : bool
-        If true, parameters in the existing tempalte will be overwritten even if the parameter value in the
-        template_text is empty
+        If true, parameters in the existing tempalte will be overwritten even if the
+        parameter value in the template_text is empty
 
     Returns
     -------
@@ -234,13 +311,16 @@ def update_template_within_wikitext(
                 if not new_template.has(p.name):
                     existing_template.remove(p)
     else:  # the original text did not contain a matching template
-        # options: 1) include the new template
-        # 2) replace the existing template - but what if multiple tempaltes exist on that page?
+        # options:
+        # 1) include the new template
+        # 2) replace the existing template - but what if multiple tempaltes exist on
+        #    that page?
         pass
     # print("Tmerged: \n" + str(existing_template))
     # print("Text merged: " + str(existing_code))
     new_text = str(existing_code)
-    # this will cleanup empty lines within the template code (wanted), but also within the wiki text around it (unwanted)
+    # this will cleanup empty lines within the template code (wanted), but also within
+    # the wiki text around it (unwanted)
     if remove_empty_lines:
         new_text = "\n".join(
             [ll.rstrip() for ll in str(new_text).splitlines() if ll.strip()]
@@ -301,8 +381,9 @@ def merge_wiki_page_text(
                     if rel1.has(p.name):
                         if not rel1.get(p.name).value.matches(rel2.get(p.name).value):
                             all_params_equal = False
-                        # print("Compare {}:{} with :{} -> res={}".format(p.name, rel1.get(p.name).value,rel2.get(p.name).value,
-                        #                                                rel1.get(p.name).value.matches(rel2.get(p.name).value)))
+                        # print("Compare {}:{} with :{} -> res={}".format(p.name,
+                        #       rel1.get(p.name).value,rel2.get(p.name).value,
+                        #       rel1.get(p.name).value.matches(rel2.get(p.name).value)))
                     else:
                         all_params_equal = False
                 if all_params_equal:
@@ -321,12 +402,13 @@ def merge_wiki_page_text(
 
 
 def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
-    """Edits an existing wiki page, while merging the passed new content with the content of the existing page
+    """Edits an existing wiki page, while merging the passed new content with the
+    content of the existing page
 
     Parameters
     ----------
     title : str
-        Title of the wiki page, e. g. User:Someone1234
+        Title of the wiki page, e.g., User:Someone1234
     new_content : str
     site : mwclient.client.Site
         Site object from mwclient lib
@@ -352,14 +434,17 @@ def edit_wiki_page_with_content_merge(title, new_content, site, template_name):
     return success
 
 
-def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "force"):
-    """Create a flat python dict (aka 'flat_content_structure' = 'wikiJson') representing the content of the page
+def create_flat_content_structure_from_wikitext(
+    text: str, array_mode: str = "force"
+) -> list:
+    """Create a flat python dict (aka 'flat_content_structure' = 'wikiJson')
+    representing the content of the page
 
     Parameters
     ----------
-    text : str
+    text :
         the wiki source text
-    array_mode : str
+    array_mode :
         defines how to parse template params
         array_mode / param     value   value;  value;value     comment
         'force':               array   array   array           always create an array
@@ -368,7 +453,7 @@ def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "fo
 
     Returns
     -------
-    res : dict
+    res :
         (aka 'flat_content_structure' = 'wikiJson')
     """
 
@@ -396,7 +481,7 @@ def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "fo
         else:
             if len(res) == 0 or type(res[-1]) is dict:
                 res.append("")
-            res[-1] = res[-1] + str(n)  # append to previos string if exists
+            res[-1] = res[-1] + str(n)  # append to previous string if exists
     # for i, x in enumerate(res):
     #    if type(x) is str: res[i] = x.strip() #remove whitespace
     res = [x for x in res if x and not (type(x) is str and x.isspace())]
@@ -412,18 +497,18 @@ def create_flat_content_structure_from_wikitext(text: str, array_mode: str = "fo
     return res
 
 
-def get_wikitext_from_flat_content_dict(d: dict):
+def get_wikitext_from_flat_content_dict(d: dict) -> str:
     """Create wiki source text from a flat python dict representing a wiki template
 
     Parameters
     ----------
-    d : dict
+    d :
         flat python dict
         e.g.: {"HeaderTemplate": {"param": "value"}}
 
     Returns
     -------
-    wt : str
+    wt :
         wiki text
     """
     wt = ""
@@ -447,7 +532,8 @@ def get_wikitext_from_flat_content_dict(d: dict):
                 else:
                     if string_index != index:
                         print(
-                            f"Warning: template param '{key}' has mixed template/string values: {value}"
+                            f"Warning: template param '{key}' has mixed template/"
+                            f"string values: {value}"
                         )
                     if string_index > 0 and element and not element.strip().isspace():
                         wt += ";"
@@ -460,13 +546,16 @@ def get_wikitext_from_flat_content_dict(d: dict):
 
 
 def get_wikitext_from_flat_content_structure(content):
-    """Create wiki source text from the content list (aka 'flat_content_structure' = 'wikiJson') of the page
+    """Create wiki source text from the content list (aka 'flat_content_structure' =
+    'wikiJson') of the page
 
     Parameters
     ----------
     content : list
-        content list, mixed objects (templates) and free text (aka 'flat_content_structure' = 'wikiJson')
-        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"param2": "value"}}]
+        content list, mixed objects (templates) and free text
+        (aka 'flat_content_structure' = 'wikiJson')
+        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext",
+               {"FooterTemplate": {"param2": "value"}}]
 
     Returns
     -------
@@ -488,19 +577,25 @@ def get_wikitext_from_flat_content_structure(content):
 
 
 def wikiJson2SchemaJson(schema, wikiJson):
-    """Create osl schema-compatible json from the content representation of a page (aka 'flat_content_structure' = 'wikiJson')
+    """Create osl schema-compatible json from the content representation of a page
+    (aka 'flat_content_structure' = 'wikiJson')
 
     Parameters
     ----------
     wikiJson : list
-        content list, mixed objects (templates) and free text (aka 'flat_content_structure' = 'wikiJson')
-        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"param2": "value"}}]
+        content list, mixed objects (templates) and free text
+        (aka 'flat_content_structure' = 'wikiJson')
+        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext",
+               {"FooterTemplate": {"param2": "value"}}]
 
     Returns
     -------
     schemaJson : dict
         schema-compatible json
-        e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_wikitext": "freetext", "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
+        e.g.: {"osl_template": "HeaderTemplate", "param": "value",
+               "osl_wikitext": "freetext",
+               "osl_footer": {"osl_template": "FooterTemplate",
+                              "param2": "value2"}}
     """
     schemaJson = {}
     if (
@@ -533,7 +628,8 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
     -------
     schemaJson : dict
         schema-compatible json
-        e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
+        e.g.: {"osl_template": "HeaderTemplate", "param": "value",
+               "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
     """
     schemaJson = {}
     if footerWikiJson is not None:
@@ -623,13 +719,16 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
 
 
 def schemaJson2WikiJson(schemaJson, isRoot=True):
-    """Create content representation of a page (aka 'flat_content_structure' = 'wikiJson')  from the osl schema-compatible json
+    """Create content representation of a page
+    (aka 'flat_content_structure' = 'wikiJson') from the osl schema-compatible json
 
     Parameters
     ----------
     schemaJson : dict
         schema-compatible json
-        e.g.: {osl_template: "HeaderTemplate", "param": "value", "osl_wikitext": "freetext", "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
+        e.g.: {"osl_template": "HeaderTemplate", "param": "value",
+               "osl_wikitext": "freetext",
+               "osl_footer": {"osl_template": "FooterTemplate", "param2": "value2"}}
 
     isRoot: boolean
         indicates first call in recursion
@@ -637,8 +736,10 @@ def schemaJson2WikiJson(schemaJson, isRoot=True):
     Returns
     -------
     wikiJson : list
-        content list, mixed objects (templates) and free text (aka 'flat_content_structure' = 'wikiJson')
-        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext", {"FooterTemplate": {"param2": "value"}}]
+        content list, mixed objects (templates) and free text
+        (aka 'flat_content_structure' = 'wikiJson')
+        e.g.: [{"HeaderTemplate": {"param": "value"}}, "freetext",
+               {"FooterTemplate": {"param2": "value"}}]
     """
     wikiJson = [{}, "", {}]
     # header, freetext, footer
@@ -689,13 +790,13 @@ def schemaJson2WikiJson(schemaJson, isRoot=True):
 
 
 def create_or_overwrite_wiki_page(title, content, site):
-    """Creates a page with the passed title and content. If the page already exists, the prior content is replaced with
-    the passed content.
+    """Creates a page with the passed title and content. If the page already exists,
+    the prior content is replaced with the passed content.
 
     Parameters
     ----------
     title : str
-        Title of the wiki page, e. g. User:Someone1234
+        Title of the wiki page, e.g., User:Someone1234
     content : str
     site : mwclient.client.Site
         Site object from mwclient lib
@@ -711,12 +812,13 @@ def create_or_overwrite_wiki_page(title, content, site):
 
 
 def delete_wiki_page(title, site, reason):
-    """Deletes the wiki page with the passed title, if it was found (exact match!), otherwise returns False
+    """Deletes the wiki page with the passed title, if it was found (exact match!),
+    otherwise returns False
 
     Parameters
     ----------
     title : str
-        Title of the wiki page, e. g. User:Someone1234
+        Title of the wiki page, e.g., User:Someone1234
     site : mwclient.client.Site
         Site object from mwclient lib
     reason : str
@@ -737,18 +839,19 @@ def delete_wiki_page(title, site, reason):
 def create_or_update_wiki_page_with_template(
     title, content, site, overwrite_with_empty=False
 ):
-    """Creates a wiki page with a template included in the content. If the page does already exist, the parameters
-    within the template are update
+    """Creates a wiki page with a template included in the content. If the page does
+    already exist, the parameters within the template are update
 
     Parameters
     ----------
     title : str
-        Title of the wiki page, e. g. User:Someone1234
+        Title of the wiki page, e.g., User:Someone1234
     content : str
     site : mwclient.client.Site
         Site object from mwclient lib
     overwrite_with_empty : bool
-        Decided whether a template parameter's value in an preexisting page is overwritten with an empty value
+        Decided whether a template parameter's value in an preexisting page is
+        overwritten with an empty value
 
     Returns
     -------
@@ -853,13 +956,13 @@ def find_dependencies(wikitext, debug=False):
     return filtered_dependencies
 
 
-def find_dependencies_recursively(title, site, dependencies=[], debug=False):
+def find_dependencies_recursively(title, site, dependencies=None, debug=False):
     """Finds all included templates, properties and categories within a wiki page
 
     Parameters
     ----------
     title : str
-        Title of the wiki page, e. g. User:Someone1234
+        Title of the wiki page, e.g., User:Someone1234
     site : mwclient.client.Site
         Site object from mwclient lib
     dependencies
@@ -871,6 +974,8 @@ def find_dependencies_recursively(title, site, dependencies=[], debug=False):
     -------
     dependencies : list
     """
+    if dependencies is None:
+        dependencies = []
     title = title.replace("{", "").replace("}", "")
     page = site.pages[title]
     content = page.text()
@@ -887,7 +992,8 @@ def find_dependencies_recursively(title, site, dependencies=[], debug=False):
 
 
 def extend_page_list_with_recursive_dependencies(page_list, site):
-    """Finds all included templates, properties and categories for a list of wiki pages and appends them to the list
+    """Finds all included templates, properties and categories for a list of wiki pages
+    and appends them to the list
 
     Parameters
     ----------
@@ -964,7 +1070,8 @@ def copy_list_of_wiki_pages(title_list, site0, site1, overwrite, callback=None):
     overwrite : bool
         Whether to overwrite existing pages at target site
     callback : NoneType or function
-        Function passed over, to perform operation on the titles of the source pages and to be passed as title of the
+        Function passed over, to perform operation on the titles of the source pages and
+        to be passed as title of the
         target pages. See examples below.
         Example functions:
             capitalize = lambda x: x.capitalize()

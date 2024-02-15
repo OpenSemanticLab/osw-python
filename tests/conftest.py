@@ -14,6 +14,8 @@ def pytest_addoption(parser):
     parser.addoption("--wiki_domain", action="store")
     parser.addoption("--wiki_username", action="store")
     parser.addoption("--wiki_password", action="store")
+    parser.addoption("--db_username", action="store")
+    parser.addoption("--db_password", action="store")
 
 
 @pytest.fixture(scope="session")
@@ -35,6 +37,22 @@ def wiki_username(request):
 @pytest.fixture(scope="session")
 def wiki_password(request):
     value = request.config.option.wiki_password
+    if value is None:
+        pytest.skip()
+    return value
+
+
+@pytest.fixture(scope="session")
+def db_username(request):
+    value = request.config.option.db_username
+    if value is None:
+        pytest.skip()
+    return value
+
+
+@pytest.fixture(scope="session")
+def db_password(request):
+    value = request.config.option.db_password
     if value is None:
         pytest.skip()
     return value

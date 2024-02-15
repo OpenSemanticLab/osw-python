@@ -16,9 +16,11 @@ title = "Item:OSW7d7193567ea14e4e89b74de88983b718"
 # title = "Item:OSWe02213b6c4664d04834355dc8eb08b99"
 entity = osw.load_entity(title)
 print(entity.__class__)
-print(entity.label.text)  # we can access any attribute of model.Entity
+print(entity.label[0].text)  # we can access any attribute of model.Entity
 
 hardware_entity = entity.cast(model.Hardware)  # explicit cast to model.Hardware
 print(hardware_entity.manufacturer)  # we can access now any attribute of model.Entity
 
 print(entity.manufacturer)
+
+print(entity.json(exclude_none=True))

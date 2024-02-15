@@ -1,0 +1,16 @@
+{
+    "local_working_directory": "C:\\Users\\gold\\github\\osw-python\\data",
+    "credentials_file_path": "C:/Users/gold/github/osw-python/examples/accounts.pwd.yaml",
+    "settings_file_path": "C:\\Users\\gold\\github\\osw-python\\examples\\settings.json",
+    "target_page": "https://wiki-dev.open-semantic-lab.org/wiki/Main_Page",
+    "namespace_as_folder": false,
+    "dump_empty_slots": false,
+    "page_name_as_filename": true,
+    "slots_to_upload": [
+        "main",
+        "jsondata",
+        "jsonschema",
+        "header_template"
+    ],
+    "domain": "wiki-dev.open-semantic-lab.org"
+}

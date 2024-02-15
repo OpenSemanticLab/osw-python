@@ -76,7 +76,7 @@ print(type(di))
 # osw.register_schema(OSW.SchemaRegistration(model_cls=MyModel, schema_name="MyModel"))
 
 # import src.model.LIMS.Device.Type as model2
-dt = model.DeviceType(label=model.Label(label_text="Test"))
+dt = model.DeviceType(label=[model.Label(label_text="Test")])
 # pprint(dt)
 # pprint(dt.json())
 

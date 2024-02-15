@@ -7,14 +7,17 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
+import dask
+from dask.diagnostics import ProgressBar
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
 from pydantic.main import ModelMetaclass
 
 import osw.model.entity as model
+from osw.utils.util import BufferedPrint
 from osw.wtsite import WtSite
 
 
@@ -47,7 +50,7 @@ class OswClassMetaclass(ModelMetaclass):
 
 
 class OSW(BaseModel):
-    """OSW Class"""
+    """Bundles core functionalities of OpenSemanticWorld (OSW)"""
 
     uuid: str = "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5"
     _protected_keywords = (
@@ -62,10 +65,32 @@ class OSW(BaseModel):
 
     @staticmethod
     def get_osw_id(uuid: uuid) -> str:
+        """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing all "-" from the uuid-string
+
+        Parameters
+        ----------
+        uuid
+            uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+
+        Returns
+        -------
+            OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+        """
         return "OSW" + str(uuid).replace("-", "")
 
     @staticmethod
     def get_uuid(osw_id) -> uuid:
+        """Returns the uuid for a given OSW-ID
+
+        Parameters
+        ----------
+        osw_id
+            OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+
+        Returns
+        -------
+            uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+        """
         return UUID(osw_id.replace("OSW", ""))
 
     @model._basemodel_decorator
@@ -92,7 +117,7 @@ class OSW(BaseModel):
         schema_bases: List[str] = ["Category:Item"]
 
     def register_schema(self, schema_registration: SchemaRegistration):
-        """registers a new or updated schema in OSW
+        """registers a new or updated schema in OSW by creating the corresponding category page
 
         Parameters
         ----------
@@ -175,6 +200,13 @@ class OSW(BaseModel):
         comment: Optional[str]
 
     def unregister_schema(self, schema_unregistration: SchemaUnregistration):
+        """deletes the corresponding category page
+
+        Parameters
+        ----------
+        schema_unregistration
+            see SchemaUnregistration
+        """
         uuid = ""
         if schema_unregistration.model_uuid:
             uuid = schema_unregistration.model_uuid
@@ -192,18 +224,47 @@ class OSW(BaseModel):
         page.delete(schema_unregistration.comment)
 
     class FetchSchemaMode(Enum):
+        """Modes of the FetchSchemaParam class
+
+        Attributes
+        ----------
+        append:
+            append to the current model
+        replace:
+            replace the current model
+        """
+
         append = "append"  # append to the current model
         replace = "replace"  # replace the current model
 
     @model._basemodel_decorator
     class FetchSchemaParam(BaseModel):
-        schema_title: Optional[str] = "JsonSchema:Entity"
+        """_summary_
+
+        Attributes
+        ----------
+        schema_title:
+            the title (wiki page name) of the schema (default: Category:Item)
+        root:
+            marks the root iteration for a recursive fetch (internal param, default: True)
+        mode:
+            append or replace (default) current schema, see FetchSchemaMode
+        """
+
+        schema_title: Optional[str] = "Category:Item"
         root: Optional[bool] = True
         mode: Optional[
             str
         ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
 
-    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None):
+    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
+        """loads the given schema from the OSW instance and autogenerates python datasclasses within osw.model.entity from it
+
+        Parameters
+        ----------
+        fetchSchemaParam, optional
+            see FetchSchemaParam, by default None
+        """
         site_cache_state = self.site.get_cache_enabled()
         self.site.enable_cache()
         if fetchSchemaParam is None:
@@ -280,6 +341,8 @@ class OSW(BaseModel):
                 --use-title-as-name \
                 --use-schema-description \
                 --use-field-description \
+                --encoding utf-8 \
+                --use-double-quotes \
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
@@ -296,7 +359,7 @@ class OSW(BaseModel):
             # idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
 
             content = ""
-            with open(temp_model_path, "r") as f:
+            with open(temp_model_path, "r", encoding="utf-8") as f:
                 content = f.read()
             os.remove(temp_model_path)
 
@@ -309,23 +372,13 @@ class OSW(BaseModel):
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import TYPE_CHECKING, Type, TypeVar\n"
+                    "from osw.model.static import OswBaseModel, Ontology\n"
                     "\n"
                     "if TYPE_CHECKING:\n"
                     "    from dataclasses import dataclass as _basemodel_decorator\n"
                     "else:\n"
-                    "    _basemodel_decorator = lambda x: x   # noqa: E731\n"
+                    "    _basemodel_decorator = lambda x: x  # noqa: E731\n"
                     "\n"
-                )
-                header += (
-                    "\nT = TypeVar('T', bound=BaseModel)\n"
-                    "\nclass OswBaseModel(BaseModel):\n"
-                    "    def full_dict(self, **kwargs): #extent BaseClass export function\n"
-                    "        d = super().dict(**kwargs)\n"
-                    "        for key in " + str(self._protected_keywords) + ":\n"
-                    "            if hasattr(self, key): d[key] = getattr(self, key) #include selected private properites. note: private properties are not considered as discriminator \n"
-                    "        return d\n\n"
-                    "    def cast(self, cls: Type[T]) -> T:\n"
-                    "       return cls(**self.dict())\n"
                 )
 
                 content = re.sub(
@@ -344,12 +397,12 @@ class OSW(BaseModel):
                     r"UUID = Field(default_factory=uuid4",
                     content,
                 )  # enable default value for uuid
-                with open(result_model_path, "w") as f:
+                with open(result_model_path, "w", encoding="utf-8") as f:
                     f.write(content)
 
             if fetchSchemaParam.mode == "append":
                 org_content = ""
-                with open(result_model_path, "r") as f:
+                with open(result_model_path, "r", encoding="utf-8") as f:
                     org_content = f.read()
 
                 pattern = re.compile(
@@ -360,7 +413,7 @@ class OSW(BaseModel):
                     content = re.sub(
                         r"(class\s*"
                         + cls
-                        + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){2,})",
+                        + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
                         "",
                         content,
                         count=1,
@@ -370,7 +423,7 @@ class OSW(BaseModel):
                     r"(from __future__ import annotations)", "", content, 1
                 )  # remove import statement
                 # print(content)
-                with open(result_model_path, "a") as f:
+                with open(result_model_path, "a", encoding="utf-8") as f:
                     f.write(content)
 
             importlib.reload(model)  # reload the updated module
@@ -378,6 +431,19 @@ class OSW(BaseModel):
                 self.site.disable_cache()  # restore original state
 
     def load_entity(self, entity_title) -> model.Entity:
+        """Loads the entity with the given wiki page name from the OSW instance.
+            Creates a instance of the class specified by the "type" attribute, default model.Entity
+            Instance of model.Entity can be casted to any subclass with .cast(model.<class>)
+
+        Parameters
+        ----------
+        entity_title
+            the wiki page name
+
+        Returns
+        -------
+            the dataclass instance
+        """
         entity = None
         schemas = []
         page = self.site.get_WtPage(entity_title)
@@ -403,26 +469,152 @@ class OSW(BaseModel):
 
         return entity
 
-    def store_entity(self, entity) -> None:
-        if isinstance(entity, model.Item):
-            entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
-            page = self.site.get_WtPage(entity_title)
-            jsondata = json.loads(entity.json())  # use pydantic serialization
-            page.set_slot_content("jsondata", jsondata)
-        else:
-            print("Error: Unsupported entity type")
-            return
+    class StoreEntityParam(model.OswBaseModel):
+        entities: Union[model.Entity, List[model.Entity]]
+        namespace: Optional[str]
+        parallel: Optional[bool] = False
 
-        page.edit()
-        print("Entity stored at " + page.get_url())
+    def store_entity(
+        self, param: Union[StoreEntityParam, model.Entity, List[model.Entity]]
+    ) -> None:
+        """stores the given dataclass instance as OSW page by calling BaseModel.json()
+
+        Parameters
+        ----------
+        param:
+            StoreEntityParam, the dataclass instance or a list of instances
+        """
+
+        namespace = None
+        parallel = False
+        entity = param
+        if isinstance(param, OSW.StoreEntityParam):
+            entity = param.entities
+            namespace = param.namespace
+            parallel = param.parallel
+        if not isinstance(entity, list):
+            entity = [entity]
+        # entity is a list
+        max_index = len(entity)
+        if max_index >= 5:
+            parallel = True
+
+        def store_entity(index_, e_, namespace_=namespace):
+            if namespace_ is None and isinstance(e_, model.Item):
+                namespace_ = "Item"
+            if namespace_ is not None:
+                entity_title = namespace_ + ":" + OSW.get_osw_id(e_.uuid)
+                page = self.site.get_WtPage(entity_title)
+                jsondata = json.loads(
+                    e_.json(exclude_none=True)
+                )  # use pydantic serialization, skip none values
+                page.set_slot_content("jsondata", jsondata)
+            else:
+                print("Error: Unsupported entity type")
+                return
+            page.set_slot_content(
+                "header", "{{#invoke:Entity|header}}"
+            )  # required for json parsing and header rendering
+            page.set_slot_content(
+                "footer", "{{#invoke:Entity|footer}}"
+            )  # required for footer rendering
+            page.edit()
+            msg = f"({index_+1}/{max_index}) Entity stored at " f"{page.get_url()}."
+            if parallel:
+                print(msg, file=message_buffer)
+            else:
+                print(msg)
+
+        tasks = []
+        for index, e in enumerate(entity):
+            if not parallel:
+                store_entity(index, e)
+            else:
+                tasks.append(dask.delayed(store_entity)(index, e))
+        if parallel:
+            message_buffer = BufferedPrint()
+            print(
+                "(Parallel execution) Storing entities. Log will be printed after "
+                "completion."
+            )
+            with ProgressBar():
+                dask.compute(*tasks)
+            message_buffer.flush()
 
     def delete_entity(self, entity, comment: str = None):
+        """deletes the given entity from the OSW instance
+
+        Parameters
+        ----------
+        entity
+            the dataclass instance to delete
+        comment, optional
+            command for the change log, by default None
+        """
         if isinstance(entity, model.Item):
             entity_title = "Item:" + OSW.get_osw_id(entity.uuid)
             page = self.site.get_WtPage(entity_title)
         else:
             print("Error: Unsupported entity type")
             return
+        if page.exists:
+            page.delete(comment)
+            print("Entity deleted: " + page.get_url())
+        else:
+            print(f"Entity '{entity_title}' does not exist!")
 
-        page.delete(comment)
-        print("Entity deleted: " + page.get_url())
+    class _ImportOntologyParam(model.OswBaseModel):
+        ontology: model.Ontology
+        entities: List[model.Entity]
+        properties: Optional[List[model.Entity]]
+
+    def _import_ontology(self, param: _ImportOntologyParam):
+        import_page = self.site.get_WtPage(
+            "MediaWiki:Smw_import_" + param.ontology.prefix_name
+        )
+        text = f"{param.ontology.prefix}|[{param.ontology.link} {param.ontology.name}]"
+        for e in param.entities:
+            iri = None
+            if hasattr(e, "iri"):
+                iri = e.iri
+            if hasattr(e, "uri"):
+                iri = e.uri
+            if iri is not None:
+                text += f"\n {iri.replace(param.ontology.prefix, '')}|Category"
+            else:
+                print("Error: Entity has not iri/uri property")
+        import_page.set_slot_content("main", text)
+        import_page.edit("import ontology")
+
+        self.store_entity(
+            OSW.StoreEntityParam(namespace="Category", entities=param.entities)
+        )
+
+    class ImportOntologyParam(model.OswBaseModel):
+        entities: List[model.Entity]
+        ontologies: List[model.Ontology]
+
+    def import_ontology(self, param: ImportOntologyParam):
+        prefix_dict = {}
+        for e in param.entities:
+            if "#" in e.uri:
+                key = e.uri.split("#")[0] + "#"
+            else:
+                key = e.uri.replace(e.uri.split("/")[-1], "")
+            if key not in prefix_dict:
+                prefix_dict[key] = []
+            prefix_dict[key].append(e)
+
+        for prefix in prefix_dict.keys():
+            onto = None
+            for o in param.ontologies:
+                if o.prefix == prefix:
+                    onto = o
+            if onto is None:
+                print(f"Error: No ontology defined for prefix {prefix}")
+            else:
+                self._import_ontology(
+                    OSW._ImportOntologyParam(
+                        ontology=onto, entities=prefix_dict[prefix]
+                    )
+                )

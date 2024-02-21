@@ -735,18 +735,24 @@ class WtPage:
                 if page["title"] == title:
                     for revision in page["revisions"]:
                         self._current_revision = revision
-                        for slot_key in revision["slots"]:
-                            self._slots[slot_key] = revision["slots"][slot_key]["*"]
-                            self._content_model[slot_key] = revision["slots"][slot_key][
-                                "contentmodel"
-                            ]
-                            self._slots_changed[slot_key] = False
-                            # self._slots_sha1[slot_key] = \
-                            #     revision["slots"][slot_key]["*"]
-                            if self._content_model[slot_key] == "json":
-                                self._slots[slot_key] = json.loads(
-                                    self._slots[slot_key],
-                                )
+                        if "slots" in revision:
+                            for slot_key in revision.get("slots", {}):
+                                self._slots[slot_key] = revision["slots"][slot_key]["*"]
+                                self._content_model[slot_key] = revision["slots"][
+                                    slot_key
+                                ]["contentmodel"]
+                                self._slots_changed[slot_key] = False
+                                # self._slots_sha1[slot_key] = \
+                                #     revision["slots"][slot_key]["*"]
+                                if self._content_model[slot_key] == "json":
+                                    self._slots[slot_key] = json.loads(
+                                        self._slots[slot_key]
+                                    )
+                        else:  # legacy MW instances < 1.35
+                            self._slots["main"] = revision["*"]
+                            self._content_model["main"] = "wikitext"
+                            self._slots_changed["main"] = False
+                            # self._slots_sha1["main"] = revision["sha1"]
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots
 

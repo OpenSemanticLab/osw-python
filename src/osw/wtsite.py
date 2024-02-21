@@ -270,15 +270,31 @@ class WtSite:
         return result.pages[0]
 
     def enable_cache(self):
+        """Enables the page cache. If the cache is enabled, pages that have been
+        downloaded once are stored in memory and are not downloaded again
+        """
         self._cache_enabled = True
 
     def disable_cache(self):
+        """Disables the page cache. If the cache is disabled, pages are downloaded
+        every time they are requested
+        """
         self._cache_enabled = False
 
     def get_cache_enabled(self):
+        """Returns whether the page cache is enabled
+
+        Returns
+        -------
+        bool
+            whether the page cache is enabled
+        """
         return self._cache_enabled
 
     def clear_cache(self):
+        """Clears the page cache. All pages that have been downloaded are removed from
+        the cache
+        """
         del self._page_cache
         self._page_cache = {}
 
@@ -291,17 +307,46 @@ class WtSite:
                 )
 
     def prefix_search(self, text: Union[str, wt.SearchParam]):
+        """Send a prefix search request to the site.
+
+        Parameters
+        ----------
+        text
+            The search text or a SearchParam object
+
+        Returns
+        -------
+            A list of page titles
+        """
         return wt.prefix_search(self._site, text)
 
     def semantic_search(self, query: Union[str, wt.SearchParam]):
+        """Send a swm ask query to the site.
+
+        Parameters
+        ----------
+        text
+            The query text (e. g. "[[Category:Entity]]") or a SearchParam object
+
+        Returns
+        -------
+            A list of page titles
+        """
         return wt.semantic_search(self._site, query)
 
     class ModifySearchResultsParam(model.OswBaseModel):
+        """Todo: should become param of modify_search_results"""
+
         mode: str
+        """The search mode. Either 'prefix' or 'semantic'."""
         query: wt.SearchParam
+        """The search query."""
         comment: str = None
+        """The comment for the edit."""
         log: bool = False
+        """Whether to log changes."""
         dryrun: bool = False
+        """if True, no actual changes are made"""
 
     def modify_search_results(
         self,
@@ -313,6 +358,25 @@ class WtSite:
         log=False,
         dryrun=False,
     ):
+        """Modifies the search results of a prefix or semantic search in a callback and stores the changes.
+
+        Parameters
+        ----------
+        mode
+            The search mode. Either 'prefix' or 'semantic'.
+        query
+            The search query.
+        modify_page
+            The callback that modifies the pages.
+        limit, optional
+            query limit, by default None
+        comment, optional
+            edit comment, by default None
+        log, optional
+            log changes, by default False
+        dryrun, optional
+            if True, no actual changes are made, by default False
+        """
         titles = []
         if mode == "prefix":
             titles = wt.prefix_search(self._site, query)
@@ -338,9 +402,14 @@ class WtSite:
                 wtpage.edit(comment)
 
     class UploadPageParam(model.OswBaseModel):
+        """Parameter object for upload_page method."""
+
         pages: Union["WtPage", List["WtPage"]]
+        """A WtPage object or a list of WtPage objects."""
         parallel: Optional[bool] = False
+        """If True, uploads the pages in parallel."""
         debug: Optional[bool] = False
+        """If True, debug messages will be printed."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -699,7 +768,19 @@ class WtSite:
 
 
 class WtPage:
+    """A wrapper class of mwclient.page, mainly to provide multi-slot page handling"""
+
     def __init__(self, wtSite: WtSite = None, title: str = None):
+        """Creates a new WtPage object for the given title and loads the page from the
+        site if the page already exists.
+
+        Parameters
+        ----------
+        wtSite, optional
+            The instance site object, by default None
+        title, optional
+            the page title, by default None
+        """
         self.wtSite = wtSite
         self.title = title
 
@@ -757,30 +838,110 @@ class WtPage:
                     #  SLOTS) --> create empty slots
 
     def create_slot(self, slot_key, content_model):
+        """Creates a new slot for the page. Availables Keys and content models are defined in
+        SLOTS.
+
+        Parameters
+        ----------
+        slot_key
+            The key of the slot (e.g. 'header', 'footer', 'jsondata', etc.)
+        content_model
+            The content model of the slot (wikitext, json, etc.)
+        """
         self._slots[slot_key] = {}
         # To avoid TypeError: argument of type 'NoneType' is not iterable in
         #  set_slot_content()
         self._slots_changed[slot_key] = False
         self._content_model[slot_key] = content_model
 
+    @deprecated("Use get_slot_content('main') instead")
     def get_content(self):
+        """Get the content of the page (slot: main). Should be replaced by get_slot_content('main')
+        Note: The content is parsed at page initialization with wt.create_flat_content_structure_from_wikitext()
+
+        Returns
+        -------
+            _description_
+        """
         return self._content
 
     def get_slot_content(self, slot_key):
+        """Get the content of a slot
+
+        Parameters
+        ----------
+        slot_key
+            the slot key
+
+        Returns
+        -------
+            the content of the slot
+        """
         if slot_key not in self._slots:
             return None
         return self._slots[slot_key]
 
+    def get_parsed_slot_content(self, slot_key: str) -> List:
+        """Gets the parsed content of a slot by calling
+        wt.create_flat_content_structure_from_wikitext()
+        Parsed content can be set with set_parsed_slot_content().
+
+        Parameters
+        ----------
+        slot_key
+            the key of the slot
+
+        Returns
+        -------
+            the parsed content of the slot
+        """
+        content = self.get_slot_content(slot_key)
+        content = wt.create_flat_content_structure_from_wikitext(content)
+        return content
+
     def get_slot_content_model(self, slot_key):
+        """Get the content model of a slot
+
+        Parameters
+        ----------
+        slot_key
+            the slot key
+
+        Returns
+        -------
+            the content model of the slot
+        """
         if slot_key not in self._slots:
             return None
         return self._content_model[slot_key]
 
+    @deprecated("Use set_slot_content('main', content) instead")
     def set_content(self, content):
+        """Sets the content of the page (slot: main). Should be replaced by set_slot_content('main', content)
+
+        Parameters
+        ----------
+        content
+            the new content of the page
+        """
         self._content = content
         self.changed = True
 
     def set_slot_content(self, slot_key, content):
+        """Sets the content of a slot
+
+        Parameters
+        ----------
+        slot_key
+            The key of the slot
+        content
+            the new content of the slot
+
+        Raises
+        ------
+        ValueError
+            if the slot_key is not defined in SLOTS
+        """
         if slot_key not in self._slots:
             slot_dict = SLOTS.get(slot_key, None)
             if slot_dict is None:
@@ -794,7 +955,29 @@ class WtPage:
             self._slots_changed[slot_key] = True
         self._slots[slot_key] = content
 
+    def set_parsed_slot_content(self, slot_key: str, content: List):
+        """Sets the parsed content of a slot by calling
+        wt.get_wikitext_from_flat_content_structure().
+        Parsed content can be retrieved with get_parsed_slot_content()
+        or wt.create_flat_content_structure_from_wikitext().
+
+        Parameters
+        ----------
+        slot_key
+            the key of the slot
+        content
+            the new parsed content of the slot
+        """
+        content = wt.get_wikitext_from_flat_content_structure(content)
+        self.set_slot_content(slot_key, content)
+
     def get_url(self) -> str:
+        """Get the URL of the page
+
+        Returns
+        -------
+            the URL of the page
+        """
         return "https://" + self.wtSite._site.host + "/wiki/" + self.title
 
     def is_file_page(self) -> bool:
@@ -806,15 +989,61 @@ class WtPage:
         """
         return self.title.startswith("File:")
 
+    @deprecated("No longer supported")
     def append_template(self, template_name: str = None, template_params: dict = None):
+        """Appends a wiki template to the parsed main slot content.
+        Please note that the main slots is parsed at page initialization
+        with wt.create_flat_content_structure_from_wikitext().
+        Remember to call update_content() afterwards
+
+        Parameters
+        ----------
+        template_name, optional
+            the name of the template, by default None
+        template_params, optional
+            the parameters of the template, by default None
+
+        Returns
+        -------
+            the WtPage object
+        """
         self._dict.append({template_name: template_params})
         return self
 
+    @deprecated("No longer supported")
     def append_text(self, text):
+        """Appends text to the parsed main slot content.
+        Please note that the main slots is parsed at page initialization
+        with wt.create_flat_content_structure_from_wikitext().
+        Remember to call update_content() afterwards
+
+        Parameters
+        ----------
+        text:
+            the text to append
+
+        Returns
+        -------
+            the WtPage object
+        """
         self._dict.append(text)
         return self
 
+    @deprecated("No longer supported")
     def get_value(self, jsonpath):
+        """Resolves a JSONPath expression in the parsed main slot content.
+        Please note that the main slots is parsed at page initialization
+        with wt.create_flat_content_structure_from_wikitext().
+
+        Parameters
+        ----------
+        jsonpath
+            The JSONPath expression
+
+        Returns
+        -------
+            The query result
+        """
         jsonpath_expr = parse(jsonpath)
         res = []
         d = dict(
@@ -824,15 +1053,35 @@ class WtPage:
             res.append(match.value)
         return res
 
+    @deprecated("No longer supported")
     def update_dict(self, combined: dict, update: dict) -> None:
         for k, v in update.items():
             if isinstance(v, dict):
                 # todo: fix reference for combine_into
-                WtPage.combine_into(v, combined.setdefault(k, {}))
+                wt.combine_into(v, combined.setdefault(k, {}))
             else:
                 combined[k] = v
 
+    @deprecated("No longer supported for replace=False")
     def set_value(self, jsonpath_match, value, replace=False):
+        """Sets the value of a JSONPath expression in the parsed main slot content.
+        Please note that the main slots is parsed at page initialization
+        with wt.create_flat_content_structure_from_wikitext().
+        Remember to call update_content() afterwards
+
+        Parameters
+        ----------
+        jsonpath_match
+            The JSONPath expression
+        value
+            The value to set
+        replace, optional
+            Whether to replace the value, by default False
+
+        Returns
+        -------
+            The WtPage object
+        """
         jsonpath_expr = parse(jsonpath_match)
         d = dict(
             zip(range(len(self._dict)), self._dict)
@@ -851,7 +1100,15 @@ class WtPage:
         self._dict = list(d.values())  # convert dict with index to list
         return self
 
+    @deprecated("Use set_parsed_slot_content('main', content) instead")
     def update_content(self):
+        """Updates the content of the page with the parsed content of the main slots
+        by calling wt.get_wikitext_from_flat_content_structure().
+
+        Returns
+        -------
+            the WtPage object
+        """
         self._content = wt.get_wikitext_from_flat_content_structure(self._dict)
         self.changed = self._original_content != self._content
         return self
@@ -923,9 +1180,27 @@ class WtPage:
                     self._slots_changed[slot_key] = False
 
     def delete(self, comment: str = None):
+        """Deletes the page from the site
+
+        Parameters
+        ----------
+        comment, optional
+            The delete comment, by default None
+        """
         self._page.delete(comment)
 
     def move(self, new_title: str, comment: str = None, redirect=True):
+        """Moves (=renames) the page to a new title
+
+        Parameters
+        ----------
+        new_title
+            the new title of the page
+        comment, optional
+            the edit comment
+        redirect, optional
+            whether to create a redirect from the old title to the new title
+        """
         if new_title != self.title:
             print(f"move '{self.title}' to '{new_title}'")
             self._page.move(
@@ -934,6 +1209,12 @@ class WtPage:
             self.title = new_title
 
     def get_last_changed_time(self):
+        """Gets the timestamp of the last change of the page
+
+        Returns
+        -------
+            a datetime string in ISO format
+        """
         return datetime.fromisoformat(
             self._current_revision["timestamp"].replace("Z", "+00:00")
         )
@@ -1056,12 +1337,27 @@ class WtPage:
     def get_file_info_and_usage(
         self, debug: bool = False
     ) -> Dict[str, Union[str, List[str]]]:
+        """For file page only: Get the file info and usage for this file page
+
+        Parameters
+        ----------
+        debug, optional
+            whether to print debug information, by default False
+
+        Returns
+        -------
+            Dictionary with page titles as keys and nested dictionary with keys 'info' and 'usage'.
+        """
         return wt.get_file_info_and_usage(
             site=self.wtSite._site,
             title=wt.SearchParam(query=self.title, debug=debug),
         )[0]
 
     def purge(self):
+        """Purge the page from the site cache.
+        Triggers a rebuild / refresh of the page.
+        This is useful if the page content is changed and the changes are not visible
+        """
         self._page.purge()
 
     class ExportConfig(model.OswBaseModel):

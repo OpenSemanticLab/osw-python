@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import xml.etree.ElementTree as et
+from copy import deepcopy
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
@@ -269,6 +270,28 @@ class WtSite:
         result = self.get_page(WtSite.GetPageParam(titles=title))
         return result.pages[0]
 
+    class GetPageContentResult(model.OswBaseModel):
+        contents: dict
+        """The content of the pages. Keys are page titles, values are
+        content dictionaries"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def get_page_content(self, full_page_titles: List[str]) -> GetPageContentResult:
+        get_page_res = self.get_page(WtSite.GetPageParam(titles=full_page_titles))
+        contents_dict = {}
+        for page in get_page_res.pages:
+            title = page.title
+            slot_contents = {}
+            for slot in SLOTS:
+                slot_content = page.get_slot_content(slot)
+                if slot_content is not None:
+                    slot_contents[slot] = slot_content
+            contents_dict[title] = slot_contents
+
+        return WtSite.GetPageContentResult(contents=contents_dict)
+
     def enable_cache(self):
         """Enables the page cache. If the cache is enabled, pages that have been
         downloaded once are stored in memory and are not downloaded again
@@ -456,6 +479,46 @@ class WtSite:
             _ = parallelize(upload_page_, param.pages, flush_at_end=param.debug)
         else:
             _ = [upload_page_(p, i) for i, p in enumerate(param.pages)]
+
+    class CopyPagesParam(model.OswBaseModel):
+        """Configuration to copy several page"""
+
+        source_site: "WtSite"
+        """The source site to copy the pages from"""
+        existing_pages: List[str]
+        """The full page title of the pages on the source site"""
+        overwrite: Optional[bool] = False
+        """If true, pages will be overwritten if they already exists on the target
+        site"""
+        comment: Optional[str] = None
+        """Edit comment for the page history. If set to none, will be replaced with
+        '[bot edit] Copied from {source_site.host}'."""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def copy_pages(self, param: CopyPagesParam):
+        """Copies pages from a source site to this (target) site."""
+
+        def copy_single_page(content_dict: dict):
+            title = list(content_dict.keys())[0]
+            wtpage = WtPage(wtSite=self, title=title)
+            return wtpage.copy(
+                config=WtPage.CopyPageConfig(
+                    source_site=param.source_site,
+                    existing_page=title,
+                    overwrite=param.overwrite,
+                    comment=param.comment,
+                )
+            )
+
+        page_contents = param.source_site.get_page_content(param.existing_pages)
+        content_list = [{key: value} for key, value in page_contents.contents.items()]
+        return ut.parallelize(
+            copy_single_page,
+            content_list,
+            flush_at_end=True,
+        )
 
     class CreatePagePackageParam(model.OswBaseModel):
         """Parameter object for create_page_package method."""
@@ -865,13 +928,15 @@ class WtPage:
         """
         return self._content
 
-    def get_slot_content(self, slot_key):
+    def get_slot_content(self, slot_key, clone: bool = True):
         """Get the content of a slot
 
         Parameters
         ----------
         slot_key
-            the slot key
+            The key of the slot.
+        clone
+            Whether to return a pointer to the slot of the page or a clone (copy).
 
         Returns
         -------
@@ -879,6 +944,8 @@ class WtPage:
         """
         if slot_key not in self._slots:
             return None
+        if clone:
+            return deepcopy(self._slots[slot_key])
         return self._slots[slot_key]
 
     def get_parsed_slot_content(self, slot_key: str) -> List:
@@ -905,7 +972,7 @@ class WtPage:
         Parameters
         ----------
         slot_key
-            the slot key
+            The key of the slot.
 
         Returns
         -------
@@ -922,7 +989,7 @@ class WtPage:
         Parameters
         ----------
         content
-            the new content of the page
+            The new content of the page
         """
         self._content = content
         self.changed = True
@@ -951,8 +1018,14 @@ class WtPage:
                 )
             content_model = slot_dict["content_model"]
             self.create_slot(slot_key, content_model)
-        if content != self._slots[slot_key]:
-            self._slots_changed[slot_key] = True
+        if self._content_model[slot_key] == "json":
+            new_content_str = json.dumps(content, ensure_ascii=False)
+            original_content_str = json.dumps(self._slots[slot_key], ensure_ascii=False)
+            if new_content_str != original_content_str:
+                self._slots_changed[slot_key] = True
+        else:
+            if content != self._slots[slot_key]:
+                self._slots_changed[slot_key] = True
         self._slots[slot_key] = content
 
     def set_parsed_slot_content(self, slot_key: str, content: List):
@@ -1218,6 +1291,74 @@ class WtPage:
         return datetime.fromisoformat(
             self._current_revision["timestamp"].replace("Z", "+00:00")
         )
+
+    class CopyPageConfig(model.OswBaseModel):
+        """Configuration to copy a page"""
+
+        source_site: WtSite
+        """The source site to copy the page from"""
+        existing_page: str
+        """The full page title of the page on the source site"""
+        overwrite: Optional[bool] = False
+        """If true, the page will be overwritten if it already exists on the target
+        site"""
+        comment: Optional[str] = None
+        """Edit comment for the page history"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    class PageCopyResult(model.OswBaseModel):
+        """Result of copying a page"""
+
+        page: "WtPage"
+        """The copied page"""
+        target_altered: bool
+        """True if the page at the target site was altered"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def copy(self, config: CopyPageConfig) -> PageCopyResult:
+        if config.comment is None:
+            config.comment = f"[bot edit] Copied from {config.source_site._site.host}"
+        result = config.source_site.get_page_content([config.existing_page])
+        for title, slot_contents in result.contents.items():
+            self.title = title
+            verb = "created"
+            if self.exists:
+                verb = "updated"
+                if config.overwrite is False:
+                    return WtPage.PageCopyResult(page=self, target_altered=False)
+                changed_slots = []
+                for slot in SLOTS:
+                    if self.get_slot_content(slot) != slot_contents.get(slot, None):
+                        changed_slots.append(slot)
+                if len(changed_slots) == 0:
+                    print(
+                        f"Page '{self.title}' already has the same content. It will "
+                        f"not be updated."
+                    )
+                    return WtPage.PageCopyResult(page=self, target_altered=False)
+                else:
+                    print(
+                        f"Page '{self.title}' has different content in slots "
+                        f"{changed_slots}."
+                    )
+            for slot in slot_contents.keys():
+                self.create_slot(
+                    slot_key=slot, content_model=SLOTS[slot]["content_model"]
+                )
+                self.set_slot_content(slot_key=slot, content=slot_contents[slot])
+            self.edit(comment=config.comment)
+            s2p = f"Page {verb}: 'https://{self.wtSite._site.host}/wiki/{self.title}'."
+            if verb == "updated":
+                s2p = (
+                    f"Page {verb}: 'https://{self.wtSite._site.host}/w/index.php?title"
+                    f"={self.title}&action=history'."
+                )
+            print(s2p)
+            return WtPage.PageCopyResult(page=self, target_altered=True)
 
     class PageDumpConfig(model.OswBaseModel):
         """Configuration to dump wiki pages to the file system"""
@@ -1527,6 +1668,8 @@ class WtPage:
 
 
 # Updating forwards refs in pydantic models
+WtPage.PageCopyResult.update_forward_refs()
+WtSite.CopyPagesParam.update_forward_refs()
 WtSite.UploadPageParam.update_forward_refs()
 WtSite.GetPageResult.update_forward_refs()
 WtSite.CreatePagePackageParam.update_forward_refs()

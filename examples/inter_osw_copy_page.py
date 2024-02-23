@@ -1,4 +1,4 @@
-"""THis script provides the ability to copy a page from one OSW instance to another
+"""This script provides the ability to copy a page from one OSW instance to another
 OSW instance."""
 from pathlib import Path
 
@@ -119,7 +119,7 @@ def copy_pages_from(
     overwrite: bool = False,
 ):
     if comment is None:
-        f"[bot edit] Copied from {source_domain}"
+        comment = f"[bot edit] Copied from {source_domain}"
     osw_source = OswInstance(
         domain=source_domain,
         cred_fp=cred_fp,
@@ -156,10 +156,40 @@ if __name__ == "__main__":
         "Item:OSW8dca6aaebe005c5faca05bac33264e4d",
         "Item:OSWaeffcee25ccb5dd8b42a434dc644d62c",
     ]
-    copied_pages = copy_pages_from(
-        source_domain=source,
-        to_target_domains=targets,
-        page_titles=titles,
-        cred_fp=credentials_fp,
-        overwrite=False,
-    )
+    # Implementation within this script
+    use_this_script = False
+    if use_this_script:
+        copied_pages = copy_pages_from(
+            source_domain=source,
+            to_target_domains=targets,
+            page_titles=titles,
+            cred_fp=credentials_fp,
+            overwrite=True,
+        )
+    # Implementation within wtsite
+    use_wtsite = True
+    if use_wtsite:
+        osw_source = OswInstance(
+            domain=source,
+            cred_fp=credentials_fp,
+        )
+        osw_targets = [
+            OswInstance(
+                domain=target,
+                cred_fp=credentials_fp,
+            )
+            for target in targets
+        ]
+        source_site = osw_source.wtsite
+        target_sites = [osw_target.wtsite for osw_target in osw_targets]
+        result = {}
+        for target_site in target_sites:
+            target = target_site._site.host
+            copied_pages = target_site.copy_pages(
+                WtSite.CopyPagesParam(
+                    source_site=source_site,
+                    existing_pages=titles,
+                    overwrite=True,
+                )
+            )
+            result[target] = copied_pages

@@ -768,11 +768,9 @@ class OSW(BaseModel):
                         )
             page.edit()
             if index is None:
-                print(f"Entity stored at {page.get_url()}.")
+                print(f"Entity stored at '{page.get_url()}'.")
             else:
-                print(
-                    f"({index + 1}/{max_index}) Entity stored at " f"{page.get_url()}."
-                )
+                print(f"({index + 1}/{max_index}) Entity stored at '{page.get_url()}'.")
 
         if param.parallel:
             _ = parallelize(

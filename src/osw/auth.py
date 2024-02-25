@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import getpass
 from enum import Enum
+from pathlib import Path
 from typing import List, Optional, Union
 
 import yaml
@@ -65,8 +66,9 @@ class CredentialManager(OswBaseModel):
         """Reads credentials from a yaml file"""
 
         iri: str
-        """internationalized resource identifier / address of the service, may contain protocol, domain, port and path
-            matches by "contains" returning the shortest match"""
+        """internationalized resource identifier / address of the service, may contain
+        protocol, domain, port and path matches by "contains" returning the shortest
+        match"""
         fallback: Optional[CredentialManager.CredentialFallback] = "none"
         """The fallback strategy if no credential was found for the given origin"""
 
@@ -81,7 +83,8 @@ class CredentialManager(OswBaseModel):
         Returns
         -------
         credential :
-            Credential, contain attributes 'username' and 'password' and the matching iri.
+            Credential, contain attributes 'username' and 'password' and
+            the matching iri.
         """
 
         _file_credentials: List[CredentialManager.BaseCredential] = []
@@ -159,6 +162,80 @@ class CredentialManager(OswBaseModel):
             the credential to add
         """
         self._credentials.append(cred)
+
+    def iri_in_credentials(self, iri: str) -> bool:
+        """checks if a credential for a given iri exists
+
+        Parameters
+        ----------
+        iri
+            the iri to check
+
+        Returns
+        -------
+        bool
+            True if a credential exists for the given iri
+        """
+        for cred in self._credentials:
+            if cred.iri == iri:
+                return True
+        return False
+
+    def iri_in_file(self, iri: str) -> bool:
+        """checks if a credential for a given iri exists in the file
+
+        Parameters
+        ----------
+        iri
+            the iri to check
+
+        Returns
+        -------
+        bool
+            True if a credential exists for the given iri
+        """
+        if self.cred_filepath:
+            filepaths = self.cred_filepath
+            if type(filepaths) is not list:
+                filepaths = [filepaths]
+
+            for filepath in filepaths:
+                if filepath != "":
+                    with open(filepath, "r") as stream:
+                        try:
+                            accounts = yaml.safe_load(stream)
+                            for iri_ in accounts.keys():
+                                if iri_ == iri:
+                                    return True
+                        except yaml.YAMLError as exc:
+                            print(exc)
+        return False
+
+    def save_credentials_to_file(
+        self,
+        filepath: Union[str, FilePath] = None,
+    ):
+        """saves the in memory credentials to a file
+
+        Parameters
+        ----------
+        filepath
+            The filepath to save the credentials to. If None, the filepath specified
+            in the CredentialManager is used. If specified, the cred_filepath of the
+            CredentialManager is updated.
+        """
+        if filepath is None:
+            filepath = self.cred_filepath
+        else:
+            self.cred_filepath = filepath
+        file = Path(filepath)
+        data = {}
+        if file.exists():
+            data = yaml.safe_load(file.read_text())
+        for cred in self._credentials:
+            data[cred.iri] = cred.dict(exclude={"iri"})
+        with open(filepath, "w") as stream:
+            yaml.dump(data, stream)
 
 
 CredentialManager.CredentialConfig.update_forward_refs()

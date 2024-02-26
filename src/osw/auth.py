@@ -98,6 +98,8 @@ class CredentialManager(OswBaseModel):
                     with open(filepath, "r") as stream:
                         try:
                             accounts = yaml.safe_load(stream)
+                            if accounts is None:  # Catch empty file
+                                continue
                             for iri in accounts.keys():
                                 if (
                                     "username" in accounts[iri]
@@ -195,6 +197,8 @@ class CredentialManager(OswBaseModel):
             True if a credential exists for the given iri
         """
         if self.cred_filepath:
+            if not self.cred_filepath.exists():
+                return False
             filepaths = self.cred_filepath
             if type(filepaths) is not list:
                 filepaths = [filepaths]
@@ -204,6 +208,8 @@ class CredentialManager(OswBaseModel):
                     with open(filepath, "r") as stream:
                         try:
                             accounts = yaml.safe_load(stream)
+                            if accounts is None:  # Catch empty file
+                                continue
                             for iri_ in accounts.keys():
                                 if iri_ == iri:
                                     return True
@@ -229,9 +235,13 @@ class CredentialManager(OswBaseModel):
         else:
             self.cred_filepath = filepath
         file = Path(filepath)
+        if not file.parent.exists():
+            file.parent.mkdir(parents=True)
         data = {}
         if file.exists():
             data = yaml.safe_load(file.read_text())
+            if data is None:  # Catch empty file
+                data = {}
         for cred in self._credentials:
             data[cred.iri] = cred.dict(exclude={"iri"})
         with open(filepath, "w") as stream:

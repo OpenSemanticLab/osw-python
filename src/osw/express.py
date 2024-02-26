@@ -8,8 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from warnings import warn
 
-import yaml
-from typing_extensions import Optional, Union
+from typing_extensions import Optional, TextIO, Union
 
 from osw.auth import CredentialManager
 from osw.controller.file.local import LocalFileController
@@ -18,6 +17,7 @@ from osw.core import OSW
 from osw.model.static import OswBaseModel
 from osw.wtsite import WtSite
 
+# Definition of constants
 BASE_PATH = Path(os.getcwd())
 CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / "accounts.pwd.yaml"
 DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
@@ -99,22 +99,6 @@ download_dir_default = DownloadDirDefault()
   download_dir_default.set_default(new_path)."""
 
 
-def save_credential(cred: CredentialManager.BaseCredential, cred_fp: Union[str, Path]):
-    """Save a credential to a file. Deprecated - delete in a future commit."""
-    if isinstance(cred_fp, str):
-        cred_fp = Path(cred_fp)
-    data = {}
-    if cred_fp.exists():
-        with open(cred_fp, "r") as f:
-            data = yaml.safe_load(f)
-    cred_dict = cred.dict()
-    if "iri" in cred_dict:
-        del cred_dict["iri"]
-    data[cred.iri] = cred_dict
-    with open(cred_fp, "w") as f:
-        yaml.dump(data, f)
-
-
 class OswExpress(OSW):
     """
     This class provides convenience functions for osw-python.
@@ -174,9 +158,231 @@ class OswExpress(OSW):
         site = WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=credential_manager))
         super().__init__(**{"site": site, "domain": domain})
         self.credential_manager = credential_manager
+        self.cred_fp = cred_fp
 
 
 class DownloadFileResult(LocalFileController):
+    """
+    A specific result object.
+    """
+
+    url_or_title: str
+    """The URL or full page title of the WikiFile page to download."""
+    mode: str = "r"
+    """The mode to open the file in. Default is 'r'. Implements the built-in open."""
+    delete_after_use: bool = False
+    """If True, the file will be deleted after use."""
+    target_dir: Optional[Union[str, Path]] = None
+    """The target directory to download the file to. If None, the current working
+    will be used."""
+    target_fn: Optional[str] = None
+    """The target filename to save the file as. If None, the filename will be taken
+    from the URL or title."""
+    target_fp: Optional[Union[str, Path]] = None
+    """The target filepath to save the file to. If None, the file will be saved to the
+    target directory with the target filename."""
+    path: Optional[Path] = None
+    """Overwriting the attribute of the base class to avoid validation error at
+    initialization. The path to the file."""
+    file: Optional[TextIO] = None
+    """The file object. They type depends on the file type."""
+    osw_express: Optional[OswExpress] = None
+    """An OswExpress object. If None, a new OswExpress object will be created using
+    the credentials_manager or domain and credentials_fp."""
+    domain: Optional[str] = None
+    """The domain of the wiki to download the file from. Required if urL_or_title is
+    a full page title. If None the domain is parsed from the URL."""
+    credentials_fp: Optional[Union[str, Path]] = None
+    """The filepath to the credentials file. Will only be used if credential_manager is
+    None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml' is
+    expected to be found in the current working directory.
+    """
+    credential_manager: Optional[CredentialManager] = None
+    """A credential manager object. If None, a new credential manager will be created
+    using the credentials_fp."""
+    overwrite: bool = False
+    """If True, the file will be overwritten if it already exists. If False, the file
+    will not be downloaded if it already exists."""
+    use_cached: bool = False
+    """If True, the file will be reloaded from the cache. If False, the file will be
+    reloaded from the server. This option is useful if you are debugging code and
+    don't want to reload the file from the server every time."""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, url_or_title, **data):
+        """The constructor for the context manager."""
+        # Get the field default values (attribute defaults)
+        attr_def_vals = {
+            field_name: field.default
+            for field_name, field in self.__class__.__fields__.items()
+        }
+        # Set the default values for the attributes, if no value was passed
+        for key, value in attr_def_vals.items():
+            if data.get(key) is None:
+                data[key] = value
+        data["url_or_title"] = url_or_title
+        # Do replacements
+        if data.get("credentials_fp") is None:
+            data["credentials_fp"] = credentials_fp_default.get_default()
+        if not data.get("credentials_fp").parent.exists():
+            data["credentials_fp"].parent.mkdir(parents=True)
+        if data.get("credential_manager") is None:
+            data["credential_manager"] = CredentialManager()
+            if data.get("credentials_fp").exists():
+                data["credential_manager"] = CredentialManager(
+                    cred_filepath=data.get("credentials_fp")
+                )
+        if data.get("target_fn") is None:
+            data["target_fn"] = url_or_title.split("File:")[-1]
+        if data.get("target_dir") is None:
+            data["target_dir"] = download_dir_default.get_default()
+        if isinstance(data.get("target_dir"), str):
+            data["target_dir"] = Path(data.get("target_dir"))
+        if data.get("target_fp") is None:
+            data["target_fp"] = data.get("target_dir") / data.get("target_fn")
+        # Setting path after all operations on target_fp are complete
+        data["path"] = data.get("target_fp")
+        if data.get("domain") is None:
+            match = re.search(
+                pattern=r"(?:(?:https?:\/\/)?(?:www\.)?([^\/]+))\/wiki",
+                string=url_or_title,
+            )
+            if match is None:
+                raise ValueError(
+                    f"Could not parse domain from URL: {url_or_title}. "
+                    f"Either specify URL or domain and full page title."
+                )
+            data["domain"] = match.group(1)
+        if data.get("use_cached") and data.get("target_fp").exists():
+            # Here, no file needs to be downloaded, but the LocalFileController
+            #  object needs to be initialized with the path to the file
+            lf = LocalFileController(path=data.get("target_fp"))
+
+        else:
+            if data.get("osw_express") is None:
+                data["osw_express"] = OswExpress(
+                    domain=data.get("domain"),
+                    credential_manager=data.get("credential_manager"),
+                )
+            title = "File:" + url_or_title.split("File:")[-1]
+            file = data.get("osw_express").load_entity(title)
+            wf = file.cast(WikiFileController, osw=data.get("osw_express"))
+            """The file controller"""
+            if data.get("target_fp").exists() and not data.get("overwrite"):
+                raise FileExistsError(
+                    f"File already exists: {data.get('target_fp')}. Set "
+                    f"overwrite_existing=True to overwrite."
+                )
+            if not data.get("target_fp").parent.exists():
+                data.get("target_fp").parent.mkdir(parents=True)
+            lf = LocalFileController.from_other(wf, path=data.get("target_fp"))
+            lf.put_from(wf)
+        # Make sure that the path from the local file is taken (order in the dict
+        #  unpacking is important)
+        super().__init__(**{**data, **lf.dict()})
+        # Do open
+        self.file = self.open(mode=data.get("mode"))
+
+    def open(self, mode: str = "r", **kwargs):
+        kwargs["mode"] = mode
+        return open(self.path, **kwargs)
+
+    def close(self):
+        self.file.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self):
+        self.close()
+        if self.delete_after_use:
+            self.path.unlink()
+
+
+def osw_download_file_(url_or_title: str, **kwargs) -> DownloadFileResult:
+    if "url_or_title" not in kwargs.keys():
+        kwargs["url_or_title"] = url_or_title
+    return DownloadFileResult(**kwargs)
+
+
+def osw_download_file(
+    url_or_title: str,
+    mode: str = "r",
+    delete_after_use: bool = False,
+    target_dir: Optional[Union[str, Path]] = None,
+    target_fn: Optional[str] = None,
+    target_fp: Optional[Union[str, Path]] = None,
+    osw_express: Optional[OswExpress] = None,
+    domain: Optional[str] = None,
+    credentials_fp: Optional[Union[str, Path]] = None,
+    credential_manager: Optional[CredentialManager] = None,
+    overwrite: bool = False,
+    use_cached: bool = False,
+):
+    """Download a file from a URL to a target directory.
+
+    Parameters
+    ----------
+    url_or_title
+        The URL or full page title of the WikiFile page to download.
+    mode
+        The mode to open the file in. Default is 'r'. Implements the built-in open.
+    delete_after_use
+        If True, the file will be deleted after use.
+    target_dir
+        The target directory to download the file to. If None, the current working
+        will be used.
+    target_fn
+        The target filename to save the file as. If None, the filename will be taken
+        from the URL or title.
+    target_fp
+        The target filepath to save the file to. If None, the file will be saved to the
+        target directory with the target filename.
+    osw_express
+        An OswExpress object. If None, a new OswExpress object will be created using
+        the credentials_manager or domain and credentials_fp.
+    domain
+        The domain of the wiki to download the file from. Required if urL_or_title is
+        a full page title. If None the domain is parsed from the URL.
+    credentials_fp
+        The filepath to the credentials file. Will only be used if credential_manager is
+         None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml'
+         is expected to be found in the current working directory.
+    credential_manager
+        A credential manager object. If None, a new credential manager will be created
+        using the credentials_fp.
+    overwrite
+        If True, the file will be overwritten if it already exists. If False, the file
+        will not be downloaded if it already exists.
+    use_cached
+        If True, the file will be reloaded from the cache. If False, the file will be
+        reloaded from the server. This option is useful if you are debugging code and
+        don't want to reload the file from the server every time.
+
+    Returns
+    -------
+    result
+        A specific result object.
+    """
+    return DownloadFileResult(
+        url_or_title=url_or_title,
+        mode=mode,
+        delete_after_use=delete_after_use,
+        target_dir=target_dir,
+        target_fn=target_fn,
+        target_fp=target_fp,
+        osw_express=osw_express,
+        domain=domain,
+        credentials_fp=credentials_fp,
+        credential_manager=credential_manager,
+        overwrite=overwrite,
+        use_cached=use_cached,
+    )
+
+
+class DownloadFileResultOld(LocalFileController):
     """
     A specific result object.
     """
@@ -189,7 +395,7 @@ class DownloadFileResult(LocalFileController):
         return open(self.path, **kwargs)
 
 
-def osw_download_file(
+def osw_download_file_old(
     url_or_title: str,
     target_dir: Optional[Union[str, Path]] = None,
     target_fn: Optional[str] = None,
@@ -200,7 +406,7 @@ def osw_download_file(
     credential_manager: Optional[CredentialManager] = None,
     overwrite: bool = False,
     use_cached: bool = False,
-) -> DownloadFileResult:
+) -> DownloadFileResultOld:
     """Download a file from a URL to a target directory.
 
     Parameters
@@ -285,7 +491,7 @@ def osw_download_file(
         target_fp.parent.mkdir(parents=True)
     lf = LocalFileController.from_other(wf, path=target_fp)
     lf.put_from(wf)
-    return lf.cast(DownloadFileResult)
+    return lf.cast(DownloadFileResultOld)
 
 
 @contextmanager
@@ -311,7 +517,7 @@ def osw_open(
         The file object.
     """
 
-    local_file = osw_download_file(url_or_title, overwrite=True, **kwargs)
+    local_file = osw_download_file_old(url_or_title, overwrite=True, **kwargs)
     file_path = local_file.path
     file = local_file.open(mode=mode, **kwargs)
     try:
@@ -324,17 +530,10 @@ def osw_open(
 
 # todo:
 #  * move necessary entity models to static.py / hardcode them into entity.py
-#  * should be context manager compatible as:
-#       with download_file(...) as file:
-#           file.read()
-#  * but should also be usable directly as:
-#       file = download_file(...) -> should return a LocalFileController object
-#  * see if an implementation as suggested by BingChat is feasible:
-#       https://sl.bing.net/bJTlJvcyTv2
 #  * create a .gitignore in the basepath that lists the default credentials file (
-#  accounts.pwd.yaml) OR append to an existing .gitignore
-#  * Move gui.save_as_page_package and wrap in osw.express
+#  accounts.pwd.yaml) OR append to an existing .gitignore#
 #  * New express function:
+#    * Move gui.save_as_page_package and wrap in osw.express
 #    * parallel download of multiple files
 #    * query all instances of a category (direct members or member of subcategories
 #      as well = crawl)

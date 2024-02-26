@@ -363,7 +363,7 @@ class WtSite:
 
         Parameters
         ----------
-        text
+        query
             The query text (e. g. "[[Category:Entity]]") or a SearchParam object
 
         Returns

@@ -18,20 +18,21 @@ from osw.core import OSW
 from osw.model.static import OswBaseModel
 from osw.wtsite import WtSite
 
-CREDENTIALS_FP_DEFAULT = Path(os.getcwd()) / "accounts.pwd.yaml"
+BASE_PATH = Path(os.getcwd())
+CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / "accounts.pwd.yaml"
+DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
 
 
-class CredentialsFpDefault(OswBaseModel):
-    """A class to store the default credentials filepath. This is a helper class to
-    make the default credentials file path, defined within this module, accessible
-    from a calling script."""
+class FilePathDefault(OswBaseModel):
+    """A class to store the default file path. This is a helper class to make the
+    default file path, defined within this module, accessible from a calling script."""
 
-    default: Union[str, Path] = CREDENTIALS_FP_DEFAULT
+    default: Union[str, Path] = BASE_PATH
 
     class Config:
         arbitrary_types_allowed = True
 
-    def __init__(self, str_or_path: Union[str, Path] = CREDENTIALS_FP_DEFAULT):
+    def __init__(self, str_or_path: Union[str, Path] = BASE_PATH):
         super().__init__(default=str_or_path)
         self.default = Path(str_or_path)
 
@@ -39,7 +40,7 @@ class CredentialsFpDefault(OswBaseModel):
         return str(self.default)
 
     def __repr__(self):
-        return f"CredentialsFpDefault(str_or_path={self.default})"
+        return f"FilePathDefault(str_or_path={self.default})"
 
     def __eq__(self, other):
         if isinstance(other, CredentialsFpDefault):
@@ -57,7 +58,45 @@ class CredentialsFpDefault(OswBaseModel):
         return self.default
 
 
+class CredentialsFpDefault(FilePathDefault):
+    """A class to store the default credentials filepath. This is a helper class to
+    make the default credentials file path, defined within this module, accessible
+    from a calling script."""
+
+    default: Union[str, Path] = CREDENTIALS_FP_DEFAULT
+
+    def __init__(self, str_or_path: Union[str, Path] = CREDENTIALS_FP_DEFAULT):
+        super().__init__(str_or_path)
+
+    def __repr__(self):
+        return f"CredentialsFpDefault(str_or_path={self.default})"
+
+
+class DownloadDirDefault(CredentialsFpDefault):
+    """A class to store the default download directory. This is a helper class to make
+    the default download directory, defined within this module, accessible from a
+    calling script."""
+
+    default: Union[str, Path] = DOWNLOAD_DIR_DEFAULT
+
+    def __init__(self, str_or_path: Union[str, Path] = DOWNLOAD_DIR_DEFAULT):
+        super().__init__(str_or_path)
+
+    def __repr__(self):
+        return f"DownloadDirDefault(str_or_path={self.default})"
+
+
+# Create instances for reuse
+"""Use the set_default method to change the default file path."""
+base_path_default = FilePathDefault()
+"""If you want to have the sub folders created in an directory that is not the current
+working directory of the calling script, use base_path_default.set_default(new_path)."""
 credentials_fp_default = CredentialsFpDefault()
+"""If you want to specify the saving location of the credentials file, use
+credentials_fp_default.set_default(new_path)."""
+download_dir_default = DownloadDirDefault()
+"""If you want to specify the default download directory, use
+  download_dir_default.set_default(new_path)."""
 
 
 def save_credential(cred: CredentialManager.BaseCredential, cred_fp: Union[str, Path]):
@@ -145,8 +184,9 @@ class DownloadFileResult(LocalFileController):
     class Config:
         arbitrary_types_allowed = True
 
-    def open(self, *args, mode: str = "r", **kwargs):
-        return open(self.path, *args, mode=mode, **kwargs)
+    def open(self, mode: str = "r", **kwargs):
+        kwargs["mode"] = mode
+        return open(self.path, **kwargs)
 
 
 def osw_download_file(
@@ -159,6 +199,7 @@ def osw_download_file(
     credentials_fp: Optional[Union[str, Path]] = None,
     credential_manager: Optional[CredentialManager] = None,
     overwrite: bool = False,
+    use_cached: bool = False,
 ) -> DownloadFileResult:
     """Download a file from a URL to a target directory.
 
@@ -191,21 +232,28 @@ def osw_download_file(
     overwrite
         If True, the file will be overwritten if it already exists. If False, the file
         will not be downloaded if it already exists.
+    use_cached
+        If True, the file will be reloaded from the cache. If False, the file will be
+        reloaded from the server. This option is useful if you are debugging code and
+        don't want to reload the file from the server every time.
 
     Returns
     -------
     result
         A specific result object.
     """
-    cwd = Path(os.getcwd())
     if credentials_fp is None:
         credentials_fp = credentials_fp_default.get_default()
+    if not credentials_fp.parent.exists():
+        credentials_fp.parent.mkdir(parents=True)
     if credential_manager is None:
-        credential_manager = CredentialManager(cred_filepath=credentials_fp)
+        credential_manager = CredentialManager()
+        if credentials_fp.exists():
+            credential_manager = CredentialManager(cred_filepath=credentials_fp)
     if target_fn is None:
         target_fn = url_or_title.split("File:")[-1]
     if target_dir is None:
-        target_dir = cwd
+        target_dir = download_dir_default.get_default()
     if isinstance(target_dir, str):
         target_dir = Path(target_dir)
     if target_fp is None:
@@ -220,6 +268,9 @@ def osw_download_file(
                 f"Either specify URL or domain and full page title."
             )
         domain = match.group(1)
+    if use_cached and target_fp.exists():
+        lf = LocalFileController(path=target_fp)
+        return lf.cast(DownloadFileResult)
     if osw_express is None:
         osw_express = OswExpress(domain=domain, credential_manager=credential_manager)
     title = "File:" + url_or_title.split("File:")[-1]
@@ -230,6 +281,8 @@ def osw_download_file(
             f"File already exists: {target_fp}. Set overwrite_existing=True to "
             f"overwrite."
         )
+    if not target_fp.parent.exists():
+        target_fp.parent.mkdir(parents=True)
     lf = LocalFileController.from_other(wf, path=target_fp)
     lf.put_from(wf)
     return lf.cast(DownloadFileResult)
@@ -237,7 +290,7 @@ def osw_download_file(
 
 @contextmanager
 def osw_open(
-    url_or_title: str, *args, mode: str = "r", delete_after_use: bool = False, **kwargs
+    url_or_title: str, mode: str = "r", delete_after_use: bool = False, **kwargs
 ):
     """Context manager for downloading files with OswExpress.
 
@@ -245,8 +298,6 @@ def osw_open(
     ----------
     url_or_title
         The URL or full page title of the WikiFile page to download.
-    args
-        Additional arguments to pass to open.
     mode
         The mode to open the file in. Default is 'r'.
     delete_after_use
@@ -262,7 +313,7 @@ def osw_open(
 
     local_file = osw_download_file(url_or_title, overwrite=True, **kwargs)
     file_path = local_file.path
-    file = local_file.open(*args, mode=mode, **kwargs)
+    file = local_file.open(mode=mode, **kwargs)
     try:
         yield file
     finally:
@@ -280,3 +331,20 @@ def osw_open(
 #       file = download_file(...) -> should return a LocalFileController object
 #  * see if an implementation as suggested by BingChat is feasible:
 #       https://sl.bing.net/bJTlJvcyTv2
+#  * create a .gitignore in the basepath that lists the default credentials file (
+#  accounts.pwd.yaml) OR append to an existing .gitignore
+#  * Move gui.save_as_page_package and wrap in osw.express
+#  * New express function:
+#    * parallel download of multiple files
+#    * query all instances of a category (direct members or member of subcategories
+#      as well = crawl)
+#    * Get query results into a pandas.DataFram
+#    * upload any file to wiki whilst specifying the page to attach it to + select a
+#      property to link it to [basic example at file_upload_download.py]
+#      inputs:
+#           source:Union[LocalFileController, WikiFileController, str, Path],
+#           target_fpt_or_uri: Optional[str]
+#           properties / Links: Optional[str]
+#           commit message
+#      * Save a pandas.DataFrame to a WikiFile (as table, e.g. as csv, xlsx,
+#        json)

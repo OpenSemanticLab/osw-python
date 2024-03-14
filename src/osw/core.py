@@ -695,9 +695,18 @@ class OSW(BaseModel):
     class StoreEntityParam(model.OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
         namespace: Optional[str]
-        parallel: Optional[bool] = False
+        parallel: Optional[bool] = None
         meta_category_title: Optional[str] = "Category:Category"
         debug: Optional[bool] = False
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.entities, list):
+                self.entities = [self.entities]
+            if len(self.entities) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
 
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
@@ -717,8 +726,6 @@ class OSW(BaseModel):
             param.entities = [param.entities]
 
         max_index = len(param.entities)
-        if max_index >= 5:
-            param.parallel = True
 
         meta_category = self.site.get_page(
             WtSite.GetPageParam(titles=[param.meta_category_title])
@@ -788,8 +795,15 @@ class OSW(BaseModel):
     class DeleteEntityParam(model.OswBaseModel):
         entities: List[model.OswBaseModel]
         comment: Optional[str] = None
-        parallel: Optional[bool] = False
+        parallel: Optional[bool] = None
         debug: Optional[bool] = False
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if len(self.entities) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
 
     def delete_entity(
         self, entity: Union[model.OswBaseModel, DeleteEntityParam], comment: str = None
@@ -802,8 +816,6 @@ class OSW(BaseModel):
                 entity = OSW.DeleteEntityParam(entities=[entity])
         if comment is not None:
             entity.comment = comment
-        if len(entity.entities) >= 5:
-            entity.parallel = True
 
         def delete_entity_(entity, comment_: str = None):
             """Deletes the given entity from the OSW instance.

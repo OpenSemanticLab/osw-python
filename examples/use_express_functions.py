@@ -1,4 +1,4 @@
-from osw.express import OswExpress, credentials_fp_default, osw_download_file, osw_open
+from osw.express import OswExpress, credentials_fp_default, osw_download_file
 
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
 # it will use the default location (current working directory)
@@ -22,13 +22,6 @@ local_file_path = local_file.path
 local_file.close()  # required to release the file lock
 
 # Open a file with context manager directly from an OSW instance
-with osw_open(
-    "https://wiki-dev.open-semantic-lab.org/wiki/"
-    "File:OSWbd78f7a00597492e956e152736de4a05.txt"
-) as file:
-    content = file.read()
-
-# Using a context manager
 with osw_download_file(
     "File:OSWac9224e1a280449dba71d945b1581d57.txt",
     domain=domain,

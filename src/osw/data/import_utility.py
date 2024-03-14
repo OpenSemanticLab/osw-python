@@ -22,6 +22,7 @@ from osw.wtsite import WtSite
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
+# For compatibility with the old version of the module
 REGEX_PATTERN: Dict[str, Union[str, Dict[str, str]]] = {
     "SAP OU number and name from DN": {
         "Pattern": r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
@@ -44,6 +45,10 @@ REGEX_PATTERN: Dict[str, Union[str, Dict[str, str]]] = {
     "UUID from full page title": {
         "Pattern": r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
         "Groups": {1: "Namespace", 2: "Prefix", 3: "UUID"},
+    },
+    "UUID from OSW ID": {
+        "Pattern": r"([A-Z]+)([a-z\d\-]+)",
+        "Groups": {1: "Prefix", 2: "UUID"},
     },
 }
 REGEX_PATTERN_LIST = [
@@ -72,6 +77,11 @@ REGEX_PATTERN_LIST = [
         description="UUID from full page title",
         pattern=r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
         group_keys=["Namespace", "Prefix", "UUID"],
+    ),
+    RegExPatternExtended(
+        description="UUID from OSW ID",
+        pattern=r"([A-Z]+)([a-z\d\-]+)",
+        group_keys=["Prefix", "UUID"],
     ),
 ]
 REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
@@ -203,7 +213,7 @@ def get_uuid_from_object_via_type(obj: Any) -> Union[uuid_module.UUID, None]:
         else:
             type_str = str(type_)
         match = re.match(
-            pattern=REGEX_PATTERN["UUID from full page title"]["Pattern"],
+            pattern=REGEX_PATTERN_LIB["UUID from full page title"].pattern,
             string=type_str,
         )
         uuid_str = match.group(3)
@@ -778,6 +788,30 @@ def get_entities_from_osw(
             jsondata["full_page_title"] = entity
             entities_from_osw.append(model_to_cast_to(**jsondata))
     return entities_from_osw
+
+
+def full_page_title_to_uuid(full_page_title: str) -> uuid_module.UUID:
+    """Extracts a UUID from a full page title."""
+    match = re.match(
+        pattern=REGEX_PATTERN_LIB["UUID from full page title"].pattern,
+        string=full_page_title,
+    )
+    uuid_str = match.group(3)
+    return uuid_module.UUID(uuid_str)
+
+
+def osw_id_to_uuid(osw_id: str) -> uuid_module.UUID:
+    """Extracts a UUID from an OSW ID."""
+    match = re.match(
+        pattern=REGEX_PATTERN_LIB["UUID from OSW ID"].pattern, string=osw_id
+    )
+    uuid_str = match.group(2)
+    return uuid_module.UUID(uuid_str)
+
+
+def uuid_to_osw_id(uuid: uuid_module.UUID, prefix: str = "OSW") -> str:
+    """Creates an OSW ID from a UUID."""
+    return f"{prefix}{str(uuid).replace('-', '')}"
 
 
 def uuid_to_full_page_title(

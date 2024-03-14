@@ -191,6 +191,7 @@ if __name__ == "__main__":
                     source_site=source_site,
                     existing_pages=titles,
                     overwrite=True,
+                    parallel=False,
                 )
             )
             result[target] = copied_pages

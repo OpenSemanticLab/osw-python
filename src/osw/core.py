@@ -9,6 +9,7 @@ import sys
 from enum import Enum
 from typing import List, Optional, Union
 from uuid import UUID
+from warnings import warn
 
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
@@ -733,8 +734,15 @@ class OSW(BaseModel):
         ).pages[0]
         # ToDo: we have to do this iteratively to support meta categories inheritance
         meta_category_template = meta_category.get_slot_content("schema_template")
+
         if meta_category_template:
-            meta_category_template = compile_handlebars_template(meta_category_template)
+            try:
+                meta_category_template = compile_handlebars_template(
+                    meta_category_template
+                )
+            except Exception as e:
+                _ = e
+                meta_category_template = None
 
         def store_entity_(
             entity: model.Entity,
@@ -764,7 +772,7 @@ class OSW(BaseModel):
                 "footer", "{{#invoke:Entity|footer}}"
             )  # required for footer rendering
             if namespace_ == "Category":
-                if meta_category_template:
+                if meta_category_template is not None:
                     try:
                         schema_str = eval_compiled_handlebars_template(
                             meta_category_template,
@@ -777,7 +785,11 @@ class OSW(BaseModel):
                         print(
                             f"Schema generation from template failed for {entity}: {e}"
                         )
-            page.edit()
+                else:
+                    warn(
+                        "No template defined or compilation of meta category "
+                        "template failed. Skipping schema generation."
+                    )
             page.edit(comment=comment)
             if index is None:
                 print(f"Entity stored at '{page.get_url()}'.")

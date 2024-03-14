@@ -135,7 +135,9 @@ def prefix_search(
     site: mwclient.client.Site, text: Union[str, SearchParam]
 ) -> List[str]:
     """Standard query. Equivalent to the following mediawiki API call
-    api.php?action=query&list=prefixsearch&pssearch=Star Wars
+    api.php?action=query&list=prefixsearch&pssearch=Star Wars.
+
+    See https://www.mediawiki.org/wiki/API:Prefixsearch for details.
 
     Parameters
     ----------

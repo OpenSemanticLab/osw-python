@@ -622,6 +622,7 @@ class OSW(BaseModel):
         parallel: Optional[bool] = None
         meta_category_title: Optional[str] = "Category:Category"
         debug: Optional[bool] = False
+        comment: Optional[str] = None
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -660,7 +661,10 @@ class OSW(BaseModel):
             meta_category_template = compile_handlebars_template(meta_category_template)
 
         def store_entity_(
-            entity: model.Entity, namespace_: str = None, index: int = None
+            entity: model.Entity,
+            namespace_: str = None,
+            comment: str = None,
+            index: int = None,
         ) -> None:
             title_ = get_title(entity)
             if namespace_ is None:
@@ -698,6 +702,7 @@ class OSW(BaseModel):
                             f"Schema generation from template failed for {entity}: {e}"
                         )
             page.edit()
+            page.edit(comment=comment)
             if index is None:
                 print(f"Entity stored at '{page.get_url()}'.")
             else:
@@ -709,10 +714,11 @@ class OSW(BaseModel):
                 param.entities,
                 flush_at_end=param.debug,
                 namespace_=param.namespace,
+                comment=param.comment,
             )
         else:
             _ = [
-                store_entity_(e, param.namespace, i)
+                store_entity_(e, param.namespace, param.comment, i)
                 for i, e in enumerate(param.entities)
             ]
 

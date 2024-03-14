@@ -117,17 +117,18 @@ class SearchParam(OswBaseModel):
     """Search parameters for semantic and prefix search"""
 
     query: Union[str, List[str]]
-    parallel: Optional[bool] = False  # is set to true if query is a list longer than 5
+    parallel: Optional[bool] = None  # is set to true if query is a list longer than 5
     debug: Optional[bool] = True
     limit: Optional[int] = 1000
 
-    # todo: @Simon: Bad style? Better to make it explicit in every function using it?
     def __init__(self, **data):
         super().__init__(**data)
         if isinstance(self.query, str):
             self.query = [self.query]
-        if len(self.query) > 5:
+        if len(self.query) > 5 and self.parallel is None:
             self.parallel = True
+        if self.parallel is None:
+            self.parallel = False
 
 
 def prefix_search(
@@ -154,8 +155,6 @@ def prefix_search(
         query = SearchParam(query=text)
     else:
         query = text
-    if len(query.query) > 5:
-        query.parallel = True
 
     def prefix_search_(single_text):
         page_list = list()
@@ -212,8 +211,6 @@ def semantic_search(
         query = SearchParam(query=[query])
     elif isinstance(query, list):
         query = SearchParam(query=query)
-    if len(query.query) > 5:
-        query.parallel = True
 
     def semantic_search_(single_query):
         page_list = list()

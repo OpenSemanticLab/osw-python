@@ -16,7 +16,7 @@ osw = OswExpress(domain=domain)
 local_file = osw_download_file(
     "https://wiki-dev.open-semantic-lab.org/wiki/"
     "File:OSWaa635a571dfb4aa682e43b98937f5dd3.pdf",
-    overwrite=True,
+    overwrite=True,  # Required if file already exists
 )
 local_file_path = local_file.path
 local_file.close()  # required to release the file lock
@@ -32,6 +32,6 @@ with osw_open(
 with osw_download_file(
     "File:OSWac9224e1a280449dba71d945b1581d57.txt",
     domain=domain,
-    overwrite=True,
+    overwrite=True,  # Required if file already exists
 ) as file:
-    content2 = file.read()
+    content = file.read()

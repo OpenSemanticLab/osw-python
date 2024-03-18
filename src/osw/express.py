@@ -1,15 +1,12 @@
 """
 This module provides convenience functions for osw-python.
 """
-
-import os
 import re
 from pathlib import Path
-from warnings import warn
 
 from typing_extensions import Optional, TextIO, Union
 
-from osw.auth import CredentialManager
+from osw.auth import CredentialManager, CREDENTIALS_FN_DEFAULT
 from osw.controller.file.local import LocalFileController
 from osw.controller.file.wiki import WikiFileController
 from osw.core import OSW
@@ -17,8 +14,8 @@ from osw.model.static import OswBaseModel
 from osw.wtsite import WtSite
 
 # Definition of constants
-BASE_PATH = Path(os.getcwd())
-CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / "accounts.pwd.yaml"
+BASE_PATH = Path.cwd()
+CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / CREDENTIALS_FN_DEFAULT
 DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
 
 
@@ -140,16 +137,13 @@ class OswExpress(OSW):
             #  the filepath from the OswExpress constructor will be used (either passed
             #  as argument or set by default)
             if credential_manager.cred_filepath is None:
-                credential_manager.save_credentials_to_file(filepath=cred_fp)
+                credential_manager.save_credentials_to_file(
+                    filepath=cred_fp, set_cred_filepath=True
+                )
             # If there was a cred_filepath specified within the CredentialManager,
             #  that filepath will be used
             else:
                 credential_manager.save_credentials_to_file()
-            warn(
-                f"Credentials file created at '{credential_manager.cred_filepath}'."
-                f" Remember to exclude this file from any commits by listing it in"
-                f" .gitignore!"
-            )
 
         site = WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=credential_manager))
         super().__init__(**{"site": site, "domain": domain})

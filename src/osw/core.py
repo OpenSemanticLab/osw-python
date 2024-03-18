@@ -75,7 +75,7 @@ class OSW(BaseModel):
     )  # private properties included in model export
 
     class Config:
-        arbitrary_types_allowed = True  # neccessary to allow e.g. np.array as type
+        arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
     site: WtSite
 

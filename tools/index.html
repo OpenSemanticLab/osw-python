@@ -1639,10 +1639,10 @@ array_mode / param     value   value;  value;value     comment
             <span class="n">wt</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">n</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
                 <span class="c1"># print(f&quot;  Param: {p.name} = {p.value} ({type(p.value)})&quot;)</span>
-                <span class="n">wt</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()][</span>
-                    <span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-                <span class="p">]</span> <span class="o">=</span> <span class="n">create_flat_content_structure_from_wikitext</span><span class="p">(</span>
-                    <span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">value</span><span class="p">),</span> <span class="n">array_mode</span>
+                <span class="n">wt</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()][</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">create_flat_content_structure_from_wikitext</span><span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">value</span><span class="p">),</span> <span class="n">array_mode</span>
+                    <span class="p">)</span>
                 <span class="p">)</span>
             <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wt</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>

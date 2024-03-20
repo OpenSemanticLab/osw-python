@@ -28,7 +28,7 @@ from osw.utils.wiki import (
     title_from_full_title,
 )
 from osw.wiki_tools import SearchParam
-from osw.wtsite import WtSite
+from osw.wtsite import WtPage, WtSite
 
 
 class OswClassMetaclass(ModelMetaclass):
@@ -122,7 +122,7 @@ class OSW(BaseModel):
             arbitrary_types_allowed = True  # allow any class as type
 
         model_cls: ModelMetaclass
-        schema_uuid = str  # Optional[str] = model_cls.__uuid__
+        schema_uuid: str  # Optional[str] = model_cls.__uuid__
         schema_name: str  # Optional[str] = model_cls.__name__
         schema_bases: List[str] = ["Category:Item"]
 
@@ -144,9 +144,12 @@ class OSW(BaseModel):
 
         if issubclass(entity, BaseModel):
             entity_title = "Category:" + OSW.get_osw_id(schema_registration.schema_uuid)
-            page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
-                0
-            ]
+
+            page = WtPage(wtSite=self.site, title=entity_title)
+            if page.exists:
+                page = self.site.get_page(
+                    WtSite.GetPageParam(titles=[entity_title])
+                ).pages[0]
 
             page.set_slot_content("jsondata", jsondata)
 
@@ -261,9 +264,9 @@ class OSW(BaseModel):
         """
 
         schema_title: Optional[Union[List[str], str]] = "Category:Item"
-        mode: Optional[
-            str
-        ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+        mode: Optional[str] = (
+            "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+        )
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
         """Loads the given schemas from the OSW instance and autogenerates python
@@ -302,9 +305,9 @@ class OSW(BaseModel):
 
         schema_title: Optional[str] = "Category:Item"
         root: Optional[bool] = True
-        mode: Optional[
-            str
-        ] = "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+        mode: Optional[str] = (
+            "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+        )
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python

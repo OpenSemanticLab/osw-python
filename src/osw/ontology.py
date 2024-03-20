@@ -74,13 +74,13 @@ class ImportConfig(OswBaseModel):
     """Mapping of imported ontologies iri to their resolveable file url in case both are not identical"""
     base_class: ModelMetaclass
     """Base class for the ontology model. For OWL Ontologies, this should be model.OwlClass or a subclass of it."""
-    base_class_title: Optional[
-        str
-    ] = "Category:OSW725a3cf5458f4daea86615fcbd0029f8"  # OwlClass
+    base_class_title: Optional[str] = (
+        "Category:OSW725a3cf5458f4daea86615fcbd0029f8"  # OwlClass
+    )
     """Title of the base class schema. Defaults to OwlClass"""
-    meta_class_title: Optional[
-        str
-    ] = "Category:OSW379d5a1589c74c82bc0de47938264d00"  # OwlThing
+    meta_class_title: Optional[str] = (
+        "Category:OSW379d5a1589c74c82bc0de47938264d00"  # OwlThing
+    )
     """Title of the meta class schema. Defaults to OwlThing"""
     dump_files: Optional[bool] = False
     """If True, the parsed ontology will be dumped to a jsonld file"""
@@ -88,9 +88,9 @@ class ImportConfig(OswBaseModel):
     """Path to the directory where the parsed ontology will be dumped"""
     dry_run: Optional[bool] = False
     """If True, the parsed ontology will not be imported into the wiki"""
-    property_naming_policy: Optional[
-        Literal["UUID", "label", "prefixed_label"]
-    ] = "prefixed_label"
+    property_naming_policy: Optional[Literal["UUID", "label", "prefixed_label"]] = (
+        "prefixed_label"
+    )
     """Policy for naming properties. If "UUID", the property will be named with a UUIDv5.
     If "label", the property will be named with the label of the property.
     If "prefixed_label", the property will be named with the label of the property prefixed with the label of the ontology."""

@@ -1,5 +1,6 @@
 """This script provides the ability to copy a page from one OSW instance to another
 OSW instance."""
+
 from pathlib import Path
 
 from typing_extensions import List, Optional, Union

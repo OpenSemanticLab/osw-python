@@ -642,10 +642,10 @@ def create_flat_content_structure_from_wikitext(
             wt[str(n.name).strip()] = {}
             for p in n.params:
                 # print(f"  Param: {p.name} = {p.value} ({type(p.value)})")
-                wt[str(n.name).strip()][
-                    str(p.name)
-                ] = create_flat_content_structure_from_wikitext(
-                    str(p.value), array_mode
+                wt[str(n.name).strip()][str(p.name)] = (
+                    create_flat_content_structure_from_wikitext(
+                        str(p.value), array_mode
+                    )
                 )
             res.append(wt)
         else:

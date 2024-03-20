@@ -1,6 +1,7 @@
 """
 This module is to be imported in the dynamically created and updated entity.py module.
 """
+
 from typing import Type, TypeVar, Union
 
 from pydantic import BaseModel

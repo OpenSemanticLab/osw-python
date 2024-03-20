@@ -1,5 +1,6 @@
 """This script is meant to help with the migration of file pages from previous
 versions to the current version of the OSW (xx and above)."""
+
 import json
 import uuid as uuid_module
 from pathlib import Path

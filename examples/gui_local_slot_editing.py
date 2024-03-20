@@ -1,5 +1,6 @@
 """This script provides a GUI for downloading an OSW instances page slots, editing
 them locally and uploading them again."""
+
 import json
 import os
 

@@ -650,9 +650,9 @@ class PagePackageController(model.PagePackageMetaData):
                 elif found_pages.get(page_):
                     missing_pages_labeled[page_] = found_pages[page_]
                 else:
-                    missing_pages_labeled[
-                        page_
-                    ] = f"Page not found in {params.creation_config.domain}."
+                    missing_pages_labeled[page_] = (
+                        f"Page not found in {params.creation_config.domain}."
+                    )
             with open(missing_pages_labeled_fp, "w", encoding="utf-8") as f:
                 json.dump(missing_pages_labeled, f, indent=4, ensure_ascii=False)
 

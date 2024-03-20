@@ -817,9 +817,11 @@ def translate_list_with_deepl(
     translator = deepl.Translator(auth)
 
     translated = [
-        translator.translate_text(ele, target_lang=target_lang).text
-        if ele not in translations.keys()
-        else translations.get(ele)
+        (
+            translator.translate_text(ele, target_lang=target_lang).text
+            if ele not in translations.keys()
+            else translations.get(ele)
+        )
         for ele in seq
     ]
     return dict(zip(seq, translated))

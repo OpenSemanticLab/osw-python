@@ -25,6 +25,24 @@ os.environ["PATH"] += os.pathsep + "/home/jovyan/.local/bin"
 
 https://opensemanticlab.github.io/osw-python/
 
+
+## Development
+
+Dev install
+```bash
+pip install -e .
+```
+
+Run tests
+```bash
+tox -e test
+```
+
+Run integration tests (tests are skipped if login params are not provided)
+```bash
+tox -e test -- --wiki_domain "<osl-domain>" --wiki_username "<(bot)login>" --wiki_password "<password>" --db_username "<username>" --db_password "<password>"
+```
+
 <!-- pyscaffold-notes -->
 
 ## Note

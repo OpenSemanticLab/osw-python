@@ -71,7 +71,7 @@ jobs:
         with: {name: python-distribution-files, path: dist/}
       - name: Run tests
         run: >-
-          pipx run tox - test
+          pipx run tox -e test
           --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
           -- -rFEx --durations 10 --color yes
           --wiki_domain "${{ secrets.INTEGR_TEST_WIKI_DOMAIN }}"

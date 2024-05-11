@@ -426,90 +426,10 @@ class OSW(BaseModel):
             # into the models using that root-type model, e. g. for Entity.statements
             # --reuse-model: Re-use models on the field when a module has the model with the same content
 
-            # this is dirty, but required for autocompletion: https://stackoverflow.com/questions/62884543/pydantic-autocompletion-in-vs-code
-            # idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
-
             content = ""
             with open(temp_model_path, "r", encoding="utf-8") as f:
                 content = f.read()
             os.remove(temp_model_path)
-
-            # Statement and its subclasses are a complex case that needs manual fixing
-
-            # datamodel-codegen <= 0.15.0
-            # make statement classes subclasses of Statement
-            content = re.sub(
-                r"ObjectStatement\(OswBaseModel\)",
-                r"ObjectStatement(Statement)",
-                content,
-            )
-            content = re.sub(
-                r"DataStatement\(OswBaseModel\)", r"DataStatement(Statement)", content
-            )
-            content = re.sub(
-                r"QuantityStatement\(OswBaseModel\)",
-                r"QuantityStatement(Statement)",
-                content,
-            )
-            # make statement lists union of all statement types
-            content = re.sub(
-                r"List\[Statement\]",
-                r"List[Union[ObjectStatement, DataStatement, QuantityStatement]]",
-                content,
-            )
-            # remove Statement class
-            content = re.sub(
-                r"(class\s*"
-                + "Statement"
-                + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
-                "",
-                content,
-                count=1,
-            )
-            # rename Statement1 to Statement
-            content = re.sub(r"Statement1", r"Statement", content)
-            # add forward refs
-            content = re.sub(
-                r"Statement.update_forward_refs\(\)",
-                r"Statement.update_forward_refs()\nObjectStatement.update_forward_refs()\nDataStatement.update_forward_refs()\nQuantityStatement.update_forward_refs()",
-                content,
-            )
-            pattern = re.compile(
-                r"(class\s*"
-                + "Statement"
-                + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})"
-            )  # match Statement class definition
-            for cls in re.findall(pattern, content):
-                # remove class
-                content = re.sub(
-                    r"(class\s*"
-                    + "Statement"
-                    + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
-                    "",
-                    content,
-                    count=1,
-                )
-                content = re.sub(
-                    r"(class\s*\S*\s*\(\s*Statement\s*\)\s*:.*\n)",
-                    cls + r"\1",
-                    content,
-                    1,
-                )  # insert class definition before first reference
-                break
-
-            # datamodel-codegen > 0.15.0
-            # Rename statement classes (ObjectStatement, DataStatement, QuantityStatement)
-            # content = re.sub(r"ObjectStatement", r"_ObjectStatement", content)
-            # content = re.sub(r"DataStatement", r"_DataStatement", content)
-            # content = re.sub(r"QuantityStatement", r"_QuantityStatement", content)
-            # class Statement1(_ObjectStatement):
-            # content = re.sub(r"class\s*\S*(\s*\(\s*_ObjectStatement\s*\))", r"class ObjectStatement\1", content)
-            # content = re.sub(r"class\s*\S*(\s*\(\s*_DataStatement\s*\))", r"class DataStatement\1", content)
-            # content = re.sub(r"class\s*\S*(\s*\(\s*_QuantityStatement\s*\))", r"class QuantityStatement\1", content)
-            # Union[Statement1, Statement2, Statement3] and Statement<x>.update_forward_refs()
-            # content = re.sub(r"Statement1", r"ObjectStatement", content)
-            # content = re.sub(r"Statement2", r"DataStatement", content)
-            # content = re.sub(r"Statement3", r"QuantityStatement", content)
 
             if fetchSchemaParam.mode == "replace":
                 header = (
@@ -531,6 +451,7 @@ class OSW(BaseModel):
                     r"UUID = Field(default_factory=uuid4",
                     content,
                 )  # enable default value for uuid
+
                 with open(result_model_path, "w", encoding="utf-8") as f:
                     f.write(content)
 

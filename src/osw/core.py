@@ -354,6 +354,9 @@ class OSW(BaseModel):
             for i in range(0, schema_name.count("/")):
                 value += "../"  # created relative path to top-level schema dir
             value += ref_schema_name  # create a reference to a local file
+            # keep document-relative jsonpointer if present
+            if "#/" in match.value:
+                value += "#/" + match.value.split("#/")[-1]
             match.full_path.update_or_create(schema, value)
             # print(f"replace {match.value} with {value}")
             if (
@@ -436,6 +439,7 @@ class OSW(BaseModel):
                     "from uuid import uuid4\n"
                     "from typing import Type, TypeVar\n"
                     "from osw.model.static import OswBaseModel, Ontology\n"
+                    # "from osw.model.static import *\n"
                     "\n"
                 )
 

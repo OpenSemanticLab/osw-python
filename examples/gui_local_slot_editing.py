@@ -292,6 +292,7 @@ def make_window(
         [psg.Text("Settings", font=("Helvetica", 20))],
         [psg.Text("General", font=("Helvetica", 16))],
         [
+            # 1 Labels
             psg.Column(
                 [
                     [
@@ -305,6 +306,7 @@ def make_window(
                     ],
                 ]
             ),
+            # 2 Input fields / Browse buttons
             psg.Column(
                 [
                     [
@@ -319,17 +321,6 @@ def make_window(
                             key="-BROWSE_SETTINGS-",
                             tooltip="Select a settings file",
                         ),
-                        psg.Button(
-                            button_text="Load",
-                            key="-LOAD_SETTINGS-",
-                            tooltip="Load settings from file. Will restart the GUI!\n"
-                            "Maintains the current session.",
-                        ),
-                        psg.Button(
-                            button_text="Save",
-                            key="-SAVE_SETTINGS-",
-                            tooltip="Save settings to the specified path",
-                        ),
                     ],
                     [
                         psg.In(
@@ -342,10 +333,6 @@ def make_window(
                             button_text="Browse",
                             key="-BROWSE_CREDENTIALS-",
                             tooltip="Select a credentials file",
-                        ),
-                        psg.Button(
-                            button_text="Open",
-                            key="-OPEN_CREDENTIALS-",
                         ),
                     ],
                     [
@@ -360,9 +347,57 @@ def make_window(
                             key="-BROWSE_LWD-",
                             tooltip="Select a local working directory",
                         ),
+                    ],
+                ]
+            ),
+            # 3 Load / Open buttons
+            psg.Column(
+                [
+                    [
+                        psg.Button(
+                            button_text="Load",
+                            key="-LOAD_SETTINGS-",
+                            tooltip="Load settings from file. Will restart the GUI!\n"
+                            "Maintains the current session.",
+                        ),
+                    ],
+                    [
+                        psg.Button(
+                            button_text="Open",
+                            key="-OPEN_CREDENTIALS-",
+                        ),
+                    ],
+                    [
                         psg.Button(
                             button_text="Open",
                             key="-OPEN_LWD-",
+                        ),
+                    ],
+                ]
+            ),
+            # 4 Save / VSC buttons
+            psg.Column(
+                [
+                    [
+                        psg.Button(
+                            button_text="Save",
+                            key="-SAVE_SETTINGS-",
+                            tooltip="Save settings to the specified path",
+                        ),
+                    ],
+                    [
+                        psg.Button(
+                            "VSC",
+                            k="-VSC_CREDENTIALS-",
+                            tooltip="Opens the credential file in Visual Studio Code",
+                        ),
+                    ],
+                    [
+                        psg.Button(
+                            "VSC",
+                            k="-VSC_LWD-",
+                            tooltip="Opens the local working directory in Visual "
+                            "Studio Code",
                         ),
                     ],
                 ]
@@ -1007,6 +1042,10 @@ def main():
             os.system(f"start {settings.credentials_file_path}")
         elif event == "-OPEN_LWD-":
             os.system(f"explorer {settings.local_working_directory}")
+        elif event == "-VSC_CREDENTIALS-":
+            os.system(f'code "{settings.credentials_file_path}"')
+        elif event == "-VSC_LWD-":
+            os.system(f'code "{settings.local_working_directory}"')
         elif event[0] == "-ADDRESS-":
             address = values[("-ADDRESS-", event[1])]
             fpn = get_fpn_from_url(address)

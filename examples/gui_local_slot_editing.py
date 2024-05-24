@@ -4,12 +4,13 @@ them locally and uploading them again."""
 import json
 import os
 from itertools import compress
-
-# import yaml
 from pathlib import Path
 from typing import List, Optional, Union
+from warnings import warn
 
+import mwclient.errors
 import PySimpleGUI as psg
+import yaml
 from numpy import array as np_array
 
 import osw.model.page_package as package
@@ -21,7 +22,7 @@ from osw.wtsite import SLOTS, WtPage, WtSite
 
 # Definition of constants
 GUI_THEME = "reddit"
-DEBUG = True  # Set to True to get an output element in the GUI
+DEBUG_DEFAULT = True  # Set to True to get an output element in the GUI
 DUMP_EMPTY_SLOTS_DEFAULT = True
 SEL_INDICES_DEFAULT = [
     0,  # "main",
@@ -29,6 +30,7 @@ SEL_INDICES_DEFAULT = [
     4,  # "jsonschema",
     6,  # "header_template",
 ]
+DOMAIN_DEFAULT = "wiki-dev.open-semantic-lab.org"
 SLOTS_TO_UPLOAD_DEFAULT = np_array(list(SLOTS.keys()))[SEL_INDICES_DEFAULT].tolist()
 TARGET_PAGE_DEFAULT = "https://wiki-dev.open-semantic-lab.org/wiki/Main_Page"
 LWD_DEFAULT = Path(os.getcwd()).parent / "data"
@@ -51,12 +53,17 @@ class Settings(OswBaseModel):
     credentials_file_path: Optional[Union[str, Path]] = CREDENTIALS_FILE_PATH_DEFAULT
     local_working_directory: Optional[Union[str, Path]] = LWD_DEFAULT
     settings_file_path: Optional[Union[str, Path]] = SETTINGS_FILE_PATH_DEFAULT
-    target_pages: Optional[List[str]] = [TARGET_PAGE_DEFAULT]  # todo
+    target_pages: Optional[List[str]] = [TARGET_PAGE_DEFAULT]
     namespace_as_folder: Optional[bool] = NAMESPACE_AS_FOLDER
     dump_empty_slots: Optional[bool] = DUMP_EMPTY_SLOTS_DEFAULT
+    debug: Optional[bool] = DEBUG_DEFAULT
     page_name_as_filename: Optional[bool] = True
     slots_to_upload: Optional[list] = SLOTS_TO_UPLOAD_DEFAULT
-    domain: Optional[str] = ""
+    download_first: Optional[bool] = True
+    """Whether the slots of a page have to be downloaded in the same session of the
+    GUI before they can be uploaded. If set to False, the slots can be uploaded
+    without downloading them first."""
+    domain: Optional[str] = DOMAIN_DEFAULT
 
     def create_config(self) -> WtPage.PageDumpConfig:
         config_ = WtPage.PageDumpConfig(
@@ -80,14 +87,20 @@ class SinglePageInteraction:
         self.url = get_url_from_fpn_and_domain(
             self.full_page_name, self.settings.domain
         )
+        self.page_package_bundle: package.PagePackageBundle = None
+        self.page_package_config: package.PagePackageConfig = None
+        # Call functions
+        self.create_bundle_and_config()
 
-    def save_as_page_package(
+    def create_bundle_and_config(
         self,
-        dump_config_inst: WtPage.PageDumpConfig,
+        dump_config_inst: WtPage.PageDumpConfig = None,
         top_level: str = None,
         sub_level: str = None,  # "content"
         author: Union[str, list] = "Open Semantic World",
     ):
+        if dump_config_inst is None:
+            dump_config_inst = self.settings.create_config()
         if top_level is None:
             top_level = self.full_page_name.split(":")[-1]
         package_repo_org = "OpenSemanticWorld-Packages"
@@ -121,7 +134,7 @@ class SinglePageInteraction:
                 f"{package_repo}/{package_branch}/{package_subdir}/"
             )
             content_path = os.path.join(target_dir, package_subdir)
-        bundle = package.PagePackageBundle(
+        self.page_package_bundle = package.PagePackageBundle(
             publisher=publisher,
             author=author_list,
             language="en",
@@ -136,21 +149,38 @@ class SinglePageInteraction:
                 )
             },
         )
-        config = package.PagePackageConfig(
+        self.page_package_config = package.PagePackageConfig(
             name=package_name,
             config_path=os.path.join(target_dir, PACKAGE_INFO_FILE_NAME),
             content_path=content_path,
-            bundle=bundle,
+            bundle=self.page_package_bundle,
             titles=[self.full_page_name],
+        )
+
+    def save_as_page_package(
+        self,
+        dump_config_inst: WtPage.PageDumpConfig,
+        top_level: str = None,
+        sub_level: str = None,  # "content"
+        author: Union[str, list] = "Open Semantic World",
+    ):
+        self.create_bundle_and_config(
+            dump_config_inst=dump_config_inst,
+            top_level=top_level,
+            sub_level=sub_level,
+            author=author,
         )
         self.wtsite.create_page_package(
             WtSite.CreatePagePackageParam(
-                config=config,
+                config=self.page_package_config,
                 dump_config=dump_config_inst,
                 debug=False,
             )
         )
-        return {"Page package bundle": bundle, "Page package config": config}
+        return {
+            "Page package bundle": self.page_package_bundle,
+            "Page package config": self.page_package_config,
+        }
 
 
 # Definition of functions
@@ -205,6 +235,11 @@ def single_page_helper(
                             tooltip="Download selected slots",
                         ),
                         psg.Button(
+                            "OL",
+                            k=("-OL-", item_num),
+                            tooltip="Open the local folder with the downloaded slots",
+                        ),
+                        psg.Button(
                             "UL", k=("-UL-", item_num), tooltip="Upload selected slots"
                         ),
                         psg.Multiline(
@@ -212,6 +247,11 @@ def single_page_helper(
                             key=("-RES-", item_num),
                             no_scrollbar=True,
                             tooltip="Result of 'Load', 'Download' or 'Upload'",
+                        ),
+                        psg.Button(
+                            "OP",
+                            k=("-OP-", item_num),
+                            tooltip="Open the page in the browser",
                         ),
                         psg.Button(
                             "X",
@@ -236,7 +276,6 @@ def make_window(
     wtsite_inst: WtSite,
     domains: List[str],
     domain: str,
-    debug: bool = DEBUG,
 ):
     # ----- GUI Definition -----
     # Setting the theme of the GUI
@@ -276,7 +315,8 @@ def make_window(
                         psg.Button(
                             button_text="Load",
                             key="-LOAD_SETTINGS-",
-                            tooltip="Load settings from file. Will restart the GUI!",
+                            tooltip="Load settings from file. Will restart the GUI!\n"
+                            "Maintains the current session.",
                         ),
                         psg.Button(
                             button_text="Save",
@@ -296,6 +336,10 @@ def make_window(
                             key="-BROWSE_CREDENTIALS-",
                             tooltip="Select a credentials file",
                         ),
+                        psg.Button(
+                            button_text="Open",
+                            key="-OPEN_CREDENTIALS-",
+                        ),
                     ],
                     [
                         psg.In(
@@ -309,17 +353,76 @@ def make_window(
                             key="-BROWSE_LWD-",
                             tooltip="Select a local working directory",
                         ),
+                        psg.Button(
+                            button_text="Open",
+                            key="-OPEN_LWD-",
+                        ),
                     ],
                 ]
             ),
         ],
-        [psg.Text("Slots", font=("Helvetica", 16))],
-        # Slot settings
+        # Debugging settings
+        [psg.Text("Debugging", font=("Helvetica", 16))],
         [
-            # Slots to download
             psg.Column(
                 [
-                    [psg.Text("Slots to download", font=("Helvetica", 12))],
+                    [
+                        psg.Radio(
+                            "Show debug output",
+                            group_id="-RADIO2-",
+                            default=settings_inst.debug,
+                            key="-SHOW_DEBUG-",
+                            enable_events=True,
+                        )
+                    ],
+                    [
+                        psg.Radio(
+                            "Hide debug output",
+                            group_id="-RADIO2-",
+                            default=(not settings_inst.debug),
+                            key="-HIDE_DEBUG-",
+                            enable_events=True,
+                        )
+                    ],
+                ]
+            ),
+            psg.Column(
+                [
+                    [
+                        psg.Button(
+                            button_text="Restart to apply",
+                            key="-RESTART-",
+                            tooltip="Restarts the GUI with the current settings and maintains\n"
+                            "the current session.",
+                        ),
+                    ]
+                ]
+            ),
+        ],
+        # Slot settings
+        [
+            psg.Text(
+                "Slots",
+                font=("Helvetica", 16),
+                tooltip="The slots of a page are the different parts of the page that\n"
+                "can be edited. They are stored as JSON or wikitext files in \n"
+                "the page package.",
+            )
+        ],
+        [
+            psg.Column(
+                [
+                    # Slots to download
+                    [
+                        psg.Text(
+                            "Slots to download",
+                            font=("Helvetica", 12),
+                            tooltip="Choose 'Include empty slots' to download all slots\n"
+                            "of a page\n, e.g., when you want to fill a slot for\n"
+                            "the first time. Choose 'Exclude empty slots to'\n"
+                            "download only the slots that have content.",
+                        )
+                    ],
                     [
                         psg.Radio(
                             "Include empty slots",
@@ -327,6 +430,8 @@ def make_window(
                             default=settings_inst.dump_empty_slots,
                             key="-INC_EMPTY-",
                             enable_events=True,
+                            tooltip="Hover over 'Slots to download' for more "
+                            "information.",
                         )
                     ],
                     [
@@ -336,6 +441,40 @@ def make_window(
                             default=(not settings_inst.dump_empty_slots),
                             key="-EXC_EMPTY-",
                             enable_events=True,
+                            tooltip="Hover over 'Slots to download' for more "
+                            "information.",
+                        )
+                    ],
+                    [psg.Text()],
+                    # Slots: download first?
+                    [
+                        psg.Text(
+                            "Force remote",
+                            font=("Helvetica", 12),
+                            tooltip="This setting determines whether the slots of a page have to\n"
+                            "be downloaded in the same session of the GUI before they can\n"
+                            "be uploaded. If set to 'Download remote slots first', the\n"
+                            "slots can be uploaded without downloading them first.",
+                        )
+                    ],
+                    [
+                        psg.Radio(
+                            "Download remote slots first",
+                            group_id="-RADIO3-",
+                            default=settings_inst.download_first,
+                            key="-DL_FIRST-",
+                            enable_events=True,
+                            tooltip="Hover over 'Force remote' for more information.",
+                        )
+                    ],
+                    [
+                        psg.Radio(
+                            "Upload local slots directly",
+                            group_id="-RADIO3-",
+                            default=(not settings_inst.download_first),
+                            key="-UL_DIRECTLY-",
+                            enable_events=True,
+                            tooltip="Hover over 'Force remote' for more information.",
                         )
                     ],
                 ]
@@ -355,7 +494,10 @@ def make_window(
                             no_scrollbar=True,
                         )
                     ],
-                    [psg.Button("(De)Select all", key="-UL_SEL-")],
+                    [
+                        psg.Column([[psg.Button("(De)Select all", key="-UL_SEL-")]]),
+                        psg.Column([[psg.Button("Default", key="-UL_SEL_DEF-")]]),
+                    ],
                 ]
             ),
         ],
@@ -376,10 +518,37 @@ def make_window(
         [psg.Text("Actions", font=("Helvetica", 20))],
         # Target OSW instance
         [psg.Text("Target OSW instance", font=("Helvetica", 16))],
-        [psg.Text("List of domains is read from accounts.pwd.yaml!")],
+        [
+            psg.Text(
+                "List of domains is read from accounts.pwd.yaml!",
+                tooltip=f"To add more domains, modify accounts.pwd.yaml, located here:\n"
+                f"{Path(settings_inst.credentials_file_path).parent}",
+            )
+        ],
         [psg.Combo(domains, default_value=domain, key="-DOMAIN-", enable_events=True)],
         # List of target pages
         [psg.Text("Target pages", font=("Helvetica", 16))],
+        [
+            psg.Text(
+                "Hints - Hover over me",
+                tooltip="1. Add and 'remove' (make them invisible) rows.\n"
+                "2. The 'Load' button will load the label of the page \n"
+                "3. The 'DL' (Download) button will download the slots of the \n"
+                "page. \n"
+                "4. The 'OL' (Open local) button will open the local folder with \n"
+                "the downloaded slots in the file explorer. Slots need to be \n"
+                "downloaded first. \n"
+                "5. The 'UL' (Upload) button will upload the slots of the page \n"
+                "from the local folder to the selected OSW instance. \n"
+                "The upload will fail and 'Error: JSON Decode Error' will be \n"
+                "displayed next to the 'UL' button if the one of the JSON files \n"
+                "associated with the page to be uploaded contains an error. \n"
+                "6. The 'OP' (Open page) button will open the page in the\n"
+                "browser.\n"
+                "7. The 'X' button will remove (set to invisible) the row next\n"
+                "to it",
+            )
+        ],
         [
             psg.Button(
                 "Load all",
@@ -389,7 +558,7 @@ def make_window(
             psg.Button(
                 "Download all",
                 key="-DL_ALL-",
-                tooltip="Download listed pages (serially)",
+                tooltip="Download listed pages (serially). Press 'Load all' first!",
             ),
             psg.Button(
                 "Upload all", key="-UL_ALL-", tooltip="Upload listed pages (serially)"
@@ -400,7 +569,7 @@ def make_window(
                 tooltip="Remove listed pages from the list (make them invisible)",
             ),
         ],
-        [psg.Text("Add and 'remove' (make them invisible) rows.")],
+        [psg.Text()],
         [psg.Col(rows, k="-PAGE INTERACTION-")],
         [
             psg.Button(
@@ -416,7 +585,7 @@ def make_window(
     ]
     # The full layout
     layout = settings_layout + actions_layout
-    if debug:
+    if settings_inst.debug:
         layout += output_layout
     # Create the window
     window = psg.Window(
@@ -424,15 +593,13 @@ def make_window(
         layout,
         use_default_focus=True,
         metadata=len(spi_objects) - 1,
+        finalize=True,
     )
 
     return window, spi_objects
 
 
-# todo: make inputs uniform
-
-
-def main(debug: bool = DEBUG):
+def main():
     # Predefining some variables before execution
     settings_file_path = SETTINGS_FILE_PATH_DEFAULT
     if os.path.exists(settings_file_path):
@@ -448,14 +615,67 @@ def main(debug: bool = DEBUG):
         settings.credentials_file_path
     )
     if "wiki-dev.open-semantic-lab.org" in domains:
-        domain = "wiki-dev.open-semantic-lab.org"
+        domain = DOMAIN_DEFAULT
     else:
         domain = domains[0]
     if settings_read_from_file:
         settings.domain = domain
+    if not os.path.exists(settings_file_path):
+        # Make sure the settings file is created with the default values if it does not
+        # exist
+        with open(settings_file_path, "w") as f:
+            json.dump(
+                settings.dict(),
+                f,
+                indent=4,
+                default=lambda x: str(x),
+                ensure_ascii=False,
+            )
+    try:
+        cm = CredentialManager(cred_filepath=settings.credentials_file_path)
+        osw_obj = OswExpress(domain=domain, cred_mngr=cm)
+    except mwclient.errors.LoginError:
+        # Write a simple pysimplegui popup window to enter username and password for
+        # the selected domain
+        layout = [
+            [
+                psg.Text(
+                    "Please enter username and password for the domain:\n"
+                    f"{domain}\n",
+                    font=("Helvetica", 12),
+                )
+            ],
+            [
+                psg.Text(
+                    "The credentials will be saved in the credentials file, located at:\n."
+                    f"{settings.credentials_file_path}"
+                )
+            ],
+            [
+                psg.Column([[psg.Text("Username")], [psg.Text("Password")]]),
+                psg.Column(
+                    [
+                        [psg.InputText(key="-USERNAME-")],
+                        [psg.InputText(key="-PASSWORD-", password_char="*")],
+                    ]
+                ),
+            ],
+            [psg.Button("OK"), psg.Button("Cancel")],
+        ]
+        window = psg.Window("Enter credentials", layout)
+        event, values = window.read()
+        window.close()
+        if event == "Cancel" or event == psg.WIN_CLOSED:
+            return
+        username = values["-USERNAME-"]
+        password = values["-PASSWORD-"]
+        accounts[domain] = {"username": username, "password": password}
+        with open(settings.credentials_file_path, "w") as f:
+            yaml.dump(accounts, f)
+        # try again
+        cm = CredentialManager(cred_filepath=settings.credentials_file_path)
+        osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cm)))
 
-    cm = CredentialManager(cred_filepath=settings.credentials_file_path)
-    osw_obj = OswExpress(domain=settings.domain, cred_mngr=cm)
     wtsite_obj = osw_obj.site
 
     window, spi_objects = make_window(
@@ -463,7 +683,6 @@ def main(debug: bool = DEBUG):
         wtsite_inst=wtsite_obj,
         domains=domains,
         domain=domain,
-        debug=debug,
     )
     active_rows = [True] * len(spi_objects)
 
@@ -485,6 +704,14 @@ def main(debug: bool = DEBUG):
             active_rows.append(True)
         elif event == "-SETTINGS-":
             settings.settings_file_path = values["-SETTINGS-"]
+        elif event == "-RESTART-":
+            window.close()
+            window, spi_objects = make_window(
+                settings_inst=settings,
+                wtsite_inst=wtsite_obj,
+                domains=domains,
+                domain=domain,
+            )
         elif event == "-LOAD_SETTINGS-":
             # update settings
             with open(settings.settings_file_path, "r") as f:
@@ -496,7 +723,6 @@ def main(debug: bool = DEBUG):
                 wtsite_inst=wtsite_obj,
                 domains=domains,
                 domain=domain,
-                debug=debug,
             )
             active_rows = [True] * len(spi_objects)
             """
@@ -575,8 +801,12 @@ def main(debug: bool = DEBUG):
             domain = settings.domain.split("//")[-1]
             osw_obj = OswExpress(domain=settings.domain, cred_mngr=cm)
             wtsite_obj = osw_obj.site
+        elif event == "-SHOW_DEBUG-" or event == "-HIDE_DEBUG-":
+            settings.debug = values["-SHOW_DEBUG-"]
         elif event == "-EXC_EMPTY-" or event == "-INC_EMPTY-":
             settings.dump_empty_slots = values["-INC_EMPTY-"]
+        elif event == "-DL_FIRST-" or event == "-UL_DIRECTLY-":
+            settings.download_first = values["-DL_FIRST-"]
         elif event == "-UL_SEL-":
             indices = list(window["-UL_LIST-"].get_indexes())
             # All selected: deselect all
@@ -586,25 +816,33 @@ def main(debug: bool = DEBUG):
             else:
                 window["-UL_LIST-"].update(set_to_index=list(range(len(SLOTS.keys()))))
                 settings.slots_to_upload = list(SLOTS.keys())
+        elif event == "-UL_SEL_DEF-":
+            window["-UL_LIST-"].update(set_to_index=SEL_INDICES_DEFAULT)
+            settings.slots_to_upload = SLOTS_TO_UPLOAD_DEFAULT
         elif event == "-UL_LIST-":
             indices = list(window["-UL_LIST-"].get_indexes())
             settings.slots_to_upload = np_array(list(SLOTS.keys()))[indices].tolist()
         elif event == "-LOAD_ALL-":
+            # todo: fix - dont try to load elements that are have no address
             for ii in range(len(spi_objects)):
-                if active_rows[ii]:
+                if active_rows[ii] and values[("-ADDRESS-", ii)] != "":
                     window.write_event_value(("-LOAD-", ii), None)
         elif event == "-DL_ALL-":
             for ii in range(len(spi_objects)):
-                if active_rows[ii]:
+                if active_rows[ii] and values[("-ADDRESS-", ii)] != "":
                     window.write_event_value(("-DL-", ii), None)
         elif event == "-UL_ALL-":
             for ii in range(len(spi_objects)):
-                if active_rows[ii]:
+                if active_rows[ii] and values[("-ADDRESS-", ii)] != "":
                     window.write_event_value(("-UL-", ii), None)
         elif event == "-DEL_ALL-":
             for ii in range(len(spi_objects)):
                 if active_rows[ii]:
                     window.write_event_value(("-DEL-", ii), None)
+        elif event == "-OPEN_CREDENTIALS-":
+            os.system(f"start {settings.credentials_file_path}")
+        elif event == "-OPEN_LWD-":
+            os.system(f"explorer {settings.local_working_directory}")
         elif event[0] == "-ADDRESS-":
             address = values[("-ADDRESS-", event[1])]
             fpn = get_fpn_from_url(address)
@@ -666,17 +904,28 @@ def main(debug: bool = DEBUG):
             window[("-RES-", event[1])].update("Labeled")
         elif event[0] == "-DL-":
             window[("-RES-", event[1])].update("Downloading")
-            if spi_objects[event[1]].label_set:
-                dump_config = settings.create_config()
-                _ = spi_objects[event[1]].save_as_page_package(
-                    dump_config_inst=dump_config,
-                    sub_level=SUB_LEVEL,
-                    author=accounts[domain]["username"],
-                )
-                spi_objects[event[1]].slots_downloaded = True
-                window[("-RES-", event[1])].update("Downloaded!")
+            if not spi_objects[event[1]].label_set:
+                window.write_event_value(("-LOAD-", event[1]), None)
+            dump_config = settings.create_config()
+            _ = spi_objects[event[1]].save_as_page_package(
+                dump_config_inst=dump_config,
+                sub_level=SUB_LEVEL,
+                author=accounts[domain]["username"],
+            )
+            spi_objects[event[1]].slots_downloaded = True
+            window[("-RES-", event[1])].update("Downloaded!")
+        elif event[0] == "-OL-":
+            if not spi_objects[event[1]].slots_downloaded:
+                # window.write_event_value(("-DL-", event[1]), None)
+                spi_objects[event[1]].create_bundle_and_config()
+            if not spi_objects[event[1]].label_set:
+                window.write_event_value(("-LOAD-", event[1]), None)
+            storage_path = Path(spi_objects[event[1]].page_package_config.content_path)
+            print(storage_path)
+            if storage_path.exists():
+                os.system(f"explorer {storage_path}")
             else:
-                window[("-RES-", event[1])].update("Download failed!")
+                window[("-RES-", event[1])].update("Error: Folder not found!")
         elif event[0] == "-UL-":
             slots_to_upload = settings.slots_to_upload
             if not spi_objects[event[1]].label_set:
@@ -685,29 +934,43 @@ def main(debug: bool = DEBUG):
             elif len(slots_to_upload) == 0:
                 window[("-RES-", event[1])].update("No slots selected!")
             else:
-                if not spi_objects[event[1]].slots_downloaded:
+                if (
+                    not spi_objects[event[1]].slots_downloaded
+                    and settings.download_first
+                ):
                     window[("-RES-", event[1])].update("No slots downloaded!")
-                    dump_config = settings.create_config()
-                window[("-RES-", event[1])].update("Uploading slots...")
-                if SUB_LEVEL is None:
-                    storage_path = Path(dump_config.target_dir)
                 else:
-                    storage_path = Path(dump_config.target_dir).parent
-                pages = wtsite_obj.read_page_package(
-                    WtSite.ReadPagePackageParam(
-                        storage_path=storage_path,
-                        packages_info_file_name=PACKAGE_INFO_FILE_NAME,
-                        selected_slots=slots_to_upload,
-                        debug=False,
-                    )
-                ).pages
-                param = wtsite_obj.UploadPageParam(pages=pages, parallel=False)
-                wtsite_obj.upload_page(param)
-                # Success:
-                window[("-RES-", event[1])].update("Uploaded!")
+                    window[("-RES-", event[1])].update("Uploading slots...")
+                    storage_path = spi_objects[
+                        event[1]
+                    ].page_package_config.content_path
+                    try:
+                        pages = wtsite_obj.read_page_package(
+                            WtSite.ReadPagePackageParam(
+                                storage_path=storage_path,
+                                packages_info_file_name=PACKAGE_INFO_FILE_NAME,
+                                selected_slots=slots_to_upload,
+                                debug=False,
+                            )
+                        ).pages
+                        param = wtsite_obj.UploadPageParam(pages=pages, parallel=False)
+                        wtsite_obj.upload_page(param)
+                        # Success:
+                        window[("-RES-", event[1])].update("Uploaded!")
+                    except json.decoder.JSONDecodeError as e:
+                        window[("-RES-", event[1])].update("Error: JSON Decode Error")
+                        # label = window[("-LABEL-", event[1])].get()
+                        label = spi_objects[event[1]].label
+                        warn(f"An error occurred during upload of {label}:")
+                        warn(f"{e}")
+        if event[0] == "-OP-":
+            full_page_name = values[("-ADDRESS-", event[1])].split("/")[-1]
+            url = get_url_from_fpn_and_domain(full_page_name, domain)
+            os.system(f"start {url}")
 
         # Some debugging output functionality
-        if debug and event != "-LOAD_SETTINGS-":
+        if "-OUTPUT-" in window.key_dict and event != "-LOAD_SETTINGS-":
+            # if settings.debug and event != "-LOAD_SETTINGS-":
             values_str = "\n".join(
                 [
                     f"{key}: {str_or_none(value)}"
@@ -732,13 +995,3 @@ def main(debug: bool = DEBUG):
 
 if __name__ == "__main__":
     main()
-    # main(debug=False)
-
-# todo:
-#  fix:
-#   * downloaded pages are stored with NS_HTTPS set in packages settings
-#   * initialization of rows from loaded settings file (check, reproduce duplicate
-#   row number error) -> next regularly added row behaves weird: button "Load"
-#   creates an event: ('-LOAD-', 1)2
-#  do:
-#   * adapt loading of settings file to new structure (similarly to start up)

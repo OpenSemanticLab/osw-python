@@ -32,7 +32,7 @@ SEL_INDICES_DEFAULT = [
 ]
 DOMAIN_DEFAULT = "wiki-dev.open-semantic-lab.org"
 SLOTS_TO_UPLOAD_DEFAULT = np_array(list(SLOTS.keys()))[SEL_INDICES_DEFAULT].tolist()
-TARGET_PAGE_DEFAULT = "https://wiki-dev.open-semantic-lab.org/wiki/Main_Page"
+TARGET_PAGE_DEFAULT = "Main_Page"
 LWD_DEFAULT = Path(os.getcwd()).parent / "data"
 SETTINGS_FILE_PATH_DEFAULT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "settings.json"

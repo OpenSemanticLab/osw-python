@@ -235,9 +235,16 @@ def single_page_helper(
                             tooltip="Download selected slots",
                         ),
                         psg.Button(
-                            "OL",
+                            "FE",
                             k=("-OL-", item_num),
-                            tooltip="Open the local folder with the downloaded slots",
+                            tooltip="Open the local folder with the downloaded slots "
+                            "in File Explorer",
+                        ),
+                        psg.Button(
+                            "VSC",
+                            k=("-VSC-", item_num),
+                            tooltip="Open the local folder with the downloaded slots "
+                            "in Visual Studio Code",
                         ),
                         psg.Button(
                             "UL", k=("-UL-", item_num), tooltip="Upload selected slots"
@@ -392,7 +399,8 @@ def make_window(
                         psg.Button(
                             button_text="Restart to apply",
                             key="-RESTART-",
-                            tooltip="Restarts the GUI with the current settings and maintains\n"
+                            tooltip="Restarts the GUI with the current settings and "
+                            "maintains\n"
                             "the current session.",
                         ),
                     ]
@@ -525,7 +533,22 @@ def make_window(
                 f"{Path(settings_inst.credentials_file_path).parent}",
             )
         ],
-        [psg.Combo(domains, default_value=domain, key="-DOMAIN-", enable_events=True)],
+        [
+            psg.Combo(
+                domains, default_value=domain, key="-DOMAIN-", enable_events=True
+            ),
+            psg.Button(
+                "Add new domain",
+                key="-ADD_DOMAIN-",
+                tooltip="Will test the credentials and restart with the new domain\n "
+                "selected, if credentials are correct. Otherwise will "
+                "prompt the user to try again.\n"
+                "A domain can only be listed once. If you add "
+                "credentials for\n"
+                "an already existing domain, previous credentials are\n"
+                "overwritten.",
+            ),
+        ],
         # List of target pages
         [psg.Text("Target pages", font=("Helvetica", 16))],
         [
@@ -647,7 +670,14 @@ def main():
             ],
             [
                 psg.Text(
-                    "The credentials will be saved in the credentials file, located at:\n."
+                    "The usage of a bot passwords is preferred over personal\n"
+                    "passwords!"
+                )
+            ],
+            [
+                psg.Text(
+                    "The credentials will be saved in the credentials file, "
+                    "located at:\n."
                     f"{settings.credentials_file_path}"
                 )
             ],
@@ -797,10 +827,144 @@ def main():
         elif event == "-LWD-":
             settings.local_working_directory = values["-LWD-"]
         elif event == "-DOMAIN-":
-            settings.domain = values["-DOMAIN-"]
-            domain = settings.domain.split("//")[-1]
-            osw_obj = OswExpress(domain=settings.domain, cred_mngr=cm)
-            wtsite_obj = osw_obj.site
+            new_domain = values["-DOMAIN-"].split("//")[-1]
+            settings.domain = new_domain
+            domain = new_domain
+
+            try:
+                osw_obj = OswExpress(domain=settings.domain, cred_mngr=cm)
+                wtsite_obj = osw_obj.site
+            except mwclient.errors.LoginError:
+                # Create a simple warning popup that tells the user to try again
+                layout_domain_error = [
+                    [
+                        psg.Text(
+                            "Login Error: Incorrect username or password entered.\n"
+                            "Please try again or cancel."
+                        )
+                    ],
+                    [
+                        psg.Button("OK", key="OK"),
+                        psg.Button("Remove domain", key="Remove"),
+                        psg.Button("Cancel", key="Cancel"),
+                    ],
+                ]
+                window_domain_error = psg.Window("Login Error", layout_domain_error)
+                event_domain_err, values_domain_err = window_domain_error.read()
+                window_domain_error.close()
+                if event_domain_err == "Cancel" or event_domain_err == psg.WIN_CLOSED:
+                    continue
+                elif event_domain_err == "Remove":
+                    accounts.pop(new_domain)
+                    with open(settings.credentials_file_path, "w") as f:
+                        yaml.dump(accounts, f)
+                else:
+                    window.write_event_value("-ADD_DOMAIN-", new_domain)
+
+        elif event == "-ADD_DOMAIN-":
+            domain_default_text = ""
+            if "-ADD_DOMAIN-" in values:
+                if values["-ADD_DOMAIN-"] is not None:
+                    domain_default_text = values["-ADD_DOMAIN-"]
+            # write a simple popup window to enter a new domain, username and password
+            layout_domain = [
+                [
+                    psg.Text(
+                        "Please enter a new domain, username and password:\n",
+                        font=("Helvetica", 12),
+                    )
+                ],
+                [
+                    psg.Text(
+                        "The usage of a bot passwords is preferred over personal\n"
+                        "passwords!"
+                    )
+                ],
+                [
+                    psg.Column(
+                        [
+                            [psg.Text("Domain")],
+                            [psg.Text("Username")],
+                            [
+                                psg.Text("Password"),
+                            ],
+                        ]
+                    ),
+                    psg.Column(
+                        [
+                            [
+                                psg.InputText(
+                                    key="-NEW_DOMAIN-", default_text=domain_default_text
+                                )
+                            ],
+                            [psg.InputText(key="-NEW_USERNAME-", default_text="")],
+                            [psg.InputText(key="-NEW_PASSWORD-", password_char="*")],
+                        ]
+                    ),
+                ],
+                [psg.Button("OK"), psg.Button("Cancel")],
+            ]
+            window_domain = psg.Window(
+                "Enter new domain and credentials", layout_domain
+            )
+            event_domain, values_domain = window_domain.read()
+            window_domain.close()
+            if event_domain == "Cancel" or event_domain == psg.WIN_CLOSED:
+                continue
+            new_domain = values_domain["-NEW_DOMAIN-"].split("//")[-1]
+            new_username = values_domain["-NEW_USERNAME-"]
+            new_password = values_domain["-NEW_PASSWORD-"]
+            if new_domain in domains:
+                window_warning = psg.Window(
+                    "Warning",
+                    layout=[
+                        [psg.Text("Domain already exists. Overwrite?")],
+                        [psg.Button("OK"), psg.Button("Cancel")],
+                    ],
+                )
+                event_warning, _ = window_warning.read()
+                window_warning.close()
+                if event_warning == "Cancel" or event_warning == psg.WIN_CLOSED:
+                    continue
+            accounts[new_domain] = {"username": new_username, "password": new_password}
+            with open(settings.credentials_file_path, "w") as f:
+                yaml.dump(accounts, f)
+            domain = new_domain
+            settings.domain = new_domain
+            cm = CredentialManager(cred_filepath=settings.credentials_file_path)
+            try:
+                osw_obj = OSW(
+                    site=WtSite(WtSite.WtSiteConfig(iri=settings.domain, cred_mngr=cm))
+                )
+                wtsite_obj = osw_obj.site
+                window.write_event_value("-RESTART-", None)
+                window.write_event_value("-DOMAIN-", new_domain)
+            except mwclient.errors.LoginError:
+                # Create a simple warning popup that tells the user to try again
+                layout_domain_error = [
+                    [
+                        psg.Text(
+                            "Login Error: Incorrect username or password entered.\n"
+                            "Please try again or cancel."
+                        )
+                    ],
+                    [
+                        psg.Button("OK", key="OK"),
+                        psg.Button("Remove domain", key="Remove"),
+                        psg.Button("Cancel", key="Cancel"),
+                    ],
+                ]
+                window_domain_error = psg.Window("Login Error", layout_domain_error)
+                event_domain_err, values_domain_err = window_domain_error.read()
+                window_domain_error.close()
+                if event_domain_err == "Cancel" or event_domain_err == psg.WIN_CLOSED:
+                    continue
+                elif event_domain_err == "Remove":
+                    accounts.pop(new_domain)
+                    with open(settings.credentials_file_path, "w") as f:
+                        yaml.dump(accounts, f)
+                else:
+                    window.write_event_value("-ADD_DOMAIN-", None)
         elif event == "-SHOW_DEBUG-" or event == "-HIDE_DEBUG-":
             settings.debug = values["-SHOW_DEBUG-"]
         elif event == "-EXC_EMPTY-" or event == "-INC_EMPTY-":
@@ -921,9 +1085,21 @@ def main():
             if not spi_objects[event[1]].label_set:
                 window.write_event_value(("-LOAD-", event[1]), None)
             storage_path = Path(spi_objects[event[1]].page_package_config.content_path)
-            print(storage_path)
+            # print(storage_path)
             if storage_path.exists():
                 os.system(f"explorer {storage_path}")
+            else:
+                window[("-RES-", event[1])].update("Error: Folder not found!")
+        elif event[0] == "-VSC-":
+            if not spi_objects[event[1]].slots_downloaded:
+                # window.write_event_value(("-DL-", event[1]), None)
+                spi_objects[event[1]].create_bundle_and_config()
+            if not spi_objects[event[1]].label_set:
+                window.write_event_value(("-LOAD-", event[1]), None)
+            storage_path = Path(spi_objects[event[1]].page_package_config.content_path)
+            # print(storage_path)
+            if storage_path.exists():
+                os.system(f'code "{storage_path}"')
             else:
                 window[("-RES-", event[1])].update("Error: Folder not found!")
         elif event[0] == "-UL-":

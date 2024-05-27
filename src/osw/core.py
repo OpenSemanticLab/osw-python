@@ -434,6 +434,12 @@ class OSW(BaseModel):
                 content = f.read()
             os.remove(temp_model_path)
 
+            content = re.sub(
+                r"(UUID = Field\(...)",
+                r"UUID = Field(default_factory=uuid4",
+                content,
+            )  # enable default value for uuid
+
             if fetchSchemaParam.mode == "replace":
                 header = (
                     "from uuid import uuid4\n"
@@ -449,12 +455,6 @@ class OSW(BaseModel):
                     content,
                     1,
                 )  # add header before first class declaration
-
-                content = re.sub(
-                    r"(UUID = Field\(...)",
-                    r"UUID = Field(default_factory=uuid4",
-                    content,
-                )  # enable default value for uuid
 
                 with open(result_model_path, "w", encoding="utf-8") as f:
                     f.write(content)

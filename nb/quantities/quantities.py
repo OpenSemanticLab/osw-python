@@ -1,34 +1,36 @@
-import json
-import os
-from pathlib import Path
-from utils import dict_to_json, json_to_dict
+from utils import json_to_dict
 from quantityClasses import QuantityFetcher, Quantities
-from pprint import pprint
+
+# import json
+# import os
+# from pathlib import Path
+# from utils import dict_to_json, json_to_dict
+# from pprint import pprint
 
 # fetch quantities
 # set fetch_data to True on first run
 # './data' directory must exist
 fetch_data = False
 if fetch_data:
-    QuantityFetcher() 
+    QuantityFetcher()
 
 
 # load data from json file
 quantities = Quantities(
-        json_to_dict('_ddict'),     
-        json_to_dict('_qdict'),     
-        json_to_dict('_udict'),     
-        json_to_dict('dbpdict'),  
-        json_to_dict('dCgsDict'),
-        json_to_dict('dImpDict'),
-        json_to_dict('dIsoDict'),
-        json_to_dict('dSiDict'),
-        json_to_dict('wdict'),
-        json_to_dict('wstdict'),
-        json_to_dict('wudict')
-    ) 
+    json_to_dict("_ddict"),
+    json_to_dict("_qdict"),
+    json_to_dict("_udict"),
+    json_to_dict("dbpdict"),
+    json_to_dict("dCgsDict"),
+    json_to_dict("dImpDict"),
+    json_to_dict("dIsoDict"),
+    json_to_dict("dSiDict"),
+    json_to_dict("wdict"),
+    json_to_dict("wstdict"),
+    json_to_dict("wudict"),
+)
 
-# analyse wikidata 
+# analyse wikidata
 quantities.analyzeWikidata()
 
 # create dict dbpedia -> wikidata
@@ -39,8 +41,6 @@ quantities.mergeQudtAndWikidata()
 
 # create wiki code
 quantities.create_wiki_code()
-
-
 
 
 # # mediawiki client import
@@ -68,7 +68,7 @@ quantities.create_wiki_code()
 #     print("Edit page {}".format(p['title']))
 #     page = site.pages[p['title']]
 #     page.edit(p['wikitext'])
-    
+
 # qdict['http://qudt.org/vocab/quantitykind/DimensionlessRatio']
 # udict['http://qudt.org/vocab/unit/PERCENT']
 # #wdict['http://www.wikidata.org/entity/Q11466']

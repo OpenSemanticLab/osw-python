@@ -77,7 +77,7 @@ class QuantityFetcher:
             .replace("{{{limit}}}", str(limit))
         )
         print(query)
-        # select distinct ?p ?o where {<http://dbpedia.org/resource/Amount_of_substance> ?p ?o} LIMIT 100
+        # select distinct ?p ?o where {<http://dbpedia.org/resource/Amount_of_substance> ?p ?o} LIMIT 100 # noqa
         triples = self.sparqlQuery(endpoint, query)
         # print(triples)
         self.tdict = {}
@@ -106,7 +106,7 @@ class QuantityFetcher:
         self, endpoint, where_statement, limit=999999999
     ):
         select_statement = "?subject ?predicate ?spredicate ?object"
-        inner_where_statement = "?subject ?predicate [?spredicate ?object; <http://wikiba.se/ontology#rank> ?rank]"
+        inner_where_statement = "?subject ?predicate [?spredicate ?object; <http://wikiba.se/ontology#rank> ?rank]"  # noqa
         query = (
             """
             SELECT {{{select_statement}}}
@@ -144,7 +144,7 @@ class QuantityFetcher:
             if p.split("/")[-1] == sp.split("/")[-1]:
                 self.dict_append_tripl(
                     self.tdict, s, p, o
-                )  # e.g.  http://www.wikidata.org/prop/P2347 and http://www.wikidata.org/prop/statement/value-normalized/P2347
+                )  # e.g.  http://www.wikidata.org/prop/P2347 and http://www.wikidata.org/prop/statement/value-normalized/P2347 # noqa
         # print(self.tdict)
         return self.tdict
 
@@ -241,24 +241,24 @@ class QuantityFetcher:
         print(len(_udict))
         print(len(_ddict))
 
-        # wdict1 = get_sparql_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P279>+ <http://www.wikidata.org/entity/Q107715>.") #195656 triplets found
-        # wdict2 = get_sparql_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P8393> ?qudtid.") #48411 triplets found
+        # wdict1 = get_sparql_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P279>+ <http://www.wikidata.org/entity/Q107715>.") #195656 triplets found # noqa
+        # wdict2 = get_sparql_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P8393> ?qudtid.") #48411 triplets found # noqa
         # wdict = {**wdict1, **wdict2} #merge dicts, 3966 results
         wdict = self.get_sparql_triplets(
             "https://query.wikidata.org/sparql",
-            "?subject <http://www.wikidata.org/prop/direct/P279>*/<http://www.wikidata.org/prop/direct/P8393> ?qudtid.",
+            "?subject <http://www.wikidata.org/prop/direct/P279>*/<http://www.wikidata.org/prop/direct/P8393> ?qudtid.",  # noqa
         )  # quantities with qudt ref and their subq, 2484 results
         dict_to_json(wdict, "wdict")
         print(len(wdict))
         # only subquantities
-        # wdict = get_sparql_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P279>/<http://www.wikidata.org/prop/direct/P279>+ <http://www.wikidata.org/entity/Q107715>.")
+        # wdict = get_sparql_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P279>/<http://www.wikidata.org/prop/direct/P279>+ <http://www.wikidata.org/entity/Q107715>.") # noqa
         # print(len(wdict))
-        # wstdict1 = get_sparql_wikidata_statement_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P279>+ <http://www.wikidata.org/entity/Q107715>.") #get statement object, 131347 triplets
-        # wstdict2 = get_sparql_wikidata_statement_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P8393> ?qudtid.") #get statement object, 37775 triplets
+        # wstdict1 = get_sparql_wikidata_statement_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P279>+ <http://www.wikidata.org/entity/Q107715>.") #get statement object, 131347 triplets # noqa
+        # wstdict2 = get_sparql_wikidata_statement_triplets("https://query.wikidata.org/sparql", "?subject <http://www.wikidata.org/prop/direct/P8393> ?qudtid.") #get statement object, 37775 triplets # noqa
         # wstdict = {**wstdict1, **wstdict2} #merge dicts, 3966 results
         wstdict = self.get_sparql_wikidata_statement_triplets(
             "https://query.wikidata.org/sparql",
-            "?subject <http://www.wikidata.org/prop/direct/P279>*/<http://www.wikidata.org/prop/direct/P8393> ?qudtid.",
+            "?subject <http://www.wikidata.org/prop/direct/P279>*/<http://www.wikidata.org/prop/direct/P8393> ?qudtid.",  # noqa
         )  # get statement object
         dict_to_json(wstdict, "wstdict")
         print(len(wstdict))
@@ -268,7 +268,7 @@ class QuantityFetcher:
                 wdict[st][p] = o  # replace statement with object
         wudict1 = self.get_sparql_triplets(
             "https://query.wikidata.org/sparql",
-            "?subject <http://www.wikidata.org/prop/direct/P31> <http://www.wikidata.org/entity/Q47574>.",
+            "?subject <http://www.wikidata.org/prop/direct/P31> <http://www.wikidata.org/entity/Q47574>.",  # noqa
         )  # instance of unit of measurement: 1340 results
         wudict2 = self.get_sparql_triplets(
             "https://query.wikidata.org/sparql",
@@ -276,11 +276,11 @@ class QuantityFetcher:
         )  # has unit symbol: 2230 results
         wudict3 = self.get_sparql_triplets(
             "https://query.wikidata.org/sparql",
-            "?quantity <http://www.wikidata.org/prop/P8111>/<http://www.wikidata.org/prop/statement/P8111> ?subject.",
+            "?quantity <http://www.wikidata.org/prop/P8111>/<http://www.wikidata.org/prop/statement/P8111> ?subject.",  # noqa
         )  # is recommended unit of measurement of: 294 results
         wudict4 = self.get_sparql_triplets(
             "https://query.wikidata.org/sparql",
-            "?subject <http://www.wikidata.org/prop/P111>/<http://www.wikidata.org/prop/statement/P111> ?quantity.",
+            "?subject <http://www.wikidata.org/prop/P111>/<http://www.wikidata.org/prop/statement/P111> ?quantity.",  # noqa
         )  # has measured quantity: 3278 results
         wudict = {
             **wudict1,
@@ -291,12 +291,12 @@ class QuantityFetcher:
         len(wudict)
         dict_to_json(wudict, "wudict")
 
-        # dbpdict = get_sparql_triplets("https://dbpedia.org/sparql/", "?subject <http://purl.org/dc/terms/subject> <http://dbpedia.org/resource/Category:Physical_quantities>.", limit=11000)
-        # dbpdict = get_sparql_triplets("https://dbpedia.org/sparql/", "?subject <http://purl.org/dc/terms/subject>/<http://www.w3.org/2004/02/skos/core#broader> <http://dbpedia.org/resource/Category:Quantity>.")
-        # endpoint is limited to 10000 results so we have to restrict the request to the relevant property
+        # dbpdict = get_sparql_triplets("https://dbpedia.org/sparql/", "?subject <http://purl.org/dc/terms/subject> <http://dbpedia.org/resource/Category:Physical_quantities>.", limit=11000) # noqa
+        # dbpdict = get_sparql_triplets("https://dbpedia.org/sparql/", "?subject <http://purl.org/dc/terms/subject>/<http://www.w3.org/2004/02/skos/core#broader> <http://dbpedia.org/resource/Category:Quantity>.") # noqa
+        # endpoint is limited to 10000 results so we have to restrict the request to the relevant property # noqa
         dbpdict = self.get_sparql_triplets(
             "https://dbpedia.org/sparql/",
-            "?subject <http://purl.org/dc/terms/subject>/<http://www.w3.org/2004/02/skos/core#broader> <http://dbpedia.org/resource/Category:Quantity>.",
+            "?subject <http://purl.org/dc/terms/subject>/<http://www.w3.org/2004/02/skos/core#broader> <http://dbpedia.org/resource/Category:Quantity>.",  # noqa
             tpredicate="http://www.w3.org/2002/07/owl#sameAs",
         )
         print(len(dbpdict))
@@ -453,7 +453,7 @@ class Quantities:
             "9",
         ]:
             result += "-1"  # e.g. '/m': exponent 1 is implicit -> '/m-1'
-        # if ucum != result: print("Normalize '{}' to '{}'".format(ucum, result))
+        # if ucum != result: print("Normalize '{}' to '{}'".format(ucum, result)) # noqa
         return result
 
     # nomalize_ucum("kg/(m.s2)")
@@ -464,7 +464,7 @@ class Quantities:
         no_unit = []
         no_dim = []
         for w in self.wdict:
-            # if 'http://www.wikidata.org/entity/Q107715' in wdict[w]['http://www.wikidata.org/prop/direct/P279']:
+            # if 'http://www.wikidata.org/entity/Q107715' in wdict[w]['http://www.wikidata.org/prop/direct/P279']: # noqa
             #    w_base_q.append(w)
             sub_q = False
             for sup in self.wdict[w][
@@ -495,7 +495,7 @@ class Quantities:
         print("no_unit: ", len(no_unit))
         print("no_dim: ", len(no_dim))
         # for w in w_base_q:
-        #    print(getLangLabel(wdict[w]["http://www.w3.org/2000/01/rdf-schema#label"], 'en'))
+        #    print(getLangLabel(wdict[w]["http://www.w3.org/2000/01/rdf-schema#label"], 'en')) # noqa
         ignore_list = []
         ignore_list.append(
             "http://www.wikidata.org/entity/Q181175"
@@ -510,7 +510,7 @@ class Quantities:
         self.remove_wikidata_superclass(
             "http://www.wikidata.org/entity/Q76378758",
             "http://www.wikidata.org/entity/Q3686031",
-        )  # mass concentration of water is not subclass of amount concentration
+        )  # mass concentration of water is not subclass of amount concentration # noqa
         self.remove_wikidata_superclass(
             "http://www.wikidata.org/entity/Q13824",
             "http://www.wikidata.org/entity/Q11465",
@@ -546,7 +546,7 @@ class Quantities:
         self.remove_wikidata_superclass(
             "http://www.wikidata.org/entity/Q55435676",
             "http://www.wikidata.org/entity/Q275157",
-        )  # fasting serum glucose level is a mass concentration, blood glucose is a amount concentration
+        )  # fasting serum glucose level is a mass concentration, blood glucose is a amount concentration # noqa
         ignore_list.append(
             "http://www.wikidata.org/entity/Q111811675"
         )  # area dublicate
@@ -633,7 +633,7 @@ class Quantities:
                 self.qdbpdict[q] = dbp
         print(
             "length self.qwdict after: ", len(self.qwdict)
-        )  # 5 quantities have missing units or dimension in qudt but are defined in wikidata
+        )  # 5 quantities have missing units or dimension in qudt but are defined in wikidata # noqa
 
         self.ucum_u_dict = {}  # ucum to qudt unit
         for u in self.udict:
@@ -660,7 +660,7 @@ class Quantities:
         for wu in self.wudict:
             if (
                 "http://www.wikidata.org/prop/direct/P7825" in self.wudict[wu]
-            ):  # and 'http://www.wikidata.org/prop/direct/P5061' in self.wudict[wu]:
+            ):  # and 'http://www.wikidata.org/prop/direct/P5061' in self.wudict[wu]: # noqa
                 # print(self.wudict[wu]['http://www.wikidata.org/prop/direct/P5061'])
                 for ucum in self.wudict[wu][
                     "http://www.wikidata.org/prop/direct/P7825"
@@ -680,8 +680,8 @@ class Quantities:
                 # print(sup)
                 subquantity_of.append(sup)
                 # has_super = True
-                # while('http://www.w3.org/2004/02/skos/core#broader' in self.qdict[sup]):
-                #    sup = self.qdict[sup]['http://www.w3.org/2004/02/skos/core#broader'][0]
+                # while('http://www.w3.org/2004/02/skos/core#broader' in self.qdict[sup]): # noqa
+                #    sup = self.qdict[sup]['http://www.w3.org/2004/02/skos/core#broader'][0] # noqa
                 #    print("-> " + sup)
                 sup_base = self.set_base_and_super_quantities(sup, ignore)
                 if len(sup_base) == 0:
@@ -749,7 +749,7 @@ class Quantities:
         )
         sym_diff = set(units).symmetric_difference(set(base_units))
         if not len(sym_diff) == 0:
-            # print("WARNING: Different units for subq {} ({}) and baseq {} ({})".format(q, len(units), self.qdict[q]['base_quantity'][0], len(base_units)))
+            # print("WARNING: Different units for subq {} ({}) and baseq {} ({})".format(q, len(units), self.qdict[q]['base_quantity'][0], len(base_units))) # noqa
             if len(units) > len(base_units):
                 print(
                     "WARNING: More units for subq {} than baseq {}".format(
@@ -770,7 +770,7 @@ class Quantities:
                     self.qdict[self.qdict[q]["base_quantity"][0]][
                         "http://qudt.org/schema/qudt/applicableUnit"
                     ] = list(diff)
-                # self.qdict[self.qdict[q]['base_quantity'][0]]['http://qudt.org/schema/qudt/applicableUnit'] = self.qdict[self.qdict[q]['base_quantity'][0]].get('http://qudt.org/schema/qudt/applicableUnit', []).extend(list(diff))
+                # self.qdict[self.qdict[q]['base_quantity'][0]]['http://qudt.org/schema/qudt/applicableUnit'] = self.qdict[self.qdict[q]['base_quantity'][0]].get('http://qudt.org/schema/qudt/applicableUnit', []).extend(list(diff)) # noqa
                 # print(self.qdict[self.qdict[q]['base_quantity'][0]]['http://qudt.org/schema/qudt/applicableUnit'])
         if (
             not self.qdict[q][
@@ -813,7 +813,7 @@ class Quantities:
         # manual corrections
         remove_list.append(
             "http://qudt.org/vocab/quantitykind/ElectricField"
-        )  # dublicate of http://qudt.org/vocab/quantitykind/ElectricFieldStrength
+        )  # dublicate of http://qudt.org/vocab/quantitykind/ElectricFieldStrength # noqa
         remove_list.append("http://qudt.org/vocab/quantitykind/InverseTime")
         for q in remove_list:
             del self.qdict[q]
@@ -865,7 +865,7 @@ class Quantities:
                         wsup_q = self.qwdict_inv[wsup]
                         if sup != wsup_q:
                             if sup == "":
-                                # print("new base_quantity {} for {}".format(wsup_q, q))
+                                # print("new base_quantity {} for {}".format(wsup_q, q)) # noqa
                                 if wsup_q in self.qdict:
                                     self.qdict[q]["base_quantity"] = [wsup_q]
                                     self.qdict[q]["subquantity_of"] = [wsup_q]
@@ -1012,7 +1012,7 @@ class Quantities:
             and "http://www.w3.org/2000/01/rdf-schema#label"
             in self.wdict[self.qwdict[q]]
         ):
-            # wtq['label_de'] = getLangLabel(self.wdict[self.qwdict[q]]['http://www.w3.org/2000/01/rdf-schema#label'], 'de')
+            # wtq['label_de'] = getLangLabel(self.wdict[self.qwdict[q]]['http://www.w3.org/2000/01/rdf-schema#label'], 'de') # noqa
             wtq["label"] = self.wdict[self.qwdict[q]][
                 "http://www.w3.org/2000/01/rdf-schema#label"
             ]
@@ -1084,8 +1084,8 @@ class Quantities:
                         wtu["use_as_display_unit"] = "No"
                         wtu["use_as_input_unit"] = "No"
                     # if ucum in ucum_wu_dict:
-                    #    if 'http://www.wikidata.org/prop/direct/P5061' in wudict[ucum_wu_dict[ucum]]:
-                    #        sym = getLangLabel(wudict[ucum_wu_dict[ucum]]['http://www.wikidata.org/prop/direct/P5061'],'en')
+                    #    if 'http://www.wikidata.org/prop/direct/P5061' in wudict[ucum_wu_dict[ucum]]: # noqa
+                    #        sym = getLangLabel(wudict[ucum_wu_dict[ucum]]['http://www.wikidata.org/prop/direct/P5061'],'en') # noqa
                     #    unit_uris.append(ucum_wu_dict[ucum])
                     # else: print("Not found: {}".format(ucum))
                     units.append(sym)
@@ -1164,7 +1164,7 @@ class Quantities:
     def get_wikitext_from_wikipage_dict(self, d):
         wt = ""
         for key, value in d.items():
-            # print("key: {}, valuetype: {}, value: {}".format(key, type(value), ""))
+            # print("key: {}, valuetype: {}, value: {}".format(key, type(value), "")) # noqa
             if isinstance(value, dict):
                 # print("dict")
                 wt += "\n{{" + key
@@ -1227,3 +1227,10 @@ class Quantities:
             # wiki_text = self.set_wikitext_from_content(p)
             # print(wiki_text)
             pages.append(p)
+
+
+if __name__ == "__main__":
+    wdict = QuantityFetcher.get_sparql_triplets(
+        "https://query.wikidata.org/sparql",
+        "?subject <http://www.wikidata.org/prop/direct/P279>*/<http://www.wikidata.org/prop/direct/P8393> ?qudtid.",  # noqa
+    )

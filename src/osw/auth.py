@@ -79,7 +79,7 @@ class CredentialManager(OswBaseModel):
         super().__init__(**data)
         if self.cred_filepath:
             if not isinstance(self.cred_filepath, list):
-                self.cred_filepath = list(self.cred_filepath)
+                self.cred_filepath = [self.cred_filepath]
 
     def get_credential(self, config: CredentialConfig) -> BaseCredential:
         """Reads credentials from a yaml file or the in memory store
@@ -99,6 +99,8 @@ class CredentialManager(OswBaseModel):
         _file_credentials: List[CredentialManager.BaseCredential] = []
         if self.cred_filepath:
             filepaths = self.cred_filepath
+            if type(filepaths) is not list:
+                filepaths = [filepaths]
 
             for filepath in filepaths:
                 if filepath != "":
@@ -152,8 +154,7 @@ class CredentialManager(OswBaseModel):
         if cred is None:
             if config.fallback is CredentialManager.CredentialFallback.ask:
                 print(
-                    f"No credentials for {config.iri} found. "
-                    f"Please use the prompt to login"
+                    f"No credentials for {config.iri} found. Please use the prompt to login"
                 )
                 username = input("Enter username: ")
                 password = getpass.getpass("Enter password: ")

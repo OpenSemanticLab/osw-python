@@ -1,4 +1,4 @@
-from osw.data.mining import RegExPatternExtended
+from osw.utils.strings import RegExPatternExtended
 
 REGEX_PATTERN_LIST = [
     RegExPatternExtended(
@@ -98,6 +98,36 @@ REGEX_PATTERN_LIST = [
         group_keys=["Label", "Suffix(es)"],
         example_str="File:ISC-Digital-1440x448px.jpg",
         expected_groups=["ISC-Digital-1440x448px", ".jpg"],
+    ),
+    RegExPatternExtended(
+        description="File page strings from any text",
+        pattern=r"(File:(OSW[0-9a-fA-F]{32})((?:\.[\w-]+)*))",
+        group_keys=["Full page name", "OSW-ID", "Suffix(es)"],
+        example_str="File:OSWb701155d41ad44ab9ad719edc3a2480a.drawio.png",
+        expected_groups=[
+            "File:OSWb701155d41ad44ab9ad719edc3a2480a.drawio.png",
+            "OSWb701155d41ad44ab9ad719edc3a2480a",
+            ".drawio.png",
+        ],
+    ),
+    RegExPatternExtended(
+        description="UUID from full page title",
+        pattern=r"([A-Za-z]+):([A-Z]+)([0-9a-fA-F]{32})((?:\.[\w-]+)*)",
+        group_keys=["Namespace", "Prefix", "UUID", "Suffix(es)"],
+        example_str="File:OSWff61ba91c92742a3ade0ce24c1399cb2.drawio.png",
+        expected_groups=[
+            "File",
+            "OSW",
+            "ff61ba91c92742a3ade0ce24c1399cb2",
+            ".drawio.png",
+        ],
+    ),
+    RegExPatternExtended(
+        description="UUID from OSW ID",
+        pattern=r"([A-Z]+)([a-z\d\-]+)",
+        group_keys=["Prefix", "UUID"],
+        example_str="OSWff61ba91c92742a3ade0ce24c1399cb2",
+        expected_groups=["OSW", "ff61ba91c92742a3ade0ce24c1399cb2"],
     ),
 ]
 REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}

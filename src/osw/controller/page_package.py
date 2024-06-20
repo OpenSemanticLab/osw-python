@@ -11,10 +11,10 @@ from typing_extensions import Dict, List
 
 import osw.model.page_package as model
 from osw.auth import CredentialManager
-from osw.data.mining import RegExPatternExtended
 from osw.model import page_package as package
 from osw.model.page_package import NAMESPACE_CONST_TO_NAMESPACE_MAPPING
 from osw.model.static import OswBaseModel
+from osw.utils.strings import RegExPatternExtended
 from osw.wtsite import WtSite
 
 # Definition of constants

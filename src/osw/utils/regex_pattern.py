@@ -111,35 +111,23 @@ REGEX_PATTERN_LIST = [
         ],
     ),
     RegExPatternExtended(
-        description="SAP OU number and name from DN",
-        pattern=r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
-        group_keys=["Something", "SAP OU number", "SAP OU name"],
-    ),
-    RegExPatternExtended(
-        description="Location name from DN",
-        pattern=r"CN=[A-Za-z]+\-(\d+)_L_([^_]+),OU=Standorte",
-        group_keys=["SAP institute number", "Location name"],
-    ),
-    RegExPatternExtended(
-        description="Location/Site parts from DN",
-        pattern=r"CN=[A-Za-z]+\-(\d+)_L_(([^_^ ^-]+)-([^_^ ]+) (\d+))," r"OU=Standorte",
-        group_keys=[
-            "SAP institute number",
-            "Site name",
-            "City",
-            "Street",
-            "House number",
-        ],
-    ),
-    RegExPatternExtended(
         description="UUID from full page title",
-        pattern=r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
-        group_keys=["Namespace", "Prefix", "UUID"],
+        pattern=r"([A-Za-z]+):([A-Z]+)([0-9a-fA-F]{32})((?:\.[\w-]+)*)",
+        group_keys=["Namespace", "Prefix", "UUID", "Suffix(es)"],
+        example_str="File:OSWff61ba91c92742a3ade0ce24c1399cb2.drawio.png",
+        expected_groups=[
+            "File",
+            "OSW",
+            "ff61ba91c92742a3ade0ce24c1399cb2",
+            ".drawio.png",
+        ],
     ),
     RegExPatternExtended(
         description="UUID from OSW ID",
         pattern=r"([A-Z]+)([a-z\d\-]+)",
         group_keys=["Prefix", "UUID"],
+        example_str="OSWff61ba91c92742a3ade0ce24c1399cb2",
+        expected_groups=["OSW", "ff61ba91c92742a3ade0ce24c1399cb2"],
     ),
 ]
 REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}

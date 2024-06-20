@@ -25,6 +25,7 @@ import osw.utils.util as ut
 import osw.wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.model.static import OswBaseModel
+from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.utils.util import parallelize
 
 # Constants
@@ -565,7 +566,7 @@ class WtSite:
             dump_config.target_dir = config.content_path
             dump_config.skip_slot_suffix_for_main = config.skip_slot_suffix_for_main
 
-        bundle = config.bundle  # type: package.PagePackageBundle
+        bundle: package.PagePackageBundle = config.bundle
         added_titles = []  # keep track of added pages, prevent duplicates
 
         if config.name not in bundle.packages:
@@ -579,17 +580,21 @@ class WtSite:
             else:
                 added_titles.append(title)
             page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
-
+            # Appends an item of type: package.PagePackagePage:
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
-                for file in page._page.images():
-                    if file.name in added_titles:
-                        continue  # prevent duplicates
+                referenced_file_pages = page.find_file_page_refs_in_slots()
+                for file_name in referenced_file_pages:
+                    if file_name in added_titles:
+                        continue
                     else:
-                        added_titles.append(file.name)
+                        added_titles.append(file_name)
+                    print(f"Added files: {added_titles}")
                     file_page = self.get_page(
-                        WtSite.GetPageParam(titles=[file.name])
+                        WtSite.GetPageParam(titles=[file_name])
                     ).pages[0]
+                    if not file_page.exists:
+                        continue
                     bundle.packages[config.name].pages.append(
                         file_page.dump(dump_config)
                     )
@@ -1493,6 +1498,25 @@ class WtPage:
             site=self.wtSite._site,
             title=wt.SearchParam(query=self.title, debug=debug),
         )[0]
+
+    def find_file_page_refs_in_slots(self, slots: List[str] = None) -> List[str]:
+        """Find all file page references in the content of the given slots."""
+        if slots is None:
+            slots = list(self._slots.keys())
+        file_page_refs = []
+        for slot in slots:
+            # get slot content
+            content = self.get_slot_content(slot)
+            if content is None:
+                continue
+            # find all file page references
+            pattern = REGEX_PATTERN_LIB["File page strings from any text"]
+            full_page_names = pattern.findall_by_group_key(
+                str(content),  # make sure its a string not a dictionary
+                "Full page name",
+            )
+            file_page_refs.extend(full_page_names)
+        return list(set(file_page_refs))
 
     def purge(self):
         """Purge the page from the site cache.

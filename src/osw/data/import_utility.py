@@ -10,72 +10,20 @@ import numpy as np
 from geopy import Nominatim
 from jsonpath_ng import ext as jp
 
-import osw.data.mining as dm
+import osw.utils.strings as strutil
 from osw import wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.core import OSW
-from osw.data.mining import RegExPatternExtended
 from osw.model import entity as model
+from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
 from osw.wtsite import WtSite
 
 # Constants
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
-REGEX_PATTERN: Dict[str, Union[str, Dict[str, str]]] = {
-    "SAP OU number and name from DN": {
-        "Pattern": r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
-        "Groups": {2: "SAP OU number", 3: "SAP OU name"},
-    },
-    "Location name from DN": {
-        "Pattern": r"CN=[A-Za-z]+-(\d+)_L_([^_]+),OU=Standorte",
-        "Groups": {1: "SAP institute number", 2: "Location name"},
-    },
-    "Location/Site parts from DN": {
-        "Pattern": r"CN=[A-Za-z]+-(\d+)_L_(([^_^ ^-]+)-([^_^ ]+) (\d+)),OU=Standorte",
-        "Groups": {
-            1: "SAP institute number",
-            2: "Site name",
-            3: "City",
-            4: "Street",
-            5: "House number",
-        },
-    },
-    "UUID from full page title": {
-        "Pattern": r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
-        "Groups": {1: "Namespace", 2: "Prefix", 3: "UUID"},
-    },
-}
-REGEX_PATTERN_LIST = [
-    RegExPatternExtended(
-        description="SAP OU number and name from DN",
-        pattern=r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
-        group_keys=["Something", "SAP OU number", "SAP OU name"],
-    ),
-    RegExPatternExtended(
-        description="Location name from DN",
-        pattern=r"CN=[A-Za-z]+\-(\d+)_L_([^_]+),OU=Standorte",
-        group_keys=["SAP institute number", "Location name"],
-    ),
-    RegExPatternExtended(
-        description="Location/Site parts from DN",
-        pattern=r"CN=[A-Za-z]+\-(\d+)_L_(([^_^ ^-]+)-([^_^ ]+) (\d+))," r"OU=Standorte",
-        group_keys=[
-            "SAP institute number",
-            "Site name",
-            "City",
-            "Street",
-            "House number",
-        ],
-    ),
-    RegExPatternExtended(
-        description="UUID from full page title",
-        pattern=r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
-        group_keys=["Namespace", "Prefix", "UUID"],
-    ),
-]
+# For compatibility with the old version of the module
 REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
-REGEX_PATTERN_LIB = {rep.description: rep for rep in REGEX_PATTERN_LIST}
 
 
 # Classes
@@ -203,7 +151,7 @@ def get_uuid_from_object_via_type(obj: Any) -> Union[uuid_module.UUID, None]:
         else:
             type_str = str(type_)
         match = re.match(
-            pattern=REGEX_PATTERN["UUID from full page title"]["Pattern"],
+            pattern=REGEX_PATTERN_LIB["UUID from full page title"].pattern,
             string=type_str,
         )
         uuid_str = match.group(3)
@@ -473,8 +421,8 @@ def nan_empty_or_none(inp: Any) -> bool:
 
 
 def regex_match_list(
-    pattern: Union[str, dm.RegExPatternExtended], list_of_strings: List[str]
-) -> List[Union[str, dm.MatchResult]]:
+    pattern: Union[str, strutil.RegExPatternExtended], list_of_strings: List[str]
+) -> List[Union[str, strutil.MatchResult]]:
     """Returns a subset of the 'list_of_strings' that matched the regex 'pattern'.
 
     Parameters
@@ -493,7 +441,7 @@ def regex_match_list(
             if re.match(pattern=pattern, string=string):
                 matches.append(string)
         return matches
-    elif isinstance(pattern, dm.RegExPatternExtended):
+    elif isinstance(pattern, strutil.RegExPatternExtended):
         matches = []
         for string in list_of_strings:
             match_result_obj = pattern.match(string)
@@ -778,6 +726,30 @@ def get_entities_from_osw(
             jsondata["full_page_title"] = entity
             entities_from_osw.append(model_to_cast_to(**jsondata))
     return entities_from_osw
+
+
+def full_page_title_to_uuid(full_page_title: str) -> uuid_module.UUID:
+    """Extracts a UUID from a full page title."""
+    match = re.match(
+        pattern=REGEX_PATTERN_LIB["UUID from full page title"].pattern,
+        string=full_page_title,
+    )
+    uuid_str = match.group(3)
+    return uuid_module.UUID(uuid_str)
+
+
+def osw_id_to_uuid(osw_id: str) -> uuid_module.UUID:
+    """Extracts a UUID from an OSW ID."""
+    match = re.match(
+        pattern=REGEX_PATTERN_LIB["UUID from OSW ID"].pattern, string=osw_id
+    )
+    uuid_str = match.group(2)
+    return uuid_module.UUID(uuid_str)
+
+
+def uuid_to_osw_id(uuid: uuid_module.UUID, prefix: str = "OSW") -> str:
+    """Creates an OSW ID from a UUID."""
+    return f"{prefix}{str(uuid).replace('-', '')}"
 
 
 def uuid_to_full_page_title(

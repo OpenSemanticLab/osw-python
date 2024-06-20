@@ -1,4 +1,4 @@
-from osw.data.mining import RegExPatternExtended
+from osw.utils.strings import RegExPatternExtended
 
 REGEX_PATTERN_LIST = [
     RegExPatternExtended(
@@ -98,6 +98,48 @@ REGEX_PATTERN_LIST = [
         group_keys=["Label", "Suffix(es)"],
         example_str="File:ISC-Digital-1440x448px.jpg",
         expected_groups=["ISC-Digital-1440x448px", ".jpg"],
+    ),
+    RegExPatternExtended(
+        description="File page strings from any text",
+        pattern=r"(File:(OSW[0-9a-fA-F]{32})((?:\.[\w-]+)*))",
+        group_keys=["Full page name", "OSW-ID", "Suffix(es)"],
+        example_str="File:OSWb701155d41ad44ab9ad719edc3a2480a.drawio.png",
+        expected_groups=[
+            "File:OSWb701155d41ad44ab9ad719edc3a2480a.drawio.png",
+            "OSWb701155d41ad44ab9ad719edc3a2480a",
+            ".drawio.png",
+        ],
+    ),
+    RegExPatternExtended(
+        description="SAP OU number and name from DN",
+        pattern=r"CN=(.+)([0-9]{10})-(.+),OU=Abteilungen",
+        group_keys=["Something", "SAP OU number", "SAP OU name"],
+    ),
+    RegExPatternExtended(
+        description="Location name from DN",
+        pattern=r"CN=[A-Za-z]+\-(\d+)_L_([^_]+),OU=Standorte",
+        group_keys=["SAP institute number", "Location name"],
+    ),
+    RegExPatternExtended(
+        description="Location/Site parts from DN",
+        pattern=r"CN=[A-Za-z]+\-(\d+)_L_(([^_^ ^-]+)-([^_^ ]+) (\d+))," r"OU=Standorte",
+        group_keys=[
+            "SAP institute number",
+            "Site name",
+            "City",
+            "Street",
+            "House number",
+        ],
+    ),
+    RegExPatternExtended(
+        description="UUID from full page title",
+        pattern=r"([A-Za-z]+):([A-Z]+)([a-z\d\-]+)",
+        group_keys=["Namespace", "Prefix", "UUID"],
+    ),
+    RegExPatternExtended(
+        description="UUID from OSW ID",
+        pattern=r"([A-Z]+)([a-z\d\-]+)",
+        group_keys=["Prefix", "UUID"],
     ),
 ]
 REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}

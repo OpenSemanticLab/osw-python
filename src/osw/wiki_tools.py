@@ -117,17 +117,18 @@ class SearchParam(OswBaseModel):
     """Search parameters for semantic and prefix search"""
 
     query: Union[str, List[str]]
-    parallel: Optional[bool] = False  # is set to true if query is a list longer than 5
+    parallel: Optional[bool] = None  # is set to true if query is a list longer than 5
     debug: Optional[bool] = True
     limit: Optional[int] = 1000
 
-    # todo: @Simon: Bad style? Better to make it explicit in every function using it?
     def __init__(self, **data):
         super().__init__(**data)
-        if isinstance(self.query, str):
+        if not isinstance(self.query, list):
             self.query = [self.query]
-        if len(self.query) > 5:
+        if len(self.query) > 5 and self.parallel is None:
             self.parallel = True
+        if self.parallel is None:
+            self.parallel = False
 
 
 def prefix_search(
@@ -148,14 +149,10 @@ def prefix_search(
     page_list :
         List of page titles
     """
-    if isinstance(text, str):
-        query = SearchParam(query=[text])
-    elif isinstance(text, list):
+    if not isinstance(text, SearchParam):
         query = SearchParam(query=text)
     else:
         query = text
-    if len(query.query) > 5:
-        query.parallel = True
 
     def prefix_search_(single_text):
         page_list = list()
@@ -208,12 +205,8 @@ def semantic_search(
     page_list:
         List of page titles
     """
-    if isinstance(query, str):
-        query = SearchParam(query=[query])
-    elif isinstance(query, list):
+    if not isinstance(query, SearchParam):
         query = SearchParam(query=query)
-    if len(query.query) > 5:
-        query.parallel = True
 
     def semantic_search_(single_query):
         page_list = list()
@@ -321,14 +314,10 @@ def get_file_info_and_usage(
     Use the sandbox to design and test the queries:
     https://demo.open-semantic-lab.org/wiki/Special:ApiSandbox
     """
-    if isinstance(title, str):
-        query = SearchParam(query=[title], debug=False)
-    elif isinstance(title, list):
+    if not isinstance(title, SearchParam):
         query = SearchParam(query=title, debug=False)
     else:  # SearchParam
         query = title
-    if len(query.query) > 5:
-        query.parallel = True
 
     def get_file_info_and_usage_(single_title):
         api_request_result = site.api(

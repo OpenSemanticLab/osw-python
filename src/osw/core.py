@@ -620,12 +620,21 @@ class OSW(BaseModel):
         if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
             return OSW.LoadEntityResult(entities=entities)
 
-    class StoreEntityParam(model.OswBaseModel):
+    class StoreEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
         namespace: Optional[str]
-        parallel: Optional[bool] = False
+        parallel: Optional[bool] = None
         meta_category_title: Optional[str] = "Category:Category"
         debug: Optional[bool] = False
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.entities, list):
+                self.entities = [self.entities]
+            if len(self.entities) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
 
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
@@ -645,8 +654,6 @@ class OSW(BaseModel):
             param.entities = [param.entities]
 
         max_index = len(param.entities)
-        if max_index >= 5:
-            param.parallel = True
 
         meta_category = self.site.get_page(
             WtSite.GetPageParam(titles=[param.meta_category_title])
@@ -713,14 +720,23 @@ class OSW(BaseModel):
                 for i, e in enumerate(param.entities)
             ]
 
-    class DeleteEntityParam(model.OswBaseModel):
-        entities: List[model.OswBaseModel]
+    class DeleteEntityParam(OswBaseModel):
+        entities: Union[OswBaseModel, List[OswBaseModel]]
         comment: Optional[str] = None
-        parallel: Optional[bool] = False
+        parallel: Optional[bool] = None
         debug: Optional[bool] = False
 
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.entities, list):
+                self.entities = [self.entities]
+            if len(self.entities) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
+
     def delete_entity(
-        self, entity: Union[model.OswBaseModel, DeleteEntityParam], comment: str = None
+        self, entity: Union[OswBaseModel, DeleteEntityParam], comment: str = None
     ):
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
@@ -730,8 +746,6 @@ class OSW(BaseModel):
                 entity = OSW.DeleteEntityParam(entities=[entity])
         if comment is not None:
             entity.comment = comment
-        if len(entity.entities) >= 5:
-            entity.parallel = True
 
         def delete_entity_(entity, comment_: str = None):
             """Deletes the given entity from the OSW instance.
@@ -778,11 +792,20 @@ class OSW(BaseModel):
         else:
             _ = [delete_entity_(e, entity.comment) for e in entity.entities]
 
-    class QueryInstancesParam(model.OswBaseModel):
-        categories: List[Union[str, OswBaseModel]]
-        parallel: Optional[bool] = False
+    class QueryInstancesParam(OswBaseModel):
+        categories: Union[Union[str, OswBaseModel], List[Union[str, OswBaseModel]]]
+        parallel: Optional[bool] = None
         debug: Optional[bool] = False
         limit: Optional[int] = 1000
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.categories, list):
+                self.categories = [self.categories]
+            if len(self.categories) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
 
     def query_instances(
         self, category: Union[str, OswBaseModel, OSW.QueryInstancesParam]
@@ -794,7 +817,7 @@ class OSW(BaseModel):
             )
             if isinstance(category_, str):
                 return category_.split(":")[-1]  # page title w/o namespace
-            elif isinstance(category_, model.OswBaseModel):
+            elif isinstance(category_, OswBaseModel):
                 type_ = getattr(category_, "type", None)
                 if type_:
                     full_page_title = type_[0]

@@ -193,6 +193,15 @@ class WtSite:
         debug: Optional[bool] = False
         """Whether to print debug messages"""
 
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.titles, list):
+                self.titles = [self.titles]
+            if len(self.titles) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
+
     class GetPageResult(model.OswBaseModel):
         pages: List["WtPage"]
         """List of pages that have been downloaded"""
@@ -210,12 +219,7 @@ class WtSite:
         param:
             GetPageParam object
         """
-        # ensure that titles is a list
-        if not isinstance(param.titles, list):
-            param.titles = [param.titles]
         max_index = len(param.titles)
-        if param.parallel is None and max_index >= 5:
-            param.parallel = True
 
         exeptions = []
         pages = []
@@ -438,6 +442,15 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.pages, list):
+                self.pages = [self.pages]
+            if len(self.pages) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
+
     def upload_page(
         self,
         param: Union[UploadPageParam, "WtPage", List["WtPage"]],
@@ -449,14 +462,10 @@ class WtSite:
         param:
             UploadPageParam object or a WtPage object or a list of WtPage objects.
         """
-        if isinstance(param, WtPage):
-            param = WtSite.UploadPageParam(pages=[param])
-        elif isinstance(param, list):
+        if not isinstance(param, WtSite.UploadPageParam):
             param = WtSite.UploadPageParam(pages=param)
 
         max_index = len(param.pages)
-        if max_index >= 5:
-            param.parallel = True
 
         def upload_page_(page, index: int = None):
             # Before uploading: Check if the page is uploaded to the WtSite that is
@@ -486,17 +495,28 @@ class WtSite:
 
         source_site: "WtSite"
         """The source site to copy the pages from"""
-        existing_pages: List[str]
+        existing_pages: Union[str, List[str]]
         """The full page title of the pages on the source site"""
         overwrite: Optional[bool] = False
         """If true, pages will be overwritten if they already exists on the target
         site"""
+        parallel: Optional[bool] = None
+        """If true, uploads the pages in parallel."""
         comment: Optional[str] = None
         """Edit comment for the page history. If set to none, will be replaced with
         '[bot edit] Copied from {source_site.host}'."""
 
         class Config:
             arbitrary_types_allowed = True
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.existing_pages, list):
+                self.existing_pages = [self.existing_pages]
+            if len(self.existing_pages) > 5 and self.parallel is None:
+                self.parallel = True
+            if self.parallel is None:
+                self.parallel = False
 
     def copy_pages(self, param: CopyPagesParam):
         """Copies pages from a source site to this (target) site."""
@@ -515,11 +535,15 @@ class WtSite:
 
         page_contents = param.source_site.get_page_content(param.existing_pages)
         content_list = [{key: value} for key, value in page_contents.contents.items()]
-        return ut.parallelize(
-            copy_single_page,
-            content_list,
-            flush_at_end=True,
-        )
+
+        if param.parallel:
+            return ut.parallelize(
+                copy_single_page,
+                content_list,
+                flush_at_end=True,
+            )
+        else:
+            return [copy_single_page(content) for content in content_list]
 
     class CreatePagePackageParam(model.OswBaseModel):
         """Parameter object for create_page_package method."""

@@ -7,12 +7,12 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
-from pydantic.main import ModelMetaclass
+from pydantic.main import ModelMetaclass, PrivateAttr
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
@@ -797,6 +797,32 @@ class OSW(BaseModel):
         parallel: Optional[bool] = None
         debug: Optional[bool] = False
         limit: Optional[int] = 1000
+        _category_string_parts: List[Dict[str, str]] = PrivateAttr()
+        _titles: List[str] = PrivateAttr()
+
+        @staticmethod
+        def get_full_page_name_parts(
+            category_: Union[str, OswBaseModel]
+        ) -> Dict[str, str]:
+            error_msg = (
+                f"Category must be a string or a dataclass instance with "
+                f"a 'type' attribute. This error occurred on '{str(category_)}'"
+            )
+            if isinstance(category_, str):
+                string_to_split = category_
+            elif isinstance(category_, OswBaseModel):
+                type_ = getattr(category_, "type", None)
+                if type_ is None:
+                    raise TypeError(error_msg)
+                string_to_split = type_[0]
+            else:
+                raise TypeError(error_msg)
+            if "Category:" not in string_to_split:
+                raise TypeError(error_msg)
+            return {
+                "namespace": string_to_split.split(":")[0],
+                "title": string_to_split.split(":")[-1],
+            }
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -806,36 +832,23 @@ class OSW(BaseModel):
                 self.parallel = True
             if self.parallel is None:
                 self.parallel = False
+            self._category_string_parts = [
+                OSW.QueryInstancesParam.get_full_page_name_parts(cat)
+                for cat in self.categories
+            ]
+            self._titles = [parts["title"] for parts in self._category_string_parts]
 
     def query_instances(
         self, category: Union[str, OswBaseModel, OSW.QueryInstancesParam]
     ) -> List[str]:
-        def get_page_title(category_: Union[str, OswBaseModel]) -> str:
-            error_msg = (
-                "Category must be a string, a dataclass instance with "
-                "a 'type' attribute or osw.wiki_tools.SearchParam."
-            )
-            if isinstance(category_, str):
-                return category_.split(":")[-1]  # page title w/o namespace
-            elif isinstance(category_, OswBaseModel):
-                type_ = getattr(category_, "type", None)
-                if type_:
-                    full_page_title = type_[0]
-                    return full_page_title.split(":")[-1]  # page title w/o namespace
-                else:
-                    raise TypeError(error_msg)
-            else:
-                raise TypeError(error_msg)
-
-        if isinstance(category, OSW.QueryInstancesParam):
-            page_titles = [get_page_title(cat) for cat in category.categories]
-        else:
-            page_titles = [get_page_title(category)]
-            category = OSW.QueryInstancesParam(categories=page_titles)
-
+        if not isinstance(category, OSW.QueryInstancesParam):
+            category = OSW.QueryInstancesParam(categories=category)
+        page_titles = category._titles
         search_param = SearchParam(
             query=[f"[[HasType::Category:{page_title}]]" for page_title in page_titles],
-            **category.dict(exclude={"categories"}),
+            **category.dict(
+                exclude={"categories", "_category_string_parts", "_titles"}
+            ),
         )
         full_page_titles = self.site.semantic_search(search_param)
         return full_page_titles

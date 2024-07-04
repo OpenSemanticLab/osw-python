@@ -740,10 +740,7 @@ class OSW(BaseModel):
     ):
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
-            if isinstance(entity, list):
-                entity = OSW.DeleteEntityParam(entities=entity)
-            else:
-                entity = OSW.DeleteEntityParam(entities=[entity])
+            entity = OSW.DeleteEntityParam(entities=entity)
         if comment is not None:
             entity.comment = comment
 

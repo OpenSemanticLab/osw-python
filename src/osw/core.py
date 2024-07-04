@@ -490,29 +490,27 @@ class OSW(BaseModel):
                 self.site.disable_cache()  # restore original state
 
     class LoadEntityParam(BaseModel):
-        """Param for load_entity()
-
-        Attributes
-        ----------
-        titles:
-            one or multiple titles (wiki page name) of entities
-        """
+        """Param for load_entity()"""
 
         titles: Union[str, List[str]]
-        """the pages titles to load"""
+        """The pages titles to load - one or multiple titles (wiki page name) of
+        entities"""
         autofetch_schema: Optional[bool] = True
-        """if true, load the corresponding schemas / categories ad-hoc if not already present"""
+        """If true, load the corresponding schemas /
+        categories ad-hoc if not already present"""
+        disable_cache: bool = False
+        """If true, disable the cache for the loading process"""
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.titles, list):
+                self.titles = [self.titles]
 
     class LoadEntityResult(BaseModel):
-        """Result of load_entity()
-
-        Attributes
-        ----------
-        entities:
-            the dataclass instance(s)
-        """
+        """Result of load_entity()"""
 
         entities: Union[model.Entity, List[model.Entity]]
+        """The dataclass instance(s)"""
 
     def load_entity(
         self, entity_title: Union[str, List[str], LoadEntityParam]
@@ -533,23 +531,23 @@ class OSW(BaseModel):
             a list of dataclass instances if a list of titles is given
             a LoadEntityResult instance if a LoadEntityParam is given
         """
-
-        titles = []
-        if isinstance(entity_title, str):  # single title
-            titles = [entity_title]
-        if isinstance(entity_title, list):  # list of titles
-            titles = entity_title
-        load_param = OSW.LoadEntityParam(titles=titles)
-        if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
-            load_param = entity_title
-            titles = entity_title.titles
-        entities = []
+        if isinstance(entity_title, str):
+            param = OSW.LoadEntityParam(titles=[entity_title])
+        elif isinstance(entity_title, list):
+            param = OSW.LoadEntityParam(titles=entity_title)
+        else:
+            param = entity_title
 
         # store original cache state
         cache_state = self.site.get_cache_enabled()
-        # enable cache to speed up loading
-        self.site.enable_cache()
-        pages = self.site.get_page(WtSite.GetPageParam(titles=titles)).pages
+        if param.disable_cache:
+            self.site.disable_cache()
+        if not cache_state and param.disable_cache:
+            # enable cache to speed up loading
+            self.site.enable_cache()
+
+        entities = []
+        pages = self.site.get_page(WtSite.GetPageParam(titles=param.titles)).pages
         for page in pages:
             entity = None
             schemas = []
@@ -566,7 +564,7 @@ class OSW(BaseModel):
                     # generate model if not already exists
                     cls = schema["title"]
                     if not hasattr(model, cls):
-                        if load_param.autofetch_schema:
+                        if param.autofetch_schema:
                             self.fetch_schema(
                                 OSW.FetchSchemaParam(
                                     schema_title=category, mode="append"
@@ -585,7 +583,7 @@ class OSW(BaseModel):
 
             elif len(schemas) == 1:
                 cls = schemas[0]["title"]
-                entity = eval(f"model.{cls}(**jsondata)")
+                entity: model.Entity = eval(f"model.{cls}(**jsondata)")
 
             else:
                 bases = []
@@ -608,8 +606,11 @@ class OSW(BaseModel):
 
             entities.append(entity)
         # restore original cache state
-        if not cache_state:
+        if cache_state:
+            self.site.enable_cache()
+        else:
             self.site.disable_cache()
+
         if isinstance(entity_title, str):  # single title
             if len(entities) >= 1:
                 return entities[0]

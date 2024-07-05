@@ -7,12 +7,12 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
 from pydantic import BaseModel, Field, create_model
-from pydantic.main import ModelMetaclass
+from pydantic.main import ModelMetaclass, PrivateAttr
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
@@ -490,29 +490,27 @@ class OSW(BaseModel):
                 self.site.disable_cache()  # restore original state
 
     class LoadEntityParam(BaseModel):
-        """Param for load_entity()
-
-        Attributes
-        ----------
-        titles:
-            one or multiple titles (wiki page name) of entities
-        """
+        """Param for load_entity()"""
 
         titles: Union[str, List[str]]
-        """the pages titles to load"""
+        """The pages titles to load - one or multiple titles (wiki page name) of
+        entities"""
         autofetch_schema: Optional[bool] = True
-        """if true, load the corresponding schemas / categories ad-hoc if not already present"""
+        """If true, load the corresponding schemas /
+        categories ad-hoc if not already present"""
+        disable_cache: bool = False
+        """If true, disable the cache for the loading process"""
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.titles, list):
+                self.titles = [self.titles]
 
     class LoadEntityResult(BaseModel):
-        """Result of load_entity()
-
-        Attributes
-        ----------
-        entities:
-            the dataclass instance(s)
-        """
+        """Result of load_entity()"""
 
         entities: Union[model.Entity, List[model.Entity]]
+        """The dataclass instance(s)"""
 
     def load_entity(
         self, entity_title: Union[str, List[str], LoadEntityParam]
@@ -533,23 +531,23 @@ class OSW(BaseModel):
             a list of dataclass instances if a list of titles is given
             a LoadEntityResult instance if a LoadEntityParam is given
         """
-
-        titles = []
-        if isinstance(entity_title, str):  # single title
-            titles = [entity_title]
-        if isinstance(entity_title, list):  # list of titles
-            titles = entity_title
-        load_param = OSW.LoadEntityParam(titles=titles)
-        if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
-            load_param = entity_title
-            titles = entity_title.titles
-        entities = []
+        if isinstance(entity_title, str):
+            param = OSW.LoadEntityParam(titles=[entity_title])
+        elif isinstance(entity_title, list):
+            param = OSW.LoadEntityParam(titles=entity_title)
+        else:
+            param = entity_title
 
         # store original cache state
         cache_state = self.site.get_cache_enabled()
-        # enable cache to speed up loading
-        self.site.enable_cache()
-        pages = self.site.get_page(WtSite.GetPageParam(titles=titles)).pages
+        if param.disable_cache:
+            self.site.disable_cache()
+        if not cache_state and param.disable_cache:
+            # enable cache to speed up loading
+            self.site.enable_cache()
+
+        entities = []
+        pages = self.site.get_page(WtSite.GetPageParam(titles=param.titles)).pages
         for page in pages:
             entity = None
             schemas = []
@@ -566,7 +564,7 @@ class OSW(BaseModel):
                     # generate model if not already exists
                     cls = schema["title"]
                     if not hasattr(model, cls):
-                        if load_param.autofetch_schema:
+                        if param.autofetch_schema:
                             self.fetch_schema(
                                 OSW.FetchSchemaParam(
                                     schema_title=category, mode="append"
@@ -585,7 +583,7 @@ class OSW(BaseModel):
 
             elif len(schemas) == 1:
                 cls = schemas[0]["title"]
-                entity = eval(f"model.{cls}(**jsondata)")
+                entity: model.Entity = eval(f"model.{cls}(**jsondata)")
 
             else:
                 bases = []
@@ -608,8 +606,11 @@ class OSW(BaseModel):
 
             entities.append(entity)
         # restore original cache state
-        if not cache_state:
+        if cache_state:
+            self.site.enable_cache()
+        else:
             self.site.disable_cache()
+
         if isinstance(entity_title, str):  # single title
             if len(entities) >= 1:
                 return entities[0]
@@ -740,10 +741,7 @@ class OSW(BaseModel):
     ):
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
-            if isinstance(entity, list):
-                entity = OSW.DeleteEntityParam(entities=entity)
-            else:
-                entity = OSW.DeleteEntityParam(entities=[entity])
+            entity = OSW.DeleteEntityParam(entities=entity)
         if comment is not None:
             entity.comment = comment
 
@@ -797,6 +795,32 @@ class OSW(BaseModel):
         parallel: Optional[bool] = None
         debug: Optional[bool] = False
         limit: Optional[int] = 1000
+        _category_string_parts: List[Dict[str, str]] = PrivateAttr()
+        _titles: List[str] = PrivateAttr()
+
+        @staticmethod
+        def get_full_page_name_parts(
+            category_: Union[str, OswBaseModel]
+        ) -> Dict[str, str]:
+            error_msg = (
+                f"Category must be a string or a dataclass instance with "
+                f"a 'type' attribute. This error occurred on '{str(category_)}'"
+            )
+            if isinstance(category_, str):
+                string_to_split = category_
+            elif isinstance(category_, OswBaseModel):
+                type_ = getattr(category_, "type", None)
+                if type_ is None:
+                    raise TypeError(error_msg)
+                string_to_split = type_[0]
+            else:
+                raise TypeError(error_msg)
+            if "Category:" not in string_to_split:
+                raise TypeError(error_msg)
+            return {
+                "namespace": string_to_split.split(":")[0],
+                "title": string_to_split.split(":")[-1],
+            }
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -806,36 +830,23 @@ class OSW(BaseModel):
                 self.parallel = True
             if self.parallel is None:
                 self.parallel = False
+            self._category_string_parts = [
+                OSW.QueryInstancesParam.get_full_page_name_parts(cat)
+                for cat in self.categories
+            ]
+            self._titles = [parts["title"] for parts in self._category_string_parts]
 
     def query_instances(
         self, category: Union[str, OswBaseModel, OSW.QueryInstancesParam]
     ) -> List[str]:
-        def get_page_title(category_: Union[str, OswBaseModel]) -> str:
-            error_msg = (
-                "Category must be a string, a dataclass instance with "
-                "a 'type' attribute or osw.wiki_tools.SearchParam."
-            )
-            if isinstance(category_, str):
-                return category_.split(":")[-1]  # page title w/o namespace
-            elif isinstance(category_, OswBaseModel):
-                type_ = getattr(category_, "type", None)
-                if type_:
-                    full_page_title = type_[0]
-                    return full_page_title.split(":")[-1]  # page title w/o namespace
-                else:
-                    raise TypeError(error_msg)
-            else:
-                raise TypeError(error_msg)
-
-        if isinstance(category, OSW.QueryInstancesParam):
-            page_titles = [get_page_title(cat) for cat in category.categories]
-        else:
-            page_titles = [get_page_title(category)]
-            category = OSW.QueryInstancesParam(categories=page_titles)
-
+        if not isinstance(category, OSW.QueryInstancesParam):
+            category = OSW.QueryInstancesParam(categories=category)
+        page_titles = category._titles
         search_param = SearchParam(
             query=[f"[[HasType::Category:{page_title}]]" for page_title in page_titles],
-            **category.dict(exclude={"categories"}),
+            **category.dict(
+                exclude={"categories", "_category_string_parts", "_titles"}
+            ),
         )
         full_page_titles = self.site.semantic_search(search_param)
         return full_page_titles

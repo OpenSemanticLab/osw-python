@@ -439,7 +439,6 @@ class OSW(BaseModel):
                 --use-double-quotes \
                 --collapse-root-models \
                 --reuse-model \
-                --field-include-all-keys \
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
@@ -688,15 +687,15 @@ class OSW(BaseModel):
             #  those can be safely overwritten - set the to True
 
     class SortEntitiesResult(OswBaseModel):
-        by_name: Dict[str, List[model.Entity]]
-        by_type: Dict[str, List[model.Entity]]
+        by_name: Dict[str, List[OswBaseModel]]
+        by_type: Dict[str, List[OswBaseModel]]
 
         # class Config:
         #     arbitrary_types_allowed = True
 
     @staticmethod
     def sort_list_of_entities_by_class(
-        entities: List[model.Entity],
+        entities: List[OswBaseModel],
     ) -> SortEntitiesResult:
         by_name = {}
         by_type = {}
@@ -813,9 +812,6 @@ class OSW(BaseModel):
                     print(f"content_to_set: {str(content_to_set)}")
                 for slot_ in content_to_set.keys():
                     page.set_slot_content(slot_, content_to_set[slot_])
-                    # todo: does this overwrite key:value pairs if the local content
-                    #  does not contain the key?
-                    #  Example: image in the test case
                 if namespace_ == "Category":
                     if meta_category_template:
                         try:

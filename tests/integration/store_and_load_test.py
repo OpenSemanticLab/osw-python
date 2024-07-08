@@ -2,6 +2,7 @@ import mwclient
 
 import osw.model.entity as model
 from osw.core import OSW
+from osw.utils.wiki import get_full_title
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
@@ -158,6 +159,25 @@ def test_store_and_load(wiki_domain, wiki_username, wiki_password):
         check["assert"](original_item, altered_item, stored_item)
         # Delete the item
         osw.delete_entity(original_item)
+
+
+def test_query_instances(wiki_domain, wiki_username, wiki_password):
+    """Store an entity, query instances of the category of the entity, make sure the
+    new entity is contained in the list of returned instances, delete the entity."""
+    site = mwclient.Site(host=wiki_domain)
+    site.login(username=wiki_username, password=wiki_password)
+    wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
+    osw = OSW(site=wtsite)
+    # Create an item with a label
+    my_item = model.Item(label=[model.Label(text="MyItem")])
+    fpt = get_full_title(my_item)
+    # Store the item in the OSW
+    osw.store_entity(my_item)
+    # Query instances of the category of the entity
+    instances = osw.query_instances(category="Category:Item")
+    assert fpt in instances
+    # Delete the item
+    osw.delete_entity(my_item)
 
 
 def test_statement_creation(wiki_domain, wiki_username, wiki_password):

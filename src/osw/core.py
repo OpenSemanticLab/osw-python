@@ -7,11 +7,11 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Type, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, Field, create_model, validator
 from pydantic.main import ModelMetaclass, PrivateAttr
 
 import osw.model.entity as model
@@ -29,6 +29,31 @@ from osw.utils.wiki import (
 )
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtPage, WtSite
+
+# Reusable type definitions
+OVERWRITE_OPTIONS = Union[
+    bool,  # False: never overwrite a property,
+    # True: always overwrite a property
+    Literal[
+        "only empty",  # only overwrite if the property is empty
+        # "merge",  # todo: implement
+        # "append",  # don't replace the properties but for properties of type array or
+        # dict, append the values of the local entity to the remote entity, make sure
+        # to not append duplicates # todo: implement
+        # "only older",  # todo: implement read out from the version history of the page
+    ],
+]
+OVERWRITE_CLASS_OPTIONS = Union[
+    OVERWRITE_OPTIONS,  # All of the above which will serve as a fallback
+    Literal[
+        "replace remote",  # replace the entity with the new one, removes all
+        # properties that are not present in the local entity
+        "keep existing",  # keep the entity, does not add or remove any properties,
+        # if the page exists, the entity is not stored
+    ],
+    None,  # Not an option to choose from, will be replaced by the default
+    # remote properties
+]
 
 
 class OswClassMetaclass(ModelMetaclass):
@@ -414,6 +439,7 @@ class OSW(BaseModel):
                 --use-double-quotes \
                 --collapse-root-models \
                 --reuse-model \
+                --field-include-all-keys \
             "
             )
             # see https://koxudaxi.github.io/datamodel-code-generator/
@@ -621,12 +647,93 @@ class OSW(BaseModel):
         if isinstance(entity_title, OSW.LoadEntityParam):  # LoadEntityParam
             return OSW.LoadEntityResult(entities=entities)
 
+    class OverwriteClassParam(OswBaseModel):
+        model: Type[OswBaseModel]  # ModelMetaclass
+        """The model class for which this is the overwrite params object."""
+        overwrite: Optional[OVERWRITE_CLASS_OPTIONS] = False
+        """Defines the overall overwriting behavior. Used for any property if the
+        property specific setting is not set."""
+        per_property: Optional[Dict[str, OVERWRITE_OPTIONS]] = None
+        """A key (property name) - value (overwrite setting) pair. Careful! - When
+        setting values of this dictionary after validation, the validator won't be
+        called again. The same applies for the __init__ function!"""
+        _per_property: Dict[str, OVERWRITE_CLASS_OPTIONS] = PrivateAttr()
+        """Private property, for internal use only. Use 'per_property' instead"""
+
+        @validator("per_property")
+        def validate_per_property(cls, per_property, values):
+            model_ = values.get("model")
+            field_names = list(model_.__fields__.keys())
+            keys = per_property.keys()
+            if not all(key in field_names for key in keys):
+                missing_keys = [key for key in keys if key not in field_names]
+                raise ValueError(
+                    f"Property not found in model: {', '.join(missing_keys)}"
+                )
+
+            return per_property
+
+        def __init__(self, **data):
+            """Called after validation. Sets the fallback for every property that
+            has not been specified in per_property."""
+            super().__init__(**data)
+            per_property_ = {}
+            if self.per_property is not None:
+                per_property_ = self.per_property
+            self._per_property = {
+                field_name: per_property_.get(field_name, self.overwrite)
+                for field_name in self.model.__fields__.keys()
+            }
+            # todo: from class definition get properties with hidden / read_only option
+            #  those can be safely overwritten - set the to True
+
+    class SortEntitiesResult(OswBaseModel):
+        by_name: Dict[str, List[model.Entity]]
+        by_type: Dict[str, List[model.Entity]]
+
+        # class Config:
+        #     arbitrary_types_allowed = True
+
+    @staticmethod
+    def sort_list_of_entities_by_class(
+        entities: List[model.Entity],
+    ) -> SortEntitiesResult:
+        by_name = {}
+        by_type = {}
+        for entity in entities:
+            name = entity.__class__.__name__
+            if name not in by_name:
+                by_name[name] = []
+            by_name[name].append(entity)
+            model_type = entity.__class__.__fields__["type"].default[0]
+            # model_type = entity.type[0]  # type needs to move to Entity from Item
+            if model_type not in by_type:
+                by_type[model_type] = []
+            by_type[model_type].append(entity)
+
+        return OSW.SortEntitiesResult(by_name=by_name, by_type=by_type)
+
     class StoreEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
+        """The entities to store. Can be a single entity or a list of entities."""
         namespace: Optional[str]
+        """The namespace of the entities. If not set, the namespace is derived from the
+        entity."""
         parallel: Optional[bool] = None
+        """If set to True, the entities are stored in parallel."""
+        overwrite: Optional[OVERWRITE_CLASS_OPTIONS] = "keep existing"
+        """If no class specific overwrite setting is set, this setting is used."""
+        overwrite_per_class: Optional[List[OSW.OverwriteClassParam]] = None
+        """A list of OverwriteClassParam objects. If a class specific overwrite setting
+        is set, this setting is used.
+        """
         meta_category_title: Optional[str] = "Category:Category"
         debug: Optional[bool] = False
+        _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
+            PrivateAttr()
+        )
+        """Private attribute, for internal use only. Use 'overwrite_per_class'
+        instead."""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -636,6 +743,24 @@ class OSW(BaseModel):
                 self.parallel = True
             if self.parallel is None:
                 self.parallel = False
+            if self.overwrite is None:
+                self.overwrite = self.__fields__["overwrite"].default
+            self._overwrite_per_class = {"by name": {}, "by type": {}}
+            if self.overwrite_per_class is not None:
+                for param in self.overwrite_per_class:
+                    model_name = param.model.__name__
+                    model_type = param.model.__fields__["type"].default[0]
+                    if (
+                        model_name in self._overwrite_per_class["by name"].keys()
+                        or model_type in self._overwrite_per_class["by type"].keys()
+                    ):
+                        raise ValueError(
+                            f"More than one OverwriteClassParam for the class "
+                            f"'{model_type}' ({model_name}) has been passed in the "
+                            f"list to 'overwrite_per_class'!"
+                        )
+                    self._overwrite_per_class["by name"][model_name] = param
+                    self._overwrite_per_class["by type"][model_type] = param
 
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
@@ -665,7 +790,10 @@ class OSW(BaseModel):
             meta_category_template = compile_handlebars_template(meta_category_template)
 
         def store_entity_(
-            entity: model.Entity, namespace_: str = None, index: int = None
+            entity: model.Entity,
+            namespace_: str = None,
+            index: int = None,
+            overwrite_class_param: OSW.OverwriteClassParam = None,
         ) -> None:
             title_ = get_title(entity)
             if namespace_ is None:
@@ -673,53 +801,189 @@ class OSW(BaseModel):
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
+            if overwrite_class_param is None:
+                raise TypeError("'overwrite_class_param' must not be None!")
             entity_title = namespace_ + ":" + title_
             page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
                 0
             ]
 
-            jsondata = json.loads(
-                entity.json(exclude_none=True)
-            )  # use pydantic serialization, skip none values
-            page.set_slot_content("jsondata", jsondata)
-            page.set_slot_content(
-                "header", "{{#invoke:Entity|header}}"
-            )  # required for json parsing and header rendering
-            page.set_slot_content(
-                "footer", "{{#invoke:Entity|footer}}"
-            )  # required for footer rendering
-            if namespace_ == "Category":
-                if meta_category_template:
-                    try:
-                        schema_str = eval_compiled_handlebars_template(
-                            meta_category_template,
-                            jsondata,
-                            {"_page_title": entity_title},
-                        )
-                        schema = json.loads(schema_str)
-                        page.set_slot_content("jsonschema", schema)
-                    except Exception as e:
-                        print(
-                            f"Schema generation from template failed for {entity}: {e}"
-                        )
-            page.edit()
-            if index is None:
-                print(f"Entity stored at '{page.get_url()}'.")
-            else:
-                print(f"({index + 1}/{max_index}) Entity stored at '{page.get_url()}'.")
+            def set_content_and_edit_page(content_to_set: dict) -> None:
+                print(f"content_to_set: {str(content_to_set)}")
+                for slot_ in content_to_set.keys():
+                    page.set_slot_content(slot_, content_to_set[slot_])
+                    # todo: does this overwrite key:value pairs if the local content
+                    #  does not contain the key?
+                    #  Example: image in the test case
+                if namespace_ == "Category":
+                    if meta_category_template:
+                        try:
+                            schema_str = eval_compiled_handlebars_template(
+                                meta_category_template,
+                                content_to_set["jsondata"],
+                                {"_page_title": entity_title},
+                            )
+                            schema = json.loads(schema_str)
+                            page.set_slot_content("jsonschema", schema)
+                        except Exception as e:
+                            print(
+                                f"Schema generation from template failed for {entity}: "
+                                f"{e}"
+                            )
+                page.edit()
+                if index is None:
+                    print(f"Entity stored at '{page.get_url()}'.")
+                else:
+                    print(
+                        f"({index + 1}/{max_index}) Entity stored at "
+                        f"'{page.get_url()}'."
+                    )
+                return None
 
-        if param.parallel:
-            _ = parallelize(
-                store_entity_,
-                param.entities,
-                flush_at_end=param.debug,
-                namespace_=param.namespace,
-            )
-        else:
-            _ = [
-                store_entity_(e, param.namespace, i)
-                for i, e in enumerate(param.entities)
-            ]
+            def is_empty(val):
+                if val is None:
+                    return True
+                elif (
+                    isinstance(val, list)
+                    or isinstance(val, str)
+                    or isinstance(val, dict)
+                ):
+                    return len(val) == 0
+                return False
+
+            # Create a variable to hold the new content
+            new_content = {
+                # required for json parsing and header rendering
+                "header": "{{#invoke:Entity|header}}",
+                # required for footer rendering
+                "footer": "{{#invoke:Entity|footer}}",
+            }
+            # Take the shortcut if
+            # 1. page does not exist AND any setting of overwrite
+            # 2. overwrite is "replace remote"
+            if not page.exists or overwrite_class_param.overwrite == "replace remote":
+                # Use pydantic serialization, skip none values:
+                new_content["jsondata"] = json.loads(entity.json(exclude_none=True))
+                set_content_and_edit_page(new_content)
+                return None  # Guard clause --> exit function
+            # 3. pages does exist AND overwrite is "keep existing"
+            if page.exists and overwrite_class_param.overwrite == "keep existing":
+                print(
+                    f"Entity '{entity_title}' already exists and won't be stored "
+                    f"with overwrite set to 'keep existing'!"
+                )
+                return None  # Guard clause --> exit function
+            # Apply the overwrite logic in any other case
+            # 1. If per_property was None  -> overwrite will be used as a fallback
+            # 1.1 If overwrite is True ---> overwrite existing properties
+            # 1.2 If overwrite is False --> don't overwrite existing properties
+            # 1.3 If overwrite is "only empty" --> overwrite existing properties if
+            #     they are empty
+            # * Download page
+            # * Merge slots selectively based on per_property
+            else:
+                # Create variables to hold local and remote content prior to merging
+                local_content = {}
+                remote_content = {}
+                # Get the remote content
+                for slot in ["jsondata", "header", "footer"]:  # SLOTS:
+                    remote_content[slot] = page.get_slot_content(slot)
+                    # Todo: remote content does not contain properties that are not set
+                if remote_content["header"]:  # not None or {} or ""
+                    new_content["header"] = remote_content["header"]
+                if remote_content["footer"]:
+                    new_content["footer"] = remote_content["footer"]
+                print(f"'remote_content': {str(remote_content)}")
+                # Get the local content
+                # Properties that are not set in the local content will be set to None
+                # We want those not to be listed as keys
+                local_content["jsondata"] = json.loads(entity.json(exclude_none=True))
+                print(f"'local_content': {str(remote_content)}")
+                # Apply the overwrite logic
+                # a) If there is a key in the remote content that is not in the local
+                #    content, we have to keep it
+                new_content["jsondata"] = remote_content["jsondata"]
+                # new_content["jsondata"] = {
+                #     key: value
+                #     for (key, value) in remote_content["jsondata"].items()
+                #     if key not in local_content["jsondata"].keys()
+                # }
+                print(f"'New content' after 'remote' update: {str(new_content)}")
+                # b) If there is a key in the local content that is not in the remote
+                #    content, we have to keep it
+                new_content["jsondata"].update(
+                    {
+                        key: value
+                        for (key, value) in local_content["jsondata"].items()
+                        if key not in remote_content["jsondata"].keys()
+                    }
+                )
+                print(f"'New content' after 'local' update: {str(new_content)}")
+                # c) If there is a key in both contents, we have to apply the overwrite
+                #    logic
+                # todo: include logic for hidden and read_only properties!
+                new_content["jsondata"].update(
+                    {
+                        key: value
+                        for (key, value) in local_content["jsondata"].items()
+                        if overwrite_class_param._per_property.get(key) is True
+                    }
+                )
+                print(f"'New content' after 'True' update: {str(new_content)}")
+                new_content["jsondata"].update(
+                    {
+                        key: value
+                        for (key, value) in remote_content["jsondata"].items()
+                        if overwrite_class_param._per_property.get(key) is False
+                    }
+                )
+                print(f"'New content' after 'False' update: {str(new_content)}")
+                new_content["jsondata"].update(
+                    {
+                        key: value
+                        for (key, value) in local_content["jsondata"].items()
+                        if (
+                            overwrite_class_param._per_property.get(key) == "only empty"
+                            and is_empty(remote_content["jsondata"].get(key))
+                        )
+                    }
+                )
+                print(f"'New content' after 'only empty' update: {str(new_content)}")
+                print(f"'New content' to be stored: {str(new_content)}")
+                set_content_and_edit_page(new_content)
+                return None  # Guard clause --> exit function
+
+        sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
+        print("Entities to be uploaded have been sorted according to their type.")
+        for class_type, entities in sorted_entities.by_type.items():
+            # Try to get a class specific overwrite setting
+            class_param = param._overwrite_per_class["by type"].get(class_type, None)
+            if class_param is None:
+                entity_model = entities[0].__class__
+                class_param = OSW.OverwriteClassParam(
+                    model=entity_model,
+                    overwrite=param.overwrite,
+                )
+                print(
+                    f"Now uploading entities of class type '{class_type}' "
+                    f"({entity_model.__name__}). No class specific overwrite setting "
+                    f"found. Using fallback option '{param.overwrite}' for all "
+                    f"entities of this class."
+                )
+            # Call store_entity for each entity of the class
+            if param.parallel:
+                _ = parallelize(
+                    store_entity_,
+                    entities,
+                    flush_at_end=param.debug,
+                    namespace_=param.namespace,
+                    overwrite_class_param=class_param,
+                )
+            else:
+                _ = [
+                    store_entity_(e, param.namespace, i, class_param)
+                    for i, e in enumerate(entities)
+                ]
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
@@ -803,8 +1067,9 @@ class OSW(BaseModel):
             category_: Union[str, OswBaseModel]
         ) -> Dict[str, str]:
             error_msg = (
-                f"Category must be a string or a dataclass instance with "
-                f"a 'type' attribute. This error occurred on '{str(category_)}'"
+                f"Category must be a string like 'Category:<category name>' or a "
+                f"dataclass instance with a 'type' attribute. This error occurred on "
+                f"'{str(category_)}'"
             )
             if isinstance(category_, str):
                 string_to_split = category_

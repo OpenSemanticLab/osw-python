@@ -809,7 +809,8 @@ class OSW(BaseModel):
             ]
 
             def set_content_and_edit_page(content_to_set: dict) -> None:
-                print(f"content_to_set: {str(content_to_set)}")
+                if param.debug:
+                    print(f"content_to_set: {str(content_to_set)}")
                 for slot_ in content_to_set.keys():
                     page.set_slot_content(slot_, content_to_set[slot_])
                     # todo: does this overwrite key:value pairs if the local content
@@ -893,12 +894,14 @@ class OSW(BaseModel):
                     new_content["header"] = remote_content["header"]
                 if remote_content["footer"]:
                     new_content["footer"] = remote_content["footer"]
-                print(f"'remote_content': {str(remote_content)}")
+                if param.debug:
+                    print(f"'remote_content': {str(remote_content)}")
                 # Get the local content
                 # Properties that are not set in the local content will be set to None
                 # We want those not to be listed as keys
                 local_content["jsondata"] = json.loads(entity.json(exclude_none=True))
-                print(f"'local_content': {str(remote_content)}")
+                if param.debug:
+                    print(f"'local_content': {str(remote_content)}")
                 # Apply the overwrite logic
                 # a) If there is a key in the remote content that is not in the local
                 #    content, we have to keep it
@@ -908,7 +911,8 @@ class OSW(BaseModel):
                 #     for (key, value) in remote_content["jsondata"].items()
                 #     if key not in local_content["jsondata"].keys()
                 # }
-                print(f"'New content' after 'remote' update: {str(new_content)}")
+                if param.debug:
+                    print(f"'New content' after 'remote' update: {str(new_content)}")
                 # b) If there is a key in the local content that is not in the remote
                 #    content, we have to keep it
                 new_content["jsondata"].update(
@@ -918,7 +922,8 @@ class OSW(BaseModel):
                         if key not in remote_content["jsondata"].keys()
                     }
                 )
-                print(f"'New content' after 'local' update: {str(new_content)}")
+                if param.debug:
+                    print(f"'New content' after 'local' update: {str(new_content)}")
                 # c) If there is a key in both contents, we have to apply the overwrite
                 #    logic
                 # todo: include logic for hidden and read_only properties!
@@ -929,7 +934,8 @@ class OSW(BaseModel):
                         if overwrite_class_param._per_property.get(key) is True
                     }
                 )
-                print(f"'New content' after 'True' update: {str(new_content)}")
+                if param.debug:
+                    print(f"'New content' after 'True' update: {str(new_content)}")
                 new_content["jsondata"].update(
                     {
                         key: value
@@ -937,7 +943,8 @@ class OSW(BaseModel):
                         if overwrite_class_param._per_property.get(key) is False
                     }
                 )
-                print(f"'New content' after 'False' update: {str(new_content)}")
+                if param.debug:
+                    print(f"'New content' after 'False' update: {str(new_content)}")
                 new_content["jsondata"].update(
                     {
                         key: value
@@ -948,8 +955,11 @@ class OSW(BaseModel):
                         )
                     }
                 )
-                print(f"'New content' after 'only empty' update: {str(new_content)}")
-                print(f"'New content' to be stored: {str(new_content)}")
+                if param.debug:
+                    print(
+                        f"'New content' after 'only empty' update: {str(new_content)}"
+                    )
+                    print(f"'New content' to be stored: {str(new_content)}")
                 set_content_and_edit_page(new_content)
                 return None  # Guard clause --> exit function
 

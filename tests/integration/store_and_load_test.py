@@ -151,7 +151,7 @@ def test_store_and_load(wiki_domain, wiki_username, wiki_password):
         )
         # Load the item from the OSW
         stored_item = osw.load_entity(
-            entity_title=osw.LoadEntityParam(
+            entity_title=OSW.LoadEntityParam(
                 titles="Item:" + OSW.get_osw_id(original_item.uuid), disable_cache=True
             )
         ).entities[0]
@@ -174,7 +174,9 @@ def test_query_instances(wiki_domain, wiki_username, wiki_password):
     # Store the item in the OSW
     osw.store_entity(my_item)
     # Query instances of the category of the entity
-    instances = osw.query_instances(category="Category:Item")
+    instances = osw.query_instances(
+        category=OSW.QueryInstancesParam(categories="Category:Item", limit=10000)
+    )
     assert fpt in instances
     # Delete the item
     osw.delete_entity(my_item)

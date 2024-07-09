@@ -7,7 +7,7 @@ import platform
 import re
 import sys
 from enum import Enum
-from typing import Dict, List, Literal, Optional, Type, Union
+from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
@@ -30,30 +30,37 @@ from osw.utils.wiki import (
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtPage, WtSite
 
+
 # Reusable type definitions
-OVERWRITE_OPTIONS = Union[
-    bool,  # False: never overwrite a property,
-    # True: always overwrite a property
-    Literal[
-        "only empty",  # only overwrite if the property is empty
-        # "merge",  # todo: implement
-        # "append",  # don't replace the properties but for properties of type array or
-        # dict, append the values of the local entity to the remote entity, make sure
-        # to not append duplicates # todo: implement
-        # "only older",  # todo: implement read out from the version history of the page
-    ],
-]
-OVERWRITE_CLASS_OPTIONS = Union[
-    OVERWRITE_OPTIONS,  # All of the above which will serve as a fallback
-    Literal[
-        "replace remote",  # replace the entity with the new one, removes all
-        # properties that are not present in the local entity
-        "keep existing",  # keep the entity, does not add or remove any properties,
-        # if the page exists, the entity is not stored
-    ],
-    None,  # Not an option to choose from, will be replaced by the default
-    # remote properties
-]
+class OverwriteOptions(Enum):
+    """Options for overwriting properties"""
+
+    true = True
+    """Always overwrite a property"""
+    false = False
+    """Never overwrite a property"""
+    only_empty = "only empty"
+    """Only overwrite if the property is empty"""
+    # "merge",  # todo: implement
+    # "append",  # don't replace the properties but for properties of type array or
+    # dict, append the values of the local entity to the remote entity, make sure
+    # to not append duplicates # todo: implement
+    # "only older",  # todo: implement read out from the version history of the page
+
+
+class AddOverwriteClassOptions(Enum):
+    replace_remote = "replace remote"
+    """Replace the entity with the new one, removes all properties that are not
+    present in the local entity"""
+    keep_existing = "keep existing"
+    """Keep the entity, does not add or remove any properties, if the page exists, the
+    entity is not stored"""
+    none = None
+    """Not an option to choose from, will be replaced by the default remote properties
+    """
+
+
+OVERWRITE_CLASS_OPTIONS = Union[OverwriteOptions, AddOverwriteClassOptions]
 
 
 class OswClassMetaclass(ModelMetaclass):
@@ -652,7 +659,7 @@ class OSW(BaseModel):
         overwrite: Optional[OVERWRITE_CLASS_OPTIONS] = False
         """Defines the overall overwriting behavior. Used for any property if the
         property specific setting is not set."""
-        per_property: Optional[Dict[str, OVERWRITE_OPTIONS]] = None
+        per_property: Optional[Dict[str, OverwriteOptions]] = None
         """A key (property name) - value (overwrite setting) pair. Careful! - When
         setting values of this dictionary after validation, the validator won't be
         called again. The same applies for the __init__ function!"""
@@ -858,13 +865,21 @@ class OSW(BaseModel):
             # Take the shortcut if
             # 1. page does not exist AND any setting of overwrite
             # 2. overwrite is "replace remote"
-            if not page.exists or overwrite_class_param.overwrite == "replace remote":
+            if (
+                not page.exists
+                or overwrite_class_param.overwrite
+                == AddOverwriteClassOptions.replace_remote
+            ):
                 # Use pydantic serialization, skip none values:
                 new_content["jsondata"] = json.loads(entity.json(exclude_none=True))
                 set_content_and_edit_page(new_content)
                 return None  # Guard clause --> exit function
             # 3. pages does exist AND overwrite is "keep existing"
-            if page.exists and overwrite_class_param.overwrite == "keep existing":
+            if (
+                page.exists
+                and overwrite_class_param.overwrite
+                == AddOverwriteClassOptions.keep_existing
+            ):
                 print(
                     f"Entity '{entity_title}' already exists and won't be stored "
                     f"with overwrite set to 'keep existing'!"
@@ -927,7 +942,8 @@ class OSW(BaseModel):
                     {
                         key: value
                         for (key, value) in local_content["jsondata"].items()
-                        if overwrite_class_param._per_property.get(key) is True
+                        if overwrite_class_param._per_property.get(key)
+                        == OverwriteOptions.true
                     }
                 )
                 if param.debug:
@@ -936,7 +952,8 @@ class OSW(BaseModel):
                     {
                         key: value
                         for (key, value) in remote_content["jsondata"].items()
-                        if overwrite_class_param._per_property.get(key) is False
+                        if overwrite_class_param._per_property.get(key)
+                        == OverwriteOptions.false
                     }
                 )
                 if param.debug:
@@ -946,7 +963,8 @@ class OSW(BaseModel):
                         key: value
                         for (key, value) in local_content["jsondata"].items()
                         if (
-                            overwrite_class_param._per_property.get(key) == "only empty"
+                            overwrite_class_param._per_property.get(key)
+                            == OverwriteOptions.only_empty
                             and is_empty(remote_content["jsondata"].get(key))
                         )
                     }

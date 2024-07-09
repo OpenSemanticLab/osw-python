@@ -1,6 +1,5 @@
-import mwclient
-
 import osw.model.entity as model
+from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.utils.wiki import get_full_title
 from osw.wiki_tools import SearchParam
@@ -10,9 +9,13 @@ from osw.wtsite import WtSite
 
 
 def test_store_and_load(wiki_domain, wiki_username, wiki_password):
-    site = mwclient.Site(host=wiki_domain)
-    site.login(username=wiki_username, password=wiki_password)
-    wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
+    cm = CredentialManager()
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
     osw = OSW(site=wtsite)
     # Check 1: Store an entity and download it again, delete afterward
     # Create an item with a label
@@ -164,9 +167,13 @@ def test_store_and_load(wiki_domain, wiki_username, wiki_password):
 def test_query_instances(wiki_domain, wiki_username, wiki_password):
     """Store an entity, query instances of the category of the entity, make sure the
     new entity is contained in the list of returned instances, delete the entity."""
-    site = mwclient.Site(host=wiki_domain)
-    site.login(username=wiki_username, password=wiki_password)
-    wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
+    cm = CredentialManager()
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
     osw = OSW(site=wtsite)
     # Create an item with a label
     my_item = model.Item(label=[model.Label(text="MyItem")])
@@ -183,9 +190,13 @@ def test_query_instances(wiki_domain, wiki_username, wiki_password):
 
 
 def test_statement_creation(wiki_domain, wiki_username, wiki_password):
-    site = mwclient.Site(host=wiki_domain)
-    site.login(username=wiki_username, password=wiki_password)
-    wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
+    cm = CredentialManager()
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
     osw = OSW(site=wtsite)
 
     my_entity = model.Item(

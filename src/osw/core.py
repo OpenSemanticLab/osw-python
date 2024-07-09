@@ -1027,11 +1027,12 @@ class OSW(BaseModel):
             """
             title_ = None
             namespace_ = None
-            if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
-                if entity.meta.wiki_page.title:
-                    title_ = entity.meta.wiki_page.title
-                if entity.meta.wiki_page.namespace:
-                    namespace_ = entity.meta.wiki_page.namespace
+            if hasattr(entity, "meta"):
+                if entity.meta and entity.meta.wiki_page:
+                    if entity.meta.wiki_page.title:
+                        title_ = entity.meta.wiki_page.title
+                    if entity.meta.wiki_page.namespace:
+                        namespace_ = entity.meta.wiki_page.namespace
             if namespace_ is None:
                 namespace_ = get_namespace(entity)
             if title_ is None:

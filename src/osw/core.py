@@ -718,7 +718,7 @@ class OSW(BaseModel):
 
     class ApplyOverwriteParam(OswBaseModel):
         page: WtPage
-        entity: model.Entity
+        entity: OswBaseModel  # actually model.Entity but this causes the "type" error
         policy: Union[OSW.OverwriteClassParam, OVERWRITE_CLASS_OPTIONS]
         namespace: Optional[str]
         meta_category_title: Optional[str]
@@ -905,7 +905,7 @@ class OSW(BaseModel):
         return param.page  # Guard clause --> exit function
 
     class StoreEntityParam(OswBaseModel):
-        entities: Union[OswBaseModel, List[OswBaseModel]]
+        entities: Union[OswBaseModel, List[OswBaseModel]]  # actually model.Entity
         """The entities to store. Can be a single entity or a list of entities."""
         namespace: Optional[str]
         """The namespace of the entities. If not set, the namespace is derived from the

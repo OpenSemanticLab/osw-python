@@ -1255,6 +1255,7 @@ class WtPage:
                             content = json.dumps(content, ensure_ascii=False)
                     params["slot_" + slot_key] = content
             if changed:
+                self.changed = True
                 self.wtSite._site.api(
                     "editslots",
                     token=self.wtSite._site.get_token("csrf"),
@@ -1265,8 +1266,10 @@ class WtPage:
                 self.wtSite._clear_cookies()
 
         else:
+            changed = False
             for slot_key in self._slots:
                 if self._slots_changed[slot_key]:
+                    changed = True
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
                         content = json.dumps(content, ensure_ascii=False)
@@ -1279,6 +1282,8 @@ class WtPage:
                         summary=comment,
                     )
                     self._slots_changed[slot_key] = False
+            if changed:
+                self.changed = True
 
     def delete(self, comment: str = None):
         """Deletes the page from the site

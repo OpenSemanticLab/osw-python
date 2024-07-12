@@ -716,7 +716,7 @@ class OSW(BaseModel):
             # todo: from class definition get properties with hidden / read_only option
             #  those can be safely overwritten - set the to True
 
-    class ApplyOverwriteParam(OswBaseModel):
+    class _ApplyOverwriteParam(OswBaseModel):
         page: WtPage
         entity: OswBaseModel  # actually model.Entity but this causes the "type" error
         policy: Union[OSW.OverwriteClassParam, OVERWRITE_CLASS_OPTIONS]
@@ -754,7 +754,7 @@ class OSW(BaseModel):
                     overwrite=self.policy,
                 )
 
-    def apply_overwrite_policy(self, param: OSW.ApplyOverwriteParam) -> WtPage:
+    def _apply_overwrite_policy(self, param: OSW._ApplyOverwriteParam) -> WtPage:
         entity_title = f"{param.namespace}:{get_title(param.entity)}"
 
         def set_content(content_to_set: dict) -> None:
@@ -993,8 +993,8 @@ class OSW(BaseModel):
             if overwrite_class_param is None:
                 raise TypeError("'overwrite_class_param' must not be None!")
             entity_title = namespace_ + ":" + title_
-            page = self.apply_overwrite_policy(
-                OSW.ApplyOverwriteParam(
+            page = self._apply_overwrite_policy(
+                OSW._ApplyOverwriteParam(
                     page=self.site.get_page(
                         WtSite.GetPageParam(titles=[entity_title])
                     ).pages[0],
@@ -1180,4 +1180,4 @@ class OSW(BaseModel):
         return full_page_titles
 
 
-OSW.ApplyOverwriteParam.update_forward_refs()
+OSW._ApplyOverwriteParam.update_forward_refs()

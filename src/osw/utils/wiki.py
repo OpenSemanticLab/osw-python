@@ -160,3 +160,12 @@ def title_from_full_title(full_title: str) -> str:
         the title as a string
     """
     return full_title.split(":")[-1]
+
+
+def is_empty(val):
+    """checks if the given value is empty"""
+    if val is None:
+        return True
+    elif isinstance(val, list) or isinstance(val, str) or isinstance(val, dict):
+        return len(val) == 0
+    return False

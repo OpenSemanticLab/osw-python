@@ -1,6 +1,9 @@
+import sys
+from pathlib import Path
+
 import osw.model.entity as model
 from osw.auth import CredentialManager
-from osw.core import OSW
+from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
 from osw.utils.wiki import get_full_title
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
@@ -31,89 +34,38 @@ def test_store_and_load(wiki_domain, wiki_username, wiki_password):
 
     # Check 2: Store a more complex entity, create a local duplicate, with changed
     # properties, test the 'overwrite' param options, delete afterward
-    def check_true(original: model.Entity, altered: model.Entity, stored: model.Entity):
-        """Check the entity that was stored with the 'overwrite' param set to True,
-        which is supposed to overwrite all existing properties of the entity in the
-        OSW, but keep those not present in the altered entity."""
-        assert stored.label[0].text == altered.label[0].text
-        assert stored.name == altered.name
-        assert stored.iri == altered.iri
-        assert stored.description[0].text == altered.description[0].text
-        assert stored.query_label == altered.query_label
-        assert stored.image == original.image
-        assert stored.attachments == altered.attachments
-
-    def check_false(
-        original: model.Entity, altered: model.Entity, stored: model.Entity
-    ):
-        """Check the entity that was stored with the 'overwrite' param set to False,
-        which is supposed to keep all existing properties of the entity in the OSW,
-        but add those additionally present in the altered entity."""
-        assert stored.label[0].text == original.label[0].text
-        assert stored.name == original.name
-        assert stored.iri == original.iri
-        if len(original.description) == 0:
-            assert stored.description == original.description
-        else:
-            assert stored.description[0].text == original.description[0].text
-        assert stored.query_label == altered.query_label  # value == None -->
-        # property not present and will be set (overwritten)
-        assert stored.image == original.image
-        assert stored.attachments == altered.attachments
-
-    def check_only_empty(
-        original: model.Entity, altered: model.Entity, stored: model.Entity
-    ):
-        """Check the entity that was stored with the 'overwrite' param set to
-        'only empty', which is supposed to overwrite only those properties of the
-        entity in the OSW that are empty, but are not empty in the altered entity."""
-        assert stored.label[0].text == original.label[0].text
-        assert stored.name == original.name
-        assert stored.iri == altered.iri
-        assert stored.description[0].text == altered.description[0].text
-        assert stored.query_label == altered.query_label
-        assert stored.image == original.image
-        assert stored.attachments == altered.attachments
-
-    def check_replace_remote(
-        original: model.Entity, altered: model.Entity, stored: model.Entity
-    ):
-        """Check the entity that was stored with the 'overwrite' param set to
-        'replace remote', which is supposed to replace the remote entity entirely."""
-        assert stored.label[0].text == altered.label[0].text
-        assert stored.name == altered.name
-        assert stored.iri == altered.iri
-        assert stored.description[0].text == altered.description[0].text
-        assert stored.query_label == altered.query_label
-        assert getattr(stored, "image", None) is None
-        assert stored.attachments == altered.attachments
-
-    def check_keep_existing(
-        original: model.Entity, altered: model.Entity, stored: model.Entity
-    ):
-        """Check the entity that was stored with the 'overwrite' param set to
-        'keep existing', which is supposed to keep the existing entity in the OSW."""
-        assert stored.label[0].text == original.label[0].text
-        assert stored.name == original.name
-        assert stored.iri == original.iri
-        assert stored.description == original.description  # empty list
-        assert stored.query_label == original.query_label
-        assert stored.image == original.image
-        assert getattr(stored, "attachments", None) is None
+    # Make non-package scripts available for import
+    cwd = Path(__file__).parent.absolute()
+    tests_dir = cwd.parents[1] / "tests"
+    sys.path.append(str(tests_dir))
+    # Get required functions
+    from test_osl import (
+        check_false,
+        check_keep_existing,
+        check_only_empty,
+        check_replace_remote,
+        check_true,
+    )
 
     checks = [
-        {"overwrite": True, "assert": check_true},  # Overwrite properties
-        {"overwrite": False, "assert": check_false},  # Do not overwrite properties
-        {
-            "overwrite": "only empty",  # Overwrite empty properties only
+        {  # Overwrite properties
+            "overwrite": OverwriteOptions.true,
+            "assert": check_true,
+        },
+        {  # Do not overwrite properties
+            "overwrite": OverwriteOptions.false,
+            "assert": check_false,
+        },
+        {  # Overwrite empty properties only
+            "overwrite": OverwriteOptions.only_empty,
             "assert": check_only_empty,
         },
-        {
-            "overwrite": "replace remote",  # Replace the remote entity entirely
+        {  # Replace the remote entity entirely
+            "overwrite": AddOverwriteClassOptions.replace_remote,
             "assert": check_replace_remote,
         },
-        {
-            "overwrite": "keep existing",  # Keep the existing entity as is
+        {  # Keep the existing entity as is
+            "overwrite": AddOverwriteClassOptions.keep_existing,
             "assert": check_keep_existing,
         },
     ]

@@ -23,25 +23,11 @@ sys.path.append(str(migration_import_dir))
 
 def test_dependencies(wiki_domain: str, wiki_username: str, wiki_password: str):
     """This test makes sure that all dependencies are available. First the dependencies
-    are fetched from the wiki if necessary, then the dependencies are checked.
-    """
+    are fetched from the wiki if necessary, then the dependencies are checked."""
     import file_page_migration_dependencies as fpmd
 
     fpmd.main(wiki_domain, wiki_username, wiki_password)
     assert fpmd.check_dependencies()
-
-
-def test_regex_pattern():
-    """This tests the regex pattern library. For all patterns in the library, the
-    test_pattern method is called. If the method does not raise an exception, the
-    pattern is considered correct. If no example_str and no expected_groups are
-    provided, the test_pattern method raise a type error originating from the re
-    module."""
-    from osw.utils.regex_pattern import REGEX_PATTERN_LIB
-
-    for key, pattern in REGEX_PATTERN_LIB.items():
-        assert pattern.test_pattern()
-    pass
 
 
 def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password: str):

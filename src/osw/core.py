@@ -6,6 +6,7 @@ import os
 import platform
 import re
 import sys
+from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
@@ -114,11 +115,11 @@ class OSW(BaseModel):
         Parameters
         ----------
         uuid
-            uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+            uuid object, e.g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
 
         Returns
         -------
-            OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+            OSW-ID string, e.g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
         """
         return "OSW" + str(uuid).replace("-", "")
 
@@ -129,11 +130,11 @@ class OSW(BaseModel):
         Parameters
         ----------
         osw_id
-            OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+            OSW-ID string, e.g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
 
         Returns
         -------
-            uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+            uuid object, e.g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
         """
         return UUID(osw_id.replace("OSW", ""))
 
@@ -479,9 +480,9 @@ class OSW(BaseModel):
             # --enum-field-as-literal all: prevent 'value is not a valid enumeration member' errors after schema reloading
             # --use-schema-description: Use schema description to populate class docstring
             # --use-field-description: Use schema description to populate field docstring
-            # --use-title-as-name: use titles as class names of models, e. g. for the footer templates
+            # --use-title-as-name: use titles as class names of models, e.g. for the footer templates
             # --collapse-root-models: Models generated with a root-type field will be merged
-            # into the models using that root-type model, e. g. for Entity.statements
+            # into the models using that root-type model, e.g. for Entity.statements
             # --reuse-model: Re-use models on the field when a module has the model with the same content
 
             content = ""
@@ -723,6 +724,7 @@ class OSW(BaseModel):
         namespace: Optional[str]
         meta_category_title: Optional[str]
         meta_category_template_str: Optional[str]
+        inplace: Optional[bool] = False
         debug: Optional[bool] = False
 
         class Config:
@@ -754,39 +756,19 @@ class OSW(BaseModel):
                     overwrite=self.policy,
                 )
 
-    def _apply_overwrite_policy(self, param: OSW._ApplyOverwriteParam) -> WtPage:
+    @staticmethod
+    def _apply_overwrite_policy(param: OSW._ApplyOverwriteParam) -> WtPage:
+        if param.inplace:
+            page = param.page
+        else:
+            page = deepcopy(param.page)
         entity_title = f"{param.namespace}:{get_title(param.entity)}"
 
         def set_content(content_to_set: dict) -> None:
             if param.debug:
                 print(f"content_to_set: {str(content_to_set)}")
             for slot_ in content_to_set.keys():
-                param.page.set_slot_content(slot_, content_to_set[slot_])
-            if param.namespace == "Category":
-                if param.meta_category_title:
-                    meta_category = self.site.get_page(
-                        WtSite.GetPageParam(titles=[param.meta_category_title])
-                    ).pages[0]
-                    param.meta_category_template_str = meta_category.get_slot_content(
-                        "schema_template"
-                    )
-                if param.meta_category_template_str:
-                    meta_category_template = compile_handlebars_template(
-                        param.meta_category_template_str
-                    )
-                    try:
-                        schema_str = eval_compiled_handlebars_template(
-                            meta_category_template,
-                            content_to_set["jsondata"],
-                            {"_page_title": entity_title},
-                        )
-                        schema = json.loads(schema_str)
-                        param.page.set_slot_content("jsonschema", schema)
-                    except Exception as e:
-                        print(
-                            f"Schema generation from template failed for "
-                            f"{param.entity}: {e}"
-                        )
+                page.set_slot_content(slot_, content_to_set[slot_])
 
         # Create a variable to hold the new content
         new_content = {
@@ -799,24 +781,24 @@ class OSW(BaseModel):
         # 1. page does not exist AND any setting of overwrite
         # 2. overwrite is "replace remote"
         if (
-            not param.page.exists
+            not page.exists
             or param.policy.overwrite == AddOverwriteClassOptions.replace_remote
         ):
             # Use pydantic serialization, skip none values:
             new_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
             set_content(new_content)
-            param.page.changed = True
-            return param.page  # Guard clause --> exit function
+            page.changed = True
+            return page  # Guard clause --> exit function
         # 3. pages does exist AND overwrite is "keep existing"
         if (
-            param.page.exists
+            page.exists
             and param.policy.overwrite == AddOverwriteClassOptions.keep_existing
         ):
             print(
                 f"Entity '{entity_title}' already exists and won't be stored "
                 f"with overwrite set to 'keep existing'!"
             )
-            return param.page  # Guard clause --> exit function
+            return page  # Guard clause --> exit function
         # Apply the overwrite logic in any other case
         # 4. If per_property was None  -> overwrite will be used as a fallback
         # 4.1 If overwrite is True ---> overwrite existing properties
@@ -831,7 +813,7 @@ class OSW(BaseModel):
         remote_content = {}
         # Get the remote content
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
-            remote_content[slot] = param.page.get_slot_content(slot)
+            remote_content[slot] = page.get_slot_content(slot)
             # Todo: remote content does not contain properties that are not set
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
@@ -902,7 +884,7 @@ class OSW(BaseModel):
             print(f"'New content' after 'only empty' update: {str(new_content)}")
             print(f"'New content' to be stored: {str(new_content)}")
         set_content(new_content)
-        return param.page  # Guard clause --> exit function
+        return page  # Guard clause --> exit function
 
     class StoreEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]  # actually model.Entity
@@ -977,6 +959,19 @@ class OSW(BaseModel):
         ).pages[0]
         # ToDo: we have to do this iteratively to support meta categories inheritance
         meta_category_template_str = meta_category.get_slot_content("schema_template")
+        meta_category_template = None
+        if param.namespace == "Category":
+            if param.meta_category_title:
+                meta_category = self.site.get_page(
+                    WtSite.GetPageParam(titles=[param.meta_category_title])
+                ).pages[0]
+                param.meta_category_template_str = meta_category.get_slot_content(
+                    "schema_template"
+                )
+            if param.meta_category_template_str:
+                meta_category_template = compile_handlebars_template(
+                    param.meta_category_template_str
+                )
 
         def store_entity_(
             entity: model.Entity,
@@ -1005,6 +1000,19 @@ class OSW(BaseModel):
                     debug=param.debug,
                 )
             )
+            if meta_category_template:
+                try:
+                    schema_str = eval_compiled_handlebars_template(
+                        meta_category_template,
+                        page.get_slot_content("jsondata"),
+                        {"_page_title": entity_title},
+                    )
+                    schema = json.loads(schema_str)
+                    page.set_slot_content("jsonschema", schema)
+                except Exception as e:
+                    print(
+                        f"Schema generation from template failed for " f"{entity}: {e}"
+                    )
             page.edit()  # will set page.changed if the content of the page has changed
             if page.changed:
                 if index is None:

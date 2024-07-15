@@ -13,11 +13,11 @@ class OfflineWtPage(WtPage):
         self.wtSite = wtSite
         self.title = title
 
-        self.exists = True
+        self.exists = True  # only to fake the existence of the page for testing
         self._original_content = ""
         self._content = ""
         self.changed: bool = False
-        self._dict = []  # todo: named dict but is of type list
+        self._dict = []
         self._slots: Dict[str, Union[str, dict]] = {"main": ""}
         self._slots_changed: Dict[str, bool] = {"main": False}
         self._content_model: Dict[str, str] = {"main": "wikitext"}

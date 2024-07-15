@@ -183,7 +183,3 @@ def test_apply_overwrite_policy():
         check["assert"](original_item, altered_item, new_item)
 
         # todo: # where do we really eed to interact with an OSL isntance?
-
-
-if __name__ == "__main__":
-    test_apply_overwrite_policy()

@@ -98,11 +98,10 @@ class RegExPatternExtended(OswBaseModel):
         pattern = values.get("pattern")
         group_count = count_match_groups(pattern)
         # Subtract non-capturing group count
-        corrected_group_count = group_count - pattern.count("(?:")
-        if len(group_keys) != corrected_group_count:
+        if len(group_keys) != group_count:
             raise ValueError(
                 f"The number of group keys ({len(group_keys)}) does not match "
-                f"the number of match groups ({corrected_group_count})."
+                f"the number of match groups ({group_count})."
             )
         return group_keys
 
@@ -183,7 +182,8 @@ def count_match_groups(pattern: Union[str, re.Pattern]):
             group_count += 1
             unmatched_brackets -= 1
 
-    return group_count
+    corrected_group_count = group_count - pattern.count("(?:")
+    return corrected_group_count
 
 
 def match_regex_patterns(

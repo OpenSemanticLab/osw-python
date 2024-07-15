@@ -25,6 +25,7 @@ from osw.utils.util import parallelize
 from osw.utils.wiki import (
     get_namespace,
     get_title,
+    get_uuid,
     is_empty,
     namespace_from_full_title,
     title_from_full_title,
@@ -733,10 +734,27 @@ class OSW(BaseModel):
         @validator("entity")
         def validate_entity(cls, entity, values):
             """Make sure that the passed entity has the same uuid as the page"""
-            page = values.get("page")
+            page: WtPage = values.get("page")
             if not page.exists:  # Guard clause
                 return entity
-            page_uuid = str(page.get_slot_content("jsondata").get("uuid"))
+            jsondata = page.get_slot_content("jsondata")
+            if jsondata is None:  # Guard clause
+                title = title_from_full_title(page.title)
+                try:
+                    uuid_from_title = get_uuid(title)
+                except ValueError:
+                    print(
+                        f"Error: UUID could not be determined from title: '{title}', "
+                        f"nor fromjsondata: {jsondata}"
+                    )
+                    return entity
+                if str(uuid_from_title) != str(entity.uuid):
+                    raise ValueError(
+                        f"UUID mismatch: Page UUID: {uuid_from_title}, "
+                        f"Entity UUID: {entity.uuid}"
+                    )
+                return entity
+            page_uuid = str(jsondata.get("uuid"))
             entity_uuid = str(getattr(entity, "uuid"))
             if page_uuid != entity_uuid:  # Comparing string type UUIDs
                 raise ValueError(

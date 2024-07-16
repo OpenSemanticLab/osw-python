@@ -19,7 +19,6 @@ from jsonpath_ng.ext import parse
 from pydantic import FilePath
 from typing_extensions import deprecated
 
-import osw.model.entity as model
 import osw.model.page_package as package
 import osw.utils.util as ut
 import osw.wiki_tools as wt
@@ -180,7 +179,7 @@ class WtSite:
         site = wt.create_site_object(_domain, "", _credentials)
         return cls(WtSite.WtSiteLegacyConfig(site=site))
 
-    class GetPageParam(model.OswBaseModel):
+    class GetPageParam(OswBaseModel):
         titles: Union[str, List[str]]
         """title string or list of title strings of the pages to download"""
         parallel: Optional[bool] = None
@@ -202,7 +201,7 @@ class WtSite:
             if self.parallel is None:
                 self.parallel = False
 
-    class GetPageResult(model.OswBaseModel):
+    class GetPageResult(OswBaseModel):
         pages: List["WtPage"]
         """List of pages that have been downloaded"""
         errors: List[Exception]
@@ -275,7 +274,7 @@ class WtSite:
         result = self.get_page(WtSite.GetPageParam(titles=title))
         return result.pages[0]
 
-    class GetPageContentResult(model.OswBaseModel):
+    class GetPageContentResult(OswBaseModel):
         contents: dict
         """The content of the pages. Keys are page titles, values are
         content dictionaries"""
@@ -362,7 +361,7 @@ class WtSite:
         """
         return wt.semantic_search(self._site, query)
 
-    class ModifySearchResultsParam(model.OswBaseModel):
+    class ModifySearchResultsParam(OswBaseModel):
         """Todo: should become param of modify_search_results"""
 
         mode: str
@@ -429,7 +428,7 @@ class WtSite:
             if not dryrun:
                 wtpage.edit(comment)
 
-    class UploadPageParam(model.OswBaseModel):
+    class UploadPageParam(OswBaseModel):
         """Parameter object for upload_page method."""
 
         pages: Union["WtPage", List["WtPage"]]
@@ -490,7 +489,7 @@ class WtSite:
         else:
             _ = [upload_page_(p, i) for i, p in enumerate(param.pages)]
 
-    class CopyPagesParam(model.OswBaseModel):
+    class CopyPagesParam(OswBaseModel):
         """Configuration to copy several page"""
 
         source_site: "WtSite"
@@ -545,7 +544,7 @@ class WtSite:
         else:
             return [copy_single_page(content) for content in content_list]
 
-    class CreatePagePackageParam(model.OswBaseModel):
+    class CreatePagePackageParam(OswBaseModel):
         """Parameter object for create_page_package method."""
 
         config: package.PagePackageConfig
@@ -630,7 +629,7 @@ class WtSite:
         with open(file_name, "w", encoding="utf-8") as f:
             f.write(content)
 
-    class ReadPagePackageParam(model.OswBaseModel):
+    class ReadPagePackageParam(OswBaseModel):
         """Parameter type of read_page_package."""
 
         storage_path: Union[str, Path]
@@ -643,7 +642,7 @@ class WtSite:
         debug: Optional[bool] = False
         """If True, debug information is printed to the console."""
 
-    class ReadPagePackageResult(model.OswBaseModel):
+    class ReadPagePackageResult(OswBaseModel):
         """Return type of read_page_package."""
 
         pages: List["WtPage"]
@@ -786,7 +785,7 @@ class WtSite:
                 pages.append(page_obj)
         return WtSite.ReadPagePackageResult(pages=pages)
 
-    class UploadPagePackageParam(model.OswBaseModel):
+    class UploadPagePackageParam(OswBaseModel):
         """Parameter class for upload_page_package method."""
 
         storage_path: Optional[Union[str, Path]] = None
@@ -1256,6 +1255,7 @@ class WtPage:
                             content = json.dumps(content, ensure_ascii=False)
                     params["slot_" + slot_key] = content
             if changed:
+                self.changed = True
                 self.wtSite._site.api(
                     "editslots",
                     token=self.wtSite._site.get_token("csrf"),
@@ -1266,8 +1266,10 @@ class WtPage:
                 self.wtSite._clear_cookies()
 
         else:
+            changed = False
             for slot_key in self._slots:
                 if self._slots_changed[slot_key]:
+                    changed = True
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
                         content = json.dumps(content, ensure_ascii=False)
@@ -1280,6 +1282,8 @@ class WtPage:
                         summary=comment,
                     )
                     self._slots_changed[slot_key] = False
+            if changed:
+                self.changed = True
 
     def delete(self, comment: str = None):
         """Deletes the page from the site
@@ -1321,7 +1325,7 @@ class WtPage:
             self._current_revision["timestamp"].replace("Z", "+00:00")
         )
 
-    class CopyPageConfig(model.OswBaseModel):
+    class CopyPageConfig(OswBaseModel):
         """Configuration to copy a page"""
 
         source_site: WtSite
@@ -1337,7 +1341,7 @@ class WtPage:
         class Config:
             arbitrary_types_allowed = True
 
-    class PageCopyResult(model.OswBaseModel):
+    class PageCopyResult(OswBaseModel):
         """Result of copying a page"""
 
         page: "WtPage"
@@ -1389,7 +1393,7 @@ class WtPage:
             print(s2p)
             return WtPage.PageCopyResult(page=self, target_altered=True)
 
-    class PageDumpConfig(model.OswBaseModel):
+    class PageDumpConfig(OswBaseModel):
         """Configuration to dump wiki pages to the file system"""
 
         target_dir: Union[str, Path]
@@ -1549,7 +1553,7 @@ class WtPage:
         """
         self._page.purge()
 
-    class ExportConfig(model.OswBaseModel):
+    class ExportConfig(OswBaseModel):
         """Configuration to export a page to XML"""
 
         full_history: Optional[bool] = True
@@ -1557,7 +1561,7 @@ class WtPage:
         include_templates: Optional[bool] = False
         """if true, export the templates used in the page"""
 
-    class ExportResult(model.OswBaseModel):
+    class ExportResult(OswBaseModel):
         """Return type of export_xml"""
 
         xml: str
@@ -1604,7 +1608,7 @@ class WtPage:
         else:
             return WtPage.ExportResult(success=True, xml=response.text)
 
-    class ImportConfig(model.OswBaseModel):
+    class ImportConfig(OswBaseModel):
         """Configuration to import a page from XML.
         see also https://www.mediawiki.org/wiki/Manual:Importing_XML_dumps"""
 
@@ -1629,7 +1633,7 @@ class WtPage:
         username_mapping: Optional[Dict[str, str]] = {}
         """mapping of usernames in the XML to usernames in the target instance"""
 
-    class ImportResult(model.OswBaseModel):
+    class ImportResult(OswBaseModel):
         """Return type of import_xml"""
 
         success: bool

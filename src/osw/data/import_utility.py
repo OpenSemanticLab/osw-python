@@ -680,6 +680,7 @@ def get_entities_from_osw(
     model_to_cast_to,
     credentials_fp,
     domain,
+    osw_obj: OSW = None,
     debug: bool = False,
 ) -> list:
     """Gets entities from OSW, based on a category. The category can be specified by
@@ -706,8 +707,9 @@ def get_entities_from_osw(
         category_uuid = category_to_search.split("OSW")[-1]
     else:  # elif isinstance(category_to_search, uuid_module.UUID):
         category_uuid = str(category_to_search)
-    cred_man = CredentialManager(cred_filepath=credentials_fp)
-    osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_man)))
+    if osw_obj is None:
+        cred_man = CredentialManager(cred_filepath=credentials_fp)
+        osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_man)))
     wtsite_obj = osw_obj.site
     entities_from_osw = []
     if debug:

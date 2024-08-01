@@ -391,7 +391,9 @@ class OSW(BaseModel):
             if page.get_slot_content("jsonschema"):
                 schema_str = json.dumps(page.get_slot_content("jsonschema"))
         else:
-            schema_str = page.get_content()
+            schema_str = page.get_slot_content("main")
+            if schema_str and not isinstance(schema_str, str):
+                schema_str = json.dumps(schema_str)
         if (schema_str is None) or (schema_str == ""):
             print(f"Error: Schema {schema_title} does not exist")
             return

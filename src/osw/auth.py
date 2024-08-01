@@ -140,7 +140,8 @@ class CredentialManager(OswBaseModel):
         if cred is None:
             if config.fallback is CredentialManager.CredentialFallback.ask:
                 print(
-                    f"No credentials for {config.iri} found. Please use the prompt to login"
+                    f"No credentials for {config.iri} found. "
+                    f"Please use the prompt to login"
                 )
                 username = input("Enter username: ")
                 password = getpass.getpass("Enter password: ")

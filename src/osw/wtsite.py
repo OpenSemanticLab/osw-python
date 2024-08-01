@@ -12,7 +12,7 @@ from io import StringIO
 from pathlib import Path
 from pprint import pprint
 from time import sleep
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import mwclient
 from jsonpath_ng.ext import parse
@@ -57,6 +57,9 @@ class WtSite:
         login: Optional[str]
         """The preferred login name when multiple logins are possible (not supported
         yet)"""
+        connection_options: Optional[Dict[str, Any]] = None
+        """Parameters for the mwclient.Site connection: Additional arguments to be
+        passed to the requests.Session.request() method when performing API calls."""
 
     @deprecated("Use WtSiteConfig instead")
     class WtSiteLegacyConfig(OswBaseModel):
@@ -91,19 +94,27 @@ class WtSite:
             if "//" in config.iri:
                 scheme = config.iri.split("://")[0]
                 config.iri = config.iri.split("://")[1]
+            site_args = [config.iri]
+            site_kwargs = {
+                "path": "/w/",
+                "scheme": scheme,
+            }
+            if getattr(config, "connection_options") is not None:
+                site_kwargs["reqs"] = config.connection_options
+                # reqs might be a deprecated alias for "connection_options"
             if isinstance(cred, CredentialManager.UserPwdCredential):
-                self._site = mwclient.Site(config.iri, path="/w/", scheme=scheme)
+                self._site = mwclient.Site(*site_args, **site_kwargs)
                 self._site.login(username=cred.username, password=cred.password)
             elif isinstance(cred, CredentialManager.OAuth1Credential):
-                self._site = mwclient.Site(
-                    config.iri,
-                    path="/w/",
-                    scheme=scheme,
-                    consumer_token=cred.consumer_token,
-                    consumer_secret=cred.consumer_secret,
-                    access_token=cred.access_token,
-                    access_secret=cred.access_secret,
+                site_kwargs.update(
+                    **{
+                        "consumer_token": cred.consumer_token,
+                        "consumer_secret": cred.consumer_secret,
+                        "access_token": cred.access_token,
+                        "access_secret": cred.access_secret,
+                    }
                 )
+                self._site = mwclient.Site(*site_args, **site_kwargs)
             else:
                 raise ValueError("Unsupported credential type: " + str(type(cred)))
             del cred

@@ -703,6 +703,17 @@ def get_entities_from_osw(
     entities_from_osw:
         List of entities from OSW.
     """
+
+    def test_if_empty_list_or_none(obj) -> bool:
+        if obj is None:
+            return True
+        elif isinstance(obj, list):
+            if len(obj) == 0:
+                return True
+            elif len([item for item in obj if item is not None]) == 0:
+                return True
+        return False
+
     if isinstance(category_to_search, str):
         category_uuid = category_to_search.split("OSW")[-1]
     else:  # elif isinstance(category_to_search, uuid_module.UUID):
@@ -726,7 +737,10 @@ def get_entities_from_osw(
         if page.exists:
             jsondata = page.get_slot_content("jsondata")
             jsondata["full_page_title"] = entity
-            entities_from_osw.append(model_to_cast_to(**jsondata))
+            kwargs = {
+                k: v for k, v in jsondata.items() if not test_if_empty_list_or_none(v)
+            }
+            entities_from_osw.append(model_to_cast_to(**kwargs))
     return entities_from_osw
 
 

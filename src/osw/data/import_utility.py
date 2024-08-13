@@ -623,6 +623,8 @@ def list_of_entities_to_dict_of_entities(
     """
     dict_of_entities = {}
     for entity in list_of_entities:
+        if entity is None:
+            continue
         if getattr(entity, "uuid", None) is not None and key_factory is None:
             key = entity.uuid
         elif getattr(entity, "uuid", None) is None and key_factory is None:

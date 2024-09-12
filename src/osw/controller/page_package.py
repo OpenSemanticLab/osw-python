@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Union
 from warnings import warn
 
-from pydantic import FilePath
+from pydantic.v1 import FilePath
 from typing_extensions import Dict, List
 
 import osw.model.page_package as model

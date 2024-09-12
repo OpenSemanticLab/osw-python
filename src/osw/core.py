@@ -12,8 +12,7 @@ from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel, Field, create_model, validator
-from pydantic.main import ModelMetaclass, PrivateAttr
+from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
@@ -64,34 +63,6 @@ class AddOverwriteClassOptions(Enum):
 
 
 OVERWRITE_CLASS_OPTIONS = Union[OverwriteOptions, AddOverwriteClassOptions]
-
-
-class OswClassMetaclass(ModelMetaclass):
-    def __new__(cls, name, bases, dic, osl_template, osl_footer_template):
-        base_footer_cls = type(
-            dic["__qualname__"] + "Footer",
-            (BaseModel,),
-            {
-                "__annotations__": {"osl_template": str},
-                "osl_template": Field(
-                    default=osl_footer_template,
-                    title=dic["__qualname__"] + "FooterTemplate",
-                ),
-            },
-        )
-        if "__annotations__" not in dic:
-            dic["__annotations__"] = {}
-        dic["__annotations__"]["osl_template"] = str
-        dic["osl_template"] = Field(
-            default=osl_template, title=dic["__qualname__"] + "Template"
-        )
-        dic["__annotations__"]["osl_footer"] = base_footer_cls
-        dic["osl_footer"] = Field(
-            default={"osl_template": osl_footer_template},
-            title=dic["__qualname__"] + "Footer",
-        )
-        new_cls = super().__new__(cls, name, bases, dic)
-        return new_cls
 
 
 class OSW(BaseModel):
@@ -178,7 +149,7 @@ class OSW(BaseModel):
         class Config:
             arbitrary_types_allowed = True  # allow any class as type
 
-        model_cls: ModelMetaclass
+        model_cls: Type[OswBaseModel]
         schema_uuid: str  # Optional[str] = model_cls.__uuid__
         schema_name: str  # Optional[str] = model_cls.__name__
         schema_bases: List[str] = ["Category:Item"]
@@ -210,7 +181,6 @@ class OSW(BaseModel):
 
             page.set_slot_content("jsondata", jsondata)
 
-            # entity = ModelMetaclass(entity.__name__, (BaseModel,), dict(entity.__dict__)) #strips base classes but fiels are already importet
             schema = json.loads(
                 entity.schema_json(indent=4).replace("$ref", "dollarref")
             )
@@ -267,7 +237,7 @@ class OSW(BaseModel):
         class Config:
             arbitrary_types_allowed = True  # allow any class as type
 
-        model_cls: Optional[ModelMetaclass]
+        model_cls: Optional[Type[OswBaseModel]]
         model_uuid: Optional[str]
         comment: Optional[str]
 
@@ -465,6 +435,7 @@ class OSW(BaseModel):
                 --output {temp_model_path} \
                 --base-class osw.model.static.OswBaseModel \
                 --use-default \
+                --use-unique-items-as-set \
                 --enum-field-as-literal all \
                 --use-title-as-name \
                 --use-schema-description \
@@ -480,6 +451,7 @@ class OSW(BaseModel):
             # --custom-template-dir src/model/template_data/
             # --extra-template-data src/model/template_data/extra.json
             # --use-default: Use default value even if a field is required
+            # --use-unique-items-as-set: define field type as `set` when the field attribute has`uniqueItems`
             # --enum-field-as-literal all: prevent 'value is not a valid enumeration member' errors after schema reloading
             # --use-schema-description: Use schema description to populate class docstring
             # --use-field-description: Use schema description to populate field docstring
@@ -498,6 +470,19 @@ class OSW(BaseModel):
                 r"UUID = Field(default_factory=uuid4",
                 content,
             )  # enable default value for uuid
+
+            # we are now using pydantic.v1
+            # pydantic imports lead to uninitialized fields (FieldInfo still present)
+            content = re.sub(
+                r"(from pydantic import)", "from pydantic.v1 import", content
+            )
+
+            # remove field param unique_items
+            # --use-unique-items-as-set still keeps unique_items=True as Field param
+            # which was removed, see https://github.com/pydantic/pydantic-core/issues/296
+            # --output-model-type pydantic_v2.BaseModel fixes that but generated models
+            # are not v1 compatible mainly by using update_model()
+            content = re.sub(r"(,?\s*unique_items=True\s*)", "", content)
 
             if fetchSchemaParam.mode == "replace":
                 header = (

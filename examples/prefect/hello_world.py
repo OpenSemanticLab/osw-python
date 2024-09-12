@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from prefect import flow, get_client, task
 from prefect.blocks.system import Secret
-from pydantic import Field
+from pydantic.v1 import Field
 
 import osw.model.entity as model
 from osw.auth import CredentialManager

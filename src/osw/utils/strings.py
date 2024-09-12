@@ -1,7 +1,7 @@
 import re
 from typing import Dict, List, Optional, Union
 
-from pydantic import validator
+from pydantic.v1 import validator
 
 from osw.model.static import OswBaseModel
 

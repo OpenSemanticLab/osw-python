@@ -5,7 +5,7 @@ from enum import Enum
 from typing import List, Optional, Union
 
 import yaml
-from pydantic import FilePath, PrivateAttr
+from pydantic.v1 import FilePath, PrivateAttr
 
 from osw.model.static import OswBaseModel
 

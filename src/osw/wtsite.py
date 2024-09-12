@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import mwclient
 from jsonpath_ng.ext import parse
-from pydantic import FilePath
+from pydantic.v1 import FilePath
 from typing_extensions import deprecated
 
 import osw.model.page_package as package

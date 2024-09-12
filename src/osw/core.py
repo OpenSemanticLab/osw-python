@@ -12,8 +12,7 @@ from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
-from pydantic.v1 import BaseModel, Field, create_model, validator
-from pydantic.v1.main import ModelMetaclass, PrivateAttr
+from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
@@ -64,34 +63,6 @@ class AddOverwriteClassOptions(Enum):
 
 
 OVERWRITE_CLASS_OPTIONS = Union[OverwriteOptions, AddOverwriteClassOptions]
-
-
-class OswClassMetaclass(ModelMetaclass):
-    def __new__(cls, name, bases, dic, osl_template, osl_footer_template):
-        base_footer_cls = type(
-            dic["__qualname__"] + "Footer",
-            (BaseModel,),
-            {
-                "__annotations__": {"osl_template": str},
-                "osl_template": Field(
-                    default=osl_footer_template,
-                    title=dic["__qualname__"] + "FooterTemplate",
-                ),
-            },
-        )
-        if "__annotations__" not in dic:
-            dic["__annotations__"] = {}
-        dic["__annotations__"]["osl_template"] = str
-        dic["osl_template"] = Field(
-            default=osl_template, title=dic["__qualname__"] + "Template"
-        )
-        dic["__annotations__"]["osl_footer"] = base_footer_cls
-        dic["osl_footer"] = Field(
-            default={"osl_template": osl_footer_template},
-            title=dic["__qualname__"] + "Footer",
-        )
-        new_cls = super().__new__(cls, name, bases, dic)
-        return new_cls
 
 
 class OSW(BaseModel):
@@ -178,7 +149,7 @@ class OSW(BaseModel):
         class Config:
             arbitrary_types_allowed = True  # allow any class as type
 
-        model_cls: ModelMetaclass
+        model_cls: Type[OswBaseModel]
         schema_uuid: str  # Optional[str] = model_cls.__uuid__
         schema_name: str  # Optional[str] = model_cls.__name__
         schema_bases: List[str] = ["Category:Item"]
@@ -210,7 +181,6 @@ class OSW(BaseModel):
 
             page.set_slot_content("jsondata", jsondata)
 
-            # entity = ModelMetaclass(entity.__name__, (BaseModel,), dict(entity.__dict__)) #strips base classes but fiels are already importet
             schema = json.loads(
                 entity.schema_json(indent=4).replace("$ref", "dollarref")
             )
@@ -267,7 +237,7 @@ class OSW(BaseModel):
         class Config:
             arbitrary_types_allowed = True  # allow any class as type
 
-        model_cls: Optional[ModelMetaclass]
+        model_cls: Optional[Type[OswBaseModel]]
         model_uuid: Optional[str]
         comment: Optional[str]
 

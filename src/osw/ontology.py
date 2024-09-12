@@ -2,11 +2,10 @@ import json
 import os
 import re
 import uuid
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Type
 
 import pyld
 from pydantic.v1 import PrivateAttr
-from pydantic.v1.main import ModelMetaclass
 from pyld import jsonld
 from rdflib import Graph
 from typing_extensions import deprecated
@@ -72,7 +71,7 @@ class ImportConfig(OswBaseModel):
     """Ontology metadata, inluding imported ontologies"""
     import_mapping: Optional[Dict[str, str]] = {}
     """Mapping of imported ontologies iri to their resolveable file url in case both are not identical"""
-    base_class: ModelMetaclass
+    base_class: Type[OswBaseModel]
     """Base class for the ontology model. For OWL Ontologies, this should be model.OwlClass or a subclass of it."""
     base_class_title: Optional[str] = (
         "Category:OSW725a3cf5458f4daea86615fcbd0029f8"  # OwlClass

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 
 
 class PagePackagePageSlot(BaseModel):

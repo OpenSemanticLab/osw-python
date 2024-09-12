@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, List, Optional, Type, TypeVar, Union
 from uuid import UUID, uuid4
 
-from pydantic import Field, constr
+from pydantic.v1 import Field, constr
 from typing_extensions import Literal
 
 from osw.model.static import Ontology, OswBaseModel

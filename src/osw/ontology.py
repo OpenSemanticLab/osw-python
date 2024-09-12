@@ -5,8 +5,8 @@ import uuid
 from typing import Dict, List, Literal, Optional
 
 import pyld
-from pydantic import PrivateAttr
-from pydantic.main import ModelMetaclass
+from pydantic.v1 import PrivateAttr
+from pydantic.v1.main import ModelMetaclass
 from pyld import jsonld
 from rdflib import Graph
 from typing_extensions import deprecated

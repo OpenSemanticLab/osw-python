@@ -4,7 +4,7 @@ from pprint import pprint
 from typing import ClassVar
 from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 
 import osw.model.entity as model
 from osw.core import OSW

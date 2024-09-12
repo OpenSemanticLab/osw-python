@@ -7,7 +7,7 @@ import mwparserfromhell
 import numpy as np
 import yaml
 from jsonpath_ng.ext import parse
-from pydantic import FilePath
+from pydantic.v1 import FilePath
 
 from osw.model.static import OswBaseModel
 from osw.utils.util import parallelize

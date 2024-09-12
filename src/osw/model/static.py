@@ -4,7 +4,7 @@ This module is to be imported in the dynamically created and updated entity.py m
 
 from typing import TYPE_CHECKING, Type, TypeVar, Union
 
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 

@@ -12,8 +12,8 @@ from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
 
 from jsonpath_ng.ext import parse
-from pydantic import BaseModel, Field, create_model, validator
-from pydantic.main import ModelMetaclass, PrivateAttr
+from pydantic.v1 import BaseModel, Field, create_model, validator
+from pydantic.v1.main import ModelMetaclass, PrivateAttr
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel

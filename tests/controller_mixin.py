@@ -1,6 +1,6 @@
 from typing import Type
 
-from pydantic import create_model
+from pydantic.v1 import create_model
 
 import osw.model.entity as model
 

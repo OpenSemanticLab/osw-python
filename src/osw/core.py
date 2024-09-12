@@ -465,6 +465,7 @@ class OSW(BaseModel):
                 --output {temp_model_path} \
                 --base-class osw.model.static.OswBaseModel \
                 --use-default \
+                --use-unique-items-as-set \
                 --enum-field-as-literal all \
                 --use-title-as-name \
                 --use-schema-description \
@@ -480,6 +481,7 @@ class OSW(BaseModel):
             # --custom-template-dir src/model/template_data/
             # --extra-template-data src/model/template_data/extra.json
             # --use-default: Use default value even if a field is required
+            # --use-unique-items-as-set: define field type as `set` when the field attribute has`uniqueItems`
             # --enum-field-as-literal all: prevent 'value is not a valid enumeration member' errors after schema reloading
             # --use-schema-description: Use schema description to populate class docstring
             # --use-field-description: Use schema description to populate field docstring
@@ -498,6 +500,19 @@ class OSW(BaseModel):
                 r"UUID = Field(default_factory=uuid4",
                 content,
             )  # enable default value for uuid
+
+            # we are now using pydantic.v1
+            # pydantic imports lead to uninitialized fields (FieldInfo still present)
+            content = re.sub(
+                r"(from pydantic import)", "from pydantic.v1 import", content
+            )
+
+            # remove field param unique_items
+            # --use-unique-items-as-set still keeps unique_items=True as Field param
+            # which was removed, see https://github.com/pydantic/pydantic-core/issues/296
+            # --output-model-type pydantic_v2.BaseModel fixes that but generated models
+            # are not v1 compatible mainly by using update_model()
+            content = re.sub(r"(,?\s*unique_items=True\s*)", "", content)
 
             if fetchSchemaParam.mode == "replace":
                 header = (

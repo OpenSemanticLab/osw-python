@@ -356,20 +356,26 @@ class OSW(BaseModel):
         if not page.exists:
             print(f"Error: Page {schema_title} does not exist")
             return
-        if schema_title.startswith("Category:"):
+        # not only in the JsonSchema namespace the schema is located in the main sot
+        # in all other namespaces, the json_schema slot is used
+        if schema_title.startswith("JsonSchema:"):
+            schema_str = ""
+            if page.get_slot_content("main"):
+                schema_str = json.dumps(page.get_slot_content("main"))
+        else:
             schema_str = ""
             if page.get_slot_content("jsonschema"):
                 schema_str = json.dumps(page.get_slot_content("jsonschema"))
-        else:
-            schema_str = page.get_slot_content("main")
-            if schema_str and not isinstance(schema_str, str):
-                schema_str = json.dumps(schema_str)
         if (schema_str is None) or (schema_str == ""):
             print(f"Error: Schema {schema_title} does not exist")
-            return
+            schema_str = "{}"  # empty schema to make reference work
         schema = json.loads(
-            schema_str.replace("$ref", "dollarref")
-        )  # '$' is a special char for root object in jsonpath
+            schema_str.replace(
+                "$ref", "dollarref"
+            ).replace(  # '$' is a special char for root object in jsonpath
+                '"allOf": [', '"allOf": [{},'
+            )  # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
+        )
         print(f"Fetch {schema_title}")
 
         jsonpath_expr = parse("$..dollarref")

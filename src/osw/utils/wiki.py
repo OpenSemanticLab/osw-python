@@ -1,7 +1,8 @@
-from typing import Union
+from typing import Type, Union
 from uuid import UUID
 
 import osw.model.entity as model
+from osw.model.static import OswBaseModel
 
 
 def get_osw_id(uuid: UUID) -> str:
@@ -35,7 +36,7 @@ def get_uuid(osw_id) -> UUID:
     return UUID(osw_id.replace("OSW", ""))
 
 
-def get_namespace(entity: model.Entity) -> Union[str, None]:
+def get_namespace(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str, None]:
     """determines the wiki namespace based on the entity's type/class
 
     Parameters
@@ -54,6 +55,7 @@ def get_namespace(entity: model.Entity) -> Union[str, None]:
             namespace = entity.meta.wiki_page.namespace
 
     #  (model classes may not exist => try except)
+    #  note: this may not work properly with dynamic reloaded model module
     if namespace is None:
         try:
             if issubclass(entity, model.Entity):
@@ -62,14 +64,20 @@ def get_namespace(entity: model.Entity) -> Union[str, None]:
             pass
     if namespace is None:
         try:
-            if isinstance(entity, model.Item):
-                namespace = "Item"
+            if isinstance(entity, model.Category):
+                namespace = "Category"
         except AttributeError:
             pass
     if namespace is None:
         try:
-            if isinstance(entity, model.Category):
+            if issubclass(entity, model.Characteristic):
                 namespace = "Category"
+        except (TypeError, AttributeError):
+            pass
+    if namespace is None:
+        try:
+            if isinstance(entity, model.Item):
+                namespace = "Item"
         except AttributeError:
             pass
     if namespace is None:

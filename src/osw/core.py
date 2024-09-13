@@ -1018,7 +1018,10 @@ class OSW(BaseModel):
                     schema_str = eval_compiled_handlebars_template(
                         meta_category_template,
                         page.get_slot_content("jsondata"),
-                        {"_page_title": entity_title},
+                        {
+                            "_page_title": entity_title,  # legacy
+                            "_current_subject_": entity_title,
+                        },
                     )
                     schema = json.loads(schema_str)
                     page.set_slot_content("jsonschema", schema)

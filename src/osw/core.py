@@ -963,6 +963,8 @@ class OSW(BaseModel):
         if not isinstance(param.entities, list):
             param.entities = [param.entities]
 
+        param: OSW.StoreEntityParam = param
+
         max_index = len(param.entities)
 
         meta_category = self.site.get_page(
@@ -976,12 +978,12 @@ class OSW(BaseModel):
                 meta_category = self.site.get_page(
                     WtSite.GetPageParam(titles=[param.meta_category_title])
                 ).pages[0]
-                param.meta_category_template_str = meta_category.get_slot_content(
+                meta_category_template_str = meta_category.get_slot_content(
                     "schema_template"
                 )
-            if param.meta_category_template_str:
+            if meta_category_template_str:
                 meta_category_template = compile_handlebars_template(
-                    param.meta_category_template_str
+                    meta_category_template_str
                 )
 
         def store_entity_(

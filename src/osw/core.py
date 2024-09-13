@@ -632,15 +632,15 @@ class OSW(BaseModel):
                 print("Error: no schema defined")
 
             elif len(schemas) == 1:
-                cls = schemas[0]["title"]
-                entity: model.Entity = eval(f"model.{cls}(**jsondata)")
+                cls = getattr(model, schemas[0]["title"])
+                entity: model.Entity = cls(**jsondata)
 
             else:
                 bases = []
                 for schema in schemas:
-                    bases.append(eval("model." + schema["title"]))
+                    bases.append(getattr(model, schema["title"]))
                 cls = create_model("Test", __base__=tuple(bases))
-                entity = cls(**jsondata)
+                entity: model.Entity = cls(**jsondata)
 
             if entity is not None:
                 # make sure we do not override existing meta data

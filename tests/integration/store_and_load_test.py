@@ -202,13 +202,13 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
         name="TestCharacteristic",
         label=[model.Label(text="Test Characteristic")],
         properties=[
-            model.SimpleProperty(
+            model.PrimitiveProperty(
                 uuid="766e7171-a183-4f9c-a9af-28cfd27fb1d9",
                 name="test_property",
                 type="string",
                 property_type="SimpleProperty",
             ),
-            model.SimpleProperty(
+            model.PrimitiveProperty(
                 uuid="766e7171-a183-4f9c-a9af-28cfd27fb1d1",
                 name="test_property2",
                 rdf_property="Property:TestPropertyWithSchema",
@@ -273,9 +273,9 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
     assert t.test_property == "Test"
     assert t.test_property2 == 1
 
-    # cleanup
-    my_characteristic.meta = model.Meta(
-        wiki_page=model.WikiPage(namespace="Category")
-    )  # namespace detection fails otherwise
-    osw.delete_entity(my_characteristic)
-    pp.delete()
+    # cleanup (disabled for paralle test matrix)
+    # my_characteristic.meta = model.Meta(
+    #     wiki_page=model.WikiPage(namespace="Category")
+    # )  # namespace detection fails otherwise
+    # osw.delete_entity(my_characteristic)
+    # pp.delete()

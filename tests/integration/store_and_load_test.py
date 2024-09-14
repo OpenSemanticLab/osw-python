@@ -1,6 +1,5 @@
 import sys
 from pathlib import Path
-from time import sleep
 
 import osw.model.entity as model
 from osw.auth import CredentialManager
@@ -228,35 +227,14 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
         )
     )
 
-    osw.site.disable_cache()
-    pages = osw.site.get_page(
-        WtSite.GetPageParam(titles=["Category:OSWefad80864a7647cab278f5f944e5754b"])
-    ).pages
-    osw.site.enable_cache()
-    cp = pages[0]
-    schema: dict = cp.get_slot_content("jsonschema")
-    # if "$defs" in schema and "generated" in schema["$defs"]
-    new_schema = {
-        "$defs": {"generated": schema},
-        "allOf": [{"$ref": "#/$defs/generated"}],
-    }
-    new_schema["@context"] = schema.pop("@context")
-    new_schema["title"] = schema.pop("title")
-    schema["title"] = "Generated" + new_schema["title"]
-    cp.set_slot_content("jsonschema", new_schema)
-
-    cp.edit()
-
     pages = osw.site.get_page(
         WtSite.GetPageParam(titles=["Property:TestPropertyWithSchema"])
     ).pages
     pp = pages[0]
-    schema: dict = pp.get_slot_content("jsonschema")
+    # schema: dict = pp.get_slot_content("jsonschema")
     new_schema = {"type": "number", "description": "Imported from property schema"}
     pp.set_slot_content("jsonschema", new_schema)
-
     pp.edit()
-    sleep(2)  # we need to wait here a little bit before fetching
 
     # load the characteristic as category
     osw.fetch_schema(

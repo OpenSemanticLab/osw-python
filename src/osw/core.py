@@ -1024,7 +1024,20 @@ class OSW(BaseModel):
                         },
                     )
                     schema = json.loads(schema_str)
-                    page.set_slot_content("jsonschema", schema)
+                    # put generated schema in definitions section
+                    # currently only enabled for Characteristics
+                    if hasattr(model, "MetaCharacteristic") and isinstance(
+                        entity, model.MetaCharacteristic
+                    ):
+                        new_schema = {
+                            "$defs": {"generated": schema},
+                            "allOf": [{"$ref": "#/$defs/generated"}],
+                        }
+                        new_schema["@context"] = schema.pop("@context", None)
+                        new_schema["title"] = schema.pop("title", "")
+                        schema["title"] = "Generated" + new_schema["title"]
+                        schema = new_schema
+                    page.set_slot_content("jsonschema", new_schema)
                 except Exception as e:
                     print(
                         f"Schema generation from template failed for " f"{entity}: {e}"

@@ -356,20 +356,26 @@ class OSW(BaseModel):
         if not page.exists:
             print(f"Error: Page {schema_title} does not exist")
             return
-        if schema_title.startswith("Category:"):
+        # not only in the JsonSchema namespace the schema is located in the main sot
+        # in all other namespaces, the json_schema slot is used
+        if schema_title.startswith("JsonSchema:"):
+            schema_str = ""
+            if page.get_slot_content("main"):
+                schema_str = json.dumps(page.get_slot_content("main"))
+        else:
             schema_str = ""
             if page.get_slot_content("jsonschema"):
                 schema_str = json.dumps(page.get_slot_content("jsonschema"))
-        else:
-            schema_str = page.get_slot_content("main")
-            if schema_str and not isinstance(schema_str, str):
-                schema_str = json.dumps(schema_str)
         if (schema_str is None) or (schema_str == ""):
             print(f"Error: Schema {schema_title} does not exist")
-            return
+            schema_str = "{}"  # empty schema to make reference work
         schema = json.loads(
-            schema_str.replace("$ref", "dollarref")
-        )  # '$' is a special char for root object in jsonpath
+            schema_str.replace(
+                "$ref", "dollarref"
+            ).replace(  # '$' is a special char for root object in jsonpath
+                '"allOf": [', '"allOf": [{},'
+            )  # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
+        )
         print(f"Fetch {schema_title}")
 
         jsonpath_expr = parse("$..dollarref")
@@ -626,15 +632,15 @@ class OSW(BaseModel):
                 print("Error: no schema defined")
 
             elif len(schemas) == 1:
-                cls = schemas[0]["title"]
-                entity: model.Entity = eval(f"model.{cls}(**jsondata)")
+                cls = getattr(model, schemas[0]["title"])
+                entity: model.Entity = cls(**jsondata)
 
             else:
                 bases = []
                 for schema in schemas:
-                    bases.append(eval("model." + schema["title"]))
+                    bases.append(getattr(model, schema["title"]))
                 cls = create_model("Test", __base__=tuple(bases))
-                entity = cls(**jsondata)
+                entity: model.Entity = cls(**jsondata)
 
             if entity is not None:
                 # make sure we do not override existing meta data
@@ -957,6 +963,8 @@ class OSW(BaseModel):
         if not isinstance(param.entities, list):
             param.entities = [param.entities]
 
+        param: OSW.StoreEntityParam = param
+
         max_index = len(param.entities)
 
         meta_category = self.site.get_page(
@@ -970,12 +978,12 @@ class OSW(BaseModel):
                 meta_category = self.site.get_page(
                     WtSite.GetPageParam(titles=[param.meta_category_title])
                 ).pages[0]
-                param.meta_category_template_str = meta_category.get_slot_content(
+                meta_category_template_str = meta_category.get_slot_content(
                     "schema_template"
                 )
-            if param.meta_category_template_str:
+            if meta_category_template_str:
                 meta_category_template = compile_handlebars_template(
-                    param.meta_category_template_str
+                    meta_category_template_str
                 )
 
         def store_entity_(
@@ -1010,10 +1018,26 @@ class OSW(BaseModel):
                     schema_str = eval_compiled_handlebars_template(
                         meta_category_template,
                         page.get_slot_content("jsondata"),
-                        {"_page_title": entity_title},
+                        {
+                            "_page_title": entity_title,  # legacy
+                            "_current_subject_": entity_title,
+                        },
                     )
                     schema = json.loads(schema_str)
-                    page.set_slot_content("jsonschema", schema)
+                    # put generated schema in definitions section
+                    # currently only enabled for Characteristics
+                    if hasattr(model, "MetaCharacteristic") and isinstance(
+                        entity, model.MetaCharacteristic
+                    ):
+                        new_schema = {
+                            "$defs": {"generated": schema},
+                            "allOf": [{"$ref": "#/$defs/generated"}],
+                        }
+                        new_schema["@context"] = schema.pop("@context", None)
+                        new_schema["title"] = schema.pop("title", "")
+                        schema["title"] = "Generated" + new_schema["title"]
+                        schema = new_schema
+                    page.set_slot_content("jsonschema", new_schema)
                 except Exception as e:
                     print(
                         f"Schema generation from template failed for " f"{entity}: {e}"

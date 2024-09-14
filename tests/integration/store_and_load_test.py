@@ -171,3 +171,89 @@ def test_statement_creation(wiki_domain, wiki_username, wiki_password):
     assert f"Item:{OSW.get_osw_id(my_entity.uuid)}" in full_page_titles
 
     osw.delete_entity(my_entity)
+
+
+def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
+    cm = CredentialManager()
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
+    osw = OSW(site=wtsite)
+
+    osw.fetch_schema(
+        OSW.FetchSchemaParam(
+            schema_title=[
+                "Category:OSWffe74f291d354037b318c422591c5023",  # MetaCharacteristic
+                "Category:Property",
+            ],
+            mode="replace",
+        )
+    )
+
+    # my_property = model.Property
+
+    # Create a characteristic as instance of MetaCharacteristic
+    my_characteristic = model.MetaCharacteristic(
+        uuid="efad8086-4a76-47ca-b278-f5f944e5754b",
+        name="TestCharacteristic",
+        label=[model.Label(text="Test Characteristic")],
+        properties=[
+            model.PrimitiveProperty(
+                uuid="766e7171-a183-4f9c-a9af-28cfd27fb1d9",
+                name="test_property",
+                type="string",
+                property_type="SimpleProperty",
+            ),
+            model.PrimitiveProperty(
+                uuid="766e7171-a183-4f9c-a9af-28cfd27fb1d1",
+                name="test_property2",
+                rdf_property="Property:TestPropertyWithSchema",
+                property_type="SimpleProperty",
+            ),
+        ],
+    )
+
+    # store it as instance, which generates the schema
+    # note: namespace and meta_category should be detected automatically in the future
+    osw.store_entity(
+        OSW.StoreEntityParam(
+            entities=[my_characteristic],
+            namespace="Category",
+            meta_category_title="Category:OSWffe74f291d354037b318c422591c5023",
+            overwrite=OverwriteOptions.true,
+        )
+    )
+
+    pages = osw.site.get_page(
+        WtSite.GetPageParam(titles=["Property:TestPropertyWithSchema"])
+    ).pages
+    pp = pages[0]
+    # schema: dict = pp.get_slot_content("jsonschema")
+    new_schema = {"type": "number", "description": "Imported from property schema"}
+    pp.set_slot_content("jsonschema", new_schema)
+    pp.edit()
+
+    # load the characteristic as category
+    osw.fetch_schema(
+        OSW.FetchSchemaParam(
+            schema_title=[
+                "Category:OSWefad80864a7647cab278f5f944e5754b"  # TestCharacteristic
+            ],
+            mode="append",
+        )
+    )
+
+    # create an instance of the characteristic
+    t = model.TestCharacteristic(test_property="Test", test_property2=1)
+    assert t.test_property == "Test"
+    assert t.test_property2 == 1
+
+    # cleanup (disabled for paralle test matrix)
+    # my_characteristic.meta = model.Meta(
+    #     wiki_page=model.WikiPage(namespace="Category")
+    # )  # namespace detection fails otherwise
+    # osw.delete_entity(my_characteristic)
+    # pp.delete()

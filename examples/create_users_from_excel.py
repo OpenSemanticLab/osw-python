@@ -1,10 +1,13 @@
+import json
 import os
 import uuid as uuid_module
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Dict, List, Union
+from pydantic.v1 import BaseModel, Field
+from typing_extensions import Dict, List, Optional, Union
 
 import osw.data.import_utility as diu
 import osw.model.entity as model
@@ -12,6 +15,12 @@ from osw.core import OSW
 from osw.express import OswExpress
 from osw.utils import util
 from osw.wtsite import WtPage
+
+# Constants
+USER_NS = uuid_module.UUID(model.User.__fields__["type"].default[0].split("OSW")[-1])
+ORGANIZATION_NS = uuid_module.UUID(
+    model.Organization.__fields__["type"].default[0].split("OSW")[-1]
+)
 
 
 def is_nan(x):
@@ -69,6 +78,20 @@ def create_redirects(
     parallel: bool = True,
     overwrite: bool = False,
 ):
+    """Create redirects for users in the users_to_import DataFrame
+
+    Parameters
+    ----------
+    users_to_import
+    user_entities
+    osw_obj
+    parallel
+    overwrite
+
+    Returns
+    -------
+
+    """
     username_entity_pairs = []
     for ii in range(len(users_to_import)):
         row_ = users_to_import.iloc[ii]
@@ -99,16 +122,100 @@ def create_redirects(
         ]
 
 
-USER_NS = uuid_module.UUID(model.User.__fields__["type"].default[0].split("OSW")[-1])
-ORGANIZATION_NS = uuid_module.UUID(
-    model.Organization.__fields__["type"].default[0].split("OSW")[-1]
-)
+def create_password_from_uuid() -> str:
+    return str(uuid4())
+
+
+class UserDetails(BaseModel):
+    username: str
+    email: str
+    password: str = Field(default_factory=create_password_from_uuid)
+    first_name: Optional[str]
+    surname: Optional[str]
+
+
+def create_account(
+    osw_obj: OswExpress,
+    user_details: List[UserDetails],
+    email_sender: Optional[str] = None,
+    save_results_to: Optional[Union[str, Path]] = None,
+):
+    if email_sender is None:
+        email_sender = "Digital Transformation @ Fraunhofer ISC"
+    session = osw_obj.site._site.connection
+
+    wiki_url = f"https://{osw_obj.domain}"
+    api_endpoint = wiki_url + "/w/api.php"
+
+    # First step
+    # Retrieve account creation token from `tokens` module
+    params_0 = {
+        "action": "query",
+        "meta": "tokens",
+        "type": "createaccount",
+        "format": "json",
+    }
+
+    response_0 = session.get(url=api_endpoint, params=params_0)
+    data_0 = response_0.json()
+
+    token = data_0["query"]["tokens"]["createaccounttoken"]
+
+    created_accounts = []
+    for ud in user_details:
+        # Second step
+        # Send a post request with the fetched token and other data (user information,
+        # return URL, etc.)  to the API to create an account
+        params_1 = {
+            "action": "createaccount",
+            "createtoken": token,
+            "username": ud.username,
+            "password": ud.password,
+            "retype": ud.password,
+            "email": ud.email,
+            "createreturnurl": wiki_url,
+            "format": "json",
+        }
+
+        response_1 = session.post(api_endpoint, data=params_1)
+        data_1 = response_1.json()
+        print(data_1)
+
+        email_text = f"""Dear {ud.first_name} {ud.surname},
+
+        an account has been created for you on {wiki_url}. Please use the following
+        credentials to log in:
+
+        Username: {ud.username}
+        Password: {ud.password}
+        Email: {ud.email}
+
+        Please change your password after logging in.
+
+        Best regards,
+        {email_sender}
+        """
+
+        created_accounts.append(
+            {
+                "params": params_1,
+                "response": data_1,
+                "user_details": ud.dict(),
+                "email_text": email_text,
+            }
+        )
+    if save_results_to is not None:
+        if not isinstance(save_results_to, Path):
+            save_results_to = Path(save_results_to)
+        with open(save_results_to, "w") as f:
+            json.dump({"list": created_accounts}, f, indent=2, ensure_ascii=False)
+    return created_accounts
 
 
 if __name__ == "__main__":
     cwd = Path(os.getcwd())
     excel_fp = cwd / "users_to_import.xlsx"
-    domain = "reuse.projects01.open-semantic-lab.org"
+    domain = "wiki-dev.open-semantic-lab.org"
 
     osw_obj = OswExpress(domain)
 
@@ -176,9 +283,20 @@ if __name__ == "__main__":
     for i, row in u2i.iterrows():
         rnd_uuid = uuid_module.uuid4()
         uuid = uuid_module.uuid5(USER_NS, str(rnd_uuid))
-        full_name_stripped = row["Full name"].strip()
-        first_name = full_name_stripped.split(" ")[0]
-        last_name = full_name_stripped.split(" ")[-1]
+        if is_nan(row["Full name"]):
+            if not is_nan(row["First name"]) and not is_nan(row["Last name"]):
+                full_name_stripped = (
+                    f"{row['First name'].strip()} " f"{row['Last name'].strip()}"
+                )
+                u2i.at[i, "Full name"] = full_name_stripped
+            else:
+                raise ValueError(
+                    "'Full name' is NaN and 'First name' & 'Last name' are NaN."
+                )
+        else:
+            full_name_stripped = row["Full name"].strip()
+            first_name = full_name_stripped.split(" ")[0]
+            last_name = full_name_stripped.split(" ")[-1]
         middle_name = None
         if len(full_name_stripped.split(" ")) > 2:
             middle_name = full_name_stripped.split(" ")[1:-1]
@@ -204,11 +322,13 @@ if __name__ == "__main__":
             orcid_url = orcid
             if "orcid.org" not in orcid:
                 orcid_url = f"https://orcid.org/{orcid}"
-
         if not is_nan(row["Website"]):
             website = row["Website"]
         if not is_nan(row["Username"]):
             username = row["Username"]
+        else:
+            if not is_nan(row["ORCID"]):
+                username = row["ORCID"].split("/")[-1]
         if not is_nan(row["OSW ID"]):
             osw_id = row["OSW ID"]
             uuid = diu.osw_id_to_uuid(osw_id)
@@ -226,6 +346,26 @@ if __name__ == "__main__":
                     None,
                 )
             ]
+            organization = [oo for oo in organization if oo is not None]
+            if len(organization) == 0:
+                organization = None
+        if not is_nan(row["Organizational unit"]):
+            ou_short_name = row["Organizational unit"]
+            organizational_unit = [
+                next(
+                    (
+                        diu.uuid_to_full_page_title(org.uuid)
+                        for org in organizations
+                        if org.short_name[0].text == ou_short_name
+                    ),
+                    None,
+                )
+            ]
+            organizational_unit = [
+                ouu for ouu in organizational_unit if ouu is not None
+            ]
+            if len(organizational_unit) == 0:
+                organizational_unit = None
         user = model.User(
             label=[
                 {
@@ -238,6 +378,7 @@ if __name__ == "__main__":
             surname=last_name,
             username=username,
             organization=organization,
+            organizational_unit=organizational_unit,
             uuid=uuid,
             email=email,
             orcid=orcid_url,
@@ -268,11 +409,11 @@ if __name__ == "__main__":
     # todo:
     #  * set site for the users (located at)
 
-    upload = False
+    upload = True
     if upload:
         entities = organizations + users
         params = OSW.StoreEntityParam(
-            entities=entities, comment="Imported from Excel", parallel=True
+            entities=entities, comment="Imported from Excel", parallel=False
         )
         osw_obj.store_entity(param=params)
 
@@ -284,6 +425,25 @@ if __name__ == "__main__":
             osw_obj=osw_obj,
             parallel=False,
             overwrite=True,
+        )
+
+    create_accounts = True
+    if create_accounts:
+        user_details = []
+        for user in users:
+            user_details.append(
+                UserDetails(
+                    username=user.username,
+                    email=list(user.email)[0],
+                    first_name=user.first_name,
+                    surname=user.surname,
+                )
+            )
+        created_accounts = create_account(
+            osw_obj=osw_obj,
+            user_details=user_details,
+            email_sender="Digital Transformation @ Fraunhofer ISC",
+            save_results_to=cwd / "created_accounts.json",
         )
 
     white_list = ""

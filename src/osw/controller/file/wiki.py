@@ -38,6 +38,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         # use web api
         full_title = f"{self.namespace}:{self.title}"
         web_api_failed = False
+        response = None
         try:
             url = f"{self.osw.site._site.scheme}://{self.osw.site._site.host}{self.osw.site._site.path}api.php?action=download&format=json&title={full_title}"
             # print("Use web api: ", url)

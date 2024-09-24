@@ -4,6 +4,7 @@ import getpass
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Union
+from warnings import warn
 
 import yaml
 from pydantic.v1 import FilePath, PrivateAttr
@@ -80,6 +81,12 @@ class CredentialManager(OswBaseModel):
         if self.cred_filepath:
             if not isinstance(self.cred_filepath, list):
                 self.cred_filepath = [self.cred_filepath]
+        # Make sure to at least warn the user if they pass cred_fp instead of
+        # cred_filepath
+        attribute_names = self.__dict__.keys()
+        unexpected_kwargs = [key for key in data.keys() if key not in attribute_names]
+        if unexpected_kwargs:
+            warn(f"Unexpected keyword argument(s): {', '.join(unexpected_kwargs)}")
 
     def get_credential(self, config: CredentialConfig) -> BaseCredential:
         """Reads credentials from a yaml file or the in memory store

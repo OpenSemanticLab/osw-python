@@ -43,7 +43,7 @@ class FileController(model.File):
 
     def get_to(self, other: "FileController"):
         """Reads or downloads a file to another file controller
-        Automatically closes the this file controllers IO object after reading
+        Automatically closes this file controllers IO object after reading
 
         Parameters
         ----------

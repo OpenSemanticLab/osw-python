@@ -10,7 +10,7 @@ print(f"Credentials loaded from '{str(credentials_fp_default)}")
 # Create an OswExpress object
 domain = "wiki-dev.open-semantic-lab.org"
 # domain = "arkeve.test.digital.isc.fraunhofer.de"
-osw = OswExpress(domain=domain)
+osw_obj = OswExpress(domain=domain)
 
 # Download a file from an OSW instance and save it to a local file
 local_file = osw_download_file(

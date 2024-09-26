@@ -2,7 +2,7 @@ import os
 import shutil
 from io import TextIOBase
 from pathlib import Path
-from typing import IO, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
 from osw.controller.file.base import FileController
 from osw.core import model
@@ -17,8 +17,10 @@ class LocalFileController(FileController, model.LocalFile):
     """the path to the file"""
 
     @classmethod
-    def from_other(cls, other: "FileController", path: Path) -> "LocalFileController":
-        return other.cast(cls, path=path)
+    def from_other(
+        cls, other: "FileController", path: Path, **kwargs
+    ) -> "LocalFileController":
+        return other.cast(cls, path=path, **kwargs)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -31,7 +33,7 @@ class LocalFileController(FileController, model.LocalFile):
         self._set_metadata()
         return open(self.path, "rb")
 
-    def put(self, file: IO):
+    def put(self, file: IO, **kwargs: Dict[str, Any]):
         self._set_metadata()
         mode = "wb"
         if isinstance(file, TextIOBase):

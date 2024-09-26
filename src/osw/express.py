@@ -1,15 +1,16 @@
 """
 This module provides convenience functions for osw-python.
 """
+
 import re
 from pathlib import Path
+from warnings import warn
 
-from typing_extensions import Optional, TextIO, Union
+from typing_extensions import Any, Dict, List, Optional, TextIO, Union
 
-from osw.auth import CredentialManager, CREDENTIALS_FN_DEFAULT
-from osw.controller.file.local import LocalFileController
-from osw.controller.file.wiki import WikiFileController
-from osw.core import OSW
+import osw.model.entity as model
+from osw.auth import CREDENTIALS_FN_DEFAULT, CredentialManager
+from osw.core import OSW, OVERWRITE_CLASS_OPTIONS, OverwriteOptions
 from osw.model.static import OswBaseModel
 from osw.wtsite import WtSite
 
@@ -17,6 +18,16 @@ from osw.wtsite import WtSite
 BASE_PATH = Path.cwd()
 CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / CREDENTIALS_FN_DEFAULT
 DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
+
+DEPENDENCIES = {
+    # "Entity": "Category:Entity",  # depends on nothing
+    # "Item": "Category:Item",  # depends on Entity
+    # "Data": "Category:OSW2ac4493f8635481eaf1db961b63c8325", # depends on Item
+    # "File": "Category:OSWff333fd349af4f65a69100405a9e60c7",  # depends on Data
+    "LocalFile": "Category:OSW3e3f5dd4f71842fbb8f270e511af8031",  # depends on File
+    # "RemoteFile": "Category:OSW05b244d0a669436e96fe4e1631d5a171",  # depends on File
+    "WikiFile": "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",  # depends on RemoteFile
+}
 
 
 class FilePathDefault(OswBaseModel):
@@ -101,9 +112,11 @@ class OswExpress(OSW):
     """
 
     domain: str
-    """The domain of the wiki to connect to."""
+    """The domain of the OSL instance to connect to."""
     cred_fp: Optional[Union[str, Path]]
-    """The filepath to the credentials file."""
+    """The filepath to the credentials file. Will be overwritten by the cred_filepath
+    of credential_manager, if it posses a non-None value. If credentials_fp is None,
+    a default value is set."""
     credential_manager: Optional[CredentialManager]
     """A credential manager object."""
 
@@ -118,7 +131,10 @@ class OswExpress(OSW):
     ):
         if cred_fp is None:
             cred_fp = credentials_fp_default.get_default()
-        if isinstance(cred_fp, str):
+            if credential_manager is not None:
+                if credential_manager.cred_filepath is not None:
+                    cred_fp = credential_manager.cred_filepath[0]
+        if not isinstance(cred_fp, Path):
             cred_fp = Path(cred_fp)
         if credential_manager is None:
             if cred_fp.exists():
@@ -150,18 +166,257 @@ class OswExpress(OSW):
         self.credential_manager = credential_manager
         self.cred_fp = cred_fp
 
+    def __enter__(self):
+        return self
 
-class DownloadFileResult(LocalFileController):
-    """
-    A specific result object.
-    """
+    def __exit__(self):
+        self.close_connection()
 
-    url_or_title: str
-    """The URL or full page title of the WikiFile page to download."""
+    def close_connection(self):
+        self.site._site.connection.close()
+
+    def shut_down(self):
+        self.close_connection()
+        del self
+        # Make sure this osw instance can't be reused after it was shut down (the
+        # connection can't be reopened except when initializing a new instance)
+
+    def install_dependencies(self, dependencies: Dict[str, str] = None):
+        """Expects a dictionary with the keys being the names of the dependencies and
+        the values being the full page name of the dependencies."""
+        if dependencies is None:
+            dependencies = DEPENDENCIES
+        schema_fpts = list(dependencies.values())
+        schema_fpts = list(set(schema_fpts))
+        for schema_fpt in schema_fpts:
+            if not schema_fpt.count(":") == 1:
+                raise ValueError(
+                    f"Full page title '{schema_fpt}' does not have the correct format. "
+                    "It should be 'Namespace:Name'."
+                )
+        for i, schema_fpt in enumerate(schema_fpts):
+            mode = "append"
+            self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpt, mode=mode))
+
+    def download_file(
+        self,
+        url_or_title: str,
+        mode: str = "r",
+        delete_after_use: bool = False,
+        target_dir: Optional[Union[str, Path]] = None,
+        target_fn: Optional[str] = None,
+        target_fp: Optional[Union[str, Path]] = None,
+        overwrite: bool = False,
+        use_cached: bool = False,
+    ) -> "DownloadFileResult":
+        """Download a file from a URL to a target directory.
+
+        Parameters
+        ----------
+        url_or_title
+            The URL or full page title of the WikiFile page to download.
+        mode
+            The mode to open the file in. Default is 'r'. Implements the built-in open.
+        delete_after_use
+            If True, the file will be deleted after use.
+        target_dir
+            The target directory to download the file to. If None, the current working
+            will be used.
+        target_fn
+            The target filename to save the file as. If None, the filename will be taken
+            from the URL or title.
+        target_fp
+            The target filepath to save the file to. If None, the file will be saved to
+            the target directory with the target filename.
+        overwrite
+            If True, the file will be overwritten if it already exists. If False, the
+            file
+            will not be downloaded if it already exists.
+        use_cached
+            If True, the file will be reloaded from the cache. If False, the file will
+            be reloaded from the server. This option is useful if you are debugging
+            code and don't want to reload the file from the server every time.
+
+        Returns
+        -------
+        result
+            A specific result object.
+        """
+        return DownloadFileResult(
+            url_or_title=url_or_title,
+            mode=mode,
+            delete_after_use=delete_after_use,
+            target_dir=target_dir,
+            target_fn=target_fn,
+            target_fp=target_fp,
+            osw_express=self,
+            overwrite=overwrite,
+            use_cached=use_cached,
+        )
+
+    def upload_file(
+        self,
+        source: Union["LocalFileController", "WikiFileController", str, Path],
+        url_or_title: Optional[str] = None,
+        overwrite: OVERWRITE_CLASS_OPTIONS = OverwriteOptions.true,
+        delete_after_use: bool = False,
+        label: Optional[List[model.Label]] = None,
+        name: Optional[str] = None,
+        description: Optional[List[model.Description]] = None,
+        **properties: Dict[str, Any],
+    ) -> "UploadFileResult":
+        """Upload a file to an OSL page.
+
+        Parameters
+        ----------
+        source
+            The source file to upload. Can be a LocalFileController, WikiFileController,
+            str or Path.
+        url_or_title
+            The URL or full page title of the WikiFile page to upload the file to. Used to
+            overwrite autogenerated full page title on the target domain. If it is
+            included, the domain can be parsed from the URL.
+        overwrite
+            If True, the file will be overwritten if it already exists. If False, the file
+            will not be downloaded if it already exists.
+        delete_after_use
+            If True, the file will be deleted after use.
+        label
+            The labels to set on the WikiFile data model prior to uploading it to the OSL
+            instance. The labels will end up in the JSON data slot of the to be created
+            WikiFile page.
+        name
+            The name of the file. If None, the name will be taken from the source file.
+        description
+            The description to set on the WikiFile data model prior to uploading it to the
+            OSL instance.
+        properties
+            The properties to set on the WikiFile data model prior to uploading it to
+            the OSL instance. Properties listed here, won't overwrite properties handed
+            over in this function call, e.g., labe, name, description.
+            Properties will end up in the JSON data slot of the to be created WikiFile
+            page, if they match the WikiFile data model.
+
+        Returns
+        -------
+        result
+            A specific result object.
+        """
+        # Preparing all args, kwargs & properties to set for the uploaded file
+        data = {**locals(), **properties}
+        # Clean data dict to avoid passing None values
+        data = {key: value for key, value in data.items() if value is not None}
+        # Initialize the UploadFileResult object
+        return UploadFileResult(source=source, osw_express=self, **data)
+
+
+try:
+    # To load the dependencies that are not part of the osw.model.entity module as
+    # uploaded to the repository
+    from osw.controller.file.base import FileController  # depends on File
+    from osw.controller.file.local import LocalFileController  # depends on LocalFile
+    from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
+except AttributeError as e:
+    warn(
+        f"An exception occurred while loading the module dependencies: \n'{e}'"
+        "You will be now have to connect to an OSW instance to fetch the "
+        "dependencies from!"
+    )
+    domain_ = input("Please enter the domain of the OSW instance to connect to:")
+    if domain_ == "":
+        domain_ = "wiki-dev.open-semantic-lab.org"
+    osw_express_ = OswExpress(domain=domain_)
+    osw_express_.install_dependencies(DEPENDENCIES)
+    osw_express_.shut_down()  # Avoiding connection error
+    # raise AttributeError(
+    warn(
+        "Dependencies specified in the module 'osw.express' have been fetched from OSW:"
+        f"\n{DEPENDENCIES}\n"
+        "Its recommended to restart the kernel, to apply all changes seamlessly."
+    )
+    from osw.controller.file.base import FileController  # depends on File
+    from osw.controller.file.local import LocalFileController  # depends on LocalFile
+    from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
+
+
+class FileResult(OswBaseModel):
+    url_or_title: Optional[str] = None
+    """The URL or full page title of the WikiFile page."""
+    file: Optional[TextIO] = None
+    """The file object. They type depends on the file type."""
     mode: str = "r"
     """The mode to open the file in. Default is 'r'. Implements the built-in open."""
     delete_after_use: bool = False
     """If True, the file will be deleted after use."""
+    path: Optional[Path] = None
+    """Overwriting the attribute of the base class to avoid validation error at
+    initialization. The path to the file."""
+    osw_express: Optional[OswExpress] = None
+    """An OswExpress object. If None, a new OswExpress object will be created using
+    the credentials_manager or domain and credentials_fp."""
+    domain: Optional[str] = None
+    """The domain of the OSL instance to download the file from. Required if
+    urL_or_title is a full page title. If None the domain is parsed from the URL."""
+    credentials_fp: Optional[Union[str, Path]] = None
+    """The filepath to the credentials file. Will only be used if credential_manager is
+    None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml' is
+    expected to be found in the current working directory.
+    """
+    credential_manager: Optional[CredentialManager] = None
+    """A credential manager object. If None, a new credential manager will be created
+    using the credentials_fp."""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def open(self, mode: str = "r", **kwargs):
+        kwargs["mode"] = mode
+        return open(self.path, **kwargs)
+
+    def close(self):
+        self.file.close()
+
+    def read(self, *args, **kwargs):
+        return self.file.read(*args, **kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+        if self.delete_after_use and self.path.exists():
+            self.path.unlink()
+
+    def process_init_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        # Get the field default values (attribute defaults)
+        attr_def_vals = {
+            field_name: field.default
+            for field_name, field in self.__class__.__fields__.items()
+        }
+        # Set the default values for the attributes, if no value was passed
+        for key, value in attr_def_vals.items():
+            if data.get(key) is None:
+                data[key] = value
+        # Do replacements
+        if data.get("credentials_fp") is None:
+            data["credentials_fp"] = credentials_fp_default.get_default()
+        if not data.get("credentials_fp").parent.exists():
+            data["credentials_fp"].parent.mkdir(parents=True)
+        if data.get("credential_manager") is None:
+            data["credential_manager"] = CredentialManager()
+            if data.get("credentials_fp").exists():
+                data["credential_manager"] = CredentialManager(
+                    cred_filepath=data.get("credentials_fp")
+                )
+        return data
+
+
+class DownloadFileResult(FileResult, LocalFileController):
+    """A specific result object to describe the result of downloading a file from an
+    OSL instance."""
+
+    url_or_title: str
+    """The URL or full page title of the WikiFile page to download the file from."""
     target_dir: Optional[Union[str, Path]] = None
     """The target directory to download the file to. If None, the current working
     will be used."""
@@ -171,25 +426,6 @@ class DownloadFileResult(LocalFileController):
     target_fp: Optional[Union[str, Path]] = None
     """The target filepath to save the file to. If None, the file will be saved to the
     target directory with the target filename."""
-    path: Optional[Path] = None
-    """Overwriting the attribute of the base class to avoid validation error at
-    initialization. The path to the file."""
-    file: Optional[TextIO] = None
-    """The file object. They type depends on the file type."""
-    osw_express: Optional[OswExpress] = None
-    """An OswExpress object. If None, a new OswExpress object will be created using
-    the credentials_manager or domain and credentials_fp."""
-    domain: Optional[str] = None
-    """The domain of the wiki to download the file from. Required if urL_or_title is
-    a full page title. If None the domain is parsed from the URL."""
-    credentials_fp: Optional[Union[str, Path]] = None
-    """The filepath to the credentials file. Will only be used if credential_manager is
-    None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml' is
-    expected to be found in the current working directory.
-    """
-    credential_manager: Optional[CredentialManager] = None
-    """A credential manager object. If None, a new credential manager will be created
-    using the credentials_fp."""
     overwrite: bool = False
     """If True, the file will be overwritten if it already exists. If False, the file
     will not be downloaded if it already exists."""
@@ -203,27 +439,10 @@ class DownloadFileResult(LocalFileController):
 
     def __init__(self, url_or_title, **data):
         """The constructor for the context manager."""
-        # Get the field default values (attribute defaults)
-        attr_def_vals = {
-            field_name: field.default
-            for field_name, field in self.__class__.__fields__.items()
-        }
-        # Set the default values for the attributes, if no value was passed
-        for key, value in attr_def_vals.items():
-            if data.get(key) is None:
-                data[key] = value
+
         data["url_or_title"] = url_or_title
         # Do replacements
-        if data.get("credentials_fp") is None:
-            data["credentials_fp"] = credentials_fp_default.get_default()
-        if not data.get("credentials_fp").parent.exists():
-            data["credentials_fp"].parent.mkdir(parents=True)
-        if data.get("credential_manager") is None:
-            data["credential_manager"] = CredentialManager()
-            if data.get("credentials_fp").exists():
-                data["credential_manager"] = CredentialManager(
-                    cred_filepath=data.get("credentials_fp")
-                )
+        data = self.process_init_data(data)
         if data.get("target_fn") is None:
             data["target_fn"] = url_or_title.split("File:")[-1]
         if data.get("target_dir") is None:
@@ -249,7 +468,6 @@ class DownloadFileResult(LocalFileController):
             # Here, no file needs to be downloaded, but the LocalFileController
             #  object needs to be initialized with the path to the file
             lf = LocalFileController(path=data.get("target_fp"))
-
         else:
             if data.get("osw_express") is None:
                 data["osw_express"] = OswExpress(
@@ -274,28 +492,6 @@ class DownloadFileResult(LocalFileController):
         super().__init__(**{**data, **lf.dict()})
         # Do open
         self.file = self.open(mode=data.get("mode"))
-
-    def open(self, mode: str = "r", **kwargs):
-        kwargs["mode"] = mode
-        return open(self.path, **kwargs)
-
-    def close(self):
-        self.file.close()
-
-    def read(self, *args, **kwargs):
-        return self.file.read(*args, **kwargs)
-
-    def delete(self):
-        self.close()
-        super().delete()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-        if self.delete_after_use:
-            self.path.unlink()
 
 
 def osw_download_file(
@@ -335,8 +531,8 @@ def osw_download_file(
         An OswExpress object. If None, a new OswExpress object will be created using
         the credentials_manager or domain and credentials_fp.
     domain
-        The domain of the wiki to download the file from. Required if urL_or_title is
-        a full page title. If None the domain is parsed from the URL.
+        The domain of the OSL instance to download the file from. Required if
+        urL_or_title is a full page title. If None the domain is parsed from the URL.
     credentials_fp
         The filepath to the credentials file. Will only be used if credential_manager is
          None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml'
@@ -373,6 +569,204 @@ def osw_download_file(
     )
 
 
+class UploadFileResult(FileResult, WikiFileController):
+    """A specific result object to describe the result of uploading a file to an
+    OSL instance."""
+
+    source: Union[LocalFileController, WikiFileController, str, Path]
+    """The source of the file to be uploaded."""
+    url_or_title: Optional[str] = None
+    """The URL or full page title of the WikiFile page to upload the file to. Used to
+    overwrite autogenerated full page title on the target domain."""
+    target_fpt: Optional[str] = None
+    """The full page title of the WikiFile page to upload the file to. If None, the
+    title will be taken from the URL or title."""
+    source_file_controller: Optional[FileController] = None
+    """The source file controller to upload the file from. Can be a LocalFileController
+    or a WikiFileController."""
+    overwrite: OVERWRITE_CLASS_OPTIONS = OverwriteOptions.true
+    """If True, the file will be overwritten if it already exists. If False, the file
+    will not be uploaded if it already exists. See osw.core for more information."""
+    change_id: Optional[List[str]] = None
+    """The change ID of the WikiFile page to upload the file to, stored in the meta
+    property."""
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(
+        self,
+        source: Union[LocalFileController, WikiFileController, str, Path],
+        **data: Dict[str, Any],
+    ):
+        # Do replacements on all data (including the those values taken from the
+        # default values of the class definition)
+        data = self.process_init_data(data)
+        # If a source_file_controller was provided, the 'path' should already be set.
+        if isinstance(source, LocalFileController) or isinstance(
+            source, WikiFileController
+        ):
+            data["source_file_controller"] = source
+            data["source"] = source
+        if isinstance(source, str) or isinstance(source, Path):
+            if not Path(source).exists():
+                raise FileNotFoundError(f"File not found: {source}")
+            if Path(source).is_dir():
+                raise IsADirectoryError(f"File expected. Path is a directory: {source}")
+            # source is a path to a file that exists - might also be a file in the CWD
+            data["path"] = Path(source)
+            data["source"] = Path(source)
+
+        # If url_or_title is given, it either
+        # * contains a valid domain, which can be used in osw_express
+        # * contains a full page title, which is the target page
+        if data.get("url_or_title") is not None:
+            # Check right format of the title
+            if "File:" not in data.get("url_or_title"):
+                raise ValueError(
+                    "The 'url_or_title' should contain the namespace 'File'."
+                    f"'{data.get('url_or_title')}' does not."
+                )
+            # Get the full page title from the URL or title
+            fpt = "File:" + data.get("url_or_title").split("File:")[-1]
+            if data.get("target_fpt") is None:
+                data["target_fpt"] = fpt
+            else:
+                if not data.get("target_fpt") == fpt:
+                    raise ValueError(
+                        "The full page title specified in 'url_or_title' does not "
+                        "match the full page title specified in 'target_fpt'."
+                    )
+            # Get the domain from the URL or title
+            match = re.search(
+                pattern=r"(?:(?:https?:\/\/)?(?:www\.)?([^\/]+))\/wiki",
+                string=data.get("url_or_title"),
+            )
+            if data.get("domain") is None:
+                if match is not None:
+                    data["domain"] = match.group(1)
+            else:
+                if match is not None:
+                    if not data.get("domain") == match.group(1):
+                        raise ValueError(
+                            "The domain specified in 'url_or_title' does not match the "
+                            "domain specified in 'domain'."
+                        )
+            # If the full page title is given, the domain must be given as well or
+            # osw_express must be given
+            if data.get("domain") is None and data.get("osw_express") is None:
+                raise ValueError(
+                    "If 'url_or_title' is a full page title, 'domain' or "
+                    "'osw_express' must be specified."
+                )
+        # Create an osw_express object if not given
+        if data.get("osw_express") is None:
+            data["osw_express"] = OswExpress(
+                domain=data.get("domain"),
+                credential_manager=data.get("credential_manager"),
+            )
+        # If given set titel and namespace
+        if data.get("target_fpt") is not None:
+            namespace = data.get("target_fpt").split(":")[0]
+            title = data.get("target_fpt").split(":")[-1]
+            wiki_page = model.WikiPage(namespace=namespace, title=title)
+            data["meta"] = model.Meta(wiki_page=wiki_page)
+            if data.get("change_id") is not None:
+                data["meta"].change_id = data.get("change_id")
+            data["title"] = title
+        # Clean data dict
+        data = {key: value for key, value in data.items() if value is not None}
+        # If source_file_controller is given, use it, else create a LocalFileController
+        if data.get("source_file_controller") is None:
+            data["source_file_controller"] = LocalFileController(path=data.get("path"))
+        # Create the WikiFileController from the source_file_controller
+        wfc = WikiFileController.from_other(
+            other=data.get("source_file_controller"),
+            osw=data.get("osw_express"),
+            **data,  # passes arguments to the cast() method, e.g. overwrite the label
+            # cast method will call init
+        )
+        # Upload to the target OSW instance
+        wfc.put_from(data.get("source_file_controller"), **data)
+        data["url_or_title"] = wfc.url
+        super().__init__(**{**data, **wfc.dict()})
+        # Do open --> enables context manager functionality
+        self.file = self.open(mode=data.get("mode"))
+
+
+def osw_upload_file(
+    source: Union[LocalFileController, WikiFileController, str, Path],
+    url_or_title: Optional[str] = None,
+    overwrite: OVERWRITE_CLASS_OPTIONS = OverwriteOptions.true,
+    delete_after_use: bool = False,
+    osw_express: Optional[OswExpress] = None,
+    domain: str = None,
+    credentials_fp: Optional[Union[str, Path]] = None,
+    credential_manager: Optional[CredentialManager] = None,
+    label: Optional[List[model.Label]] = None,
+    name: Optional[str] = None,
+    description: Optional[List[model.Description]] = None,
+    **properties: Dict[str, Any],
+) -> UploadFileResult:
+    """Upload a file to an OSL page.
+
+    Parameters
+    ----------
+    source
+        The source file to upload. Can be a LocalFileController, WikiFileController,
+        str or Path.
+    url_or_title
+        The URL or full page title of the WikiFile page to upload the file to. Used to
+        overwrite autogenerated full page title on the target domain. If it is
+        included, the domain can be parsed from the URL.
+    overwrite
+        If True, the file will be overwritten if it already exists. If False, the file
+        will not be downloaded if it already exists.
+    delete_after_use
+        If True, the file will be deleted after use.
+    osw_express
+        An OswExpress object. If None, a new OswExpress object will be created using
+        the credentials_manager, or domain and credentials_fp.
+    domain
+        The domain of the OSL instance to upload the file to. Required if no
+        OswExpress was pass to osw_express. If None the domain can be parsed from
+        the URL. If fpt_or_url is no URL user must specify the domain.
+    credentials_fp
+        The filepath to the credentials file. Will only be used if credential_manager is
+         None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml'
+         is expected to be found in the current working directory.
+    credential_manager
+        A credential manager object. If None, a new credential manager will be created
+        using the credentials_fp.
+    label
+        The labels to set on the WikiFile data model prior to uploading it to the OSL
+        instance. The labels will end up in the JSON data slot of the to be created
+        WikiFile page.
+    name
+        The name of the file. If None, the name will be taken from the source file.
+    description
+        The description to set on the WikiFile data model prior to uploading it to the
+        OSL instance.
+    properties
+        The properties to set on the WikiFile data model prior to uploading it to
+        the OSL instance. Properties listed here, won't overwrite properties handed
+        over in this function call, e.g., labe, name, description.
+        Properties will end up in the JSON data slot of the to be created WikiFile
+        page, if they match the WikiFile data model.
+
+    Returns
+    -------
+    result
+        A specific result object.
+    """
+    # Preparing all args, kwargs & properties to set for the uploaded file
+    data = {**locals(), **properties}
+    # Clean data dict to avoid passing None values
+    data = {key: value for key, value in data.items() if value is not None}
+    # Initialize the UploadFileResult object
+    return UploadFileResult(**data)
+
+
 # todo:
 #  * create a .gitignore in the basepath that lists the default credentials file (
 #  accounts.pwd.yaml) OR append to an existing .gitignore#
@@ -395,3 +789,5 @@ def osw_download_file(
 #      * Save a pandas.DataFrame to a WikiFile (as table, e.g. as csv, xlsx,
 #        json)
 #    * Save a wiki page as pdf
+
+OswExpress.update_forward_refs()

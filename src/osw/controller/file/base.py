@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import IO, Any
+from typing import IO, Any, Dict
 
 from osw.core import model
 
@@ -19,7 +19,7 @@ class FileController(model.File):
         pass
 
     @abstractmethod
-    def put(self, file: IO):
+    def put(self, file: IO, **kwargs: Dict[str, Any]):
         """Writes or uploads a file from an IO object
 
         Parameters
@@ -29,7 +29,7 @@ class FileController(model.File):
         """
         pass
 
-    def put_from(self, other: "FileController"):
+    def put_from(self, other: "FileController", **kwargs: Dict[str, Any]):
         """Writes or uploads a file from another file controller
         Automatically closes the other file controllers IO object after reading
 
@@ -39,7 +39,7 @@ class FileController(model.File):
             another file controller to read from
         """
         with other.get() as f:
-            self.put(f)
+            self.put(f, **kwargs)
 
     def get_to(self, other: "FileController"):
         """Reads or downloads a file to another file controller

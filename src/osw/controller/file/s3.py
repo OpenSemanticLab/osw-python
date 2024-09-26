@@ -1,5 +1,5 @@
 from io import BytesIO, StringIO
-from typing import IO, Any, Optional
+from typing import IO, Any, Dict, Optional
 
 import boto3
 
@@ -45,7 +45,7 @@ class S3FileController(model.S3File, RemoteFileController):
     #    with response['Body'] as file:
     #        other.put(file)
 
-    def put(self, file: IO):
+    def put(self, file: IO, **kwargs: Dict[str, Any]):
         if isinstance(file, StringIO):
             file = BytesIO(file.getvalue().encode())
             # file.seek(0)

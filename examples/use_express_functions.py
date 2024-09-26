@@ -1,4 +1,11 @@
-from osw.express import OswExpress, credentials_fp_default, osw_download_file
+from pathlib import Path
+
+from osw.express import (
+    OswExpress,
+    credentials_fp_default,
+    osw_download_file,
+    osw_upload_file,
+)
 
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
 # it will use the default location (current working directory)
@@ -11,6 +18,18 @@ print(f"Credentials loaded from '{str(credentials_fp_default)}")
 domain = "wiki-dev.open-semantic-lab.org"
 # domain = "arkeve.test.digital.isc.fraunhofer.de"
 osw_obj = OswExpress(domain=domain)
+
+# Create a file
+fp = Path("example.txt")
+with open(fp, "w") as file:
+    file.write("Hello, World!")
+# Upload a file to an OSW instance
+wiki_file = osw_upload_file(fp, domain=domain)
+# Delete WikiFile from OSW instance
+wiki_file.delete()
+wiki_file.close()  # required to release the file lock
+# Delete a file
+fp.unlink()
 
 # Download a file from an OSW instance and save it to a local file
 local_file = osw_download_file(

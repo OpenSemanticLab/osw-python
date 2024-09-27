@@ -13,7 +13,7 @@ from numpy import array as np_array
 
 import osw.model.page_package as package
 from osw.auth import CredentialManager
-from osw.core import OSW
+from osw.express import OswExpress
 from osw.wiki_tools import read_domains_from_credentials_file
 from osw.wtsite import SLOTS, WtPage, WtSite
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         settings["domain"] = domain
 
     cm = CredentialManager(cred_filepath=settings["credentials_file_path"])
-    osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cm)))
+    osw_obj = OswExpress(domain=domain, credential_manager=cm)
     wtsite_obj = osw_obj.site
 
     full_page_name = settings["target_page"].split("/")[-1].replace("_", " ")
@@ -379,9 +379,7 @@ if __name__ == "__main__":
         elif event == "-DOMAIN-":
             settings["domain"] = values["-DOMAIN-"]
             domain = settings["domain"].split("//")[-1]
-            osw_obj = OSW(
-                site=WtSite(WtSite.WtSiteConfig(iri=settings["domain"], cred_mngr=cm))
-            )
+            osw_obj = OswExpress(domain=settings["domain"], credential_manager=cm)
             wtsite_obj = osw_obj.site
         elif event == "Load page":
             window["-LABEL-"].update("Loading page...")

@@ -1,5 +1,5 @@
+import importlib
 import os
-from importlib import reload
 from pprint import pprint
 from typing import ClassVar
 from uuid import uuid4
@@ -8,26 +8,26 @@ from pydantic.v1 import BaseModel
 
 import osw.model.entity as model
 from osw.core import OSW
-from osw.wtsite import WtSite
+from osw.express import OswExpress
 
-# create/update the password file under examples/accounts.pwd.yaml
+# Create/update the password file under examples/accounts.pwd.yaml
 pwd_file_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
 )
-wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
-osw = OSW(site=wtsite)
+osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_fp=pwd_file_path)
 
 
 # todo: does dataclass export only most specific class jsonschema
 class MyPythonClass(
     BaseModel
-):  # we don't inherit from model.Item here because this will trigger a full schema export
+):  # We don't inherit from model.Item here because this will trigger a full schema
+    #  export
     __uuid__: ClassVar[uuid4] = "23e4356e-b726-4c5b-b63f-620b301eb836"
     my_value: str
 
 
-osw.register_schema(
-    osw.SchemaRegistration(
+osw_obj.register_schema(
+    osw_obj.SchemaRegistration(
         model_cls=MyPythonClass,
         schema_uuid=MyPythonClass.__uuid__,
         schema_name="MyPythonClass",
@@ -35,12 +35,12 @@ osw.register_schema(
     )
 )
 
-osw.fetch_schema(
-    osw.FetchSchemaParam(
+osw_obj.fetch_schema(
+    osw_obj.FetchSchemaParam(
         schema_title="Category:" + OSW.get_osw_id(MyPythonClass.__uuid__), mode="append"
     )
 )
-reload(model)
+importlib.reload(model)
 
 my_instance = model.MyPythonClass(
     label=[model.Label(text="My Instance")], my_value="test"

@@ -181,7 +181,9 @@ class OswExpress(OSW):
         # Make sure this osw instance can't be reused after it was shut down (the
         # connection can't be reopened except when initializing a new instance)
 
-    def install_dependencies(self, dependencies: Dict[str, str] = None):
+    def install_dependencies(
+        self, dependencies: Dict[str, str] = None, mode: str = "append"
+    ):
         """Expects a dictionary with the keys being the names of the dependencies and
         the values being the full page name of the dependencies."""
         if dependencies is None:
@@ -195,8 +197,10 @@ class OswExpress(OSW):
                     "It should be 'Namespace:Name'."
                 )
         for i, schema_fpt in enumerate(schema_fpts):
-            mode = "append"
-            self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpt, mode=mode))
+            mode_ = mode
+            if i == 0:
+                mode_ = "replace"
+            self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpt, mode=mode_))
 
     def download_file(
         self,
@@ -690,8 +694,7 @@ class UploadFileResult(FileResult, WikiFileController):
         wfc.put_from(data.get("source_file_controller"), **data)
         data["url_or_title"] = wfc.url
         super().__init__(**{**data, **wfc.dict()})
-        # Do open --> enables context manager functionality
-        self.file = self.open(mode=data.get("mode"))
+        # Don't open the local (uploaded file)
 
 
 def osw_upload_file(
@@ -767,6 +770,9 @@ def osw_upload_file(
     return UploadFileResult(**data)
 
 
+OswExpress.update_forward_refs()
+
+
 # todo:
 #  * create a .gitignore in the basepath that lists the default credentials file (
 #  accounts.pwd.yaml) OR append to an existing .gitignore#
@@ -778,7 +784,7 @@ def osw_upload_file(
 #    * parallel download of multiple files
 #    * query all instances of a category (direct members or member of subcategories
 #      as well = crawl)
-#    * Get query results into a pandas.DataFram
+#    * Get query results into a pandas.DataFrame
 #    * upload any file to wiki whilst specifying the page to attach it to + select a
 #      property to link it to [basic example at file_upload_download.py]
 #      inputs:
@@ -789,5 +795,4 @@ def osw_upload_file(
 #      * Save a pandas.DataFrame to a WikiFile (as table, e.g. as csv, xlsx,
 #        json)
 #    * Save a wiki page as pdf
-
-OswExpress.update_forward_refs()
+#  * make upload function work with IO objects

@@ -108,17 +108,24 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         # file_page = self.osw._site.get_page(
         #   WtSite.GetPageParam(titles=[file_page_name])
         # ).pages[0]
-        params = {
+        wf_params = {
+            key: value
+            for key, value in kwargs.items()
+            if key in model.WikiFile.__fields__ and value is not None
+        }
+        se_params = {
             key: value
             for key, value in kwargs.items()
             if key in OSW.StoreEntityParam.__fields__ and value is not None
         }
         for key in ["entities", "namespace"]:
-            if key in params:
-                del params[key]  # avoid duplicated kwargs
+            if key in se_params:
+                del se_params[key]  # avoid duplicated kwargs
         self.osw.store_entity(
             OSW.StoreEntityParam(
-                entities=[self.cast(model.WikiFile)], namespace=self.namespace, **params
+                entities=[self.cast(model.WikiFile, **wf_params)],
+                namespace=self.namespace,
+                **se_params,
             )
         )
         self.osw.site._site.upload(

@@ -8,7 +8,7 @@ from osw.express import (
 )
 
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
-# it will use the default location (current working directory)
+#  it will use the default location (current working directory)
 # credentials_fp_default.set_default(r"C:\Users\gold\ownCloud\Personal\accounts.pwd.yaml")
 
 # Check setting
@@ -27,7 +27,6 @@ with open(fp, "w") as file:
 wiki_file = osw_upload_file(fp, domain=domain)
 # Delete WikiFile from OSW instance
 wiki_file.delete()
-wiki_file.close()  # required to release the file lock
 # Delete a file
 fp.unlink()
 

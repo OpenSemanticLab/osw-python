@@ -165,7 +165,6 @@ def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
     local_file.delete()  # Delete downloaded file from local filesystem
     assert local_file.path.exists() is False
     wiki_file.delete()  # Delete WikiFile from OSW instance
-    wiki_file.close()  # required to release the file lock
     wiki_file.path.unlink()  # Delete original file from local filesystem
     assert wiki_file.path.exists() is False
     # todo: additional test required for setting / overwriting properties of the

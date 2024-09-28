@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from warnings import warn
 
-from typing_extensions import Any, Dict, List, Optional, TextIO, Union
+from typing_extensions import IO, Any, Dict, List, Optional, TextIO, Union
 
 import osw.model.entity as model
 from osw.auth import CREDENTIALS_FN_DEFAULT, CredentialManager
@@ -319,6 +319,7 @@ try:
     # uploaded to the repository
     from osw.controller.file.base import FileController  # depends on File
     from osw.controller.file.local import LocalFileController  # depends on LocalFile
+    from osw.controller.file.memory import InMemoryController  # depends on LocalFile
     from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
 except AttributeError as e:
     warn(
@@ -469,9 +470,11 @@ class DownloadFileResult(FileResult, LocalFileController):
                 )
             data["domain"] = match.group(1)
         if data.get("use_cached") and data.get("target_fp").exists():
-            # Here, no file needs to be downloaded, but the LocalFileController
-            #  object needs to be initialized with the path to the file
-            lf = LocalFileController(path=data.get("target_fp"))
+            # Here, no file needs to be downloaded, but self need to be initialized
+            #  with the path to the file
+            # Clean data dict to avoid passing None values
+            data = {key: value for key, value in data.items() if value is not None}
+            super().__init__(**data)  # data includes "path"
         else:
             if data.get("osw_express") is None:
                 data["osw_express"] = OswExpress(
@@ -490,10 +493,10 @@ class DownloadFileResult(FileResult, LocalFileController):
             if not data.get("target_fp").parent.exists():
                 data.get("target_fp").parent.mkdir(parents=True)
             lf = LocalFileController.from_other(wf, path=data.get("target_fp"))
-            lf.put_from(wf)
-        # Make sure that the path from the local file is taken (order in the dict
-        #  unpacking is important)
-        super().__init__(**{**data, **lf.dict()})
+            # Clean data dict to avoid passing None values
+            data = {key: value for key, value in data.items() if value is not None}
+            super().__init__(**{**lf.dict(), **data})
+            self.put_from(wf)
         # Do open
         self.file = self.open(mode=data.get("mode"))
 
@@ -577,7 +580,7 @@ class UploadFileResult(FileResult, WikiFileController):
     """A specific result object to describe the result of uploading a file to an
     OSL instance."""
 
-    source: Union[LocalFileController, WikiFileController, str, Path]
+    source: Union[LocalFileController, WikiFileController, str, Path, IO]
     """The source of the file to be uploaded."""
     url_or_title: Optional[str] = None
     """The URL or full page title of the WikiFile page to upload the file to. Used to
@@ -600,7 +603,7 @@ class UploadFileResult(FileResult, WikiFileController):
 
     def __init__(
         self,
-        source: Union[LocalFileController, WikiFileController, str, Path],
+        source: Union[LocalFileController, WikiFileController, str, Path, IO],
         **data: Dict[str, Any],
     ):
         # Do replacements on all data (including the those values taken from the
@@ -612,7 +615,7 @@ class UploadFileResult(FileResult, WikiFileController):
         ):
             data["source_file_controller"] = source
             data["source"] = source
-        if isinstance(source, str) or isinstance(source, Path):
+        elif isinstance(source, str) or isinstance(source, Path):
             if not Path(source).exists():
                 raise FileNotFoundError(f"File not found: {source}")
             if Path(source).is_dir():
@@ -620,6 +623,9 @@ class UploadFileResult(FileResult, WikiFileController):
             # source is a path to a file that exists - might also be a file in the CWD
             data["path"] = Path(source)
             data["source"] = Path(source)
+            data["source_file_controller"] = LocalFileController(path=data.get("path"))
+        elif isinstance(source, IO):
+            data["source_file_controller"] = InMemoryController(stream=source)
 
         # If url_or_title is given, it either
         # * contains a valid domain, which can be used in osw_express
@@ -680,21 +686,18 @@ class UploadFileResult(FileResult, WikiFileController):
             data["title"] = title
         # Clean data dict
         data = {key: value for key, value in data.items() if value is not None}
-        # If source_file_controller is given, use it, else create a LocalFileController
-        if data.get("source_file_controller") is None:
-            data["source_file_controller"] = LocalFileController(path=data.get("path"))
         # Create the WikiFileController from the source_file_controller
         wfc = WikiFileController.from_other(
             other=data.get("source_file_controller"),
             osw=data.get("osw_express"),
-            **data,  # passes arguments to the cast() method, e.g. overwrite the label
+            **data,  # Passes arguments to the cast() method, e.g. overwrite the label
             # cast method will call init
         )
         # Upload to the target OSW instance
         wfc.put_from(data.get("source_file_controller"), **data)
         data["url_or_title"] = wfc.url
-        super().__init__(**{**data, **wfc.dict()})
-        # Don't open the local (uploaded file)
+        super().__init__(**{**wfc.dict(), **data})
+        # Don't open the local (uploaded) file
 
 
 def osw_upload_file(

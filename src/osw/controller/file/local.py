@@ -12,9 +12,12 @@ class LocalFileController(FileController, model.LocalFile):
     """File controller for local files"""
 
     label: Optional[List[model.Label]] = [model.Label(text="Unnamed file")]
-    """the label of the file, defaults to 'Unnamed file'"""
+    """The label of the file, defaults to 'Unnamed file'"""
     path: Path
-    """the path to the file"""
+    """The path to the file"""
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @classmethod
     def from_other(
@@ -26,9 +29,6 @@ class LocalFileController(FileController, model.LocalFile):
         super().__init__(**kwargs)
         self._set_metadata()
 
-    class Config:
-        arbitrary_types_allowed = True
-
     def get(self) -> IO:
         self._set_metadata()
         return open(self.path, "rb")
@@ -39,8 +39,8 @@ class LocalFileController(FileController, model.LocalFile):
         if isinstance(file, TextIOBase):
             mode = "w"
         with open(self.path, mode) as f:
-            # f.write(file.read()) # in-memory - limited by available RAM
-            shutil.copyfileobj(file, f)  # chunked copy
+            # f.write(file.read())  # In-memory - limited by available RAM
+            shutil.copyfileobj(file, f)  # Chunked copy
 
     def delete(self):
         if os.path.exists(self.path):

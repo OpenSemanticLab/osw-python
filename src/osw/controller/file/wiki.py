@@ -174,7 +174,8 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         if self.suffix is None:
             self.suffix = suffix
         self.name = self.name.removesuffix(self.suffix)
-        # set the title from OSW-ID + suffix, e. g. "OSWeedfa07ad404421b8622e0099624d254.png"
+        # Set the title from OSW-ID + suffix, e.g.,
+        # "OSWeedfa07ad404421b8622e0099624d254.png"
         if self.title is None:
             self.title = get_title(self)
             self.title = self.title.removesuffix(self.suffix)

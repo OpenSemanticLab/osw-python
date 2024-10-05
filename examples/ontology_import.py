@@ -1,4 +1,3 @@
-import importlib
 import os
 
 from osw.auth import CredentialManager
@@ -25,7 +24,6 @@ DEPENDENCIES = {
     "AnnotationProperty": "Category:AnnotationProperty",
 }
 osw_obj.install_dependencies(DEPENDENCIES, mode="append")
-importlib.reload(model)
 
 ontology_name = "example_ontology"
 

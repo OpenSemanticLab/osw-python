@@ -1,4 +1,3 @@
-import importlib
 import os
 from pprint import pprint
 
@@ -27,7 +26,6 @@ if do_fetch:
         "JsonSchema:LIMS/Device/Instance": "JsonSchema:LIMS/Device/Instance",
     }
     osw_obj.install_dependencies(DEPENDENCIES, mode="replace")
-    importlib.reload(model)
 
 
 # Check if the schema extension was loaded

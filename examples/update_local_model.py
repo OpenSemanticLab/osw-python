@@ -1,7 +1,5 @@
-import importlib
 import os
 
-import osw.model.entity as model
 from osw.express import OswExpress
 
 # Create/update the password file under examples/accounts.pwd.yaml
@@ -26,4 +24,3 @@ DEPENDENCIES = {
     # "Room": "Category:OSWc5ed0ed1e33c4b31887c67af25a610c1",
 }
 osw_obj.install_dependencies(DEPENDENCIES, mode="append")
-importlib.reload(model)

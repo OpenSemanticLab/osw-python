@@ -1,4 +1,3 @@
-import importlib
 import os
 
 import osw.model.entity as model
@@ -15,7 +14,6 @@ osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_fp=pwd_file_p
 if not hasattr(model, "Tutorial"):
     DEPENDENCIES = {"Tutorial": "Category:OSW494f660e6a714a1a9681c517bbb975da"}
     osw_obj.install_dependencies(DEPENDENCIES, mode="replace")
-    importlib.reload(model)
 
 # Load instance HowToCreateANewArticle
 title = "Item:OSW52c2c5a6bbc84fcb8eab0fa69857e7dc"

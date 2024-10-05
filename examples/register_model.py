@@ -1,4 +1,3 @@
-import importlib
 import os
 from pprint import pprint
 from typing import ClassVar
@@ -40,7 +39,6 @@ osw_obj.fetch_schema(
         schema_title="Category:" + OSW.get_osw_id(MyPythonClass.__uuid__), mode="append"
     )
 )
-importlib.reload(model)
 
 my_instance = model.MyPythonClass(
     label=[model.Label(text="My Instance")], my_value="test"

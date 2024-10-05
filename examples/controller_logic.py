@@ -1,4 +1,3 @@
-import importlib
 import os
 
 from typing_extensions import override
@@ -17,7 +16,6 @@ osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_fp=pwd_file_p
 osw_obj.fetch_schema(
     fetchSchemaParam=OswExpress.FetchSchemaParam(schema_title="Category:Hardware")
 )
-importlib.reload()
 
 
 title = "Item:OSW7d7193567ea14e4e89b74de88983b718"

@@ -1,4 +1,3 @@
-import importlib
 import os
 import uuid
 
@@ -32,7 +31,6 @@ if force_schema_reload or not hasattr(
         "Corporation": "Category:OSW5f4a3751d23e482d80fb0b72dcd6bc31",  #
     }
     osw_obj.install_dependencies(DEPENDENCIES, mode="replace")
-    importlib.reload(model)  # reload the model
 
 # To reproduce your import you should define a UUIDv5 namespace
 # Example: id of the source dataset / file

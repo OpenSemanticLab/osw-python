@@ -17,7 +17,7 @@ Tests to be written for express.py:
     * domain (not) specified -> credentials_fp requested
     * credentials_fp (not) specified -> use fallback
     * credentials file (not) found -> check credentials_manager
-    * credential_manager (not) specified -> request credentials
+    * cred_mngr (not) specified -> request credentials
     * test return value
 * test_upload_file
 """
@@ -61,7 +61,7 @@ def osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_pa
 
 def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     """Test OswExpress initialization with defined domain, but no cred_fp nor
-    credential_manager. As this is the first test to load the osw.express module,
+    cred_mngr. As this is the first test to load the osw.express module,
     the installation of the dependencies should be triggered here."""
     # Here the initial connection to the wiki is mocked (passing domain, username and
     # password)
@@ -122,16 +122,14 @@ def test_init_with_cred_fp_but_missing_credentials(
     cred_fp.unlink()
 
 
-def test_init_with_credential_manager(wiki_domain, wiki_username, wiki_password):
-    """Test OswExpress initialization with defined domain and credential_manager."""
+def test_init_with_cred_mngr(wiki_domain, wiki_username, wiki_password):
+    """Test OswExpress initialization with defined domain and cred_mngr."""
     cred_fp = Path.cwd() / "accounts.pwd.yaml"
     create_credentials_file(cred_fp, wiki_domain, wiki_username, wiki_password)
     cred_mngr = CredentialManager(cred_filepath=cred_fp)
     import osw.express
 
-    osw_express = osw.express.OswExpress(
-        domain=wiki_domain, credential_manager=cred_mngr
-    )
+    osw_express = osw.express.OswExpress(domain=wiki_domain, cred_mngr=cred_mngr)
     assert osw_express_and_credentials(
         osw_express, wiki_domain, wiki_username, wiki_password
     )
@@ -198,5 +196,5 @@ if __name__ == "__main__":
     else:
         # Runs tests that can be run directly:
         test_init_with_cred_fp(wiki_domain_, wiki_username_, wiki_password_)
-        test_init_with_credential_manager(wiki_domain_, wiki_username_, wiki_password_)
+        test_init_with_cred_mngr(wiki_domain_, wiki_username_, wiki_password_)
         test_file_upload_download(wiki_domain_, wiki_username_, wiki_password_)

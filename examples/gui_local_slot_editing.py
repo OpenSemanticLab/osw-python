@@ -167,7 +167,7 @@ if __name__ == "__main__":
         settings["domain"] = domain
 
     cm = CredentialManager(cred_filepath=settings["credentials_file_path"])
-    osw_obj = OswExpress(domain=domain, credential_manager=cm)
+    osw_obj = OswExpress(domain=domain, cred_mngr=cm)
     wtsite_obj = osw_obj.site
 
     full_page_name = settings["target_page"].split("/")[-1].replace("_", " ")
@@ -379,7 +379,7 @@ if __name__ == "__main__":
         elif event == "-DOMAIN-":
             settings["domain"] = values["-DOMAIN-"]
             domain = settings["domain"].split("//")[-1]
-            osw_obj = OswExpress(domain=settings["domain"], credential_manager=cm)
+            osw_obj = OswExpress(domain=settings["domain"], cred_mngr=cm)
             wtsite_obj = osw_obj.site
         elif event == "Load page":
             window["-LABEL-"].update("Loading page...")

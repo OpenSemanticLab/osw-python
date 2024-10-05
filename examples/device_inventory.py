@@ -18,7 +18,7 @@ cm = CredentialManager(
     # )
 )
 # Change the domain to your osw instance
-osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", credential_manager=cm)
+osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_mngr=cm)
 
 # Load the required schemas / data classes
 force_schema_reload = False

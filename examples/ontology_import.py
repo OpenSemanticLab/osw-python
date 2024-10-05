@@ -13,7 +13,7 @@ cm = CredentialManager(
 )
 
 # Create the OSW object
-osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", credential_manager=cm)
+osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_mngr=cm)
 
 DEPENDENCIES = {
     "OwlClass": "Category:OSW725a3cf5458f4daea86615fcbd0029f8",

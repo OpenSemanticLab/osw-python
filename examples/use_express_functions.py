@@ -2,17 +2,17 @@ from pathlib import Path
 
 from osw.express import (
     OswExpress,
-    credentials_fp_default,
+    cred_filepath_default,
     osw_download_file,
     osw_upload_file,
 )
 
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
 #  it will use the default location (current working directory)
-# credentials_fp_default.set_default(r"C:\Users\gold\ownCloud\Personal\accounts.pwd.yaml")
+# cred_filepath_default.set_default(r"C:\Users\gold\ownCloud\Personal\accounts.pwd.yaml")
 
 # Check setting
-print(f"Credentials loaded from '{str(credentials_fp_default)}")
+print(f"Credentials loaded from '{str(cred_filepath_default)}")
 
 # Create an OswExpress object
 domain = "wiki-dev.open-semantic-lab.org"

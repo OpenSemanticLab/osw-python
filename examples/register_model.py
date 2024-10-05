@@ -13,7 +13,9 @@ from osw.express import OswExpress
 pwd_file_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
 )
-osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_fp=pwd_file_path)
+osw_obj = OswExpress(
+    domain="wiki-dev.open-semantic-lab.org", cred_filepath=pwd_file_path
+)
 
 
 # todo: does dataclass export only most specific class jsonschema

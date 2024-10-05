@@ -12,7 +12,9 @@ pwd_file_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts.pwd.yaml"
 )
 # pwd_file_path = "./accounts.pwd.yaml"
-osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_fp=pwd_file_path)
+osw_obj = OswExpress(
+    domain="wiki-dev.open-semantic-lab.org", cred_filepath=pwd_file_path
+)
 
 entities_dict = {}  # Helper dict for jsonpath queries
 

@@ -98,9 +98,9 @@ class DownloadDirDefault(CredentialsFpDefault):
 base_path_default = FilePathDefault()
 """If you want to have the sub folders created in an directory that is not the current
 working directory of the calling script, use base_path_default.set_default(new_path)."""
-credentials_fp_default = CredentialsFpDefault()
+cred_filepath_default = CredentialsFpDefault()
 """If you want to specify the saving location of the credentials file, use
-credentials_fp_default.set_default(new_path)."""
+cred_filepath_default.set_default(new_path)."""
 download_dir_default = DownloadDirDefault()
 """If you want to specify the default download directory, use
   download_dir_default.set_default(new_path)."""
@@ -113,9 +113,9 @@ class OswExpress(OSW):
 
     domain: str
     """The domain of the OSL instance to connect to."""
-    cred_fp: Optional[Union[str, Path]]
+    cred_filepath: Optional[Union[str, Path]]
     """The filepath to the credentials file. Will be overwritten by the cred_filepath
-    of cred_mngr, if it posses a non-None value. If credentials_fp is None,
+    of cred_mngr, if it posses a non-None value. If cred_filepath is None,
     a default value is set."""
     cred_mngr: Optional[CredentialManager]
     """A credential manager object."""
@@ -126,19 +126,19 @@ class OswExpress(OSW):
     def __init__(
         self,
         domain: str,
-        cred_fp: Union[str, Path] = None,
+        cred_filepath: Union[str, Path] = None,
         cred_mngr: CredentialManager = None,
     ):
-        if cred_fp is None:
-            cred_fp = credentials_fp_default.get_default()
+        if cred_filepath is None:
+            cred_filepath = cred_filepath_default.get_default()
             if cred_mngr is not None:
                 if cred_mngr.cred_filepath is not None:
-                    cred_fp = cred_mngr.cred_filepath[0]
-        if not isinstance(cred_fp, Path):
-            cred_fp = Path(cred_fp)
+                    cred_filepath = cred_mngr.cred_filepath[0]
+        if not isinstance(cred_filepath, Path):
+            cred_filepath = Path(cred_filepath)
         if cred_mngr is None:
-            if cred_fp.exists():
-                cred_mngr = CredentialManager(cred_filepath=cred_fp)
+            if cred_filepath.exists():
+                cred_mngr = CredentialManager(cred_filepath=cred_filepath)
             else:
                 cred_mngr = CredentialManager()
         if not cred_mngr.iri_in_file(domain):
@@ -154,7 +154,7 @@ class OswExpress(OSW):
             #  as argument or set by default)
             if cred_mngr.cred_filepath is None:
                 cred_mngr.save_credentials_to_file(
-                    filepath=cred_fp, set_cred_filepath=True
+                    filepath=cred_filepath, set_cred_filepath=True
                 )
             # If there was a cred_filepath specified within the CredentialManager,
             #  that filepath will be used
@@ -164,7 +164,7 @@ class OswExpress(OSW):
         site = WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_mngr))
         super().__init__(**{"site": site, "domain": domain})
         self.cred_mngr = cred_mngr
-        self.cred_fp = cred_fp
+        self.cred_filepath = cred_filepath
 
     def __enter__(self):
         return self
@@ -356,18 +356,18 @@ class FileResult(OswBaseModel):
     initialization. The path to the file."""
     osw_express: Optional[OswExpress] = None
     """An OswExpress object. If None, a new OswExpress object will be created using
-    the credentials_manager or domain and credentials_fp."""
+    the credentials_manager or domain and cred_filepath."""
     domain: Optional[str] = None
     """The domain of the OSL instance to download the file from. Required if
     urL_or_title is a full page title. If None the domain is parsed from the URL."""
-    credentials_fp: Optional[Union[str, Path]] = None
+    cred_filepath: Optional[Union[str, Path]] = None
     """The filepath to the credentials file. Will only be used if cred_mngr is
-    None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml' is
+    None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml' is
     expected to be found in the current working directory.
     """
     cred_mngr: Optional[CredentialManager] = None
     """A credential manager object. If None, a new credential manager will be created
-    using the credentials_fp."""
+    using the cred_filepath."""
 
     class Config:
         arbitrary_types_allowed = True
@@ -401,15 +401,15 @@ class FileResult(OswBaseModel):
             if data.get(key) is None:
                 data[key] = value
         # Do replacements
-        if data.get("credentials_fp") is None:
-            data["credentials_fp"] = credentials_fp_default.get_default()
-        if not data.get("credentials_fp").parent.exists():
-            data["credentials_fp"].parent.mkdir(parents=True)
+        if data.get("cred_filepath") is None:
+            data["cred_filepath"] = cred_filepath_default.get_default()
+        if not data.get("cred_filepath").parent.exists():
+            data["cred_filepath"].parent.mkdir(parents=True)
         if data.get("cred_mngr") is None:
             data["cred_mngr"] = CredentialManager()
-            if data.get("credentials_fp").exists():
+            if data.get("cred_filepath").exists():
                 data["cred_mngr"] = CredentialManager(
-                    cred_filepath=data.get("credentials_fp")
+                    cred_filepath=data.get("cred_filepath")
                 )
         return data
 
@@ -510,7 +510,7 @@ def osw_download_file(
     target_fp: Optional[Union[str, Path]] = None,
     osw_express: Optional[OswExpress] = None,
     domain: Optional[str] = None,
-    credentials_fp: Optional[Union[str, Path]] = None,
+    cred_filepath: Optional[Union[str, Path]] = None,
     cred_mngr: Optional[CredentialManager] = None,
     overwrite: bool = False,
     use_cached: bool = False,
@@ -536,17 +536,17 @@ def osw_download_file(
         target directory with the target filename.
     osw_express
         An OswExpress object. If None, a new OswExpress object will be created using
-        the credentials_manager or domain and credentials_fp.
+        the credentials_manager or domain and cred_filepath.
     domain
         The domain of the OSL instance to download the file from. Required if
         urL_or_title is a full page title. If None the domain is parsed from the URL.
-    credentials_fp
+    cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
-         None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml'
+         None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
          is expected to be found in the current working directory.
     cred_mngr
         A credential manager object. If None, a new credential manager will be created
-        using the credentials_fp.
+        using the cred_filepath.
     overwrite
         If True, the file will be overwritten if it already exists. If False, the file
         will not be downloaded if it already exists.
@@ -569,7 +569,7 @@ def osw_download_file(
         target_fp=target_fp,
         osw_express=osw_express,
         domain=domain,
-        credentials_fp=credentials_fp,
+        cred_filepath=cred_filepath,
         cred_mngr=cred_mngr,
         overwrite=overwrite,
         use_cached=use_cached,
@@ -707,7 +707,7 @@ def osw_upload_file(
     delete_after_use: bool = False,
     osw_express: Optional[OswExpress] = None,
     domain: str = None,
-    credentials_fp: Optional[Union[str, Path]] = None,
+    cred_filepath: Optional[Union[str, Path]] = None,
     cred_mngr: Optional[CredentialManager] = None,
     label: Optional[List[model.Label]] = None,
     name: Optional[str] = None,
@@ -732,18 +732,18 @@ def osw_upload_file(
         If True, the file will be deleted after use.
     osw_express
         An OswExpress object. If None, a new OswExpress object will be created using
-        the credentials_manager, or domain and credentials_fp.
+        the credentials_manager, or domain and cred_filepath.
     domain
         The domain of the OSL instance to upload the file to. Required if no
         OswExpress was pass to osw_express. If None the domain can be parsed from
         the URL. If fpt_or_url is no URL user must specify the domain.
-    credentials_fp
+    cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
-         None. If credentials_fp is None, a credentials file named 'accounts.pwd.yaml'
+         None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
          is expected to be found in the current working directory.
     cred_mngr
         A credential manager object. If None, a new credential manager will be created
-        using the credentials_fp.
+        using the cred_filepath.
     label
         The labels to set on the WikiFile data model prior to uploading it to the OSL
         instance. The labels will end up in the JSON data slot of the to be created

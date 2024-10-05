@@ -1,39 +1,33 @@
 import os
 
 from osw.auth import CredentialManager
-from osw.core import OSW, model
+from osw.core import model
+from osw.express import OswExpress
 from osw.ontology import ImportConfig, OntologyImporter, ParserSettings
-from osw.wtsite import WtSite
 
-# use credentials from file. if none are found, the user will be prompted to enter them
+# Use credentials from file. if none are found, the user will be prompted to enter them
 cm = CredentialManager(
     cred_filepath=os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
     )
 )
-
-# create the site object
-wtsite = WtSite(WtSite.WtSiteConfig(iri="http://<your-instance>:18081", cred_mngr=cm))
-osw = OSW(site=wtsite)
-
-list_of_schemas = [
-    "Category:OSW725a3cf5458f4daea86615fcbd0029f8",  # OwlClass
-    "Category:OSW6b9ef2784a934b8ab96523366e23e906",  # OwlIndividual
-    "Category:OSW57beed5e1294434ba77bb6516e461456",  # EmmoClass
-    "Category:Item",
-    "Category:ObjectProperty",
-    "Category:DataProperty",
-    "Category:AnnotationProperty",
-]
-for i, cat in enumerate(list_of_schemas):
-    mode = "append"
-    if i == 0:
-        mode = "replace"
-    osw.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
+# Create the OSW object
+osw_obj = OswExpress(domain="wiki-dev.open-semantic-lab.org", cred_mngr=cm)
+# Load the required schemas / data classes
+DEPENDENCIES = {
+    "OwlClass": "Category:OSW725a3cf5458f4daea86615fcbd0029f8",
+    "OwlIndividual": "Category:OSW6b9ef2784a934b8ab96523366e23e906",
+    "EmmoClass": "Category:OSW57beed5e1294434ba77bb6516e461456",
+    "Item": "Category:Item",
+    "ObjectProperty": "Category:ObjectProperty",
+    "DataProperty": "Category:DataProperty",
+    "AnnotationProperty": "Category:AnnotationProperty",
+}
+osw_obj.install_dependencies(DEPENDENCIES, mode="append")
 
 ontology_name = "BVCO"
 
-# define ontology metadata
+# Define ontology metadata
 emmo = model.Ontology(
     name="EMMO",
     iri="http://emmo.info/emmo",
@@ -99,6 +93,6 @@ parser_settings = ParserSettings()
 parser_settings.ensure_array.append("elucidation")
 parser_settings.ensure_multilang.append("elucidation")
 
-# import ontologies
-importer = OntologyImporter(osw=osw, parser_settings=parser_settings)
+# Import ontologies
+importer = OntologyImporter(osw=osw_obj, parser_settings=parser_settings)
 importer.import_ontology(import_config)

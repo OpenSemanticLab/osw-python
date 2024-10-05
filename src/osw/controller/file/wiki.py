@@ -1,6 +1,6 @@
 import functools
 import os
-from typing import IO, List, Optional
+from typing import IO, Any, Dict, List, Optional
 
 from osw.controller.file.base import FileController
 from osw.controller.file.remote import RemoteFileController
@@ -27,8 +27,10 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         arbitrary_types_allowed = True
 
     @classmethod
-    def from_other(cls, other: FileController, osw: OSW) -> "WikiFileController":
-        return super().from_other(other, osw=osw)
+    def from_other(
+        cls, other: FileController, osw: OSW, **kwargs: Dict[str, Any]
+    ) -> "WikiFileController":
+        return super().from_other(other, osw=osw, **kwargs)
 
     def get(self) -> IO:
         self._init()
@@ -38,6 +40,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         # use web api
         full_title = f"{self.namespace}:{self.title}"
         web_api_failed = False
+        response = None
         try:
             url = f"{self.osw.site._site.scheme}://{self.osw.site._site.host}{self.osw.site._site.path}api.php?action=download&format=json&title={full_title}"
             # print("Use web api: ", url)
@@ -93,7 +96,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             )
             other.put(response.raw)
 
-    def put(self, file: IO):
+    def put(self, file: IO, **kwargs: Dict[str, Any]):
         # extract file meta information
         if hasattr(file, "name") and file.name is not None:
             name = os.path.basename(file.name)
@@ -102,10 +105,27 @@ class WikiFileController(model.WikiFile, RemoteFileController):
                 suffix = "." + name.split(".")[-1]
             self._init(name, suffix)
 
-        # file_page = self.osw._site.get_page(WtSite.GetPageParam(titles=[file_page_name])).pages[0]
+        # file_page = self.osw._site.get_page(
+        #   WtSite.GetPageParam(titles=[file_page_name])
+        # ).pages[0]
+        wf_params = {
+            key: value
+            for key, value in kwargs.items()
+            if key in model.WikiFile.__fields__ and value is not None
+        }
+        se_params = {
+            key: value
+            for key, value in kwargs.items()
+            if key in OSW.StoreEntityParam.__fields__ and value is not None
+        }
+        for key in ["entities", "namespace"]:
+            if key in se_params:
+                del se_params[key]  # avoid duplicated kwargs
         self.osw.store_entity(
             OSW.StoreEntityParam(
-                entities=[self.cast(model.WikiFile)], namespace=self.namespace
+                entities=[self.cast(model.WikiFile, **wf_params)],
+                namespace=self.namespace,
+                **se_params,
             )
         )
         self.osw.site._site.upload(
@@ -116,7 +136,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             ignore=True,
         )
 
-    def put_from(self, other: FileController):
+    def put_from(self, other: FileController, **kwargs: Dict[str, Any]):
         # if isinstance(file, LocalFileController) and self.suffix is None:
         #    lf = file.cast(LocalFileController)
         #    self.meta.wiki_page.title.removesuffix(lf.path.suffix)
@@ -124,7 +144,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         # copy over metadata
         if self.label == [model.Label(text="Unnamed file")]:
             self.label = other.label
-        super().put_from(other)
+        super().put_from(other, **kwargs)
 
     def delete(self):
         file_page_name = f"{self.namespace}:{self.title}"
@@ -134,8 +154,15 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         if file_page.exists:
             file_page.delete()
 
+    @property
+    def url(self):
+        return (
+            f"{self.osw.site._site.scheme}://{self.osw.site._site.host}"
+            f"/wiki/File:{self.title}"
+        )
+
     def _init(self, name=None, suffix=None):
-        # set the name attribute to the actual file name, e. g. "image.png"
+        # set the name attribute to the actual file name, e.g., "image.png"
         if self.name is None:
             self.name = name
         if suffix is None:
@@ -147,7 +174,8 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         if self.suffix is None:
             self.suffix = suffix
         self.name = self.name.removesuffix(self.suffix)
-        # set the title from OSW-ID + suffix, e. g. "OSWeedfa07ad404421b8622e0099624d254.png"
+        # Set the title from OSW-ID + suffix, e.g.,
+        # "OSWeedfa07ad404421b8622e0099624d254.png"
         if self.title is None:
             self.title = get_title(self)
             self.title = self.title.removesuffix(self.suffix)

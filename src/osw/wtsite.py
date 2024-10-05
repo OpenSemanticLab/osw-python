@@ -71,7 +71,7 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
-    def __init__(self, config=Union[WtSiteConfig, WtSiteLegacyConfig]):
+    def __init__(self, config: Union[WtSiteConfig, WtSiteLegacyConfig]):
         """creates a new WtSite instance from a WtSiteConfig
 
         Parameters
@@ -363,7 +363,7 @@ class WtSite:
 
         Parameters
         ----------
-        text
+        query
             The query text (e. g. "[[Category:Entity]]") or a SearchParam object
 
         Returns

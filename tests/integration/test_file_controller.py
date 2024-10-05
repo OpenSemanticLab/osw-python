@@ -16,7 +16,7 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
     # site = mwclient.Site(host=wiki_domain, scheme="http")
     # site.login(username=wiki_username, password=wiki_password)
     # wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
-    osw = OSW(site=wtsite)
+    osw_obj = OSW(site=wtsite)
 
     list_of_categories = [
         "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",  # WikiFile
@@ -26,13 +26,13 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
         mode = "append"
         if i == 0:
             mode = "replace"
-        osw.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
+        osw_obj.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
 
-    run_test(osw, "tests/integration/test.svg", "tests/integration/test2.svg")
-    run_test(osw, "tests/integration/test.png", "tests/integration/test2.png")
+    run_test(osw_obj, "tests/integration/test.svg", "tests/integration/test2.svg")
+    run_test(osw_obj, "tests/integration/test.png", "tests/integration/test2.png")
 
 
-def run_test(osw, file_path_1, file_path_2):
+def run_test(osw_obj, file_path_1, file_path_2):
     from osw.controller.file.local import LocalFileController
     from osw.controller.file.wiki import WikiFileController
 
@@ -41,13 +41,13 @@ def run_test(osw, file_path_1, file_path_2):
     )
 
     # wf = WikiFileController.from_local(lf) # does not work due to missing attributes 'title' and 'osw'
-    wf = WikiFileController(label=[model.Label(text="Test File")], osw=osw)
+    wf = WikiFileController(label=[model.Label(text="Test File")], osw=osw_obj)
     wf.put_from(lf)
     # print(wf)
 
     title = wf.namespace + ":" + wf.title
     # title = "File:OSW1b3fea404fe344c78ffd2d7a46bb468e.svg"
-    wf2 = osw.load_entity(title).cast(WikiFileController, osw=osw)
+    wf2 = osw_obj.load_entity(title).cast(WikiFileController, osw=osw_obj)
     lf2 = LocalFileController(path=file_path_2)
     lf2.put_from(wf2)
     # wf2.get_to(lf2)

@@ -39,7 +39,7 @@ def test_store_and_load(wiki_domain, wiki_username, wiki_password):
     tests_dir = cwd.parents[1] / "tests"
     sys.path.append(str(tests_dir))
     # Get required functions
-    from test_osl import (
+    from tests.test_osl import (
         check_false,
         check_keep_existing,
         check_only_empty,

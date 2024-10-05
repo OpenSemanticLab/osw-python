@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import IO
+from typing import IO, Any, Dict
 
 from osw.controller.file.base import FileController
 from osw.core import model
@@ -15,7 +15,7 @@ class RemoteFileController(model.RemoteFile, FileController):
         pass
 
     @abstractmethod
-    def put(self, file: IO):
+    def put(self, file: IO, **kwargs: Dict[str, Any]):
         pass
 
     # @classmethod

@@ -6,7 +6,7 @@ import yaml
 from osw.auth import CredentialManager
 
 
-def test_credential_manager():
+def test_cred_mngr():
     data = {"test.domain.com": {"username": "testuser", "password": "pass123"}}
     data2 = {
         "test.domain.com:80": {"username": "testuser2", "password": "pass1234"},

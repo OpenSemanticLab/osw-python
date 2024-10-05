@@ -8,7 +8,6 @@ from osw.wtsite import WtPage
 
 
 class OfflineWtPage(WtPage):
-
     def __init__(self, wtSite: Any = None, title: str = None):
         self.wtSite = wtSite
         self.title = title
@@ -182,4 +181,4 @@ def test_apply_overwrite_policy():
 
         check["assert"](original_item, altered_item, new_item)
 
-        # todo: # where do we really eed to interact with an OSL isntance?
+        # todo: # where do we really need to interact with an OSL instance?

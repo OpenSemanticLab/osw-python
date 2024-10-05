@@ -182,10 +182,12 @@ class OswExpress(OSW):
         # connection can't be reopened except when initializing a new instance)
 
     def install_dependencies(
-        self, dependencies: Dict[str, str] = None, mode: str = "append"
+        self, dependencies: Dict[str, str] = None, mode: str = "replace"
     ):
         """Expects a dictionary with the keys being the names of the dependencies and
-        the values being the full page name of the dependencies."""
+        the values being the full page name of the dependencies.
+        To keep existing dependencies, use mode='append'.
+        """
         if dependencies is None:
             dependencies = DEPENDENCIES
         schema_fpts = list(dependencies.values())
@@ -196,11 +198,7 @@ class OswExpress(OSW):
                     f"Full page title '{schema_fpt}' does not have the correct format. "
                     "It should be 'Namespace:Name'."
                 )
-        for i, schema_fpt in enumerate(schema_fpts):
-            mode_ = mode
-            if i == 0:
-                mode_ = "replace"
-            self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpt, mode=mode_))
+        self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpts, mode=mode))
 
     def download_file(
         self,
@@ -444,6 +442,8 @@ class DownloadFileResult(FileResult, LocalFileController):
 
     def __init__(self, url_or_title, **data):
         """The constructor for the context manager."""
+        # Note: in pydantic v2 we can use
+        # https://docs.pydantic.dev/latest/api/base_model/#pydantic.BaseModel.model_post_init
 
         data["url_or_title"] = url_or_title
         # Do replacements

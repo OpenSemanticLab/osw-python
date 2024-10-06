@@ -182,3 +182,85 @@ def test_apply_overwrite_policy():
         check["assert"](original_item, altered_item, new_item)
 
         # todo: # where do we really need to interact with an OSL instance?
+
+
+def test_wtpage_get_files():
+    # create a offline page with test content in slot main
+    # real-world example from Item:OSW8bccb1f0123f47d1831a1348ecbe63cc (About this platform)
+    page = OfflineWtPage()
+    page.set_slot_content(
+        "main",
+        """
+
+====File pages====
+The following image gallery displays the relevant elements of a WikiFile page, which are specific to file pages.
+{{Template:Viewer/Media
+| image_size = 300
+| mode = default
+| textdata = File:OSW486215598a1f4993b063804775d70716.png{{!}}Example WikiFile page with preview of the file;
+File:OSWb4f81db0862d4430b45e6fcbda9fc1ff.PNG{{!}}Infobox of a WikiFile page;
+File:OSWb6115f4d5b414a3f8b3dffd420c82c2e.PNG{{!}}Footer of a WikiFile page;
+}}
+
+===Semantic triples===
+The semantic triple is the basic building block of semantic technology. It links two nodes ("Subject" and "Object") by a "Property" (sometimes called "Predicate"), which expresses the relation between the two, giving meaning to the link.
+{{Template:Editor/DrawIO
+| file_name = Semantic triple schematic
+| page_name = Item:OSW8bccb1f0123f47d1831a1348ecbe63cc
+| uuid = c4171917-ea09-4d98-823a-6af8282a6d50
+| full_width = 0
+| width = 300px
+}}{{Template:Viewer/Media
+| image_size = 600
+| mode = default
+| textdata = File:OSW51ad8f9d660641f9880006c40f41cb56.png{{!}}An example for a network of semantic links, describing a publication, one of the authors and his affiliate;
+}}
+
+===Ontologies===
+Ontologies aren't just vocabularies that define terms linke a dictionary would do. Ontologies structure knowledge by defining concepts and the relations among them. Often, they involve a hierarchy, which springs from a very generic object, aiming to describe almost everything, like "Thing" in {{Template:Viewer/Link|page=|url=https://schema.org/docs/full.html|label=Schema.org}} or "Entity" within this [[:Category:Entity#Subcategories|platform]]. Use the > Symbol to expand different hierarchy levels and to explore the structure.
+
+There are many ontologies in use and even more in development. Most scientific domains have their own, often multiples. Here are some prominent examples:
+
+*{{Template:Viewer/Link|page=|url=https://emmo-repo.github.io/|label=The Elementary Multiperspective Material Ontology (EMMO)}}
+* {{Template:Viewer/Link|page=|url=https://big-map.github.io/BattINFO/index.html|label=Battery Interface Ontology (BattINFO)}}
+
+==Object Orientation==
+Object Orientation (OO) is a theoretical concept in computer science. It uses the abstract concept of objects to describe and model real-world objects.
+
+===Basic building blocks===
+*Object
+
+
+{{Template:Editor/DrawIO
+| file_name = Basic building blocks of Object Orientation diagramm
+| page_name = Item:OSW8bccb1f0123f47d1831a1348ecbe63cc
+| uuid = 0bea84d5-4c07-4374-a4b4-5dc84d9ba302
+| full_width = 0
+| width = 200px
+}}
+
+===Linked Data===
+Object oriented linked data (OO-LD) in Open Semantic Lab is our way to leverage the functionality of linked data while employing concepts of object orientation to avoid the redundant definition of (semantic) properties of objects and mapping of semantic properties to ontologies.
+
+The following figure sketches how Open Semantic Lab is used to modell objects in the real-world. On the left we see a hierarchy of abstract concepts, starting from the most generic at the top and ending up at the most specific at the bottom. At each level either new properties are introduced or the range of property values is reduced to a certain set to account for the specifics of a category. A category or class is used to define and bundle all properties or attributes that items or instances of a certain class have in common.  {{Template:Editor/DrawIO
+| file_name = Object oriented linked data in OSL diagramm
+| page_name = Item:OSW8bccb1f0123f47d1831a1348ecbe63cc
+| uuid = 58baa09e-c00b-42cc-b077-9fe4d58ccf82
+| width = 600px
+}}
+
+==Glossary of frequently used terms==
+""",
+    )
+
+    file_list = page.find_file_page_refs_in_slots()
+    print(file_list)
+    assert len(file_list) == 7
+    # assert if the file list contains the expected files
+    assert "File:OSW486215598a1f4993b063804775d70716.png" in file_list
+    assert "File:OSWb4f81db0862d4430b45e6fcbda9fc1ff.PNG" in file_list
+    assert "File:OSWb6115f4d5b414a3f8b3dffd420c82c2e.PNG" in file_list
+    assert "File:OSWc4171917ea094d98823a6af8282a6d50.drawio.svg" in file_list
+    assert "File:OSW51ad8f9d660641f9880006c40f41cb56.png" in file_list
+    assert "File:OSW0bea84d54c074374a4b45dc84d9ba302.drawio.svg" in file_list
+    assert "File:OSW58baa09ec00b42ccb0779fe4d58ccf82.drawio.svg" in file_list

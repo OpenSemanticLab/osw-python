@@ -111,6 +111,23 @@ REGEX_PATTERN_LIST = [
         ],
     ),
     RegExPatternExtended(
+        description="File uuid in template",
+        pattern=r"{{\s*(Template:Editor\/(DrawIO|SvgEdit|Kekule|Spreadsheet))[\s\S]*?\|\s*uuid\s*=\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[\s\S]*?}}",
+        group_keys=["Full template name", "Editor", "UUID"],
+        example_str="""{{Template:Editor/DrawIO
+            | file_name = Semantic triple schematic
+            | page_name = Item:OSW8bccb1f0123f47d1831a1348ecbe63cc
+            | uuid = c4171917-ea09-4d98-823a-6af8282a6d50
+            | full_width = 0
+            | width = 300px
+            }}""",
+        expected_groups=[
+            "Template:Editor/DrawIO",
+            "DrawIO",
+            "c4171917-ea09-4d98-823a-6af8282a6d50",
+        ],
+    ),
+    RegExPatternExtended(
         description="UUID from full page title",
         pattern=r"([A-Za-z]+):([A-Z]+)([0-9a-fA-F]{32})((?:\.[\w-]+)*)",
         group_keys=["Namespace", "Prefix", "UUID", "Suffix(es)"],

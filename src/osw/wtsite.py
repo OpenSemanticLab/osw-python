@@ -26,6 +26,7 @@ from osw.auth import CredentialManager
 from osw.model.static import OswBaseModel
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.utils.util import parallelize
+from osw.utils.wiki import get_osw_id
 
 # Constants
 SLOTS = {
@@ -1555,6 +1556,31 @@ class WtPage:
                 "Full page name",
             )
             file_page_refs.extend(full_page_names)
+            # find all files in editor templates
+            pattern = REGEX_PATTERN_LIB["File uuid in template"]
+            res = pattern.finditer(str(content))
+            # interate over all matches
+            for match in res:
+                ft = None
+                # check if the match has the groups "Editor" and "UUID" and UUID is a valid OSW ID
+                try:
+                    if "Editor" in match.groups and "UUID" in match.groups:
+                        # construct a file page title
+                        osw_id = get_osw_id(match.groups["UUID"])
+                        if match.groups["Editor"] == "DrawIO":
+                            ft = "File:" + osw_id + ".drawio.svg"
+                        elif match.groups["Editor"] == "SvgEdit":
+                            ft = "File:" + osw_id + ".svg"
+                        elif match.groups["Editor"] == "Kekule":
+                            ft = "File:" + osw_id + ".kekule.json"
+                        elif match.groups["Editor"] == "Spreadsheet":
+                            ft = "File:" + osw_id + ".luckysheet.json"
+                        elif match.groups["Editor"] == "Wellplate":
+                            ft = "File:" + osw_id + ".wellplate.svg"
+                    if ft is not None:
+                        file_page_refs.append(ft)
+                except ValueError:
+                    print("Warning: Error while parsing uuid in editor template")
         return list(set(file_page_refs))
 
     def purge(self):

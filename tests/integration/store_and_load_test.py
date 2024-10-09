@@ -186,7 +186,7 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
     osw.fetch_schema(
         OSW.FetchSchemaParam(
             schema_title=[
-                "Category:OSWffe74f291d354037b318c422591c5023",  # MetaCharacteristic
+                "Category:OSWffe74f291d354037b318c422591c5023",  # CharacteristicType
                 "Category:Property",
             ],
             mode="replace",
@@ -195,8 +195,8 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
 
     # my_property = model.Property
 
-    # Create a characteristic as instance of MetaCharacteristic
-    my_characteristic = model.MetaCharacteristic(
+    # Create a characteristic as instance of CharacteristicType
+    my_characteristic = model.CharacteristicType(
         uuid="efad8086-4a76-47ca-b278-f5f944e5754b",
         name="TestCharacteristic",
         label=[model.Label(text="Test Characteristic")],

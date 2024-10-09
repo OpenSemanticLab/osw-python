@@ -111,7 +111,7 @@ class CredentialManager(OswBaseModel):
 
             for filepath in filepaths:
                 if filepath != "":
-                    with open(filepath, "r") as stream:
+                    with open(filepath, "r", encoding="utf-8") as stream:
                         try:
                             accounts = yaml.safe_load(stream)
                             if accounts is None:  # Catch empty file
@@ -161,7 +161,8 @@ class CredentialManager(OswBaseModel):
         if cred is None:
             if config.fallback is CredentialManager.CredentialFallback.ask:
                 print(
-                    f"No credentials for {config.iri} found. Please use the prompt to login"
+                    f"No credentials for {config.iri} found. "
+                    f"Please use the prompt to login"
                 )
                 username = input("Enter username: ")
                 password = getpass.getpass("Enter password: ")
@@ -218,7 +219,7 @@ class CredentialManager(OswBaseModel):
             for fp in self.cred_filepath:
                 if fp != "":
                     if Path(fp).exists():
-                        with open(fp, "r") as stream:
+                        with open(fp, "r", encoding="utf-8") as stream:
                             try:
                                 accounts = yaml.safe_load(stream)
                                 if accounts is None:  # Catch empty file
@@ -261,12 +262,12 @@ class CredentialManager(OswBaseModel):
             data = {}
             file_already_exists = file.exists()
             if file_already_exists:
-                data = yaml.safe_load(file.read_text())
+                data = yaml.safe_load(file.read_text(encoding="utf-8"))
                 if data is None:  # Catch empty file
                     data = {}
             for cred in self._credentials:
                 data[cred.iri] = cred.dict(exclude={"iri"})
-            with open(fp, "w") as stream:
+            with open(fp, "w", encoding="utf-8") as stream:
                 yaml.dump(data, stream)
             if file_already_exists:
                 print(f"Credentials file updated at '{fp.resolve()}'.")

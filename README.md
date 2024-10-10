@@ -30,7 +30,12 @@ https://opensemanticlab.github.io/osw-python/
 
 Dev install
 ```bash
-pip install -e .
+pip install -e . [dev,testing]
+```
+
+Activate pre-commit hooks (in git console)
+```
+pre-commit install
 ```
 
 Run tests

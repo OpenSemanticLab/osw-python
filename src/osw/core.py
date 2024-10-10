@@ -1026,8 +1026,8 @@ class OSW(BaseModel):
                     schema = json.loads(schema_str)
                     # put generated schema in definitions section
                     # currently only enabled for Characteristics
-                    if hasattr(model, "MetaCharacteristic") and isinstance(
-                        entity, model.MetaCharacteristic
+                    if hasattr(model, "CharacteristicType") and isinstance(
+                        entity, model.CharacteristicType
                     ):
                         new_schema = {
                             "$defs": {"generated": schema},

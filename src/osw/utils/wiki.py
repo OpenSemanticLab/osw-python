@@ -56,6 +56,9 @@ def get_namespace(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str,
 
     #  (model classes may not exist => try except)
     #  note: this may not work properly with dynamic reloaded model module
+    #  note: some of these lines lead to AssertationError in coverage.py
+    #        and are therefore excluded from coverage
+    #        (see also https://github.com/OpenSemanticLab/osw-python/issues/74)
     if namespace is None:
         try:
             if issubclass(entity, model.Entity):
@@ -64,13 +67,13 @@ def get_namespace(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str,
             pass
     if namespace is None:
         try:
-            if isinstance(entity, model.Category):
+            if isinstance(entity, model.Category):  # pragma: no cover
                 namespace = "Category"
         except AttributeError:
             pass
     if namespace is None:
         try:
-            if issubclass(entity, model.Characteristic):
+            if issubclass(entity, model.Characteristic):  # pragma: no cover
                 namespace = "Category"
         except (TypeError, AttributeError):
             pass
@@ -82,13 +85,13 @@ def get_namespace(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str,
             pass
     if namespace is None:
         try:
-            if isinstance(entity, model.Property):
+            if isinstance(entity, model.Property):  # pragma: no cover
                 namespace = "Property"
         except AttributeError:
             pass
     if namespace is None:
         try:
-            if isinstance(entity, model.WikiFile):
+            if isinstance(entity, model.WikiFile):  # pragma: no cover
                 namespace = "File"
         except AttributeError:
             pass

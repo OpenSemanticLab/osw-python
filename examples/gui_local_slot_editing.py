@@ -352,7 +352,7 @@ if __name__ == "__main__":
             with open(settings["settings_file_path"], "r") as f:
                 settings = json.load(f)
             # update GUI
-            window["-CREDENTIALS-"].update(settings["credentials_file_path"]),
+            window["-CREDENTIALS-"].update(settings["credentials_file_path"])
             window["-LWD-"].update(settings["local_working_directory"])
             window["-DOMAIN-"].update(settings["domain"])
             window["-ADDRESS-"].update(settings["target_page"])

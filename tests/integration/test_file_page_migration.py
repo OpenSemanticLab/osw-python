@@ -101,10 +101,12 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
     # Assert that the result is as expected
     exception = None
     try:
-        # # Make sure the changes are propagated / Caches are invalidated
+        # Make sure the changes are propagated / Caches are invalidated
         # new_file_page.purge()
-        # # Get the new file page after purging
-        # new_file_page = wtsite.get_page(WtSite.GetPageParam(titles=[new_full_page_name])).pages[0]
+        # Get the new file page after purging
+        # new_file_page = wtsite.get_page(
+        #     WtSite.GetPageParam(titles=[new_full_page_name])
+        # ).pages[0]
         print(f"Fetching jsondata of {new_full_page_name}")
         assert new_file_page.exists
         assert new_file_page.is_file_page

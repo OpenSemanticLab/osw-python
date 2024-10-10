@@ -200,15 +200,13 @@ def read_package_script_file(script_fp: Path, package_name: str = None) -> dict:
 def get_listed_pages_from_package_script(package_script: dict) -> List[str]:
     """Takes in the output of read_package_script_file and returns a list of
     pages listed in the package"""
-    return getattr(package_script["package_meta_data"], "page_titles")
+    return getattr(package_script["package_meta_data"], "page_titles", [])
 
 
 def get_required_packages_from_package_script(package_script: dict) -> List[str]:
     """Takes in the output of read_package_script_file and returns a list of
     packages listed in the package"""
-    if getattr(package_script["package_meta_data"], "requiredPackages"):
-        return getattr(package_script["package_meta_data"], "requiredPackages")
-    return []
+    return getattr(package_script["package_meta_data"], "requiredPackages", [])
 
 
 def read_package_info_file(

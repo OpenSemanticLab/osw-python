@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Set, Type, TypeVar, Union
+from typing import Any, List, Literal, Optional, Set, Union
 from uuid import UUID, uuid4
 
 from pydantic.v1 import Field, constr
 
-from osw.model.static import Ontology, OswBaseModel
+from osw.model.static import OswBaseModel
 
 
 class ReadAccess(OswBaseModel):

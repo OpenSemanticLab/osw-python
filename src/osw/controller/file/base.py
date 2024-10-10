@@ -16,7 +16,6 @@ class FileController(model.File):
         -------
             the IO object of the opened file
         """
-        pass
 
     @abstractmethod
     def put(self, file: IO, **kwargs: Dict[str, Any]):
@@ -27,7 +26,6 @@ class FileController(model.File):
             file
                 the IO object to read from
         """
-        pass
 
     def put_from(self, other: "FileController", **kwargs: Dict[str, Any]):
         """Writes or uploads a file from another file controller

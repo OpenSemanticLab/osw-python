@@ -2,7 +2,7 @@ exclude: '^docs/conf.py'
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.5.0
+  rev: v5.0.0
   hooks:
   - id: trailing-whitespace
   - id: check-added-large-files
@@ -17,16 +17,17 @@ repos:
   - id: mixed-line-ending
     args: ['--fix=auto']  # replace 'auto' with 'lf' to enforce Linux/Mac line endings or 'crlf' for Windows
 
-## If you want to avoid flake8 errors due to unused vars or imports:
-# - repo: https://github.com/myint/autoflake
-#   rev: v1.4
-#   hooks:
-#   - id: autoflake
-#     args: [
-#       --in-place,
-#       --remove-all-unused-imports,
-#       --remove-unused-variables,
-#     ]
+# If you want to avoid flake8 errors due to unused vars or imports:
+- repo: https://github.com/myint/autoflake
+  rev: v2.3.1
+  hooks:
+  - id: autoflake
+    args: [
+#      --in-place,  # Use this to modify the files in place, without printing diffs, as opposed to --stdout
+      --stdout,
+      --remove-all-unused-imports,
+      --remove-unused-variables,
+    ]
 
 - repo: https://github.com/pycqa/isort
   rev: 5.13.2
@@ -34,7 +35,7 @@ repos:
   - id: isort
 
 - repo: https://github.com/psf/black
-  rev: 24.3.0
+  rev: 24.10.0
   hooks:
   - id: black
     language_version: python3
@@ -47,8 +48,8 @@ repos:
 #     additional_dependencies: [black]
 
 - repo: https://github.com/PyCQA/flake8
-  rev: 7.0.0
+  rev: 7.1.1
   hooks:
   - id: flake8
   ## You can add flake8 plugins via `additional_dependencies`:
-  #  additional_dependencies: [flake8-bugbear]
+    additional_dependencies: [flake8-bugbear]

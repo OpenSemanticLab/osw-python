@@ -3125,8 +3125,8 @@
                     <span class="n">schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">schema_str</span><span class="p">)</span>
                     <span class="c1"># put generated schema in definitions section</span>
                     <span class="c1"># currently only enabled for Characteristics</span>
-                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;MetaCharacteristic&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
-                        <span class="n">entity</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">MetaCharacteristic</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;CharacteristicType&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+                        <span class="n">entity</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">CharacteristicType</span>
                     <span class="p">):</span>
                         <span class="n">new_schema</span> <span class="o">=</span> <span class="p">{</span>
                             <span class="s2">&quot;$defs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;generated&quot;</span><span class="p">:</span> <span class="n">schema</span><span class="p">},</span>
@@ -5642,8 +5642,8 @@ category page.</p>
                 <span class="n">schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">schema_str</span><span class="p">)</span>
                 <span class="c1"># put generated schema in definitions section</span>
                 <span class="c1"># currently only enabled for Characteristics</span>
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;MetaCharacteristic&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
-                    <span class="n">entity</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">MetaCharacteristic</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;CharacteristicType&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+                    <span class="n">entity</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">CharacteristicType</span>
                 <span class="p">):</span>
                     <span class="n">new_schema</span> <span class="o">=</span> <span class="p">{</span>
                         <span class="s2">&quot;$defs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;generated&quot;</span><span class="p">:</span> <span class="n">schema</span><span class="p">},</span>

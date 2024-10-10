@@ -43,11 +43,13 @@ class OverwriteOptions(Enum):
     """Never overwrite a property"""
     only_empty = "only empty"
     """Only overwrite if the property is empty"""
-    # "merge",  # todo: implement
-    # "append",  # don't replace the properties but for properties of type array or
-    # dict, append the values of the local entity to the remote entity, make sure
-    # to not append duplicates # todo: implement
-    # "only older",  # todo: implement read out from the version history of the page
+    # todo: implement "merge",
+    # todo: implement "append",
+    #   Don't replace the properties but for properties of type array or dict, append
+    #   the values of the local entity to the remote entity, make sure  # to not
+    #   append duplicates
+    # todo: implement "only older",
+    # todo: implement read out from the version history of the page
 
 
 class AddOverwriteClassOptions(Enum):
@@ -186,7 +188,8 @@ class OSW(BaseModel):
             )
 
             jsonpath_expr = parse("$..allOf")
-            # replace local definitions (#/definitions/...) with embedded definitions to prevent resolve errors in json-editor
+            # Replace local definitions (#/definitions/...) with embedded definitions
+            #  to prevent resolve errors in json-editor
             for match in jsonpath_expr.find(schema):
                 result_array = []
                 for subschema in match.value:
@@ -292,7 +295,8 @@ class OSW(BaseModel):
 
         schema_title: Optional[Union[List[str], str]] = "Category:Item"
         mode: Optional[str] = (
-            "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+            "replace"
+            # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
@@ -333,7 +337,8 @@ class OSW(BaseModel):
         schema_title: Optional[str] = "Category:Item"
         root: Optional[bool] = True
         mode: Optional[str] = (
-            "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+            "replace"
+            # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
@@ -370,11 +375,12 @@ class OSW(BaseModel):
             print(f"Error: Schema {schema_title} does not exist")
             schema_str = "{}"  # empty schema to make reference work
         schema = json.loads(
-            schema_str.replace(
-                "$ref", "dollarref"
-            ).replace(  # '$' is a special char for root object in jsonpath
-                '"allOf": [', '"allOf": [{},'
-            )  # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
+            schema_str.replace("$ref", "dollarref").replace(
+                # '$' is a special char for root object in jsonpath
+                '"allOf": [',
+                '"allOf": [{},',
+            )
+            # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
         )
         print(f"Fetch {schema_title}")
 
@@ -386,7 +392,7 @@ class OSW(BaseModel):
             ref_schema_title = match.value.replace("/wiki/", "").split("?")[0]
             ref_schema_name = ref_schema_title.split(":")[-1] + ".json"
             value = ""
-            for i in range(0, schema_name.count("/")):
+            for _i in range(0, schema_name.count("/")):
                 value += "../"  # created relative path to top-level schema dir
             value += ref_schema_name  # create a reference to a local file
             # keep document-relative jsonpointer if present
@@ -457,14 +463,21 @@ class OSW(BaseModel):
             # --custom-template-dir src/model/template_data/
             # --extra-template-data src/model/template_data/extra.json
             # --use-default: Use default value even if a field is required
-            # --use-unique-items-as-set: define field type as `set` when the field attribute has`uniqueItems`
-            # --enum-field-as-literal all: prevent 'value is not a valid enumeration member' errors after schema reloading
-            # --use-schema-description: Use schema description to populate class docstring
-            # --use-field-description: Use schema description to populate field docstring
-            # --use-title-as-name: use titles as class names of models, e.g. for the footer templates
-            # --collapse-root-models: Models generated with a root-type field will be merged
+            # --use-unique-items-as-set: define field type as `set` when the field
+            #  attribute has`uniqueItems`
+            # --enum-field-as-literal all: prevent 'value is not a valid enumeration
+            #  member' errors after schema reloading
+            # --use-schema-description: Use schema description to populate class
+            #  docstring
+            # --use-field-description: Use schema description to populate field
+            #  docstring
+            # --use-title-as-name: use titles as class names of models, e.g. for the
+            #  footer templates
+            # --collapse-root-models: Models generated with a root-type field will be
+            #  merged
             # into the models using that root-type model, e.g. for Entity.statements
-            # --reuse-model: Re-use models on the field when a module has the model with the same content
+            # --reuse-model: Re-use models on the field when a module has the model
+            #  with the same content
 
             content = ""
             with open(temp_model_path, "r", encoding="utf-8") as f:
@@ -500,10 +513,10 @@ class OSW(BaseModel):
                 )
 
                 content = re.sub(
-                    r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
-                    header + r"\n\n\n\1",
-                    content,
-                    1,
+                    pattern=r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
+                    repl=header + r"\n\n\n\1",
+                    string=content,
+                    count=1,
                 )  # add header before first class declaration
 
                 with open(result_model_path, "w", encoding="utf-8") as f:
@@ -529,7 +542,10 @@ class OSW(BaseModel):
                     )  # replace duplicated classes
 
                 content = re.sub(
-                    r"(from __future__ import annotations)", "", content, 1
+                    pattern=r"(from __future__ import annotations)",
+                    repl="",
+                    string=content,
+                    count=1,
                 )  # remove import statement
                 # print(content)
                 with open(result_model_path, "a", encoding="utf-8") as f:
@@ -623,7 +639,8 @@ class OSW(BaseModel):
                     if not hasattr(model, cls):
                         schemas_fetched = False
                         print(
-                            f"Error: Model {cls} not found. Schema {category} needs to be fetched first."
+                            f"Error: Model {cls} not found. Schema {category} needs to "
+                            f"be fetched first."
                         )
             if not schemas_fetched:
                 continue
@@ -708,8 +725,8 @@ class OSW(BaseModel):
                 field_name: per_property_.get(field_name, self.overwrite)
                 for field_name in self.model.__fields__.keys()
             }
-            # todo: from class definition get properties with hidden / read_only option
-            #  those can be safely overwritten - set the to True
+            # todo: from class definition get properties with hidden /
+            #  read_only option  #  those can be safely overwritten - set the to True
 
     class _ApplyOverwriteParam(OswBaseModel):
         page: WtPage
@@ -748,8 +765,9 @@ class OSW(BaseModel):
                     )
                 return entity
             page_uuid = str(jsondata.get("uuid"))
-            entity_uuid = str(getattr(entity, "uuid"))
-            if page_uuid != entity_uuid:  # Comparing string type UUIDs
+            entity_uuid = str(getattr(entity, "uuid", None))
+            if page_uuid != entity_uuid or page_uuid == str(None):
+                # Comparing string type UUIDs
                 raise ValueError(
                     f"UUID mismatch: Page UUID: {page_uuid}, Entity UUID: {entity_uuid}"
                 )
@@ -782,10 +800,8 @@ class OSW(BaseModel):
                 page.set_slot_content(slot_, content_to_set[slot_])
 
         # Create a variable to hold the new content
-        new_content = {
-            # required for json parsing and header rendering
-            "header": "{{#invoke:Entity|header}}",
-            # required for footer rendering
+        new_content = {  # required for json parsing and header rendering
+            "header": "{{#invoke:Entity|header}}",  # required for footer rendering
             "footer": "{{#invoke:Entity|footer}}",
         }
         # Take the shortcut if
@@ -824,8 +840,9 @@ class OSW(BaseModel):
         remote_content = {}
         # Get the remote content
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
-            remote_content[slot] = page.get_slot_content(slot)
-            # Todo: remote content does not contain properties that are not set
+            remote_content[slot] = page.get_slot_content(
+                slot
+            )  # Todo: remote content does not contain properties that are not set
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
         if remote_content["footer"]:

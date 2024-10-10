@@ -289,7 +289,7 @@ class CredentialManager(OswBaseModel):
         with open(write_to_fp, "r") as stream:
             content = stream.read()
         comment_set = False
-        for ii, fp in enumerate(filepath_):
+        for _ii, fp in enumerate(filepath_):
             if fp.name not in content:
                 print(f"Adding '{fp.name}' to gitignore file '{write_to_fp}'.")
                 with open(write_to_fp, "a") as stream:

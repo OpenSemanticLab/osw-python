@@ -51,8 +51,12 @@ def eval_compiled_handlebars_template(
 
 
 def eval_handlebars_template(
-    template, data, helpers={}, partials={}, add_self_as_partial=True
+    template, data, helpers=None, partials=None, add_self_as_partial=True
 ):
+    if helpers is None:
+        helpers = {}
+    if partials is None:
+        partials = {}
     """evaluates a handlebars template with the given data.
     WARNING: not thread safe!
 

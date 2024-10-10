@@ -33,7 +33,8 @@ class SmwSparqlClient:
                 "{domain}", domain
             )
 
-        # from https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/e04b78ddbc0a1b2181b12f31a51d7f91e723336b/src/Exporter/Escaper.php#L61
+        # From https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/
+        #  e04b78ddbc0a1b2181b12f31a51d7f91e723336b/src/Exporter/Escaper.php#L61
         self.smw_encoding_lists = {
             "in": [
                 "*",
@@ -169,7 +170,8 @@ class SmwSparqlClient:
             query = query.replace(key, self.encoding_dict[key])
         if debug:
             print(query)
-        # select distinct ?p ?o where {<http://dbpedia.org/resource/Amount_of_substance> ?p ?o} LIMIT 100
+        # Select distinct ?p ?o where
+        #  {<http://dbpedia.org/resource/Amount_of_substance> ?p ?o} LIMIT 100
         triples = self.sparqlQuery(query)
         # print(triples)
         tdict = {}

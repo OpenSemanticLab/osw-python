@@ -77,28 +77,28 @@ jobs:
           --wiki_domain "${{ secrets.INTEGR_TEST_WIKI_DOMAIN }}"
           --wiki_username "${{ secrets.INTEGR_TEST_WIKI_USERNAME }}"
           --wiki_password "${{ secrets.INTEGR_TEST_WIKI_PASSWORD }}"
-      - name: Generate coverage report
-        run: pipx run coverage lcov -o coverage.lcov
-      - name: Upload partial coverage report
-        uses: coverallsapp/github-action@master
-        with:
-          path-to-lcov: coverage.lcov
-          github-token: ${{ secrets.github_token }}
-          flag-name: ${{ matrix.platform }} - py${{ matrix.python }}
-          parallel: true
+#      - name: Generate coverage report
+#        run: pipx run coverage lcov -o coverage.lcov
+#      - name: Upload partial coverage report
+#        uses: coverallsapp/github-action@master
+#        with:
+#          path-to-lcov: coverage.lcov
+#          github-token: ${{ secrets.github_token }}
+#          flag-name: ${{ matrix.platform }} - py${{ matrix.python }}
+#          parallel: true
 
-  finalize:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Finalize coverage report
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
+#  finalize:
+#    needs: test
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Finalize coverage report
+#        uses: coverallsapp/github-action@master
+#        with:
+#          github-token: ${{ secrets.GITHUB_TOKEN }}
+#          parallel-finished: true
 
   publish:
-    needs: finalize
+    needs: test
     if: ${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:

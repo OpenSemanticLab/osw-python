@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import json
 
 from osw.utils.templates import eval_handlebars_template
@@ -48,8 +49,7 @@ def test_category_template():
         "metaclass": ["Category:OSW725a3cf5458f4daea86615fcbd0029f8"],
         "description": [
             {
-                "text": "Represents the set of all individuals. In the DL literature"
-                " this is often called the top concept.",
+                "text": "Represents the set of all individuals. In the DL literature this is often called the top concept.",
                 "lang": "en",
             }
         ],
@@ -72,11 +72,9 @@ def test_category_template():
   "title*": {
     "en": "OwlThing"
   },
-  "description": "Represents the set of all individuals. In the DL literature this is "
-                 "often called the top concept.",
+  "description": "Represents the set of all individuals. In the DL literature this is often called the top concept.",
   "description*": {
-    "en": "Represents the set of all individuals. In the DL literature this is often "
-          "called the top concept."
+    "en": "Represents the set of all individuals. In the DL literature this is often called the top concept."
   },
   "required": [
     "type"

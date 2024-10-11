@@ -1084,7 +1084,11 @@ class OSW(BaseModel):
                     f"Now uploading entities of class type '{class_type}' "
                     f"({entity_model.__name__}). No class specific overwrite setting "
                     f"found. Using fallback option '{param.overwrite}' for all "
-                    f"entities of this class."
+                    f"entities of this class.\n"
+                    f"If you would like to overwrite existing entities or properties, "
+                    f"pass a StoreEntityParam to store_entity() with "
+                    f"attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
+                    f"True."
                 )
             # Call store_entity for each entity of the class
             if param.parallel:

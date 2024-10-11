@@ -27,7 +27,7 @@ osw_obj.install_dependencies(DEPENDENCIES, mode="append")
 
 ontology_name = "example_ontology"
 
-ex = model.Ontology(
+ex = model.OwlOntology(
     name="Example",
     iri="http://example.com",
     prefix="http://example.com/",

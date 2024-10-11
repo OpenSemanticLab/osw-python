@@ -28,49 +28,49 @@ osw_obj.install_dependencies(DEPENDENCIES, mode="append")
 ontology_name = "BVCO"
 
 # Define ontology metadata
-emmo = model.Ontology(
+emmo = model.OwlOntology(
     name="EMMO",
     iri="http://emmo.info/emmo",
     prefix="http://emmo.info/emmo#",
     prefix_name="emmo",
     link="https://github.com/emmo-repo/EMMO",
 )
-dc = model.Ontology(
+dc = model.OwlOntology(
     name="DC",
     iri="http://purl.org/dc/elements/1.1",
     prefix="http://purl.org/dc/elements/1.1/",
     prefix_name="dc",
     link="http://purl.org/dc",
 )
-battinfo = model.Ontology(
+battinfo = model.OwlOntology(
     name="EMMO BattINFO",
     iri="http://emmo.info/battery",
     prefix="http://emmo.info/battery#",
     prefix_name="battinfo",
     link="https://github.com/BIG-MAP/BattINFO",
 )
-electrochemistry = model.Ontology(
+electrochemistry = model.OwlOntology(
     name="EMMO Electrochemistry",
     iri="http://emmo.info/electrochemistry",
     prefix="http://emmo.info/electrochemistry#",
     prefix_name="electrochemistry",
     link="https://github.com/emmo-repo/EMMO",
 )
-periodictable = model.Ontology(
+periodictable = model.OwlOntology(
     name="EMMO Periodic Table",
     iri="http://emmo.info/emmo/domain/periodic-table",
     prefix="http://emmo.info/emmo/domain/periodic-table#",
     prefix_name="periodictable",
     link="https://github.com/emmo-repo/EMMO",
 )
-gpo = model.Ontology(
+gpo = model.OwlOntology(
     name="GPO",
     iri="https://gpo.ontology.link",
     prefix="https://gpo.ontology.link/",
     prefix_name="gpo",
     link="https://github.com/General-Process-Ontology/ontology",
 )
-bvco = model.Ontology(
+bvco = model.OwlOntology(
     name="BVCO",
     iri="https://bvco.ontology.link",
     prefix="https://bvco.ontology.link/",

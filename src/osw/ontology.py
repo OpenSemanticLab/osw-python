@@ -75,7 +75,7 @@ class ImportConfig(OswBaseModel):
     """the serialization format. for turtle, use 'n3' (see rdflib docs)"""
     ontology_name: str
     """the name of the ontology"""
-    ontologies: List[model.Ontology]
+    ontologies: List[model.OwlOntology]
     """Ontology metadata, including imported ontologies"""
     import_mapping: Optional[Dict[str, str]] = {}
     """Mapping of imported ontologies iri to their resolveable file url in case both
@@ -748,7 +748,7 @@ class OntologyImporter(OswBaseModel):
                         counter += 1
 
     class StoreOntologyParam(model.OswBaseModel):
-        ontology: model.Ontology
+        ontology: model.OwlOntology
         entities: List[model.OswBaseModel]
 
     def _store_ontology(self, param: StoreOntologyParam):
@@ -802,7 +802,7 @@ class OntologyImporter(OswBaseModel):
         # classes: Optional[List[model.Entity]]  # goes to NS Category
         # properties: Optional[List[model.Entity]]  # goes to NS Property
         # individuals: Optional[List[model.Entity]]  # goes to NS Item
-        ontologies: Optional[List[model.Ontology]]
+        ontologies: Optional[List[model.OwlOntology]]
         dryrun: Optional[bool] = False
 
     def _store_ontologies(self, param: StoreOntologiesParam = None):

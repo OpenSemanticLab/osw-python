@@ -8,9 +8,11 @@ import inspect
 import osw.model.entity as model
 
 # imports of controllers for always present models
+# note: to keep this import auto-removal per pre-commit hook is disabled
+from osw.controller.entity import Entity  # noqa: F401
 
 # conditional imports
 models = [m[0] for m in inspect.getmembers(model)]
 
 if "Database" in models:
-    pass
+    from osw.controller.database import DatabaseController  # noqa: F401

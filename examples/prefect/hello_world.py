@@ -28,7 +28,7 @@ class ConnectionSettings(model.OswBaseModel):
 
 
 @task
-def connect(settings: Optional[ConnectionSettings] = ConnectionSettings()):
+def connect(settings: Optional[ConnectionSettings] = None):
     """Initiates the connection to the OSW instance
 
     Parameters
@@ -36,6 +36,8 @@ def connect(settings: Optional[ConnectionSettings] = ConnectionSettings()):
     settings
         see ConnectionSetttings dataclass
     """
+    if settings is None:
+        settings = ConnectionSettings()
     global wtsite
     # define username
     if environ.get("OSW_USER") is not None and environ.get("OSW_USER") != "":

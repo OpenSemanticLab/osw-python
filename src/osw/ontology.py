@@ -21,10 +21,12 @@ class ParserSettings(OswBaseModel):
     """Settings for the ontology parser"""
 
     flatten_subclassof_restrictions: Optional[bool] = False
-    """If True, the parser will directly asign the property and the value class of the restriction to the restricted class
+    """If True, the parser will directly asign the property and the value class of the
+    restriction to the restricted class
     """
     subclassof_restrictions_keyword: Optional[str] = "restrictions"
-    """Keyword to separate the owl restrictions from rdfs subclassof. Only used if flatten_subclassof_restrictions is False."""
+    """Keyword to separate the owl restrictions from rdfs subclassof. Only used if
+    flatten_subclassof_restrictions is False."""
     ensure_multilang: Optional[List[str]] = [
         "label",
         "prefLabel",
@@ -32,7 +34,9 @@ class ParserSettings(OswBaseModel):
         "comment",
         "description",
     ]
-    """List of properties that should be multilang / have a @lang containter. If the property is not multilang, the parser will create a multilang property with "en" as default language."""
+    """List of properties that should be multilang / have a @lang containter. If the
+    property is not multilang, the parser will create a multilang property with "en" as
+    default language."""
     ensure_array: Optional[List[str]] = [
         "rdf_type",
         "label",
@@ -42,8 +46,10 @@ class ParserSettings(OswBaseModel):
         "description",
         "subclass_of",
         "restrictions",
+        "range",
     ]
-    """List of properties that should be arrays. If the property is not an array, the parser will create an array with the value as single element."""
+    """List of properties that should be arrays. If the property is not an array, the
+    parser will create an array with the value as single element."""
     map_uuid_iri: Optional[List[str]] = [
         "subclass_of",
         "on_property",
@@ -53,9 +59,12 @@ class ParserSettings(OswBaseModel):
         "range",
         "subproperty_of",
     ]
-    """List of properties whose values should be mapped to (OSW) UUIDs. If the value is not a UUID, the parser will create a UUIDv5 from the value with the URL namespace."""
+    """List of properties whose values should be mapped to (OSW) UUIDs. If the value is
+    not a UUID, the parser will create a UUIDv5 from the value with the URL
+    namespace."""
     remove_unnamed: Optional[List[str]] = []  # ['subclass_of'] #, 'equivalentClass']
-    """List of properties whose values should be removed if they are unnamed nodes ("_:...")"""
+    """List of properties whose values should be removed if they are unnamed nodes
+    ("_:...")"""
 
 
 class ImportConfig(OswBaseModel):
@@ -67,12 +76,14 @@ class ImportConfig(OswBaseModel):
     """the serialization format. for turtle, use 'n3' (see rdflib docs)"""
     ontology_name: str
     """the name of the ontology"""
-    ontologies: List[model.Ontology]
-    """Ontology metadata, inluding imported ontologies"""
+    ontologies: List[model.OwlOntology]
+    """Ontology metadata, including imported ontologies"""
     import_mapping: Optional[Dict[str, str]] = {}
-    """Mapping of imported ontologies iri to their resolveable file url in case both are not identical"""
+    """Mapping of imported ontologies iri to their resolveable file url in case both
+    are not identical"""
     base_class: Type[OswBaseModel]
-    """Base class for the ontology model. For OWL Ontologies, this should be model.OwlClass or a subclass of it."""
+    """Base class for the ontology model. For OWL Ontologies, this should be
+    model.OwlClass or a subclass of it."""
     base_class_title: Optional[str] = (
         "Category:OSW725a3cf5458f4daea86615fcbd0029f8"  # OwlClass
     )
@@ -90,9 +101,11 @@ class ImportConfig(OswBaseModel):
     property_naming_policy: Optional[Literal["UUID", "label", "prefixed_label"]] = (
         "prefixed_label"
     )
-    """Policy for naming properties. If "UUID", the property will be named with a UUIDv5.
+    """Policy for naming properties. If "UUID", the property will be named with a
+    UUIDv5.
     If "label", the property will be named with the label of the property.
-    If "prefixed_label", the property will be named with the label of the property prefixed with the label of the ontology."""
+    If "prefixed_label", the property will be named with the label of the property
+    prefixed with the label of the ontology."""
     property_naming_prefix_delimiter: Optional[str] = ":"
     """Delimiter for the prefixed_label property naming policy"""
 
@@ -122,19 +135,32 @@ class OntologyImporter(OswBaseModel):
 
     @staticmethod
     def _recursive_ontology_import(
-        file, format="turtle", imported_ontologies=[], import_mapping={}
+        file: str,
+        format_: str = "turtle",
+        imported_ontologies: list = None,
+        import_mapping=None,
     ):
-        """Recursively import ontologies from owl:imports statements in the given ontology file
+        """Recursively import ontologies from owl:imports statements in the given
+        ontology file.
 
         Parameters:
-            file (str): path or url to the ontology file
-            format (str): the serialization format (see rdflib docs)
-            imported_ontologies (list): list of already imported ontologies
+        -----------
+        file:
+            path or url to the ontology file
+        format_:
+            the serialization format (see rdflib docs)
+        imported_ontologies:
+            list of already imported ontologies
 
         Returns:
+        --------
             graph (rdflib.Graph): graph of the imported ontologies"""
+        if imported_ontologies is None:
+            imported_ontologies = []
+        if import_mapping is None:
+            import_mapping = {}
         rdf_graph = Graph()
-        rdf_graph.parse(file, format=format)
+        rdf_graph.parse(file, format=format_)
 
         # load the graph into a dict
         _g = json.loads(rdf_graph.serialize(format="json-ld", auto_compact=True))
@@ -166,7 +192,7 @@ class OntologyImporter(OswBaseModel):
             print(f"Importing {onto}")
             _rdf_graph = OntologyImporter._recursive_ontology_import(
                 onto,
-                format=format,
+                format_=format_,
                 imported_ontologies=imported_ontologies,
                 import_mapping=import_mapping,
             )
@@ -193,7 +219,9 @@ class OntologyImporter(OswBaseModel):
                 *args, **kwargs
             )
 
-            def loader(url, options={}):
+            def loader(url, options=None):
+                if options is None:
+                    options = {}
                 if "/wiki/" in url:
                     title = url.replace("/wiki/", "").split("?")[0]
                     page = self.osw.site.get_page(
@@ -299,8 +327,19 @@ class OntologyImporter(OswBaseModel):
                 json.dump(self._g, f, indent=4, ensure_ascii=False)
 
             # currently does not work with relative remote context ("/wiki/..."")
-            # rdf_graph.parse(os.path.join(self.import_config.dump_path, f"{self.import_config.ontology_name}.compacted.jsonld"))
-            # rdf_graph.serialize(destination=os.path.join(self.import_config.dump_path, f"{self.import_config.ontology_name}.jsonld.ttl"), format="ttl")
+            # rdf_graph.parse(
+            #     os.path.join(
+            #         self.import_config.dump_path,
+            #         f"{self.import_config.ontology_name}.compacted.jsonld"
+            #     )
+            # )
+            # rdf_graph.serialize(
+            #     destination=os.path.join(
+            #         self.import_config.dump_path,
+            #         f"{self.import_config.ontology_name}.jsonld.ttl"
+            #     ),
+            #     format="ttl"
+            # )
 
         self._create_entities()
         # sort list by type and iri to persist the order across runs
@@ -317,8 +356,14 @@ class OntologyImporter(OswBaseModel):
             ) as f:
                 json.dump(self._entities_json, f, indent=4, ensure_ascii=False)
 
-        # import ontologies
-        # self._import_ontology(OSW.ImportOntologyParam(ontologies=self.import_config.ontologies, entities=self._entities, dryrun=False))
+        # Import ontologies
+        # self._import_ontology(
+        #     OSW.ImportOntologyParam(
+        #         ontologies=self.import_config.ontologies,
+        #         entities=self._entities,
+        #         dryrun=False
+        #     )
+        # )
 
         if not self.import_config.dry_run:
             self._store_ontologies(
@@ -338,7 +383,7 @@ class OntologyImporter(OswBaseModel):
                 if not isinstance(node[key], list):
                     node[key] = [node[key]]
                 types = []
-                for i, val in enumerate(node[key]):
+                for _i, val in enumerate(node[key]):
                     if isinstance(val, dict):
                         if "@id" in val:
                             types.append(val["@id"])
@@ -383,7 +428,10 @@ class OntologyImporter(OswBaseModel):
                             if id in self._g["@graph"]:
                                 self._delete_node(self._g["@graph"], id)
                         # else:
-                        #    print("Warning: rdfs:subClassOf is not a Restriction: ", superclass)
+                        #    print(
+                        #    "Warning: rdfs:subClassOf is not a Restriction: ",
+                        #    superclass
+                        #    )
 
     def _delete_node(self, id: str, key: str = "@id") -> bool:
         """Delete a node from a graph by id
@@ -439,7 +487,8 @@ class OntologyImporter(OswBaseModel):
             "description": "http://example.com/R7k3ssL7gUxsfWuVsXWDXYF",
             # "ObjectPropertyA": "http://example.com/REh2qNSARmKpPuwrJmr5Pu",
             "Item": "https://wiki-dev.open-semantic-lab.org/wiki",
-            # "Item:OSW4db96fb7e9e0466d942bf6f17bfdc145": "emmo:EMMO_4db96fb7_e9e0_466d_942b_f6f17bfdc145",
+            # "Item:OSW4db96fb7e9e0466d942bf6f17bfdc145":
+            #   "emmo:EMMO_4db96fb7_e9e0_466d_942b_f6f17bfdc145",
             # "uuid": "wiki:HasUuid",
             # "name": "wiki:HasName",
             # "restrictions": {"@id": "rdfs:subClassOf", "@type": "@id"},
@@ -517,7 +566,11 @@ class OntologyImporter(OswBaseModel):
                         elif ":" in node["iri"]:
                             name = node["iri"].split(":")[-1]
                         if name:
-                            title = f"{prefix}{self.import_config.property_naming_prefix_delimiter}{name}"
+                            title = (
+                                f"{prefix}"
+                                f"{self.import_config.property_naming_prefix_delimiter}"
+                                f"{name}"
+                            )
                         else:
                             raise ValueError(
                                 f"Could not find name for property {node['iri']}"
@@ -555,7 +608,7 @@ class OntologyImporter(OswBaseModel):
                     elif "text" in node[key] and "lang" not in node[key]:
                         node[key]["lang"] = "en"
                     elif isinstance(node[key], list):
-                        for i, val in enumerate(node[key]):
+                        for i, _val in enumerate(node[key]):
                             if isinstance(node[key][i], str):
                                 node[key][i] = {"text": node[key][i], "lang": "en"}
                             elif "text" in node[key][i] and "lang" not in node[key][i]:
@@ -586,8 +639,10 @@ class OntologyImporter(OswBaseModel):
 
                 # name = ""
                 if "prefLabel" in node:
-                    # if isinstance(node["prefLabel"], str): node["prefLabel"] = {"text": node["prefLabel"], "lang": "en"}
-                    # if isinstance(node["prefLabel"], list): node["name"] = node["prefLabel"][0]["text"]
+                    # if isinstance(node["prefLabel"], str):
+                    #   node["prefLabel"] = {"text": node["prefLabel"], "lang": "en"}
+                    # if isinstance(node["prefLabel"], list):
+                    #   node["name"] = node["prefLabel"][0]["text"]
                     # else: node["name"] = node["prefLabel"]["text"]
                     node["name"] = node["prefLabel"][0]["text"]
                 elif "label" in node:
@@ -648,7 +703,7 @@ class OntologyImporter(OswBaseModel):
                 for key in node:
                     if key in self.parser_settings.map_uuid_iri:
                         if isinstance(node[key], list):
-                            for i, val in enumerate(node[key]):
+                            for i, _val in enumerate(node[key]):
                                 node[key][i] = self._map_iri_to_osw(node[key][i])
                         if isinstance(node[key], str):
                             node[key] = self._map_iri_to_osw(node[key])
@@ -663,7 +718,7 @@ class OntologyImporter(OswBaseModel):
         counter = 0
         self._entities = []
         self._entities_json = []
-        for index, node in enumerate(self._g["@graph"]):
+        for _index, node in enumerate(self._g["@graph"]):
             # restore class restrictions
             # if "_restrictions" in node:
             #    node["restrictions"] == node["_restrictions"]
@@ -694,7 +749,7 @@ class OntologyImporter(OswBaseModel):
                         counter += 1
 
     class StoreOntologyParam(model.OswBaseModel):
-        ontology: model.Ontology
+        ontology: model.OwlOntology
         entities: List[model.OswBaseModel]
 
     def _store_ontology(self, param: StoreOntologyParam):
@@ -703,9 +758,7 @@ class OntologyImporter(OswBaseModel):
                 titles=["MediaWiki:Smw_import_" + param.ontology.prefix_name]
             )
         ).pages[0]
-        text = (
-            f"{param.ontology.prefix} | [{param.ontology.link} {param.ontology.name}]"
-        )
+        text = f"{param.ontology.prefix} | [{param.ontology.see_also[0]} {param.ontology.name}]"
         for e in param.entities:
             namespace = get_namespace(e)
 
@@ -726,7 +779,10 @@ class OntologyImporter(OswBaseModel):
             if hasattr(e, "uri"):
                 iri = e.uri
             if iri is not None:
-                text += f"\n {iri.replace(param.ontology.prefix, '').replace(param.ontology.prefix_name + ':', '')}|{smw_import_type}"
+                new_iri = iri.replace(param.ontology.prefix, "").replace(
+                    param.ontology.prefix_name + ":", ""
+                )
+                text += f"\n {new_iri}|{smw_import_type}"
             else:
                 print("Error: Entity has not iri/uri property")
 
@@ -738,13 +794,14 @@ class OntologyImporter(OswBaseModel):
     @deprecated("use ontology.OntologyImporter.StoreOntologiesParam instead")
     class StoreOntologiesParam(model.OswBaseModel):
         entities: Optional[List[model.OswBaseModel]]
-        """if we use model.Entity here, all instances are casted to model.Entity
-        see: https://stackoverflow.com/questions/67366187/how-to-make-a-pydantic-field-accept-subclasses-using-type
+        """If we use model.Entity here, all instances are casted to model.Entity
+        See: https://stackoverflow.com/questions/67366187/
+        how-to-make-a-pydantic-field-accept-subclasses-using-type
         """
         # classes: Optional[List[model.Entity]]  # goes to NS Category
         # properties: Optional[List[model.Entity]]  # goes to NS Property
         # individuals: Optional[List[model.Entity]]  # goes to NS Item
-        ontologies: Optional[List[model.Ontology]]
+        ontologies: Optional[List[model.OwlOntology]]
         dryrun: Optional[bool] = False
 
     def _store_ontologies(self, param: StoreOntologiesParam = None):

@@ -27,12 +27,13 @@ osw_obj.install_dependencies(DEPENDENCIES, mode="append")
 
 ontology_name = "example_ontology"
 
-ex = model.Ontology(
+ex = model.OwlOntology(
     name="Example",
+    label=[model.Label(text="Example", lang="en")],
     iri="http://example.com",
     prefix="http://example.com/",
     prefix_name="example",
-    link="http://example.com",
+    see_also=["http://example.com"],
 )
 
 import_config = ImportConfig(

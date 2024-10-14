@@ -345,7 +345,7 @@ def get_file_info_and_usage(
         else:
             image_info: List[Dict[str, str]] = []
             file_usage: List[Dict[str, Union[str, int]]] = []
-            for page_id, page_dict in api_request_result["query"]["pages"].items():
+            for _page_id, page_dict in api_request_result["query"]["pages"].items():
                 if page_dict["title"] == single_title:
                     image_info = page_dict.get("imageinfo", [])
                     file_usage = page_dict.get("fileusage", [])
@@ -609,8 +609,11 @@ def create_flat_content_structure_from_wikitext(
         defines how to parse template params
         array_mode / param     value   value;  value;value     comment
         'force':               array   array   array           always create an array
-        'only_multiple':       literal literal array           create only when more than one value is given
-        'delimiter_present':   literal array   array           create array if at least one separator char is present
+        'only_multiple':       literal literal array           create only when more
+                                                               than one value is given
+        'delimiter_present':   literal array   array           create array if at least
+                                                               one separator char is
+                                                               present
 
     Returns
     -------
@@ -622,7 +625,7 @@ def create_flat_content_structure_from_wikitext(
     text = text.strip()
     existing_code = mwparserfromhell.parse(text)
     t_count = 0
-    for i in range(0, len(existing_code.nodes)):
+    for _i in range(0, len(existing_code.nodes)):
         n = existing_code.nodes.pop(
             0
         )  # returns first layer of nodes. filter() returns also template args
@@ -1213,7 +1216,9 @@ def copy_wiki_page(title0, title1, site0, site1, overwrite=True):
                 search_result["Result"] and search_result["Exact match"]
             ):  # page already exists
                 success = False
-            else:  # search_result["Result"] == True/False, search_result["Exact match"] == False
+            else:
+                # search_result["Result"] == True/False
+                # search_result["Exact match"] == False
                 success = create_or_overwrite_wiki_page(title1, content, site1)
     return success
 

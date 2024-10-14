@@ -124,7 +124,8 @@ def slot_default_values():
     def modify(wtpage: WtPage):
         edit = True
         # print(wtpage.get_last_changed_time())
-        # if wtpage.get_last_changed_time() > datetime.fromisoformat('2023-01-15T12:00:00+00:00'):
+        # if (wtpage.get_last_changed_time() >
+        #     datetime.fromisoformat('2023-01-15T12:00:00+00:00')):
         #    print("new")
         # else:
         #    print("old")

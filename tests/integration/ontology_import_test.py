@@ -1,12 +1,14 @@
+import importlib
 import os
 
+import osw.model.entity as model
 from osw.auth import CredentialManager
-from osw.core import OSW, model
-from osw.ontology import ImportConfig, OntologyImporter
+from osw.core import OSW
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# Run with:
+# tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
 
 
 def test_ontology_import(wiki_domain, wiki_username, wiki_password):
@@ -20,7 +22,7 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
     # site = mwclient.Site(host=wiki_domain, scheme="http")
     # site.login(username=wiki_username, password=wiki_password)
     # wtsite = WtSite(WtSite.WtSiteLegacyConfig(site=site))
-    osw = OSW(site=wtsite)
+    osw_obj = OSW(site=wtsite)
 
     list_of_categories = [
         "Category:OSW725a3cf5458f4daea86615fcbd0029f8",  # OwlClass
@@ -29,21 +31,26 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
         "Category:ObjectProperty",
         "Category:DataProperty",
         "Category:AnnotationProperty",
+        "Category:OSW662db0a2ad0946148422245f84e82f64",  # OwlOntology
     ]
     for i, cat in enumerate(list_of_categories):
         mode = "append"
         if i == 0:
             mode = "replace"
-        osw.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
+        osw_obj.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
+
+    importlib.reload(model)
+    from osw.ontology import ImportConfig, OntologyImporter
 
     ontology_name = "example_ontology"
 
-    ex = model.Ontology(
+    ex = model.OwlOntology(
         name="Example",
+        label=[model.Label(text="Example Ontology", lang="en")],
         iri="http://example.com",
         prefix="http://example.com/",
         prefix_name="example",
-        link="http://example.com",
+        see_also=["http://example.com"],
     )
 
     import_config = ImportConfig(
@@ -61,7 +68,7 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
 
     # import ontologies
     importer = OntologyImporter(
-        osw=osw,
+        osw=osw_obj,
     )
     importer.import_ontology(import_config)
 
@@ -92,13 +99,14 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
     search_param = SearchParam(
         query=f"[[{property_name}::Category:OSWb1e6910f1e3d567aaed30b83ac887708]]"
     )
-    full_page_titles = osw.site.semantic_search(search_param)
+    full_page_titles = osw_obj.site.semantic_search(search_param)
     print(full_page_titles)
-    # not reliable, because the SMW store is not updated immediately
+    # Not reliable, because the SMW store is not updated immediately
     # assert "Category:OSW51f195014de65ebe9f08994b21498cae" in full_page_titles
 
-    # not reliable due to parallel test execution using the same osw instance and page ids
-    # osw.delete_entity(
+    # Not reliable due to parallel test execution using the same osw instance and
+    #  page ids
+    # osw_obj.delete_entity(
     #     OSW.DeleteEntityParam(
     #         entities=importer._entities, comment="[bot] delete test data"
     #     )

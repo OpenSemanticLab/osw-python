@@ -17,7 +17,7 @@ DEPENDENCIES = {
 def fetch_dependencies(wtsite_obj: WtSite):
     osw = OSW(site=wtsite_obj)
     categories_fpt = DEPENDENCIES.values()
-    for i, cat in enumerate(categories_fpt):
+    for _i, cat in enumerate(categories_fpt):
         mode = "append"
         # if i == 0:
         #     mode = "replace"

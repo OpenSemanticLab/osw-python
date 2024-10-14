@@ -120,6 +120,5 @@ def test_regex_pattern():
     module."""
     from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 
-    for key, pattern in REGEX_PATTERN_LIB.items():
+    for _key, pattern in REGEX_PATTERN_LIB.items():
         assert pattern.test_pattern()
-    pass

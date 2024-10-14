@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import json
 
 from osw.utils.templates import eval_handlebars_template

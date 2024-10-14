@@ -46,6 +46,7 @@ class ParserSettings(OswBaseModel):
         "description",
         "subclass_of",
         "restrictions",
+        "range",
     ]
     """List of properties that should be arrays. If the property is not an array, the
     parser will create an array with the value as single element."""
@@ -757,9 +758,7 @@ class OntologyImporter(OswBaseModel):
                 titles=["MediaWiki:Smw_import_" + param.ontology.prefix_name]
             )
         ).pages[0]
-        text = (
-            f"{param.ontology.prefix} | [{param.ontology.link} {param.ontology.name}]"
-        )
+        text = f"{param.ontology.prefix} | [{param.ontology.see_also[0]} {param.ontology.name}]"
         for e in param.entities:
             namespace = get_namespace(e)
 

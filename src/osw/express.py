@@ -193,15 +193,30 @@ class OswExpress(OSW):
         # connection can't be reopened except when initializing a new instance)
 
     def install_dependencies(
-        self, dependencies: Dict[str, str] = None, mode: str = "append"
+        self,
+        dependencies: Dict[str, str] = None,
+        mode: str = "append",
+        policy: str = "force",
     ):
         """Expects a dictionary with the keys being the names of the dependencies and
         the values being the full page name of the dependencies.
         To keep existing dependencies, use mode='append'.
+        Default policy is 'force', which will always load dependencies.
+        If policy is 'if-missing', dependencies will only be loaded if they are not already installed.
+        This may lead to outdated dependencies, if the dependencies have been updated on the server.
+        If policy is 'if-outdated', dependencies will only be loaded if they were updated on the server.
+        (not implemented yet)
         """
         if dependencies is None:
             dependencies = DEPENDENCIES
-        schema_fpts = list(dependencies.values())
+        schema_fpts = []
+        for k, v in dependencies.items():
+            if policy != "if-missing" or not hasattr(model, k):
+                schema_fpts.append(v)
+            if policy == "if-outdated":
+                raise NotImplementedError(
+                    "The policy 'if-outdated' is not implemented yet."
+                )
         schema_fpts = list(set(schema_fpts))
         for schema_fpt in schema_fpts:
             if not schema_fpt.count(":") == 1:

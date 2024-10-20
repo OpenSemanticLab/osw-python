@@ -100,7 +100,7 @@ class WtSite:
                 "path": "/w/",
                 "scheme": scheme,
             }
-            if getattr(config, "connection_options") is not None:
+            if getattr(config, "connection_options", None) is not None:
                 site_kwargs["reqs"] = config.connection_options
                 # reqs might be a deprecated alias for "connection_options"
             if isinstance(cred, CredentialManager.UserPwdCredential):
@@ -397,7 +397,8 @@ class WtSite:
         log=False,
         dryrun=False,
     ):
-        """Modifies the search results of a prefix or semantic search in a callback and stores the changes.
+        """Modifies the search results of a prefix or semantic search in a callback and
+        stores the changes.
 
         Parameters
         ----------
@@ -757,7 +758,7 @@ class WtSite:
 
         # Create WtPage objects
         pages = []
-        for package_name, package_dict in packages_json["packages"].items():
+        for _package_name, package_dict in packages_json["packages"].items():
             for page in package_dict["pages"]:
                 namespace = page["namespace"].split("_")[-1].capitalize()
                 name = page["name"]
@@ -959,8 +960,10 @@ class WtPage:
 
     @deprecated("Use get_slot_content('main') instead")
     def get_content(self):
-        """Get the content of the page (slot: main). Should be replaced by get_slot_content('main')
-        Note: The content is parsed at page initialization with wt.create_flat_content_structure_from_wikitext()
+        """Get the content of the page (slot: main). Should be replaced by
+        get_slot_content('main')
+        Note: The content is parsed at page initialization with
+        wt.create_flat_content_structure_from_wikitext()
 
         Returns
         -------
@@ -1024,7 +1027,8 @@ class WtPage:
 
     @deprecated("Use set_slot_content('main', content) instead")
     def set_content(self, content):
-        """Sets the content of the page (slot: main). Should be replaced by set_slot_content('main', content)
+        """Sets the content of the page (slot: main). Should be replaced by
+        set_slot_content('main', content)
 
         Parameters
         ----------
@@ -1527,12 +1531,13 @@ class WtPage:
 
         Parameters
         ----------
-        debug, optional
-            whether to print debug information, by default False
+        debug
+            Whether to print debug information, by default False
 
         Returns
         -------
-            Dictionary with page titles as keys and nested dictionary with keys 'info' and 'usage'.
+            Dictionary with page titles as keys and nested dictionary with keys 'info'
+            and 'usage'.
         """
         return wt.get_file_info_and_usage(
             site=self.wtSite._site,
@@ -1556,13 +1561,14 @@ class WtPage:
                 "Full page name",
             )
             file_page_refs.extend(full_page_names)
-            # find all files in editor templates
+            # Find all files in editor templates
             pattern = REGEX_PATTERN_LIB["File uuid in template"]
             res = pattern.finditer(str(content))
-            # interate over all matches
+            # Iterate over all matches
             for match in res:
                 ft = None
-                # check if the match has the groups "Editor" and "UUID" and UUID is a valid OSW ID
+                # Check if the match has the groups "Editor" and "UUID" and UUID is a
+                #  valid OSW ID
                 try:
                     if "Editor" in match.groups and "UUID" in match.groups:
                         # construct a file page title
@@ -1606,9 +1612,7 @@ class WtPage:
         success: bool
         """if true, the export was successful, else false"""
 
-    def export_xml(
-        self, config: Optional[ExportConfig] = ExportConfig()
-    ) -> ExportResult:
+    def export_xml(self, config: Optional[ExportConfig] = None) -> ExportResult:
         """Exports the page to XML
 
         Parameters
@@ -1620,6 +1624,8 @@ class WtPage:
         -------
             ExportResult
         """
+        if config is None:
+            config = WtPage.ExportConfig()
         url = (
             self.wtSite._site.scheme
             + "://"
@@ -1692,24 +1698,25 @@ class WtPage:
             ExportResult
         """
 
-        # remove default namespace definition (see https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace)
+        # Remove default namespace definition (see https://stackoverflow.com/questions/
+        #  34009992/python-elementtree-default-namespace)
         config.xml = config.xml.replace(
             'xmlns="http://www.mediawiki.org', '_xmlns="http://www.mediawiki.org'
         )
         print(config.xml)
         tree = et.fromstring(config.xml)
 
-        # replace title and namespace with the requested ones
+        # Replace title and namespace with the requested ones
         tree.find(".//title").text = self.title.split(":")[1]
         tree.find(".//ns").text = str(
             config.namespace_mapping.get(self.title.split(":")[0], 0)
         )
-        # apply username mapping (user in the target system might have different names)
+        # Apply username mapping (user in the target system might have different names)
         for e in tree.findall(".//username"):
             e.text = config.username_mapping.get(e.text, e.text)
 
         config.xml = et.tostring(tree, encoding="unicode")
-        # restore default namespace definition
+        # Restore default namespace definition
         config.xml = config.xml.replace(
             '_xmlns="http://www.mediawiki.org', 'xmlns="http://www.mediawiki.org'
         )
@@ -1748,7 +1755,8 @@ class WtPage:
             # print("Error: ", json)
             return WtPage.ImportResult(success=False, error_msg=json["error"]["info"])
         else:
-            # print("Imported: ", json["import"][0]["title"], " with ", json["import"][0]["revisions"], " revisions")
+            # print("Imported: ", json["import"][0]["title"], " with ",
+            #       json["import"][0]["revisions"], " revisions")
             return WtPage.ImportResult(
                 success=True,
                 imported_title=json["import"][0]["title"],

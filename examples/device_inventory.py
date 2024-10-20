@@ -68,7 +68,9 @@ osw_obj.store_entity(
     OSW.StoreEntityParam(
         entities=[new_category],
         namespace="Category",
-        # meta_category_title="Category:OSWd845b96813a344458f140e48c4d063fd" # usage of MetaDeviceCategory not yet supported
+        # meta_category_title= (
+        # "Category:OSWd845b96813a344458f140e48c4d063fd")
+        # usage of MetaDeviceCategory not yet supported
     )
 )
 

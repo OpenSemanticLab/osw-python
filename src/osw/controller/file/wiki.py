@@ -42,7 +42,12 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         web_api_failed = False
         response = None
         try:
-            url = f"{self.osw.site._site.scheme}://{self.osw.site._site.host}{self.osw.site._site.path}api.php?action=download&format=json&title={full_title}"
+            url = (
+                f"{self.osw.site._site.scheme}://"
+                f"{self.osw.site._site.host}"
+                f"{self.osw.site._site.path}"
+                f"api.php?action=download&format=json&title={full_title}"
+            )
             # print("Use web api: ", url)
             response = self.osw.site._site.connection.get(url, stream=True)
             api_error = response.headers.get("Mediawiki-Api-Error")
@@ -63,20 +68,22 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             # fallback: use direct download
             url = file.imageinfo["url"]
             print(
-                "Extension FileApi not installed on the server. Fallback: use direct download from ",
+                "Extension FileApi not installed on the server. Fallback: use direct "
+                "download from ",
                 url,
             )
             response = self.osw.site._site.connection.get(url, stream=True)
 
         if response.status_code != 200:
             raise Exception(
-                "Download failed. Please note that bot or OAuth logins have in general no permission for direct downloads. Error: "
-                + response.text
+                "Download failed. Please note that bot or OAuth logins have in general "
+                "no permission for direct downloads. Error: " + response.text
             )
 
         # for chunk in response.iter_content(1024):
         #    destination.write(chunk)
-        # see https://stackoverflow.com/questions/16694907/download-large-file-in-python-with-requests
+        # See https://stackoverflow.com/questions/16694907/
+        #  download-large-file-in-python-with-requests
         response.raw.read = functools.partial(response.raw.read, decode_content=True)
         return response.raw
 
@@ -90,7 +97,8 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         ) as response:
             # for chunk in response.iter_content(1024):
             #    destination.write(chunk)
-            # see https://stackoverflow.com/questions/16694907/download-large-file-in-python-with-requests
+            # See https://stackoverflow.com/questions/16694907/
+            #  download-large-file-in-python-with-requests
             response.raw.read = functools.partial(
                 response.raw.read, decode_content=True
             )

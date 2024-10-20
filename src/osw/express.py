@@ -1,12 +1,23 @@
+# flake8: noqa: E402
 """
 This module provides convenience functions for osw-python.
 """
 
+import importlib.util
 import re
 from pathlib import Path
 from warnings import warn
 
-from typing_extensions import IO, Any, Dict, List, Optional, TextIO, Union
+from typing_extensions import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    TextIO,
+    Union,
+)
 
 import osw.model.entity as model
 from osw.auth import CREDENTIALS_FN_DEFAULT, CredentialManager
@@ -182,7 +193,7 @@ class OswExpress(OSW):
         # connection can't be reopened except when initializing a new instance)
 
     def install_dependencies(
-        self, dependencies: Dict[str, str] = None, mode: str = "replace"
+        self, dependencies: Dict[str, str] = None, mode: str = "append"
     ):
         """Expects a dictionary with the keys being the names of the dependencies and
         the values being the full page name of the dependencies.
@@ -312,33 +323,111 @@ class OswExpress(OSW):
         return UploadFileResult(source=source, osw_express=self, **data)
 
 
-try:
-    # To load the dependencies that are not part of the osw.model.entity module as
-    # uploaded to the repository
+class DataModel(OswBaseModel):
+    module: str
+    """The full address of the module to import from, e.g., 'osw.model.entity'."""
+    class_name: str
+    """The target class name to import, e.g., 'Entity' in 'from osw.model.entity
+    import Entity'."""
+    osw_fpt: str = None
+    """Full page title of the data model in an OSL instance to be fetched if not
+    already available in osw.model.entity, e.g., 'Category:Entity'."""
+
+
+def import_with_fallback(
+    to_import: List[DataModel], dependencies: Dict[str, str] = None, domain: str = None
+):
+    """Imports data models with a fallback to fetch the dependencies from an OSL
+    instance if the data models are not available in the local osw.model.entity module.
+
+    Parameters
+    ----------
+    to_import
+        List of DataModel objects to import.
+    dependencies
+        A dictionary with the keys being the names of the dependencies and the values
+        being the full page name of the dependencies.
+    domain
+        The domain of the OSL instance to connect to, if the dependencies are not
+        available in the local osw.model.entity module.
+
+    Returns
+    -------
+
+    """
+    try:
+        for ti in to_import:
+            # Raises AttributeError if the target could not be found
+            globals()[ti.class_name] = getattr(
+                importlib.import_module(ti.module), ti.class_name
+            )
+    except Exception as e:
+        if dependencies is None:
+            dependencies = {}
+            warn(
+                "No 'dependencies' were passed to the function "
+                "import_with_fallback()!"
+            )
+        new_dependencies = {
+            f"{module.class_name}": module.osw_fpt
+            for module in to_import
+            if module.osw_fpt is not None
+        }
+        if not dependencies:
+            # If dependencies is an empty dict,
+            raise AttributeError(
+                f"An exception occurred while loading the module dependencies: \n'{e}'"
+                "No 'dependencies' were passed to the function import_with_fallback() "
+                "and could not be derived from 'to_import'!"
+            )
+        dependencies.update(new_dependencies)
+        warn(
+            f"An exception occurred while loading the module dependencies: \n'{e}'"
+            "You will be now have to connect to an OSW instance to fetch the "
+            "dependencies from!"
+        )
+        if domain is None:
+            domain = input("Please enter the domain of the OSW instance to connect to:")
+        if domain == "" or domain is None:
+            domain = "wiki-dev.open-semantic-lab.org"
+        osw_express = OswExpress(domain=domain)
+
+        osw_express.install_dependencies(dependencies, mode="append")
+        osw_express.shut_down()  # Avoiding connection error
+        # Try again
+        for ti in to_import:
+            # Raises AttributeError if the target could not be found
+            globals()[ti.class_name] = getattr(
+                importlib.import_module(ti.module), ti.class_name
+            )
+
+
+import_with_fallback(
+    to_import=[
+        DataModel(
+            module="osw.controller.file.base",
+            class_name="FileController",
+        ),
+        DataModel(
+            module="osw.controller.file.local",
+            class_name="LocalFileController",
+        ),
+        DataModel(
+            module="osw.controller.file.memory",
+            class_name="InMemoryController",
+        ),
+        DataModel(
+            module="osw.controller.file.wiki",
+            class_name="WikiFileController",
+        ),
+    ],
+    dependencies=DEPENDENCIES,
+)
+
+if TYPE_CHECKING:
     from osw.controller.file.base import FileController  # depends on File
     from osw.controller.file.local import LocalFileController  # depends on LocalFile
     from osw.controller.file.memory import InMemoryController  # depends on LocalFile
-    from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
-except AttributeError as e:
-    warn(
-        f"An exception occurred while loading the module dependencies: \n'{e}'"
-        "You will be now have to connect to an OSW instance to fetch the "
-        "dependencies from!"
-    )
-    domain_ = input("Please enter the domain of the OSW instance to connect to:")
-    if domain_ == "":
-        domain_ = "wiki-dev.open-semantic-lab.org"
-    osw_express_ = OswExpress(domain=domain_)
-    osw_express_.install_dependencies(DEPENDENCIES)
-    osw_express_.shut_down()  # Avoiding connection error
-    # raise AttributeError(
-    warn(
-        "Dependencies specified in the module 'osw.express' have been fetched from OSW:"
-        f"\n{DEPENDENCIES}\n"
-        "Its recommended to restart the kernel, to apply all changes seamlessly."
-    )
-    from osw.controller.file.base import FileController  # depends on File
-    from osw.controller.file.local import LocalFileController  # depends on LocalFile
     from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
 
 
@@ -690,14 +779,16 @@ class UploadFileResult(FileResult, WikiFileController):
         wfc = WikiFileController.from_other(
             other=data.get("source_file_controller"),
             osw=data.get("osw_express"),
-            **data,  # Passes arguments to the cast() method, e.g. overwrite the label
+            **data,
+            # Passes arguments to the cast() method, e.g. overwrite the label
             # cast method will call init
         )
         # Upload to the target OSW instance
         wfc.put_from(data.get("source_file_controller"), **data)
         data["url_or_title"] = wfc.url
-        super().__init__(**{**wfc.dict(), **data})
-        # Don't open the local (uploaded) file
+        super().__init__(
+            **{**wfc.dict(), **data}
+        )  # Don't open the local (uploaded) file
 
 
 def osw_upload_file(
@@ -774,7 +865,6 @@ def osw_upload_file(
 
 
 OswExpress.update_forward_refs()
-
 
 # todo:
 #  * create a .gitignore in the basepath that lists the default credentials file (

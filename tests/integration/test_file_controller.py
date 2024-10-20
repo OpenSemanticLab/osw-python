@@ -39,8 +39,8 @@ def run_test(osw_obj, file_path_1, file_path_2):
     lf = model.LocalFile(label=[model.Label(text="Test File")]).cast(
         LocalFileController, path=file_path_1
     )
-
-    # wf = WikiFileController.from_local(lf) # does not work due to missing attributes 'title' and 'osw'
+    # Does not work due to missing attributes 'title' and 'osw':
+    # wf = WikiFileController.from_local(lf)
     wf = WikiFileController(label=[model.Label(text="Test File")], osw=osw_obj)
     wf.put_from(lf)
     # print(wf)

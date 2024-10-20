@@ -7,8 +7,9 @@ from osw.core import model
 # TODO: add addional remove file with https://docs.prefect.io/2.11.4/concepts/filesystems/
 
 
-# note: the order of the base classes is important
-# the data class must be the first base class, otherwise subclass controllers fall back to the data model of the controller superclass
+# Note: the order of the base classes is important
+# The data class must be the first base class, otherwise subclass controllers fall back
+#  to the data model of the controller superclass
 class RemoteFileController(model.RemoteFile, FileController):
     @abstractmethod
     def get(self) -> IO:

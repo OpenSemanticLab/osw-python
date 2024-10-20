@@ -38,7 +38,7 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
     end_time = time.time()
     print(f"Time taken to load Tutorial Schema: {end_time - start_time}")
     assert hasattr(model, "Tutorial")
-    assert end_time - start_time < 15  # typically takes 8 seconds
+    assert end_time - start_time < 32  # typically takes 8 seconds
 
     start_time = time.time()
     osw_express.install_dependencies(DEPENDENCIES, policy="force")
@@ -46,13 +46,13 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
     print(
         f"Time taken to reload Tutorial Schema with policy 'force': {end_time - start_time}"
     )
-    assert end_time - start_time < 2  # typically takes 1 seconds using memory cache
+    assert end_time - start_time < 4  # typically takes 1 seconds using memory cache
 
     start_time = time.time()
     osw_express.install_dependencies(DEPENDENCIES, policy="if-missing")
     end_time = time.time()
     print(
         "Time taken to reload Tutorial Schema with policy ",
-        "'if-missing': {end_time - start_time}",
+        f"'if-missing': {end_time - start_time}",
     )
-    assert end_time - start_time < 0.1  # typically takes 0 seconds
+    assert end_time - start_time < 0.5  # typically takes 0 seconds

@@ -12,6 +12,7 @@ import osw.model.entity as model
 from osw.controller.entity import Entity  # noqa: F401
 
 # conditional imports
+# Note: does not work if the module is imported before the model is loaded
 models = [m[0] for m in inspect.getmembers(model)]
 
 if "Database" in models:

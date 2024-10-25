@@ -1019,30 +1019,30 @@ class OSW(BaseModel):
                         meta_category_template,
                         page.get_slot_content("jsondata"),
                         {
-                            "_page_title": entity_title,  # legacy
+                            "_page_title": entity_title,  # Legacy
                             "_current_subject_": entity_title,
                         },
                     )
                     schema = json.loads(schema_str)
-                    # put generated schema in definitions section
-                    # currently only enabled for Characteristics
+                    # Put generated schema in definitions section,
+                    #  currently only enabled for Characteristics
                     if hasattr(model, "CharacteristicType") and isinstance(
                         entity, model.CharacteristicType
                     ):
                         new_schema = {
                             "$defs": {"generated": schema},
                             "allOf": [{"$ref": "#/$defs/generated"}],
+                            "@context": schema.pop("@context", None),
+                            "title": schema.pop("title", ""),
                         }
-                        new_schema["@context"] = schema.pop("@context", None)
-                        new_schema["title"] = schema.pop("title", "")
                         schema["title"] = "Generated" + new_schema["title"]
                         schema = new_schema
-                    page.set_slot_content("jsonschema", new_schema)
+                    page.set_slot_content("jsonschema", schema)
                 except Exception as e:
                     print(
                         f"Schema generation from template failed for " f"{entity}: {e}"
                     )
-            page.edit()  # will set page.changed if the content of the page has changed
+            page.edit()  # Will set page.changed if the content of the page has changed
             if page.changed:
                 if index is None:
                     print(f"Entity stored at '{page.get_url()}'.")
@@ -1218,3 +1218,4 @@ class OSW(BaseModel):
 
 
 OSW._ApplyOverwriteParam.update_forward_refs()
+OSW.StoreEntityParam.update_forward_refs()

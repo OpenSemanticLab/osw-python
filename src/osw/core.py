@@ -840,8 +840,10 @@ class OSW(BaseModel):
                 page.set_slot_content(slot_, content_to_set[slot_])
 
         # Create a variable to hold the new content
-        new_content = {  # required for json parsing and header rendering
-            "header": "{{#invoke:Entity|header}}",  # required for footer rendering
+        new_content = {
+            # required for json parsing and header rendering
+            "header": "{{#invoke:Entity|header}}",
+            # required for footer rendering
             "footer": "{{#invoke:Entity|footer}}",
         }
         # Take the shortcut if
@@ -880,9 +882,8 @@ class OSW(BaseModel):
         remote_content = {}
         # Get the remote content
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
-            remote_content[slot] = page.get_slot_content(
-                slot
-            )  # Todo: remote content does not contain properties that are not set
+            remote_content[slot] = page.get_slot_content(slot)
+            # Todo: remote content does not contain properties that are not set
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
         if remote_content["footer"]:
@@ -1076,13 +1077,13 @@ class OSW(BaseModel):
                         meta_category_template,
                         page.get_slot_content("jsondata"),
                         {
-                            "_page_title": entity_title,  # legacy
+                            "_page_title": entity_title,  # Legacy
                             "_current_subject_": entity_title,
                         },
                     )
                     schema = json.loads(schema_str)
-                    # put generated schema in definitions section
-                    # currently only enabled for Characteristics
+                    # Put generated schema in definitions section,
+                    #  currently only enabled for Characteristics
                     if hasattr(model, "CharacteristicType") and isinstance(
                         entity_, model.CharacteristicType
                     ):

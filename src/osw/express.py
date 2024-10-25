@@ -350,7 +350,10 @@ class DataModel(OswBaseModel):
 
 
 def import_with_fallback(
-    to_import: List[DataModel], dependencies: Dict[str, str] = None, domain: str = None
+    to_import: Union[List[DataModel], Dict[str, str]],
+    module: str = None,
+    dependencies: Dict[str, str] = None,
+    domain: str = None,
 ):
     """Imports data models with a fallback to fetch the dependencies from an OSL
     instance if the data models are not available in the local osw.model.entity module.
@@ -359,6 +362,9 @@ def import_with_fallback(
     ----------
     to_import
         List of DataModel objects to import.
+    module
+        (Optional) The module to import the data models from. Used only if to_import
+        is of type List[Dict]. Defaults to 'osw.model.entity' if not specified.
     dependencies
         A dictionary with the keys being the names of the dependencies and the values
         being the full page name of the dependencies.
@@ -370,6 +376,18 @@ def import_with_fallback(
     -------
 
     """
+    if isinstance(to_import, dict):
+        # Assume all DataModels are part of osw.model.entity
+        if module is None:
+            module = "osw.model.entity"
+        to_import = [
+            DataModel(
+                module=module,
+                class_name=key,
+                osw_fpt=value,
+            )
+            for key, value in to_import.items()
+        ]
     try:
         for ti in to_import:
             # Raises AttributeError if the target could not be found
@@ -803,9 +821,8 @@ class UploadFileResult(FileResult, WikiFileController):
         # Upload to the target OSW instance
         wfc.put_from(data.get("source_file_controller"), **data)
         data["url_or_title"] = wfc.url
-        super().__init__(
-            **{**wfc.dict(), **data}
-        )  # Don't open the local (uploaded) file
+        super().__init__(**{**wfc.dict(), **data})
+        # Don't open the local (uploaded) file
 
 
 def osw_upload_file(

@@ -207,7 +207,7 @@ def create_account(
     if save_results_to is not None:
         if not isinstance(save_results_to, Path):
             save_results_to = Path(save_results_to)
-        with open(save_results_to, "w") as f:
+        with open(save_results_to, "w", encoding="utf-8") as f:
             json.dump({"list": created_accounts}, f, indent=2, ensure_ascii=False)
     return created_accounts
 
@@ -324,6 +324,8 @@ if __name__ == "__main__":
                 orcid_url = f"https://orcid.org/{orcid}"
         if not is_nan(row["Website"]):
             website = row["Website"]
+            if not isinstance(website, list):
+                website = set([website])
         if not is_nan(row["Username"]):
             username = row["Username"]
         else:

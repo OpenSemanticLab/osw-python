@@ -109,14 +109,14 @@ class WtSite:
                 "scheme": scheme,
                 "pool": session,
                 "do_init": False,  # do not initialize the site metadata for performance reasons
-                "reqs": {
+                "connection_options": {
                     "verify": True,
                 },
             }
             if getattr(config, "connection_options", None) is not None:
                 # merge connection_options into reqs
-                site_kwargs["reqs"] = {
-                    **site_kwargs["reqs"],
+                site_kwargs["connection_options"] = {
+                    **site_kwargs["connection_options"],
                     **config.connection_options,
                 }
                 # reqs might be a deprecated alias for "connection_options"

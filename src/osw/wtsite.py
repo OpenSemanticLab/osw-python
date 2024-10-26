@@ -96,12 +96,23 @@ class WtSite:
                 scheme = config.iri.split("://")[0]
                 config.iri = config.iri.split("://")[1]
             site_args = [config.iri]
+            # increase pool_maxsize to improve performance with many requests to the same server
+            # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading # noqa
+            # verify=False is necessary for self-signed / outdated certificates
             site_kwargs = {
                 "path": "/w/",
                 "scheme": scheme,
+                "reqs": {
+                    "pool_maxsize": 50,
+                    "verify": True,
+                },
             }
             if getattr(config, "connection_options", None) is not None:
-                site_kwargs["reqs"] = config.connection_options
+                # merge connection_options into reqs
+                site_kwargs["reqs"] = {
+                    **site_kwargs["reqs"],
+                    **config.connection_options,
+                }
                 # reqs might be a deprecated alias for "connection_options"
             if isinstance(cred, CredentialManager.UserPwdCredential):
                 self._site = mwclient.Site(*site_args, **site_kwargs)

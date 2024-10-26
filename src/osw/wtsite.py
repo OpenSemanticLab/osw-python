@@ -5,6 +5,7 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 import json
 import os
 import shutil
+import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
 from datetime import datetime
@@ -243,7 +244,7 @@ class WtSite:
         """
         max_index = len(param.titles)
 
-        exeptions = []
+        exceptions = []
         pages = []
 
         def get_page_(title: str, index: int = None):
@@ -262,10 +263,18 @@ class WtSite:
                         msg += "Page loaded. "
                         if self._cache_enabled:
                             self._page_cache[title] = wtpage
+                    if not wtpage.exists:
+                        warnings.warn(
+                            "WARNING: Page with title '{}' does not exist.".format(
+                                title
+                            ),
+                            RuntimeWarning,
+                            3,
+                        )
                     pages.append(wtpage)
                     break
                 except Exception as e:
-                    exeptions.append(e)
+                    exceptions.append(e)
                     msg += str(e)
                     if retry < param.retries:
                         retry += 1
@@ -280,7 +289,7 @@ class WtSite:
         else:
             _ = [get_page_(p, i) for i, p in enumerate(param.titles)]
 
-        return self.GetPageResult(pages=pages, errors=exeptions)
+        return self.GetPageResult(pages=pages, errors=exceptions)
 
     @deprecated("Use get_page instead")
     def get_WtPage(self, title: str = None):

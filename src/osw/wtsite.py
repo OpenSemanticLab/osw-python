@@ -220,6 +220,8 @@ class WtSite:
         """Retry delay in seconds"""
         debug: Optional[bool] = False
         """Whether to print debug messages"""
+        raise_exception: Optional[bool] = False
+        """Whether to raise an exception if an error occurs"""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -268,6 +270,7 @@ class WtSite:
                         msg += "Page loaded. "
                         if self._cache_enabled:
                             self._page_cache[title] = wtpage
+                    pages.append(wtpage)
                     if not wtpage.exists:
                         warnings.warn(
                             "WARNING: Page with title '{}' does not exist.".format(
@@ -276,15 +279,22 @@ class WtSite:
                             RuntimeWarning,
                             3,
                         )
-                    pages.append(wtpage)
+                        # throw argument value exception if page does not exist
+                        raise ValueError(f"Page with title '{title}' does not exist.")
+
                     break
                 except Exception as e:
                     exceptions.append(e)
                     msg += str(e)
-                    if retry < param.retries:
+                    # retry if probably a network error and retry limit not reached
+                    if not isinstance(e, ValueError) and retry < param.retries:
                         retry += 1
                         msg = f"Page load failed. Retry ({retry}/{param.retries}). "
                         sleep(5)
+                    else:  # last entry -> throw exception
+                        retry = param.retries
+                        if param.raise_exception:
+                            raise e
                 print(msg)
             self._clear_cookies()
             return wtpage

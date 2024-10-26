@@ -63,18 +63,31 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
 
     # query any 50 Category pages
     pages = osw_express.query_instances("Category:Category")
-
-    pages[0] = "IDONOTEXIST"
-    # we should get a warning for the non-existent page
-    # see https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-    with pytest.warns(RuntimeWarning) as record:
-        start_time = time.time()
-        osw_express.site.get_page(WtSite.GetPageParam(titles=pages[:50]))
-        end_time = time.time()
-        # assert that at least one warning message contains
-        # the missing page title to inform the user
-        assert any("IDONOTEXIST" in str(rec.message) for rec in record)
+    start_time = time.time()
+    result = osw_express.site.get_page(WtSite.GetPageParam(titles=pages[:50]))
+    end_time = time.time()
     print(f"Time taken to fetch 50 Category pages: {end_time - start_time}")
     assert (
         end_time - start_time < 15
     )  # typically takes 3.5 (dask) or 2.7 (asyncio) seconds
+
+    assert len(result.pages) == 50
+
+    # we should get a warning for the non-existent page
+    # see https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+    pages[0] = "IDONOTEXIST"
+    with pytest.warns(RuntimeWarning) as record:
+        result = osw_express.site.get_page(
+            WtSite.GetPageParam(titles=pages[:50], raise_exception=False)
+        )
+        # assert that at least one warning message contains
+        # the missing page title to inform the user
+        assert any("IDONOTEXIST" in str(rec.message) for rec in record)
+        assert len(result.pages) == 50  # assert that the result is still returned
+
+    # assert that ValueError is raised when the page does not exist
+    pages[0] = "IDONOTEXIST"
+    with pytest.raises(ValueError):
+        result = osw_express.site.get_page(
+            WtSite.GetPageParam(titles=pages[:50], raise_exception=True)
+        )

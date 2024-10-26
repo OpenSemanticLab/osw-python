@@ -16,6 +16,7 @@ from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
 import mwclient
+import requests
 from jsonpath_ng.ext import parse
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
@@ -99,12 +100,16 @@ class WtSite:
             site_args = [config.iri]
             # increase pool_maxsize to improve performance with many requests to the same server
             # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading # noqa
+            session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(pool_maxsize=50)
+            session.mount(scheme + "://", adapter)
             # verify=False is necessary for self-signed / outdated certificates
             site_kwargs = {
                 "path": "/w/",
                 "scheme": scheme,
+                "pool": session,
+                "do_init": False,  # do not initialize the site metadata for performance reasons
                 "reqs": {
-                    "pool_maxsize": 50,
                     "verify": True,
                 },
             }

@@ -5,6 +5,7 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 import json
 import os
 import shutil
+import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
 from datetime import datetime
@@ -15,6 +16,7 @@ from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
 import mwclient
+import requests
 from jsonpath_ng.ext import parse
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
@@ -96,12 +98,27 @@ class WtSite:
                 scheme = config.iri.split("://")[0]
                 config.iri = config.iri.split("://")[1]
             site_args = [config.iri]
+            # increase pool_maxsize to improve performance with many requests to the same server
+            # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading # noqa
+            session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(pool_maxsize=50)
+            session.mount(scheme + "://", adapter)
+            # verify=False is necessary for self-signed / outdated certificates
             site_kwargs = {
                 "path": "/w/",
                 "scheme": scheme,
+                "pool": session,
+                "do_init": False,  # do not initialize the site metadata for performance reasons
+                "connection_options": {
+                    "verify": True,
+                },
             }
             if getattr(config, "connection_options", None) is not None:
-                site_kwargs["reqs"] = config.connection_options
+                # merge connection_options into reqs
+                site_kwargs["connection_options"] = {
+                    **site_kwargs["connection_options"],
+                    **config.connection_options,
+                }
                 # reqs might be a deprecated alias for "connection_options"
             if isinstance(cred, CredentialManager.UserPwdCredential):
                 self._site = mwclient.Site(*site_args, **site_kwargs)
@@ -203,6 +220,8 @@ class WtSite:
         """Retry delay in seconds"""
         debug: Optional[bool] = False
         """Whether to print debug messages"""
+        raise_exception: Optional[bool] = False
+        """Whether to raise an exception if an error occurs"""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -232,7 +251,7 @@ class WtSite:
         """
         max_index = len(param.titles)
 
-        exeptions = []
+        exceptions = []
         pages = []
 
         def get_page_(title: str, index: int = None):
@@ -252,14 +271,30 @@ class WtSite:
                         if self._cache_enabled:
                             self._page_cache[title] = wtpage
                     pages.append(wtpage)
+                    if not wtpage.exists:
+                        warnings.warn(
+                            "WARNING: Page with title '{}' does not exist.".format(
+                                title
+                            ),
+                            RuntimeWarning,
+                            3,
+                        )
+                        # throw argument value exception if page does not exist
+                        raise ValueError(f"Page with title '{title}' does not exist.")
+
                     break
                 except Exception as e:
-                    exeptions.append(e)
+                    exceptions.append(e)
                     msg += str(e)
-                    if retry < param.retries:
+                    # retry if probably a network error and retry limit not reached
+                    if not isinstance(e, ValueError) and retry < param.retries:
                         retry += 1
                         msg = f"Page load failed. Retry ({retry}/{param.retries}). "
                         sleep(5)
+                    else:  # last entry -> throw exception
+                        retry = param.retries
+                        if param.raise_exception:
+                            raise e
                 print(msg)
             self._clear_cookies()
             return wtpage
@@ -269,7 +304,7 @@ class WtSite:
         else:
             _ = [get_page_(p, i) for i, p in enumerate(param.titles)]
 
-        return self.GetPageResult(pages=pages, errors=exeptions)
+        return self.GetPageResult(pages=pages, errors=exceptions)
 
     @deprecated("Use get_page instead")
     def get_WtPage(self, title: str = None):

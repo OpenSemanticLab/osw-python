@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import sys
 from asyncio import Queue
 from contextlib import redirect_stdout, suppress
@@ -10,6 +11,7 @@ from typing import IO, Callable, Dict, Iterable, List, Optional, Union
 
 import dask
 from dask.diagnostics import ProgressBar
+from tqdm.asyncio import tqdm
 
 # dask.config.set(scheduler="threads")
 # with stdio_proxy.redirect_stdout(sys.stdout):
@@ -289,17 +291,54 @@ def parallelize(
     kwargs:
         Keyword arguments to be passed to the function.z
     """
-    with MessageBuffer(flush_at_end) as msg_buf:
-        tasks = [
-            dask.delayed(redirect_print_explicitly(func, msg_buf))(item, **kwargs)
-            for item in iterable
-        ]
-        print(f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks).")
-        if progress_bar:
-            with ProgressBar():
+
+    MODE = "asyncio"
+    if MODE == "dask":
+        with MessageBuffer(flush_at_end) as msg_buf:
+            tasks = [
+                dask.delayed(redirect_print_explicitly(func, msg_buf))(item, **kwargs)
+                for item in iterable
+            ]
+            print(
+                f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks)."
+            )
+            if progress_bar:
+                with ProgressBar():
+                    results = dask.compute(*tasks)
+            else:
                 results = dask.compute(*tasks)
+
+    if MODE == "asyncio":
+        # run func concurrently with each item in iterable using asyncio
+        async def _run_tasks():
+            loop = asyncio.get_event_loop()
+            # ToDo: handle IO-bound different from CPU-bound tasks
+            # see https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor # noqa
+            # None => ThreadPoolExecutor for IO-bound tasks
+            tasks = [
+                loop.run_in_executor(None, functools.partial(func, item, **kwargs))
+                for item in iterable
+            ]
+            print(
+                f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks)."
+            )
+            res = await tqdm.gather(
+                *tasks
+            )  # like asyncio.gather, but with a progress bar
+            return res
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # 'RuntimeError: There is no current event loop...'
+            loop = None
+
+        if loop and loop.is_running():
+            # Async event loop already running. Adding coroutine to the event loop.
+            results = loop.run_until_complete(_run_tasks())
         else:
-            results = dask.compute(*tasks)
+            # Starting new event loop
+            results = asyncio.run(_run_tasks())
+
     return results
 
 

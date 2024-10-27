@@ -4,6 +4,7 @@ import pytest
 
 import osw.model.entity as model
 from osw.auth import CredentialManager
+from osw.utils.wiki import get_full_title
 from osw.wtsite import WtSite
 
 
@@ -91,3 +92,82 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
         result = osw_express.site.get_page(
             WtSite.GetPageParam(titles=pages[:50], raise_exception=True)
         )
+
+
+def _test_store(wiki_domain, wiki_username, wiki_password, mocker):
+    """uploads entities and then fetches them back to compare the UUIDs
+    expensive test, not enabled by default
+    """
+
+    # create a credential file on the default path for osw express
+    cm = CredentialManager()  # cred_filepath = Path.cwd() / "accounts.pwd.yaml")
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    # cm.save_credentials_to_file()
+    # wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
+    # osw_obj = OSW(site=wtsite)
+
+    # Here the initial connection to the wiki is mocked (passing domain, username and
+    # password)
+    if mocker is not None:
+        mocked_input = mocker.patch("builtins.input")
+        mocked_getpass = mocker.patch("getpass.getpass")
+        mocked_input.side_effect = [wiki_domain, wiki_username]
+        mocked_getpass.return_value = wiki_password
+    # This import will trigger the install_dependencies method call on the first run
+    import osw.express
+
+    osw_express = osw.express.OswExpress(domain=wiki_domain, cred_mngr=cm)
+
+    # create 50 Item entities
+    item_count = 50
+    items = []
+    for i in range(item_count):
+        item = model.Item(label=[model.Label(text=f"Performance Test Item {i}")])
+        items.append(item)
+
+    # Measure the time taken to store and load an entity
+    start_time = time.time()
+    # store the entities
+    osw_express.store_entity(
+        osw.express.OswExpress.StoreEntityParam(entities=items, parallel=True)
+    )
+
+    end_time = time.time()
+    print(f"Time taken to store {item_count} Item entities: {end_time - start_time}")
+    assert end_time - start_time < 60  # typically takes 30 seconds
+
+    # load the entities
+    # generate the full titles from the item objects
+    item_titles = [get_full_title(item) for item in items]
+    start_time = time.time()
+    entities = osw_express.load_entity(
+        osw.express.OswExpress.LoadEntityParam(titles=item_titles, parallel=True)
+    ).entities
+    end_time = time.time()
+    print(f"Time taken to load {item_count} Item entities: {end_time - start_time}")
+    assert end_time - start_time < 40  # typically takes 20 seconds
+
+    # clean up
+    start_time = time.time()
+    osw_express.delete_entity(
+        osw.express.OswExpress.DeleteEntityParam(entities=items, parallel=True)
+    )
+    end_time = time.time()
+    print(f"Time taken to delete {item_count} Item entities: {end_time - start_time}")
+    assert end_time - start_time < 20  # typically takes 10 seconds
+
+    assert len(entities) == item_count
+    # compare the loaded entities with the stored entities
+    # print UUIDs in items and entities
+    for i in range(item_count):
+        print(f"Item {i} UUID: {items[i].uuid} Entity {i} UUID: {entities[i].uuid}")
+
+    # compare the loaded entities with the stored entities per UUID
+    # order is not guaranteed
+    stored_uuids = [item.uuid for item in items]
+    loaded_uuids = [entity.uuid for entity in entities]
+    assert set(stored_uuids) == set(loaded_uuids)

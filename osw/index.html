@@ -2186,9 +2186,7 @@
 <span class="normal">1233</span>
 <span class="normal">1234</span>
 <span class="normal">1235</span>
-<span class="normal">1236</span>
-<span class="normal">1237</span>
-<span class="normal">1238</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">1236</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -3141,9 +3139,7 @@
             <span class="n">entity_title</span> <span class="o">=</span> <span class="n">namespace_</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">title_</span>
             <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_overwrite_policy</span><span class="p">(</span>
                 <span class="n">OSW</span><span class="o">.</span><span class="n">_ApplyOverwriteParam</span><span class="p">(</span>
-                    <span class="n">page</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_page</span><span class="p">(</span>
-                        <span class="n">WtSite</span><span class="o">.</span><span class="n">GetPageParam</span><span class="p">(</span><span class="n">titles</span><span class="o">=</span><span class="p">[</span><span class="n">entity_title</span><span class="p">])</span>
-                    <span class="p">)</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">page</span><span class="o">=</span><span class="n">WtPage</span><span class="p">(</span><span class="n">wtSite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">entity_title</span><span class="p">),</span>
                     <span class="n">entity</span><span class="o">=</span><span class="n">entity</span><span class="p">,</span>
                     <span class="n">namespace</span><span class="o">=</span><span class="n">namespace_</span><span class="p">,</span>
                     <span class="n">policy</span><span class="o">=</span><span class="n">overwrite_class_param</span><span class="p">,</span>
@@ -4582,7 +4578,9 @@ is set, this setting is used.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1123</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1121</span>
+<span class="normal">1122</span>
+<span class="normal">1123</span>
 <span class="normal">1124</span>
 <span class="normal">1125</span>
 <span class="normal">1126</span>
@@ -4633,9 +4631,7 @@ is set, this setting is used.</p>
 <span class="normal">1171</span>
 <span class="normal">1172</span>
 <span class="normal">1173</span>
-<span class="normal">1174</span>
-<span class="normal">1175</span>
-<span class="normal">1176</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span>
+<span class="normal">1174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">delete_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">DeleteEntityParam</span><span class="p">],</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Deletes the given entity/entities from the OSW instance.&quot;&quot;&quot;</span>
@@ -5665,9 +5661,7 @@ category page.</p>
 <span class="normal">1101</span>
 <span class="normal">1102</span>
 <span class="normal">1103</span>
-<span class="normal">1104</span>
-<span class="normal">1105</span>
-<span class="normal">1106</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">1104</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>
@@ -5724,9 +5718,7 @@ category page.</p>
         <span class="n">entity_title</span> <span class="o">=</span> <span class="n">namespace_</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">title_</span>
         <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_overwrite_policy</span><span class="p">(</span>
             <span class="n">OSW</span><span class="o">.</span><span class="n">_ApplyOverwriteParam</span><span class="p">(</span>
-                <span class="n">page</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_page</span><span class="p">(</span>
-                    <span class="n">WtSite</span><span class="o">.</span><span class="n">GetPageParam</span><span class="p">(</span><span class="n">titles</span><span class="o">=</span><span class="p">[</span><span class="n">entity_title</span><span class="p">])</span>
-                <span class="p">)</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">page</span><span class="o">=</span><span class="n">WtPage</span><span class="p">(</span><span class="n">wtSite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">entity_title</span><span class="p">),</span>
                 <span class="n">entity</span><span class="o">=</span><span class="n">entity</span><span class="p">,</span>
                 <span class="n">namespace</span><span class="o">=</span><span class="n">namespace_</span><span class="p">,</span>
                 <span class="n">policy</span><span class="o">=</span><span class="n">overwrite_class_param</span><span class="p">,</span>

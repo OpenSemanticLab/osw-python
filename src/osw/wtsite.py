@@ -912,7 +912,7 @@ class WtSite:
 class WtPage:
     """A wrapper class of mwclient.page, mainly to provide multi-slot page handling"""
 
-    def __init__(self, wtSite: WtSite = None, title: str = None):
+    def __init__(self, wtSite: WtSite = None, title: str = None, do_init: bool = True):
         """Creates a new WtPage object for the given title and loads the page from the
         site if the page already exists.
 
@@ -922,12 +922,12 @@ class WtPage:
             The instance site object, by default None
         title, optional
             the page title, by default None
+        do_init, optional
+            whether to initialize the page, by default True
         """
         self.wtSite = wtSite
         self.title = title
 
-        self._page = wtSite._site.pages[self.title]
-        self.exists = self._page.exists
         self._original_content = ""
         self._content = ""
         self.changed: bool = False
@@ -936,6 +936,15 @@ class WtPage:
         self._slots_changed: Dict[str, bool] = {"main": False}
         self._content_model: Dict[str, str] = {"main": "wikitext"}
 
+        if do_init:
+            self.init()
+
+    def init(self):
+        """Initializes the page by loading the content and meta data from the site"""
+        # inits the mwclient object - triggers an API call
+        self._page = self.wtSite._site.pages[self.title]
+        self.exists = self._page.exists
+
         if self.exists:
             self._original_content = self._page.text()
             self._content = self._original_content
@@ -943,10 +952,11 @@ class WtPage:
                 self._content, array_mode="only_multiple"
             )
             # multi content revisions
-            rev = wtSite._site.api(
+            # second API call - ToDo: combine / replace with first call
+            rev = self.wtSite._site.api(
                 "query",
                 prop="revisions",
-                titles=title,
+                titles=self.title,
                 rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|"
                 "slotsize|slotsha1",
                 rvslots="*",
@@ -955,7 +965,7 @@ class WtPage:
             )
             for page_id in rev["query"]["pages"]:
                 page = rev["query"]["pages"][page_id]
-                if page["title"] == title:
+                if page["title"] == self.title:
                     for revision in page["revisions"]:
                         self._current_revision = revision
                         if "slots" in revision:

@@ -948,9 +948,6 @@ class WtPage:
         if self.exists:
             self._original_content = self._page.text()
             self._content = self._original_content
-            self._dict = wt.create_flat_content_structure_from_wikitext(
-                self._content, array_mode="only_multiple"
-            )
             # multi content revisions
             # second API call - ToDo: combine / replace with first call
             rev = self.wtSite._site.api(
@@ -988,6 +985,14 @@ class WtPage:
                             # self._slots_sha1["main"] = revision["sha1"]
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots
+
+    def parse_main_slot(self):
+        """Parses the main slot content of the page
+        Requires wikitext dependencies installed with 'pip install osw[wikitext]'
+        """
+        self._dict = wt.create_flat_content_structure_from_wikitext(
+            self._content, array_mode="only_multiple"
+        )
 
     def create_slot(self, slot_key, content_model):
         """Creates a new slot for the page. Availables Keys and content models are defined in

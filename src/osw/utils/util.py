@@ -2,6 +2,7 @@ import asyncio
 import functools
 import sys
 from asyncio import Queue
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout, suppress
 from io import StringIO  # , BytesIO,
 
@@ -294,6 +295,7 @@ def parallelize(
 
     MODE = "asyncio"
     if MODE == "dask":
+        # this mode can be removed if asyncio works as expected
         with MessageBuffer(flush_at_end) as msg_buf:
             tasks = [
                 dask.delayed(redirect_print_explicitly(func, msg_buf))(item, **kwargs)
@@ -327,14 +329,18 @@ def parallelize(
             )  # like asyncio.gather, but with a progress bar
             return res
 
+        # Check if we are already in an event loop, e.g. in a Jupyter notebook
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:  # 'RuntimeError: There is no current event loop...'
             loop = None
 
         if loop and loop.is_running():
-            # Async event loop already running. Adding coroutine to the event loop.
-            results = loop.run_until_complete(_run_tasks())
+            # Async event loop already running.
+            # Adding coroutine to the event loop without 'await' is not possible
+            # Create a separate thread instead so we can block before returning
+            with ThreadPoolExecutor(1) as pool:
+                results = pool.submit(lambda: asyncio.run(_run_tasks())).result()
         else:
             # Starting new event loop
             results = asyncio.run(_run_tasks())

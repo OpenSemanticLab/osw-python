@@ -1020,9 +1020,7 @@ class OSW(BaseModel):
             entity_title = namespace_ + ":" + title_
             page = self._apply_overwrite_policy(
                 OSW._ApplyOverwriteParam(
-                    page=self.site.get_page(
-                        WtSite.GetPageParam(titles=[entity_title])
-                    ).pages[0],
+                    page=WtPage(wtSite=self.site, title=entity_title),
                     entity=entity,
                     namespace=namespace_,
                     policy=overwrite_class_param,

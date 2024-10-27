@@ -67,6 +67,7 @@ def mass_page_edit():
     wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
     # wtpage = wtsite.get_WtPage("LabNote:220601-sist-0001-ni")
     # wtpage = wtsite.get_WtPage("testesfesefsef")
+    # wtpage.parse_main_slot()
     # wtpage.append_template("TestTemplate", {"p1": "v1"})
     # wtpage.append_text("Some text",)
     # wtpage.append_template("TestTemplate", {"p1": "v2"})

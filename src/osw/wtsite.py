@@ -222,6 +222,8 @@ class WtSite:
         """Whether to print debug messages"""
         raise_exception: Optional[bool] = False
         """Whether to raise an exception if an error occurs"""
+        raise_warning: Optional[bool] = True
+        """Whether to raise a warning if a page does not exist occurs"""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -272,13 +274,14 @@ class WtSite:
                             self._page_cache[title] = wtpage
                     pages.append(wtpage)
                     if not wtpage.exists:
-                        warnings.warn(
-                            "WARNING: Page with title '{}' does not exist.".format(
-                                title
-                            ),
-                            RuntimeWarning,
-                            3,
-                        )
+                        if param.raise_warning:
+                            warnings.warn(
+                                "WARNING: Page with title '{}' does not exist.".format(
+                                    title
+                                ),
+                                RuntimeWarning,
+                                3,
+                            )
                         # throw argument value exception if page does not exist
                         raise ValueError(f"Page with title '{title}' does not exist.")
 
@@ -289,7 +292,7 @@ class WtSite:
                     # retry if probably a network error and retry limit not reached
                     if not isinstance(e, ValueError) and retry < param.retries:
                         retry += 1
-                        msg = f"Page load failed. Retry ({retry}/{param.retries}). "
+                        msg = f"Page load failed: '{e}'. Retry ({retry}/{param.retries}). "
                         sleep(5)
                     else:  # last entry -> throw exception
                         retry = param.retries
@@ -1282,10 +1285,9 @@ class WtPage:
             try:
                 return self._edit(comment, mode)
             except Exception as e:
-                print(e)
                 if retry < max_retry:
                     retry += 1
-                    print(f"Page edit failed. Retry ({retry}/{max_retry})")
+                    print(f"Page edit failed: {e}. Retry ({retry}/{max_retry})")
                     sleep(5)
 
     def _edit(self, comment: str = None, mode="action-multislot"):

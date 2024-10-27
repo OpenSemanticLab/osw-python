@@ -13,6 +13,26 @@ General features for object oriented interaction with knowledge graphs are plann
 pip install osw
 ```
 
+### Variants
+| Variant | Description |
+| -- | -- |
+`osw[wikitext]` | Additional functions in `wiki_tools` to transform mediawiki markup / templates
+`osw[DB]` | interact with SQL databases per DatabaseController
+`osw[S3]` | Interact with S3 Stores per S3FileController
+`osw[dataimport]` | Additional tools to import data
+`osw[UI]` | To use a helper UI to work with entity slots
+
+To install multiple optional/extra dependencies run
+```
+pip install osw[opt1, opt2, ...]
+```
+
+To install all optional/extra dependencies run
+```
+pip install osw[all]
+```
+
+
 ## Troubleshooting
 
 ### `Error: datamodel-codegen not found`

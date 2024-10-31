@@ -1068,7 +1068,20 @@ class OSW(BaseModel):
                     )
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
-        print("Entities to be uploaded have been sorted according to their type.")
+        print("Entities to be uploaded have been sorted according to their type.\n"
+              "If you would like to overwrite existing entities or properties, "
+                    "pass a StoreEntityParam to store_entity() with "
+                    "attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
+                    "True.")
+
+        class UploadObject(BaseModel):
+            entity: model.Entity
+            namespace: Optional[str]
+            index: int
+            overwrite_class_param: OSW.OverwriteClassParam
+        upload_object_list: List[UploadObject] = []
+
+        upload_index = 0
         for class_type, entities in sorted_entities.by_type.items():
             # Try to get a class specific overwrite setting
             class_param = param._overwrite_per_class["by type"].get(class_type, None)
@@ -1079,29 +1092,34 @@ class OSW(BaseModel):
                     overwrite=param.overwrite,
                 )
                 print(
-                    f"Now uploading entities of class type '{class_type}' "
-                    f"({entity_model.__name__}). No class specific overwrite setting "
+                    f"Now adding entities of class type '{class_type}' "
+                    f"({entity_model.__name__}) to upload list. No class specific overwrite setting "
                     f"found. Using fallback option '{param.overwrite}' for all "
-                    f"entities of this class.\n"
-                    f"If you would like to overwrite existing entities or properties, "
-                    f"pass a StoreEntityParam to store_entity() with "
-                    f"attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
-                    f"True."
+                    f"entities of this class."
                 )
-            # Call store_entity for each entity of the class
-            if param.parallel:
-                _ = parallelize(
-                    store_entity_,
-                    entities,
-                    flush_at_end=param.debug,
-                    namespace_=param.namespace,
-                    overwrite_class_param=class_param,
-                )
-            else:
-                _ = [
-                    store_entity_(e, param.namespace, i, class_param)
-                    for i, e in enumerate(entities)
-                ]
+            for entity in entities:
+                upload_object_list.append(UploadObject(entity=entity, namespace=param.namespace, index = upload_index ,overwrite_class_param=class_param))
+                upload_index += 1
+
+        def handle_upload_object_(upload_object: UploadObject):
+            store_entity_(
+                upload_object.entity,
+                upload_object.namespace,
+                upload_object.index,
+                upload_object.overwrite_class_param)
+
+        if param.parallel:
+
+            _ = parallelize(
+                handle_upload_object_,
+                upload_object_list,
+                flush_at_end=param.debug
+            )
+        else:
+            _ = [
+                handle_upload_object_(upload_object)
+                for upload_object in upload_object_list
+            ]
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]

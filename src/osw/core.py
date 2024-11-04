@@ -1077,13 +1077,11 @@ class OSW(BaseModel):
         )
 
         class UploadObject(BaseModel):
-            entity: model.Entity
+            entity: OswBaseModel
+            # Actually model.Entity but this causes the "type" error
             namespace: Optional[str]
             index: int
             overwrite_class_param: OSW.OverwriteClassParam
-
-            class Config:
-                arbitrary_types_allowed = True  # Disables silent casting
 
         upload_object_list: List[UploadObject] = []
 

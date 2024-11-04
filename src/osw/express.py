@@ -585,9 +585,11 @@ class DownloadFileResult(FileResult, LocalFileController):
                     domain=data.get("domain"),
                     cred_mngr=data.get("cred_mngr"),
                 )
-            title = "File:" + url_or_title.split("File:")[-1]
+            title: str = "File:" + url_or_title.split("File:")[-1]
             file = data.get("osw_express").load_entity(title)
-            wf = file.cast(WikiFileController, osw=data.get("osw_express"))
+            wf: WikiFileController = file.cast(
+                WikiFileController, osw=data.get("osw_express")
+            )
             """The file controller"""
             if data.get("target_fp").exists() and not data.get("overwrite"):
                 raise FileExistsError(

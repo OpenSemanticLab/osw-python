@@ -1006,14 +1006,14 @@ class OSW(BaseModel):
                 )
 
         def store_entity_(
-            entity: model.Entity,
+            entity_: model.Entity,
             namespace_: str = None,
             index: int = None,
             overwrite_class_param: OSW.OverwriteClassParam = None,
         ) -> None:
-            title_ = get_title(entity)
+            title_ = get_title(entity_)
             if namespace_ is None:
-                namespace_ = get_namespace(entity)
+                namespace_ = get_namespace(entity_)
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
@@ -1023,7 +1023,7 @@ class OSW(BaseModel):
             page = self._apply_overwrite_policy(
                 OSW._ApplyOverwriteParam(
                     page=WtPage(wtSite=self.site, title=entity_title),
-                    entity=entity,
+                    entity=entity_,
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     meta_category_template_str=meta_category_template_str,
@@ -1044,21 +1044,19 @@ class OSW(BaseModel):
                     # put generated schema in definitions section
                     # currently only enabled for Characteristics
                     if hasattr(model, "CharacteristicType") and isinstance(
-                        entity, model.CharacteristicType
+                        entity_, model.CharacteristicType
                     ):
                         new_schema = {
                             "$defs": {"generated": schema},
                             "allOf": [{"$ref": "#/$defs/generated"}],
+                            "@context": schema.pop("@context", None),
+                            "title": schema.pop("title", ""),
                         }
-                        new_schema["@context"] = schema.pop("@context", None)
-                        new_schema["title"] = schema.pop("title", "")
                         schema["title"] = "Generated" + new_schema["title"]
                         schema = new_schema
                     page.set_slot_content("jsonschema", new_schema)
                 except Exception as e:
-                    print(
-                        f"Schema generation from template failed for " f"{entity}: {e}"
-                    )
+                    print(f"Schema generation from template failed for {entity_}: {e}")
             page.edit()  # will set page.changed if the content of the page has changed
             if page.changed:
                 if index is None:
@@ -1083,6 +1081,9 @@ class OSW(BaseModel):
             namespace: Optional[str]
             index: int
             overwrite_class_param: OSW.OverwriteClassParam
+
+            class Config:
+                arbitrary_types_allowed = True  # Disables silent casting
 
         upload_object_list: List[UploadObject] = []
 
@@ -1114,7 +1115,7 @@ class OSW(BaseModel):
                 )
                 upload_index += 1
 
-        def handle_upload_object_(upload_object: UploadObject):
+        def handle_upload_object_(upload_object: UploadObject) -> None:
             store_entity_(
                 upload_object.entity,
                 upload_object.namespace,
@@ -1123,7 +1124,6 @@ class OSW(BaseModel):
             )
 
         if param.parallel:
-
             _ = parallelize(
                 handle_upload_object_, upload_object_list, flush_at_end=param.debug
             )

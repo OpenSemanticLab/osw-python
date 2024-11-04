@@ -943,7 +943,9 @@ class OSW(BaseModel):
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
-                self.parallel = False
+                self.parallel = (
+                    True  # Set to True after implementation of asynchronous upload
+                )
             if self.overwrite is None:
                 self.overwrite = self.__fields__["overwrite"].default
             self._overwrite_per_class = {"by name": {}, "by type": {}}
@@ -1068,17 +1070,20 @@ class OSW(BaseModel):
                     )
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
-        print("Entities to be uploaded have been sorted according to their type.\n"
-              "If you would like to overwrite existing entities or properties, "
-                    "pass a StoreEntityParam to store_entity() with "
-                    "attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
-                    "True.")
+        print(
+            "Entities to be uploaded have been sorted according to their type.\n"
+            "If you would like to overwrite existing entities or properties, "
+            "pass a StoreEntityParam to store_entity() with "
+            "attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
+            "True."
+        )
 
         class UploadObject(BaseModel):
             entity: model.Entity
             namespace: Optional[str]
             index: int
             overwrite_class_param: OSW.OverwriteClassParam
+
         upload_object_list: List[UploadObject] = []
 
         upload_index = 0
@@ -1091,14 +1096,22 @@ class OSW(BaseModel):
                     model=entity_model,
                     overwrite=param.overwrite,
                 )
-                print(
-                    f"Now adding entities of class type '{class_type}' "
-                    f"({entity_model.__name__}) to upload list. No class specific overwrite setting "
-                    f"found. Using fallback option '{param.overwrite}' for all "
-                    f"entities of this class."
-                )
+                if param.debug:
+                    print(
+                        f"Now adding entities of class type '{class_type}' "
+                        f"({entity_model.__name__}) to upload list. No class specific"
+                        f" overwrite setting found. Using fallback option '"
+                        f"{param.overwrite}' for all entities of this class."
+                    )
             for entity in entities:
-                upload_object_list.append(UploadObject(entity=entity, namespace=param.namespace, index = upload_index ,overwrite_class_param=class_param))
+                upload_object_list.append(
+                    UploadObject(
+                        entity=entity,
+                        namespace=param.namespace,
+                        index=upload_index,
+                        overwrite_class_param=class_param,
+                    )
+                )
                 upload_index += 1
 
         def handle_upload_object_(upload_object: UploadObject):
@@ -1106,14 +1119,13 @@ class OSW(BaseModel):
                 upload_object.entity,
                 upload_object.namespace,
                 upload_object.index,
-                upload_object.overwrite_class_param)
+                upload_object.overwrite_class_param,
+            )
 
         if param.parallel:
 
             _ = parallelize(
-                handle_upload_object_,
-                upload_object_list,
-                flush_at_end=param.debug
+                handle_upload_object_, upload_object_list, flush_at_end=param.debug
             )
         else:
             _ = [
@@ -1255,3 +1267,4 @@ class OSW(BaseModel):
 
 
 OSW._ApplyOverwriteParam.update_forward_refs()
+OSW.StoreEntityParam.update_forward_refs()

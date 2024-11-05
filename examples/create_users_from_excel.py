@@ -14,12 +14,22 @@ import osw.model.entity as model
 from osw.core import OSW
 from osw.express import OswExpress
 from osw.utils import util
+from osw.utils.strings import RegExPatternExtended
 from osw.wtsite import WtPage
 
 # Constants
 USER_NS = uuid_module.UUID(model.User.__fields__["type"].default[0].split("OSW")[-1])
 ORGANIZATION_NS = uuid_module.UUID(
     model.Organization.__fields__["type"].default[0].split("OSW")[-1]
+)
+
+
+orcid_regex_pattern = RegExPatternExtended(
+    pattern=r"^(https:\/\/orcid.org\/)?(\d{4}-\d{4}-\d{4}-\d{4})$",
+    description="ORCID ID",
+    group_keys=["domain", "orcid"],
+    example_str="https://orcid.org/0000-0001-7444-2969",
+    expected_groups=["https://orcid.org/", "0000-0001-7444-2969"],
 )
 
 
@@ -140,6 +150,19 @@ def create_account(
     email_sender: Optional[str] = None,
     save_results_to: Optional[Union[str, Path]] = None,
 ):
+    """
+
+    Parameters
+    ----------
+    osw_obj
+    user_details
+    email_sender
+    save_results_to
+
+    Returns
+    -------
+
+    """
     if email_sender is None:
         email_sender = "Digital Transformation @ Fraunhofer ISC"
     session = osw_obj.site._site.connection
@@ -163,47 +186,70 @@ def create_account(
 
     created_accounts = []
     for ud in user_details:
-        # Second step
-        # Send a post request with the fetched token and other data (user information,
-        # return URL, etc.)  to the API to create an account
-        params_1 = {
-            "action": "createaccount",
-            "createtoken": token,
-            "username": ud.username,
-            "password": ud.password,
-            "retype": ud.password,
-            "email": ud.email,
-            "createreturnurl": wiki_url,
-            "format": "json",
-        }
+        # Don't create a username that is equivalent to an ORCID. Otherwise, the
+        #  authentication via ORCID will not work.
+        cleaned_username = ud.username.strip()
+        if orcid_regex_pattern.match(cleaned_username).match is not None:
+            created_accounts.append(
+                {
+                    "user_details": ud.dict(),
+                    "email_text": f"""Dear {ud.first_name} {ud.surname},
 
-        response_1 = session.post(api_endpoint, data=params_1)
-        data_1 = response_1.json()
-        print(data_1)
+            your orcid account has be unlocked for authentication on {wiki_url}. Please
+            navigate to the login page and authenticate with your ORCID credentials
+            via the button 'Login with your ORCID Account'.
 
-        email_text = f"""Dear {ud.first_name} {ud.surname},
+            You have specified the following username, which is equivalent to an ORCID:
 
-        an account has been created for you on {wiki_url}. Please use the following
-        credentials to log in:
+            Username: {ud.username}
 
-        Username: {ud.username}
-        Password: {ud.password}
-        Email: {ud.email}
-
-        Please change your password after logging in.
-
-        Best regards,
-        {email_sender}
-        """
-
-        created_accounts.append(
-            {
-                "params": params_1,
-                "response": data_1,
-                "user_details": ud.dict(),
-                "email_text": email_text,
+            Best regards,
+            {email_sender}
+            """,
+                }
+            )
+        else:
+            # Second step
+            # Send a post request with the fetched token and other data (user information,
+            #  return URL, etc.)  to the API to create an account
+            params_1 = {
+                "action": "createaccount",
+                "createtoken": token,
+                "username": ud.username,
+                "password": ud.password,
+                "retype": ud.password,
+                "email": ud.email,
+                "createreturnurl": wiki_url,
+                "format": "json",
             }
-        )
+
+            response_1 = session.post(api_endpoint, data=params_1)
+            data_1 = response_1.json()
+            print(data_1)
+
+            email_text = f"""Dear {ud.first_name} {ud.surname},
+
+            an account has been created for you on {wiki_url}. Please use the following
+            credentials to log in:
+
+            Username: {ud.username}
+            Password: {ud.password}
+            Email: {ud.email}
+
+            Please change your password after logging in.
+
+            Best regards,
+            {email_sender}
+            """
+
+            created_accounts.append(
+                {
+                    "params": params_1,
+                    "response": data_1,
+                    "user_details": ud.dict(),
+                    "email_text": email_text,
+                }
+            )
     if save_results_to is not None:
         if not isinstance(save_results_to, Path):
             save_results_to = Path(save_results_to)
@@ -215,7 +261,7 @@ def create_account(
 if __name__ == "__main__":
     cwd = Path(os.getcwd())
     excel_fp = cwd / "users_to_import.xlsx"
-    domain = "wiki-dev.open-semantic-lab.org"
+    domain = "funcy-ssb.open-semantic-lab.org"
 
     osw_obj = OswExpress(domain)
 
@@ -285,9 +331,16 @@ if __name__ == "__main__":
         uuid = uuid_module.uuid5(USER_NS, str(rnd_uuid))
         if is_nan(row["Full name"]):
             if not is_nan(row["First name"]) and not is_nan(row["Last name"]):
-                full_name_stripped = (
-                    f"{row['First name'].strip()} " f"{row['Last name'].strip()}"
-                )
+                first_name = row["First name"]
+                last_name = row["Last name"]
+                full_name_stripped = f"{first_name.strip()} " f"{last_name.strip()}"
+                if not is_nan(row["Middle name"]):
+                    middle_names = row["Middle name"]
+                    full_name_stripped = (
+                        f"{first_name.strip()} "
+                        f"{middle_names.strip()} "
+                        f"{last_name.strip()}"
+                    )
                 u2i.at[i, "Full name"] = full_name_stripped
             else:
                 raise ValueError(
@@ -297,9 +350,42 @@ if __name__ == "__main__":
             full_name_stripped = row["Full name"].strip()
             first_name = full_name_stripped.split(" ")[0]
             last_name = full_name_stripped.split(" ")[-1]
-        middle_name = None
-        if len(full_name_stripped.split(" ")) > 2:
-            middle_name = full_name_stripped.split(" ")[1:-1]
+
+        char_replacements = {
+            " ": "",
+            "-": "",
+            "_": "",
+            ".": "",
+            "ä": "ae",
+            "ö": "oe",
+            "ü": "ue",
+            "ß": "ss",
+            "š": "s",
+            "č": "c",
+            "ć": "c",
+            "ž": "z",
+            "đ": "d",
+            "á": "a",
+            "é": "e",
+            "í": "i",
+            "ó": "o",
+            "ú": "u",
+            "à": "a",
+            "è": "e",
+        }
+
+        def replace_chars(s, replacements):
+            for k, v in replacements.items():
+                s = s.replace(k, v)
+            return s
+
+        if not is_nan(row["Machine compatible name"]):
+            machine_compatible_name = row["Machine compatible name"]
+        else:
+            first_plus_last_name = f"{first_name} {last_name}"
+            machine_compatible_name = replace_chars(
+                full_name_stripped, char_replacements
+            )
         username = full_name_stripped
         roles = None
         organization = None
@@ -309,12 +395,10 @@ if __name__ == "__main__":
         email = None
         if not is_nan(row["Email"]):
             email = [address.strip() for address in row["Email"].strip().split(",")]
-        if not is_nan(row["First name"]):
-            first_name = row["First name"]
         if not is_nan(row["Middle name"]):
             middle_name = row["Middle name"].split(" ")
-        if not is_nan(row["Last name"]):
-            last_name = row["Last name"]
+        else:
+            middle_name = None
         if not is_nan(row["ORCID"]):
             orcid = row["ORCID"]
             uuid = uuid_module.uuid5(USER_NS, orcid)
@@ -325,7 +409,7 @@ if __name__ == "__main__":
         if not is_nan(row["Website"]):
             website = row["Website"]
             if not isinstance(website, list):
-                website = set([website])
+                website = {website}
         if not is_nan(row["Username"]):
             username = row["Username"]
         else:
@@ -368,26 +452,32 @@ if __name__ == "__main__":
             ]
             if len(organizational_unit) == 0:
                 organizational_unit = None
-        user = model.User(
-            label=[
-                {
-                    "lang": "en",
-                    "text": row["Full name"],
-                },
+        user_args = {
+            "label": [
+                model.Label(lang="en", text=full_name_stripped),
             ],
-            first_name=first_name,
-            middle_name=middle_name,
-            surname=last_name,
-            username=username,
-            organization=organization,
-            organizational_unit=organizational_unit,
-            uuid=uuid,
-            email=email,
-            orcid=orcid_url,
-            website=website,
-            role=roles,
-        )
+            "name": machine_compatible_name,
+            "first_name": first_name,
+            "middle_name": middle_name,
+            "surname": last_name,
+            "username": username,
+            "organization": organization,
+            "organizational_unit": organizational_unit,
+            "uuid": uuid,
+            "email": email,
+            "orcid": orcid_url,
+            "website": website,
+            "role": roles,
+        }
+        # Remove none
+        user_args = {
+            k: v
+            for k, v in user_args.items()
+            if v is not None or v != [] or not is_nan(v)
+        }
+        user = model.User(**user_args)
         # todo: set site (located at)
+        # Set the DataFrame / Excel cells to derived values
         osw_id = diu.uuid_to_osw_id(user.uuid)
         url = f"https://{domain}/wiki/{diu.uuid_to_full_page_title(user.uuid)}"
         if not is_nan(row["OSW URL"]):
@@ -404,7 +494,10 @@ if __name__ == "__main__":
         if middle_name is not None:
             u2i.at[i, "Middle name"] = " ".join(middle_name)
         u2i.at[i, "Last name"] = last_name
-        users.append(user)
+        u2i.at[i, "Machine compatible name"] = machine_compatible_name
+        # Append to the list of entities to be created
+        if u2i.at[i, "Overwrite"] != (0 or "no" or False):
+            users.append(user)
 
     # Write the processed users back to the original excel
     write_to_excel(excel_fp, u2i, "users", index=False)
@@ -415,11 +508,14 @@ if __name__ == "__main__":
     if upload:
         entities = organizations + users
         params = OSW.StoreEntityParam(
-            entities=entities, comment="Imported from Excel", parallel=False
+            entities=entities,
+            comment="Imported from Excel",
+            parallel=False,
+            overwrite=True,
         )
         osw_obj.store_entity(param=params)
 
-    redirect = True
+    redirect = False
     if redirect:
         create_redirects(
             users_to_import=u2i,
@@ -429,7 +525,7 @@ if __name__ == "__main__":
             overwrite=True,
         )
 
-    create_accounts = True
+    create_accounts = False
     if create_accounts:
         user_details = []
         for user in users:

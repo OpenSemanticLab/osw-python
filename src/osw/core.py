@@ -10,6 +10,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
+from warnings import warn
 
 from jsonpath_ng.ext import parse
 from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
@@ -119,15 +120,51 @@ class OSW(BaseModel):
     @staticmethod
     def sort_list_of_entities_by_class(
         entities: List[OswBaseModel],
+        exclude_typeless: bool = True,
+        raise_error: bool = False,
     ) -> SortEntitiesResult:
+        """Sorts a list of entities by class name and type.
+
+        Parameters
+        ----------
+        entities:
+            List of entities to be sorted
+        exclude_typeless:
+            Exclude entities, which are instances of a class that does not
+            define a field 'type'
+        raise_error:
+            Raise an error if an entity can not be processed because it is an
+            instance of class that does not define a field 'type'
+        """
         by_name = {}
         by_type = {}
         for entity in entities:
+            # Get class name
             name = entity.__class__.__name__
+            # See if the class has a type field
+            if "type" not in entity.__class__.__fields__:
+                if raise_error:
+                    raise AttributeError(
+                        f"Instance '{entity}' of class '{name}' can not be processed "
+                        f"as the class does not define a field 'type'."
+                    )
+                if exclude_typeless:
+                    warn(
+                        f"Skipping instance '{entity}' of class '{name}' as the class "
+                        f"does not define a field 'type'."
+                    )
+                    # Excludes the respective entity from the list which will be
+                    #  processed further:
+                    continue
+                model_type = None
+            else:
+                # Get class type if available
+                model_type = entity.__class__.__fields__["type"].default[0]
+            # Add entity to by_name
             if name not in by_name:
                 by_name[name] = []
             by_name[name].append(entity)
-            model_type = entity.__class__.__fields__["type"].default[0]
+            # Add entity to by_type
             if model_type not in by_type:
                 by_type[model_type] = []
             by_type[model_type].append(entity)

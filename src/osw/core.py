@@ -10,6 +10,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
+from warnings import warn
 
 from jsonpath_ng.ext import parse
 from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
@@ -119,15 +120,51 @@ class OSW(BaseModel):
     @staticmethod
     def sort_list_of_entities_by_class(
         entities: List[OswBaseModel],
+        exclude_typeless: bool = True,
+        raise_error: bool = False,
     ) -> SortEntitiesResult:
+        """Sorts a list of entities by class name and type.
+
+        Parameters
+        ----------
+        entities:
+            List of entities to be sorted
+        exclude_typeless:
+            Exclude entities, which are instances of a class that does not
+            define a field 'type'
+        raise_error:
+            Raise an error if an entity can not be processed because it is an
+            instance of class that does not define a field 'type'
+        """
         by_name = {}
         by_type = {}
         for entity in entities:
+            # Get class name
             name = entity.__class__.__name__
+            # See if the class has a type field
+            if "type" not in entity.__class__.__fields__:
+                if raise_error:
+                    raise AttributeError(
+                        f"Instance '{entity}' of class '{name}' can not be processed "
+                        f"as the class does not define a field 'type'."
+                    )
+                if exclude_typeless:
+                    warn(
+                        f"Skipping instance '{entity}' of class '{name}' as the class "
+                        f"does not define a field 'type'."
+                    )
+                    # Excludes the respective entity from the list which will be
+                    #  processed further:
+                    continue
+                model_type = None
+            else:
+                # Get class type if available
+                model_type = entity.__class__.__fields__["type"].default[0]
+            # Add entity to by_name
             if name not in by_name:
                 by_name[name] = []
             by_name[name].append(entity)
-            model_type = entity.__class__.__fields__["type"].default[0]
+            # Add entity to by_type
             if model_type not in by_type:
                 by_type[model_type] = []
             by_type[model_type].append(entity)
@@ -943,7 +980,9 @@ class OSW(BaseModel):
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
-                self.parallel = False
+                self.parallel = (
+                    True  # Set to True after implementation of asynchronous upload
+                )
             if self.overwrite is None:
                 self.overwrite = self.__fields__["overwrite"].default
             self._overwrite_per_class = {"by name": {}, "by type": {}}
@@ -1004,14 +1043,14 @@ class OSW(BaseModel):
                 )
 
         def store_entity_(
-            entity: model.Entity,
+            entity_: model.Entity,
             namespace_: str = None,
             index: int = None,
             overwrite_class_param: OSW.OverwriteClassParam = None,
         ) -> None:
-            title_ = get_title(entity)
+            title_ = get_title(entity_)
             if namespace_ is None:
-                namespace_ = get_namespace(entity)
+                namespace_ = get_namespace(entity_)
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
@@ -1021,7 +1060,7 @@ class OSW(BaseModel):
             page = self._apply_overwrite_policy(
                 OSW._ApplyOverwriteParam(
                     page=WtPage(wtSite=self.site, title=entity_title),
-                    entity=entity,
+                    entity=entity_,
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     meta_category_template_str=meta_category_template_str,
@@ -1042,21 +1081,19 @@ class OSW(BaseModel):
                     # put generated schema in definitions section
                     # currently only enabled for Characteristics
                     if hasattr(model, "CharacteristicType") and isinstance(
-                        entity, model.CharacteristicType
+                        entity_, model.CharacteristicType
                     ):
                         new_schema = {
                             "$defs": {"generated": schema},
                             "allOf": [{"$ref": "#/$defs/generated"}],
+                            "@context": schema.pop("@context", None),
+                            "title": schema.pop("title", ""),
                         }
-                        new_schema["@context"] = schema.pop("@context", None)
-                        new_schema["title"] = schema.pop("title", "")
                         schema["title"] = "Generated" + new_schema["title"]
                         schema = new_schema
                     page.set_slot_content("jsonschema", new_schema)
                 except Exception as e:
-                    print(
-                        f"Schema generation from template failed for " f"{entity}: {e}"
-                    )
+                    print(f"Schema generation from template failed for {entity_}: {e}")
             page.edit()  # will set page.changed if the content of the page has changed
             if page.changed:
                 if index is None:
@@ -1068,7 +1105,24 @@ class OSW(BaseModel):
                     )
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
-        print("Entities to be uploaded have been sorted according to their type.")
+        print(
+            "Entities to be uploaded have been sorted according to their type.\n"
+            "If you would like to overwrite existing entities or properties, "
+            "pass a StoreEntityParam to store_entity() with "
+            "attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
+            "True."
+        )
+
+        class UploadObject(BaseModel):
+            entity: OswBaseModel
+            # Actually model.Entity but this causes the "type" error
+            namespace: Optional[str]
+            index: int
+            overwrite_class_param: OSW.OverwriteClassParam
+
+        upload_object_list: List[UploadObject] = []
+
+        upload_index = 0
         for class_type, entities in sorted_entities.by_type.items():
             # Try to get a class specific overwrite setting
             class_param = param._overwrite_per_class["by type"].get(class_type, None)
@@ -1078,30 +1132,41 @@ class OSW(BaseModel):
                     model=entity_model,
                     overwrite=param.overwrite,
                 )
-                print(
-                    f"Now uploading entities of class type '{class_type}' "
-                    f"({entity_model.__name__}). No class specific overwrite setting "
-                    f"found. Using fallback option '{param.overwrite}' for all "
-                    f"entities of this class.\n"
-                    f"If you would like to overwrite existing entities or properties, "
-                    f"pass a StoreEntityParam to store_entity() with "
-                    f"attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
-                    f"True."
+                if param.debug:
+                    print(
+                        f"Now adding entities of class type '{class_type}' "
+                        f"({entity_model.__name__}) to upload list. No class specific"
+                        f" overwrite setting found. Using fallback option '"
+                        f"{param.overwrite}' for all entities of this class."
+                    )
+            for entity in entities:
+                upload_object_list.append(
+                    UploadObject(
+                        entity=entity,
+                        namespace=param.namespace,
+                        index=upload_index,
+                        overwrite_class_param=class_param,
+                    )
                 )
-            # Call store_entity for each entity of the class
-            if param.parallel:
-                _ = parallelize(
-                    store_entity_,
-                    entities,
-                    flush_at_end=param.debug,
-                    namespace_=param.namespace,
-                    overwrite_class_param=class_param,
-                )
-            else:
-                _ = [
-                    store_entity_(e, param.namespace, i, class_param)
-                    for i, e in enumerate(entities)
-                ]
+                upload_index += 1
+
+        def handle_upload_object_(upload_object: UploadObject) -> None:
+            store_entity_(
+                upload_object.entity,
+                upload_object.namespace,
+                upload_object.index,
+                upload_object.overwrite_class_param,
+            )
+
+        if param.parallel:
+            _ = parallelize(
+                handle_upload_object_, upload_object_list, flush_at_end=param.debug
+            )
+        else:
+            _ = [
+                handle_upload_object_(upload_object)
+                for upload_object in upload_object_list
+            ]
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
@@ -1237,3 +1302,4 @@ class OSW(BaseModel):
 
 
 OSW._ApplyOverwriteParam.update_forward_refs()
+OSW.StoreEntityParam.update_forward_refs()

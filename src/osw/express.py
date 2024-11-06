@@ -12,6 +12,8 @@ from typing_extensions import (
     IO,
     TYPE_CHECKING,
     Any,
+    AnyStr,
+    Buffer,
     Dict,
     List,
     Optional,
@@ -178,19 +180,22 @@ class OswExpress(OSW):
         self.cred_filepath = cred_filepath
 
     def __enter__(self):
+        """Return self when entering the context manager."""
         return self
 
     def __exit__(self):
+        """Close the connection to the OSL instance when exiting the context manager."""
         self.close_connection()
 
     def close_connection(self):
+        """Close the connection to the OSL instance."""
         self.site._site.connection.close()
 
     def shut_down(self):
+        """Makes sure this OSL instance can't be reused after it was shut down,
+        as the connection can't be reopened except when initializing a new instance."""
         self.close_connection()
         del self
-        # Make sure this osw instance can't be reused after it was shut down (the
-        # connection can't be reopened except when initializing a new instance)
 
     def install_dependencies(
         self,
@@ -334,8 +339,10 @@ class OswExpress(OSW):
         data = {**locals(), **properties}
         # Clean data dict to avoid passing None values
         data = {key: value for key, value in data.items() if value is not None}
+        # Make sure self is passed as osw_express
+        data["osw_express"] = self
         # Initialize the UploadFileResult object
-        return UploadFileResult(source=source, osw_express=self, **data)
+        return UploadFileResult(source=source, **data)
 
 
 class DataModel(OswBaseModel):
@@ -467,7 +474,7 @@ if TYPE_CHECKING:
 class FileResult(OswBaseModel):
     url_or_title: Optional[str] = None
     """The URL or full page title of the WikiFile page."""
-    file: Optional[TextIO] = None
+    file_io: Optional[TextIO] = None
     """The file object. They type depends on the file type."""
     mode: str = "r"
     """The mode to open the file in. Default is 'r'. Implements the built-in open."""
@@ -494,20 +501,45 @@ class FileResult(OswBaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def open(self, mode: str = "r", **kwargs):
+    def open(self, mode: str = None, **kwargs) -> TextIO:
+        """Open the file, if not already opened using the 'mode' argument (priority) or
+        the 'mode' attribute."""
+        if mode is None:
+            mode = self.mode
         kwargs["mode"] = mode
-        return open(self.path, **kwargs)
+        if self.file_io is None or self.file_io.closed:
+            return open(self.path, **kwargs)
+        return self.file_io
 
-    def close(self):
-        self.file.close()
+    def close(self) -> None:
+        """Close the file, if not already closed."""
+        if self.file_io is None or self.file_io.closed:
+            warn("File already closed or not opened.")
+        else:
+            self.file_io.close()
 
-    def read(self, *args, **kwargs):
-        return self.file.read(*args, **kwargs)
+    def read(self, n: int = -1) -> AnyStr:
+        """Read the file. If n is not specified, the entire file will be read.
+        If the file is not already opened, it will be opened."""
+        if self.file_io is None or self.file_io.closed:
+            self.file_io = self.open(mode="r")
+        return self.file_io.read(n)
+
+    def write(self, s: Union[Buffer, AnyStr]):
+        """Write to the file. If the file is not already opened, it will be opened."""
+        if self.file_io is None or self.file_io.closed:
+            self.file_io = self.open(mode="w")
+        return self.file_io.write(s)
 
     def __enter__(self):
+        """Open the file when entering the context manager."""
+        if self.file_io is None or self.file_io.closed:
+            self.file_io = self.open()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """Close the file when exiting the context manager, and deletes the file if
+        'delete_after_use' was set."""
         self.close()
         if self.delete_after_use and self.path.exists():
             self.path.unlink()
@@ -523,6 +555,14 @@ class FileResult(OswBaseModel):
             if data.get(key) is None:
                 data[key] = value
         # Do replacements
+        if (
+            data.get("label") == InMemoryController.__fields__["label"].default
+            or data.get("label") == LocalFileController.__fields__["label"].default
+            or data.get("label") == WikiFileController.__fields__["label"].default
+        ):
+            # Make sure that the label is not set to the default value, it will be
+            # set by the source file controller
+            del data["label"]
         if data.get("cred_filepath") is None:
             data["cred_filepath"] = cred_filepath_default.get_default()
         if not data.get("cred_filepath").parent.exists():
@@ -621,8 +661,7 @@ class DownloadFileResult(FileResult, LocalFileController):
             data = {key: value for key, value in data.items() if value is not None}
             super().__init__(**{**lf.dict(), **data})
             self.put_from(wf)
-        # Do open
-        self.file = self.open(mode=data.get("mode"))
+        # File is only opened at request to avoid locking the file
 
 
 def osw_download_file(
@@ -795,10 +834,18 @@ class UploadFileResult(FileResult, WikiFileController):
                 )
         # Create an osw_express object if not given
         if data.get("osw_express") is None:
-            data["osw_express"] = OswExpress(
-                domain=data.get("domain"),
-                cred_mngr=data.get("cred_mngr"),
-            )
+            create_new = True
+            # Try to get the osw_express object from the source_file_controller
+            if data.get("source_file_controller") is not None:
+                if hasattr(data["source_file_controller"], "osw_express"):
+                    create_new = False
+                    data["osw_express"] = data["source_file_controller"].osw_express
+            # Otherwise create a new osw_express object
+            if create_new:
+                data["osw_express"] = OswExpress(
+                    domain=data.get("domain"),
+                    cred_mngr=data.get("cred_mngr"),
+                )
         # If given set titel and namespace
         if data.get("target_fpt") is not None:
             namespace = data.get("target_fpt").split(":")[0]

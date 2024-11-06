@@ -12,11 +12,11 @@ def get_osw_id(uuid: UUID) -> str:
     Parameters
     ----------
     uuid
-        uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+        An UUID object, e.g., UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
 
     Returns
     -------
-        OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+        OSW-ID string, e.g., OSW2ea5b605c91f4e5a95593dff79fdd4a5
     """
     return "OSW" + str(uuid).replace("-", "")
 
@@ -27,11 +27,11 @@ def get_uuid(osw_id) -> UUID:
     Parameters
     ----------
     osw_id
-        OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+        OSW-ID string, e.g., OSW2ea5b605c91f4e5a95593dff79fdd4a5
 
     Returns
     -------
-        uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+        uuid object, e.g., UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
     """
     return UUID(osw_id.replace("OSW", ""))
 

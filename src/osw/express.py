@@ -368,7 +368,8 @@ def import_with_fallback(
     Parameters
     ----------
     to_import
-        List of DataModel objects to import.
+        List of DataModel objects or a dictionary, with (key: value) pairs (class_name:
+        osw_fpt) to import.
     module
         (Optional) The module to import the data models from. Used only if to_import
         is of type List[Dict]. Defaults to 'osw.model.entity' if not specified.
@@ -384,9 +385,11 @@ def import_with_fallback(
 
     """
     if isinstance(to_import, dict):
+        # The arg 'to_import' should have the right structure to act as 'dependencies'
         # Assume all DataModels are part of osw.model.entity
         if module is None:
             module = "osw.model.entity"
+        # A list of DataModels will be derived from the dict
         to_import = [
             DataModel(
                 module=module,
@@ -396,6 +399,7 @@ def import_with_fallback(
             for key, value in to_import.items()
         ]
     try:
+        # Try to import the listed data models from the (listed) module(s)
         for ti in to_import:
             # Raises AttributeError if the target could not be found
             globals()[ti.class_name] = getattr(
@@ -406,21 +410,21 @@ def import_with_fallback(
             dependencies = {}
             warn(
                 "No 'dependencies' were passed to the function "
-                "import_with_fallback()!"
+                "import_with_fallback()! Trying to derive them from 'to_import'."
             )
         new_dependencies = {
-            f"{module.class_name}": module.osw_fpt
+            module.class_name: module.osw_fpt
             for module in to_import
             if module.osw_fpt is not None
         }
+        dependencies.update(new_dependencies)
         if not dependencies:
-            # If dependencies is an empty dict,
+            # If dependencies is still an empty dict,
             raise AttributeError(
                 f"An exception occurred while loading the module dependencies: \n'{e}'"
                 "No 'dependencies' were passed to the function import_with_fallback() "
                 "and could not be derived from 'to_import'!"
             )
-        dependencies.update(new_dependencies)
         warn(
             f"An exception occurred while loading the module dependencies: \n'{e}'"
             "You will be now have to connect to an OSW instance to fetch the "
@@ -434,7 +438,7 @@ def import_with_fallback(
 
         osw_express.install_dependencies(dependencies, mode="append")
         osw_express.shut_down()  # Avoiding connection error
-        # Try again
+        # Try again to import the data models
         for ti in to_import:
             # Raises AttributeError if the target could not be found
             globals()[ti.class_name] = getattr(

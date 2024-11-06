@@ -5,6 +5,7 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 import json
 import os
 import shutil
+import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
 from datetime import datetime
@@ -15,6 +16,7 @@ from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
 import mwclient
+import requests
 from jsonpath_ng.ext import parse
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
@@ -96,12 +98,27 @@ class WtSite:
                 scheme = config.iri.split("://")[0]
                 config.iri = config.iri.split("://")[1]
             site_args = [config.iri]
+            # increase pool_maxsize to improve performance with many requests to the same server
+            # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading # noqa
+            session = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(pool_maxsize=50)
+            session.mount(scheme + "://", adapter)
+            # verify=False is necessary for self-signed / outdated certificates
             site_kwargs = {
                 "path": "/w/",
                 "scheme": scheme,
+                "pool": session,
+                "do_init": False,  # do not initialize the site metadata for performance reasons
+                "connection_options": {
+                    "verify": True,
+                },
             }
-            if getattr(config, "connection_options") is not None:
-                site_kwargs["reqs"] = config.connection_options
+            if getattr(config, "connection_options", None) is not None:
+                # merge connection_options into reqs
+                site_kwargs["connection_options"] = {
+                    **site_kwargs["connection_options"],
+                    **config.connection_options,
+                }
                 # reqs might be a deprecated alias for "connection_options"
             if isinstance(cred, CredentialManager.UserPwdCredential):
                 self._site = mwclient.Site(*site_args, **site_kwargs)
@@ -203,6 +220,10 @@ class WtSite:
         """Retry delay in seconds"""
         debug: Optional[bool] = False
         """Whether to print debug messages"""
+        raise_exception: Optional[bool] = False
+        """Whether to raise an exception if an error occurs"""
+        raise_warning: Optional[bool] = True
+        """Whether to raise a warning if a page does not exist occurs"""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -232,7 +253,7 @@ class WtSite:
         """
         max_index = len(param.titles)
 
-        exeptions = []
+        exceptions = []
         pages = []
 
         def get_page_(title: str, index: int = None):
@@ -252,14 +273,31 @@ class WtSite:
                         if self._cache_enabled:
                             self._page_cache[title] = wtpage
                     pages.append(wtpage)
+                    if not wtpage.exists:
+                        if param.raise_warning:
+                            warnings.warn(
+                                "WARNING: Page with title '{}' does not exist.".format(
+                                    title
+                                ),
+                                RuntimeWarning,
+                                3,
+                            )
+                        # throw argument value exception if page does not exist
+                        raise ValueError(f"Page with title '{title}' does not exist.")
+
                     break
                 except Exception as e:
-                    exeptions.append(e)
+                    exceptions.append(e)
                     msg += str(e)
-                    if retry < param.retries:
+                    # retry if probably a network error and retry limit not reached
+                    if not isinstance(e, ValueError) and retry < param.retries:
                         retry += 1
-                        msg = f"Page load failed. Retry ({retry}/{param.retries}). "
+                        msg = f"Page load failed: '{e}'. Retry ({retry}/{param.retries}). "
                         sleep(5)
+                    else:  # last entry -> throw exception
+                        retry = param.retries
+                        if param.raise_exception:
+                            raise e
                 print(msg)
             self._clear_cookies()
             return wtpage
@@ -269,7 +307,7 @@ class WtSite:
         else:
             _ = [get_page_(p, i) for i, p in enumerate(param.titles)]
 
-        return self.GetPageResult(pages=pages, errors=exeptions)
+        return self.GetPageResult(pages=pages, errors=exceptions)
 
     @deprecated("Use get_page instead")
     def get_WtPage(self, title: str = None):
@@ -397,7 +435,8 @@ class WtSite:
         log=False,
         dryrun=False,
     ):
-        """Modifies the search results of a prefix or semantic search in a callback and stores the changes.
+        """Modifies the search results of a prefix or semantic search in a callback and
+        stores the changes.
 
         Parameters
         ----------
@@ -757,7 +796,7 @@ class WtSite:
 
         # Create WtPage objects
         pages = []
-        for package_name, package_dict in packages_json["packages"].items():
+        for _package_name, package_dict in packages_json["packages"].items():
             for page in package_dict["pages"]:
                 namespace = page["namespace"].split("_")[-1].capitalize()
                 name = page["name"]
@@ -873,7 +912,7 @@ class WtSite:
 class WtPage:
     """A wrapper class of mwclient.page, mainly to provide multi-slot page handling"""
 
-    def __init__(self, wtSite: WtSite = None, title: str = None):
+    def __init__(self, wtSite: WtSite = None, title: str = None, do_init: bool = True):
         """Creates a new WtPage object for the given title and loads the page from the
         site if the page already exists.
 
@@ -883,12 +922,12 @@ class WtPage:
             The instance site object, by default None
         title, optional
             the page title, by default None
+        do_init, optional
+            whether to initialize the page, by default True
         """
         self.wtSite = wtSite
         self.title = title
 
-        self._page = wtSite._site.pages[self.title]
-        self.exists = self._page.exists
         self._original_content = ""
         self._content = ""
         self.changed: bool = False
@@ -897,17 +936,24 @@ class WtPage:
         self._slots_changed: Dict[str, bool] = {"main": False}
         self._content_model: Dict[str, str] = {"main": "wikitext"}
 
+        if do_init:
+            self.init()
+
+    def init(self):
+        """Initializes the page by loading the content and meta data from the site"""
+        # inits the mwclient object - triggers an API call
+        self._page = self.wtSite._site.pages[self.title]
+        self.exists = self._page.exists
+
         if self.exists:
             self._original_content = self._page.text()
             self._content = self._original_content
-            self._dict = wt.create_flat_content_structure_from_wikitext(
-                self._content, array_mode="only_multiple"
-            )
             # multi content revisions
-            rev = wtSite._site.api(
+            # second API call - ToDo: combine / replace with first call
+            rev = self.wtSite._site.api(
                 "query",
                 prop="revisions",
-                titles=title,
+                titles=self.title,
                 rvprop="ids|timestamp|flags|comment|user|content|contentmodel|roles|"
                 "slotsize|slotsha1",
                 rvslots="*",
@@ -916,7 +962,7 @@ class WtPage:
             )
             for page_id in rev["query"]["pages"]:
                 page = rev["query"]["pages"][page_id]
-                if page["title"] == title:
+                if page["title"] == self.title:
                     for revision in page["revisions"]:
                         self._current_revision = revision
                         if "slots" in revision:
@@ -940,6 +986,14 @@ class WtPage:
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots
 
+    def parse_main_slot(self):
+        """Parses the main slot content of the page
+        Requires wikitext dependencies installed with 'pip install osw[wikitext]'
+        """
+        self._dict = wt.create_flat_content_structure_from_wikitext(
+            self._content, array_mode="only_multiple"
+        )
+
     def create_slot(self, slot_key, content_model):
         """Creates a new slot for the page. Availables Keys and content models are defined in
         SLOTS.
@@ -959,8 +1013,10 @@ class WtPage:
 
     @deprecated("Use get_slot_content('main') instead")
     def get_content(self):
-        """Get the content of the page (slot: main). Should be replaced by get_slot_content('main')
-        Note: The content is parsed at page initialization with wt.create_flat_content_structure_from_wikitext()
+        """Get the content of the page (slot: main). Should be replaced by
+        get_slot_content('main')
+        Note: The content is parsed at page initialization with
+        wt.create_flat_content_structure_from_wikitext()
 
         Returns
         -------
@@ -1024,7 +1080,8 @@ class WtPage:
 
     @deprecated("Use set_slot_content('main', content) instead")
     def set_content(self, content):
-        """Sets the content of the page (slot: main). Should be replaced by set_slot_content('main', content)
+        """Sets the content of the page (slot: main). Should be replaced by
+        set_slot_content('main', content)
 
         Parameters
         ----------
@@ -1243,10 +1300,9 @@ class WtPage:
             try:
                 return self._edit(comment, mode)
             except Exception as e:
-                print(e)
                 if retry < max_retry:
                     retry += 1
-                    print(f"Page edit failed. Retry ({retry}/{max_retry})")
+                    print(f"Page edit failed: {e}. Retry ({retry}/{max_retry})")
                     sleep(5)
 
     def _edit(self, comment: str = None, mode="action-multislot"):
@@ -1527,12 +1583,13 @@ class WtPage:
 
         Parameters
         ----------
-        debug, optional
-            whether to print debug information, by default False
+        debug
+            Whether to print debug information, by default False
 
         Returns
         -------
-            Dictionary with page titles as keys and nested dictionary with keys 'info' and 'usage'.
+            Dictionary with page titles as keys and nested dictionary with keys 'info'
+            and 'usage'.
         """
         return wt.get_file_info_and_usage(
             site=self.wtSite._site,
@@ -1556,13 +1613,14 @@ class WtPage:
                 "Full page name",
             )
             file_page_refs.extend(full_page_names)
-            # find all files in editor templates
+            # Find all files in editor templates
             pattern = REGEX_PATTERN_LIB["File uuid in template"]
             res = pattern.finditer(str(content))
-            # interate over all matches
+            # Iterate over all matches
             for match in res:
                 ft = None
-                # check if the match has the groups "Editor" and "UUID" and UUID is a valid OSW ID
+                # Check if the match has the groups "Editor" and "UUID" and UUID is a
+                #  valid OSW ID
                 try:
                     if "Editor" in match.groups and "UUID" in match.groups:
                         # construct a file page title
@@ -1606,9 +1664,7 @@ class WtPage:
         success: bool
         """if true, the export was successful, else false"""
 
-    def export_xml(
-        self, config: Optional[ExportConfig] = ExportConfig()
-    ) -> ExportResult:
+    def export_xml(self, config: Optional[ExportConfig] = None) -> ExportResult:
         """Exports the page to XML
 
         Parameters
@@ -1620,6 +1676,8 @@ class WtPage:
         -------
             ExportResult
         """
+        if config is None:
+            config = WtPage.ExportConfig()
         url = (
             self.wtSite._site.scheme
             + "://"
@@ -1692,24 +1750,25 @@ class WtPage:
             ExportResult
         """
 
-        # remove default namespace definition (see https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace)
+        # Remove default namespace definition (see https://stackoverflow.com/questions/
+        #  34009992/python-elementtree-default-namespace)
         config.xml = config.xml.replace(
             'xmlns="http://www.mediawiki.org', '_xmlns="http://www.mediawiki.org'
         )
         print(config.xml)
         tree = et.fromstring(config.xml)
 
-        # replace title and namespace with the requested ones
+        # Replace title and namespace with the requested ones
         tree.find(".//title").text = self.title.split(":")[1]
         tree.find(".//ns").text = str(
             config.namespace_mapping.get(self.title.split(":")[0], 0)
         )
-        # apply username mapping (user in the target system might have different names)
+        # Apply username mapping (user in the target system might have different names)
         for e in tree.findall(".//username"):
             e.text = config.username_mapping.get(e.text, e.text)
 
         config.xml = et.tostring(tree, encoding="unicode")
-        # restore default namespace definition
+        # Restore default namespace definition
         config.xml = config.xml.replace(
             '_xmlns="http://www.mediawiki.org', 'xmlns="http://www.mediawiki.org'
         )
@@ -1748,7 +1807,8 @@ class WtPage:
             # print("Error: ", json)
             return WtPage.ImportResult(success=False, error_msg=json["error"]["info"])
         else:
-            # print("Imported: ", json["import"][0]["title"], " with ", json["import"][0]["revisions"], " revisions")
+            # print("Imported: ", json["import"][0]["title"], " with ",
+            #       json["import"][0]["revisions"], " revisions")
             return WtPage.ImportResult(
                 success=True,
                 imported_title=json["import"][0]["title"],

@@ -8,8 +8,10 @@ from pydantic.v1 import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
-# this is dirty, but required for autocompletion: https://stackoverflow.com/questions/62884543/pydantic-autocompletion-in-vs-code
-# idealy solved by custom templates in the future: https://github.com/koxudaxi/datamodel-code-generator/issues/860
+# This is dirty, but required for autocompletion:
+# https://stackoverflow.com/questions/62884543/pydantic-autocompletion-in-vs-code
+# Ideally, solved by custom templates in the future:
+# https://github.com/koxudaxi/datamodel-code-generator/issues/860
 # ToDo: Still needed?
 
 if TYPE_CHECKING:

@@ -199,10 +199,10 @@ def match_regex_patterns(
     if isinstance(strings, str):
         strings = [strings]
     matching_results = dict()
-    for k, string in enumerate(strings):
+    for _k, string in enumerate(strings):
         string_matched = False
         matching_results[string] = list()
-        for i, pattern in enumerate(patterns):
+        for _i, pattern in enumerate(patterns):
             match = re.match(pattern.pattern, string)
             if match is not None:
                 string_matched = True
@@ -294,7 +294,7 @@ def test_regex_pattern(
             for key, val in patterns.items()
         ]
     matching_results = list()
-    for i, pattern in enumerate(patterns):
+    for _i, pattern in enumerate(patterns):
         result = {
             "Pattern": pattern.pattern,
             "Matching strings": [],

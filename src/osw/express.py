@@ -198,15 +198,30 @@ class OswExpress(OSW):
         del self
 
     def install_dependencies(
-        self, dependencies: Dict[str, str] = None, mode: str = "append"
+        self,
+        dependencies: Dict[str, str] = None,
+        mode: str = "append",
+        policy: str = "force",
     ):
         """Expects a dictionary with the keys being the names of the dependencies and
         the values being the full page name of the dependencies.
         To keep existing dependencies, use mode='append'.
+        Default policy is 'force', which will always load dependencies.
+        If policy is 'if-missing', dependencies will only be loaded if they are not already installed.
+        This may lead to outdated dependencies, if the dependencies have been updated on the server.
+        If policy is 'if-outdated', dependencies will only be loaded if they were updated on the server.
+        (not implemented yet)
         """
         if dependencies is None:
             dependencies = DEPENDENCIES
-        schema_fpts = list(dependencies.values())
+        schema_fpts = []
+        for k, v in dependencies.items():
+            if policy != "if-missing" or not hasattr(model, k):
+                schema_fpts.append(v)
+            if policy == "if-outdated":
+                raise NotImplementedError(
+                    "The policy 'if-outdated' is not implemented yet."
+                )
         schema_fpts = list(set(schema_fpts))
         for schema_fpt in schema_fpts:
             if not schema_fpt.count(":") == 1:
@@ -628,9 +643,11 @@ class DownloadFileResult(FileResult, LocalFileController):
                     domain=data.get("domain"),
                     cred_mngr=data.get("cred_mngr"),
                 )
-            title = "File:" + url_or_title.split("File:")[-1]
+            title: str = "File:" + url_or_title.split("File:")[-1]
             file = data.get("osw_express").load_entity(title)
-            wf = file.cast(WikiFileController, osw=data.get("osw_express"))
+            wf: WikiFileController = file.cast(
+                WikiFileController, osw=data.get("osw_express")
+            )
             """The file controller"""
             if data.get("target_fp").exists() and not data.get("overwrite"):
                 raise FileExistsError(
@@ -930,8 +947,7 @@ def osw_upload_file(
 
 
 OswExpress.update_forward_refs()
-OswExpress.StoreEntityParam.update_forward_refs()  # todo check why this might be
-# necessary
+
 
 # todo:
 #  * create a .gitignore in the basepath that lists the default credentials file (

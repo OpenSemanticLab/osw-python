@@ -67,6 +67,7 @@ def mass_page_edit():
     wtsite = WtSite.from_domain("wiki-dev.open-semantic-lab.org", pwd_file_path)
     # wtpage = wtsite.get_WtPage("LabNote:220601-sist-0001-ni")
     # wtpage = wtsite.get_WtPage("testesfesefsef")
+    # wtpage.parse_main_slot()
     # wtpage.append_template("TestTemplate", {"p1": "v1"})
     # wtpage.append_text("Some text",)
     # wtpage.append_template("TestTemplate", {"p1": "v2"})
@@ -124,7 +125,8 @@ def slot_default_values():
     def modify(wtpage: WtPage):
         edit = True
         # print(wtpage.get_last_changed_time())
-        # if wtpage.get_last_changed_time() > datetime.fromisoformat('2023-01-15T12:00:00+00:00'):
+        # if (wtpage.get_last_changed_time() >
+        #     datetime.fromisoformat('2023-01-15T12:00:00+00:00')):
         #    print("new")
         # else:
         #    print("old")

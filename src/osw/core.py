@@ -10,6 +10,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Optional, Type, Union
 from uuid import UUID
+from warnings import warn
 
 from jsonpath_ng.ext import parse
 from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
@@ -43,11 +44,13 @@ class OverwriteOptions(Enum):
     """Never overwrite a property"""
     only_empty = "only empty"
     """Only overwrite if the property is empty"""
-    # "merge",  # todo: implement
-    # "append",  # don't replace the properties but for properties of type array or
-    # dict, append the values of the local entity to the remote entity, make sure
-    # to not append duplicates # todo: implement
-    # "only older",  # todo: implement read out from the version history of the page
+    # todo: implement "merge",
+    # todo: implement "append",
+    #   Don't replace the properties but for properties of type array or dict, append
+    #   the values of the local entity to the remote entity, make sure  # to not
+    #   append duplicates
+    # todo: implement "only older",
+    # todo: implement read out from the version history of the page
 
 
 class AddOverwriteClassOptions(Enum):
@@ -117,15 +120,51 @@ class OSW(BaseModel):
     @staticmethod
     def sort_list_of_entities_by_class(
         entities: List[OswBaseModel],
+        exclude_typeless: bool = True,
+        raise_error: bool = False,
     ) -> SortEntitiesResult:
+        """Sorts a list of entities by class name and type.
+
+        Parameters
+        ----------
+        entities:
+            List of entities to be sorted
+        exclude_typeless:
+            Exclude entities, which are instances of a class that does not
+            define a field 'type'
+        raise_error:
+            Raise an error if an entity can not be processed because it is an
+            instance of class that does not define a field 'type'
+        """
         by_name = {}
         by_type = {}
         for entity in entities:
+            # Get class name
             name = entity.__class__.__name__
+            # See if the class has a type field
+            if "type" not in entity.__class__.__fields__:
+                if raise_error:
+                    raise AttributeError(
+                        f"Instance '{entity}' of class '{name}' can not be processed "
+                        f"as the class does not define a field 'type'."
+                    )
+                if exclude_typeless:
+                    warn(
+                        f"Skipping instance '{entity}' of class '{name}' as the class "
+                        f"does not define a field 'type'."
+                    )
+                    # Excludes the respective entity from the list which will be
+                    #  processed further:
+                    continue
+                model_type = None
+            else:
+                # Get class type if available
+                model_type = entity.__class__.__fields__["type"].default[0]
+            # Add entity to by_name
             if name not in by_name:
                 by_name[name] = []
             by_name[name].append(entity)
-            model_type = entity.__class__.__fields__["type"].default[0]
+            # Add entity to by_type
             if model_type not in by_type:
                 by_type[model_type] = []
             by_type[model_type].append(entity)
@@ -186,7 +225,8 @@ class OSW(BaseModel):
             )
 
             jsonpath_expr = parse("$..allOf")
-            # replace local definitions (#/definitions/...) with embedded definitions to prevent resolve errors in json-editor
+            # Replace local definitions (#/definitions/...) with embedded definitions
+            #  to prevent resolve errors in json-editor
             for match in jsonpath_expr.find(schema):
                 result_array = []
                 for subschema in match.value:
@@ -292,7 +332,8 @@ class OSW(BaseModel):
 
         schema_title: Optional[Union[List[str], str]] = "Category:Item"
         mode: Optional[str] = (
-            "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+            "replace"
+            # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
@@ -333,7 +374,8 @@ class OSW(BaseModel):
         schema_title: Optional[str] = "Category:Item"
         root: Optional[bool] = True
         mode: Optional[str] = (
-            "replace"  # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
+            "replace"
+            # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
@@ -370,11 +412,12 @@ class OSW(BaseModel):
             print(f"Error: Schema {schema_title} does not exist")
             schema_str = "{}"  # empty schema to make reference work
         schema = json.loads(
-            schema_str.replace(
-                "$ref", "dollarref"
-            ).replace(  # '$' is a special char for root object in jsonpath
-                '"allOf": [', '"allOf": [{},'
-            )  # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
+            schema_str.replace("$ref", "dollarref").replace(
+                # '$' is a special char for root object in jsonpath
+                '"allOf": [',
+                '"allOf": [{},',
+            )
+            # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
         )
         print(f"Fetch {schema_title}")
 
@@ -386,7 +429,7 @@ class OSW(BaseModel):
             ref_schema_title = match.value.replace("/wiki/", "").split("?")[0]
             ref_schema_name = ref_schema_title.split(":")[-1] + ".json"
             value = ""
-            for i in range(0, schema_name.count("/")):
+            for _i in range(0, schema_name.count("/")):
                 value += "../"  # created relative path to top-level schema dir
             value += ref_schema_name  # create a reference to a local file
             # keep document-relative jsonpointer if present
@@ -457,14 +500,21 @@ class OSW(BaseModel):
             # --custom-template-dir src/model/template_data/
             # --extra-template-data src/model/template_data/extra.json
             # --use-default: Use default value even if a field is required
-            # --use-unique-items-as-set: define field type as `set` when the field attribute has`uniqueItems`
-            # --enum-field-as-literal all: prevent 'value is not a valid enumeration member' errors after schema reloading
-            # --use-schema-description: Use schema description to populate class docstring
-            # --use-field-description: Use schema description to populate field docstring
-            # --use-title-as-name: use titles as class names of models, e.g. for the footer templates
-            # --collapse-root-models: Models generated with a root-type field will be merged
+            # --use-unique-items-as-set: define field type as `set` when the field
+            #  attribute has`uniqueItems`
+            # --enum-field-as-literal all: prevent 'value is not a valid enumeration
+            #  member' errors after schema reloading
+            # --use-schema-description: Use schema description to populate class
+            #  docstring
+            # --use-field-description: Use schema description to populate field
+            #  docstring
+            # --use-title-as-name: use titles as class names of models, e.g. for the
+            #  footer templates
+            # --collapse-root-models: Models generated with a root-type field will be
+            #  merged
             # into the models using that root-type model, e.g. for Entity.statements
-            # --reuse-model: Re-use models on the field when a module has the model with the same content
+            # --reuse-model: Re-use models on the field when a module has the model
+            #  with the same content
 
             content = ""
             with open(temp_model_path, "r", encoding="utf-8") as f:
@@ -500,10 +550,10 @@ class OSW(BaseModel):
                 )
 
                 content = re.sub(
-                    r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
-                    header + r"\n\n\n\1",
-                    content,
-                    1,
+                    pattern=r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
+                    repl=header + r"\n\n\n\1",
+                    string=content,
+                    count=1,
                 )  # add header before first class declaration
 
                 with open(result_model_path, "w", encoding="utf-8") as f:
@@ -529,7 +579,10 @@ class OSW(BaseModel):
                     )  # replace duplicated classes
 
                 content = re.sub(
-                    r"(from __future__ import annotations)", "", content, 1
+                    pattern=r"(from __future__ import annotations)",
+                    repl="",
+                    string=content,
+                    count=1,
                 )  # remove import statement
                 # print(content)
                 with open(result_model_path, "a", encoding="utf-8") as f:
@@ -623,7 +676,8 @@ class OSW(BaseModel):
                     if not hasattr(model, cls):
                         schemas_fetched = False
                         print(
-                            f"Error: Model {cls} not found. Schema {category} needs to be fetched first."
+                            f"Error: Model {cls} not found. Schema {category} needs to "
+                            f"be fetched first."
                         )
             if not schemas_fetched:
                 continue
@@ -708,8 +762,8 @@ class OSW(BaseModel):
                 field_name: per_property_.get(field_name, self.overwrite)
                 for field_name in self.model.__fields__.keys()
             }
-            # todo: from class definition get properties with hidden / read_only option
-            #  those can be safely overwritten - set the to True
+            # todo: from class definition get properties with hidden /
+            #  read_only option  #  those can be safely overwritten - set the to True
 
     class _ApplyOverwriteParam(OswBaseModel):
         page: WtPage
@@ -748,8 +802,9 @@ class OSW(BaseModel):
                     )
                 return entity
             page_uuid = str(jsondata.get("uuid"))
-            entity_uuid = str(getattr(entity, "uuid"))
-            if page_uuid != entity_uuid:  # Comparing string type UUIDs
+            entity_uuid = str(getattr(entity, "uuid", None))
+            if page_uuid != entity_uuid or page_uuid == str(None):
+                # Comparing string type UUIDs
                 raise ValueError(
                     f"UUID mismatch: Page UUID: {page_uuid}, Entity UUID: {entity_uuid}"
                 )
@@ -782,10 +837,8 @@ class OSW(BaseModel):
                 page.set_slot_content(slot_, content_to_set[slot_])
 
         # Create a variable to hold the new content
-        new_content = {
-            # required for json parsing and header rendering
-            "header": "{{#invoke:Entity|header}}",
-            # required for footer rendering
+        new_content = {  # required for json parsing and header rendering
+            "header": "{{#invoke:Entity|header}}",  # required for footer rendering
             "footer": "{{#invoke:Entity|footer}}",
         }
         # Take the shortcut if
@@ -824,8 +877,9 @@ class OSW(BaseModel):
         remote_content = {}
         # Get the remote content
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
-            remote_content[slot] = page.get_slot_content(slot)
-            # Todo: remote content does not contain properties that are not set
+            remote_content[slot] = page.get_slot_content(
+                slot
+            )  # Todo: remote content does not contain properties that are not set
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
         if remote_content["footer"]:
@@ -926,7 +980,9 @@ class OSW(BaseModel):
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
-                self.parallel = False
+                self.parallel = (
+                    True  # Set to True after implementation of asynchronous upload
+                )
             if self.overwrite is None:
                 self.overwrite = self.__fields__["overwrite"].default
             self._overwrite_per_class = {"by name": {}, "by type": {}}
@@ -987,14 +1043,14 @@ class OSW(BaseModel):
                 )
 
         def store_entity_(
-            entity: model.Entity,
+            entity_: model.Entity,
             namespace_: str = None,
             index: int = None,
             overwrite_class_param: OSW.OverwriteClassParam = None,
         ) -> None:
-            title_ = get_title(entity)
+            title_ = get_title(entity_)
             if namespace_ is None:
-                namespace_ = get_namespace(entity)
+                namespace_ = get_namespace(entity_)
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
@@ -1003,10 +1059,8 @@ class OSW(BaseModel):
             entity_title = namespace_ + ":" + title_
             page = self._apply_overwrite_policy(
                 OSW._ApplyOverwriteParam(
-                    page=self.site.get_page(
-                        WtSite.GetPageParam(titles=[entity_title])
-                    ).pages[0],
-                    entity=entity,
+                    page=WtPage(wtSite=self.site, title=entity_title),
+                    entity=entity_,
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     meta_category_template_str=meta_category_template_str,
@@ -1027,7 +1081,7 @@ class OSW(BaseModel):
                     # Put generated schema in definitions section,
                     #  currently only enabled for Characteristics
                     if hasattr(model, "CharacteristicType") and isinstance(
-                        entity, model.CharacteristicType
+                        entity_, model.CharacteristicType
                     ):
                         new_schema = {
                             "$defs": {"generated": schema},
@@ -1053,7 +1107,24 @@ class OSW(BaseModel):
                     )
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
-        print("Entities to be uploaded have been sorted according to their type.")
+        print(
+            "Entities to be uploaded have been sorted according to their type.\n"
+            "If you would like to overwrite existing entities or properties, "
+            "pass a StoreEntityParam to store_entity() with "
+            "attribute 'overwrite' or 'overwrite_per_class' set to, e.g., "
+            "True."
+        )
+
+        class UploadObject(BaseModel):
+            entity: OswBaseModel
+            # Actually model.Entity but this causes the "type" error
+            namespace: Optional[str]
+            index: int
+            overwrite_class_param: OSW.OverwriteClassParam
+
+        upload_object_list: List[UploadObject] = []
+
+        upload_index = 0
         for class_type, entities in sorted_entities.by_type.items():
             # Try to get a class specific overwrite setting
             class_param = param._overwrite_per_class["by type"].get(class_type, None)
@@ -1063,26 +1134,41 @@ class OSW(BaseModel):
                     model=entity_model,
                     overwrite=param.overwrite,
                 )
-                print(
-                    f"Now uploading entities of class type '{class_type}' "
-                    f"({entity_model.__name__}). No class specific overwrite setting "
-                    f"found. Using fallback option '{param.overwrite}' for all "
-                    f"entities of this class."
+                if param.debug:
+                    print(
+                        f"Now adding entities of class type '{class_type}' "
+                        f"({entity_model.__name__}) to upload list. No class specific"
+                        f" overwrite setting found. Using fallback option '"
+                        f"{param.overwrite}' for all entities of this class."
+                    )
+            for entity in entities:
+                upload_object_list.append(
+                    UploadObject(
+                        entity=entity,
+                        namespace=param.namespace,
+                        index=upload_index,
+                        overwrite_class_param=class_param,
+                    )
                 )
-            # Call store_entity for each entity of the class
-            if param.parallel:
-                _ = parallelize(
-                    store_entity_,
-                    entities,
-                    flush_at_end=param.debug,
-                    namespace_=param.namespace,
-                    overwrite_class_param=class_param,
-                )
-            else:
-                _ = [
-                    store_entity_(e, param.namespace, i, class_param)
-                    for i, e in enumerate(entities)
-                ]
+                upload_index += 1
+
+        def handle_upload_object_(upload_object: UploadObject) -> None:
+            store_entity_(
+                upload_object.entity,
+                upload_object.namespace,
+                upload_object.index,
+                upload_object.overwrite_class_param,
+            )
+
+        if param.parallel:
+            _ = parallelize(
+                handle_upload_object_, upload_object_list, flush_at_end=param.debug
+            )
+        else:
+            _ = [
+                handle_upload_object_(upload_object)
+                for upload_object in upload_object_list
+            ]
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]

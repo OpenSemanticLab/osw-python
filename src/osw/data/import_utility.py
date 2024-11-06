@@ -389,7 +389,8 @@ def jsonpath_search_and_return_list(
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:
             warnings.warn(
-                f"jsonpath_search_and_return_list() threw and " f"exception:\n{str(e)}"
+                f"jsonpath_search_and_return_list() threw and " f"exception:\n{str(e)}",
+                stacklevel=2,
             )
             result = jp_parse.find(search_tar)
     else:
@@ -413,7 +414,8 @@ def jsonpath_search_and_return_list(
     if len(list_) == 0 and warn:
         warnings.warn(
             f"jsonpath_search_and_return_list() did not find any "
-            f"results for the jsonpath string '{jp_str}'"
+            f"results for the jsonpath string '{jp_str}'",
+            stacklevel=3,
         )
     return list(set(flatten_list(list_)))
 

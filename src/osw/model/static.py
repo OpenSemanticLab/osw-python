@@ -66,7 +66,8 @@ class OswBaseModel(BaseModel):
             k: v for k, v in self.dict().items() if not test_if_empty_list_or_none(v)
         }
         combined_args = {**self_args, **kwargs}
-        del combined_args["type"]
+        if "type" in combined_args:
+            del combined_args["type"]
         return cls(**combined_args)
 
 

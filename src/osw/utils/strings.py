@@ -52,6 +52,9 @@ class RegExPatternExtended(OswBaseModel):
     used to test the pattern by asserting list(self.example_match.groups.values()) ==
     self.expected_groups"""
 
+    class Config:
+        arbitrary_types_allowed = True
+
     def __init__(self, **data):
         super().__init__(**data)
         if isinstance(self.pattern, str):
@@ -113,13 +116,13 @@ class RegExPatternExtended(OswBaseModel):
         else:
             return False
 
-    class Config:
-        arbitrary_types_allowed = True
-
 
 class MatchResult(OswBaseModel):
     match: Union[re.Match, None]
     pattern: Union[RegExPatternExtended, None]
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @property
     def groups(self):
@@ -132,9 +135,6 @@ class MatchResult(OswBaseModel):
             key: get_match_group_by_key(match_result=self, group_key=key)
             for key in keys
         }
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class SearchResult(MatchResult):

@@ -9,6 +9,7 @@ import deepl
 import numpy as np
 from geopy import Nominatim
 from jsonpath_ng import ext as jp
+from pydantic.v1 import create_model
 
 import osw.utils.strings as strutil
 from osw import wiki_tools as wt
@@ -28,13 +29,58 @@ REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
 
 # Classes
 class HelperModel(model.OswBaseModel):
+    """Helper class for model transformations. The first base of the inheriting class
+    should always be the target class and the second base should be this class.
+
+    Example
+    -------
+    >>> class Person(model.OswBaseModel):
+    >>>     first_name: str
+    >>>     surname: str
+    >>>     email: Set[str]
+    >>>
+    >>> john_dict = {"FirstName": "John", "LastName": "Doe", "Email": {
+    "john.doe@example.com"}}
+    >>>
+    >>> class PersonHelper(Person, HelperModel):
+    >>>     FirstName: Any
+    >>>     LastName: Any
+    >>>     Email: Any
+    >>>
+    >>>     def transform_attributes(self, dd: dict) -> bool:
+    >>>         super().transform_attributes(dd)
+    >>>         self.first_name = self.FirstName
+    >>>         self.surname = self.LastName
+    >>>         self.email = {self.Email}
+    >>>         return True
+    """
+
     # Custom attributes
     attributes_transformed: bool = False
     references_transformed: bool = False
     casted_instance: Any = None
     full_page_title: Optional[str]
 
-    def transform_attributes(self, dd: dict) -> bool:
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init_subclass__(cls, **kwargs):
+        """Will overwrite the annotations and fields of the inheriting class,
+        defined in the first base class with Optional[Any] annotations. This is
+        necessary to prevent errors when casting to the inheriting class."""
+        super().__init_subclass__(**kwargs)
+        first_base = cls.__bases__[0]
+        if not issubclass(first_base, model.OswBaseModel):
+            return None
+        fields = {name: (Optional[Any], None) for name in first_base.__annotations__}
+        new_first_base = create_model(first_base.__name__, **fields)
+        for field_name in new_first_base.__fields__:
+            if field_name in cls.__fields__:  # Replace existing fields
+                cls.__fields__[field_name] = new_first_base.__fields__[field_name]
+            if field_name in cls.__annotations__:  # Replace existing annotations
+                cls.__annotations__[field_name] = Optional[Any]
+
+    def transform_attributes(self, dd: dict = None) -> bool:
         if not self.attributes_transformed:
             uuid = uuid_module.uuid4()
             if hasattr(self, "uuid"):
@@ -45,7 +91,7 @@ class HelperModel(model.OswBaseModel):
             self.attributes_transformed = True
         return True
 
-    def transform_references(self, dd: dict) -> bool:
+    def transform_references(self, dd: dict = None) -> bool:
         if not self.attributes_transformed:
             self.transform_attributes(dd)
         if not self.references_transformed:
@@ -56,13 +102,21 @@ class HelperModel(model.OswBaseModel):
             self.references_transformed = True
         return True
 
-    def cast_to_superclass(self, dd):
+    def cast_to_superclass(self, dd: dict = None, return_casted: bool = False) -> bool:
+        """Casts the instance to the superclass of the inheriting class. Assumes that
+        the first base of the inheriting class is the target class."""
         if not self.references_transformed:
             self.transform_references(dd)
         else:
             superclass = self.__class__.__bases__[0]
             self.casted_instance = self.cast_none_to_default(cls=superclass)
+        if return_casted:
+            return self.casted_instance
         return True
+
+    @property
+    def casted(self):
+        return self.cast_to_superclass(return_casted=True)
 
 
 # Functions
@@ -89,6 +143,7 @@ def transform_attributes_and_merge(
     if not inplace:
         ent = copy.deepcopy(ent)
         ent_as_dict = copy.deepcopy(ent_as_dict)
+    # Transform attributes
     ent, ent_as_dict = loop_and_call_method(
         entities=ent,
         method_name="transform_attributes",

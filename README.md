@@ -53,6 +53,10 @@ os.environ["PATH"] += os.pathsep + "/home/jovyan/.local/bin"
 
 https://opensemanticlab.github.io/osw-python/
 
+### Tutorials
+
+Tutorials can be found at [tutorials](docs/tutorials/)
+- [Basics](docs/tutorials/basics.md) - a description of the data model of OpenSemanticLab and how to interact with it
 
 ## Development
 

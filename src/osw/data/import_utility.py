@@ -1,15 +1,16 @@
 import copy
+import inspect
 import re
 import uuid as uuid_module
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 import deepl
 import numpy as np
 from geopy import Nominatim
 from jsonpath_ng import ext as jp
-from pydantic.v1 import create_model
+from pydantic.v1.fields import ModelField
 
 import osw.utils.strings as strutil
 from osw import wiki_tools as wt
@@ -47,7 +48,7 @@ class HelperModel(model.OswBaseModel):
     >>>     LastName: Any
     >>>     Email: Any
     >>>
-    >>>     def transform_attributes(self, dd: dict) -> bool:
+    >>>     def transform_attributes(self, dd: dict = None) -> bool:
     >>>         super().transform_attributes(dd)
     >>>         self.first_name = self.FirstName
     >>>         self.surname = self.LastName
@@ -69,14 +70,33 @@ class HelperModel(model.OswBaseModel):
         defined in the first base class with Optional[Any] annotations. This is
         necessary to prevent errors when casting to the inheriting class."""
         super().__init_subclass__(**kwargs)
-        first_base = cls.__bases__[0]
+        first_base: Type[model.OswBaseModel] = cls.__bases__[0]
         if not issubclass(first_base, model.OswBaseModel):
             return None
-        fields = {name: (Optional[Any], None) for name in first_base.__annotations__}
-        new_first_base = create_model(first_base.__name__, **fields)
-        for field_name in new_first_base.__fields__:
+
+        model_fields = {}
+        constructor_kwargs = [
+            ele
+            for ele in list(inspect.signature(ModelField.__init__).parameters.keys())
+            if ele != "self"
+        ]
+        for field_name in first_base.__fields__:
+            model_field_kwargs = {}
+            for arg in constructor_kwargs:
+                arg_val = getattr(first_base.__fields__[field_name], arg)
+                if arg_val is None:
+                    # Keeps the default values of the ModelField class constructor
+                    continue
+                # Reuses values originally passed to construct the ModelField instance
+                model_field_kwargs[arg] = arg_val
+            # Overwrite the type and required model_field_kwargs
+            model_field_kwargs["type_"] = Optional[Any]
+            model_field_kwargs["required"] = False
+            # Create a new ModelField instance
+            model_fields[field_name] = ModelField(**model_field_kwargs)
+        for field_name in model_fields:
             if field_name in cls.__fields__:  # Replace existing fields
-                cls.__fields__[field_name] = new_first_base.__fields__[field_name]
+                cls.__fields__[field_name] = model_fields[field_name]
             if field_name in cls.__annotations__:  # Replace existing annotations
                 cls.__annotations__[field_name] = Optional[Any]
 
@@ -217,6 +237,7 @@ def get_uuid_from_object_via_type(obj: Any) -> Union[uuid_module.UUID, None]:
 
 def get_lang_specific_label(label: list, lang: str) -> Union[str, None]:
     """Get the label in a specific language from a list of labels"""
+    # todo: rework to not break on missing LangCode
     for ele in label:
         if ele["lang"] == model.LangCode(lang):
             return ele["text"]
@@ -365,15 +386,15 @@ def jsonpath_search_and_return_list(
     -------
     Searching through entites of type HelperWikiFile within all entities (
     entities_as_dict) and returning the full_page_title of entities matching filename
-    by the attribute name. Afterwards the attribute image is set to the result if it any
-    >>> res = diu.jsonpath_search_and_return_list(
+    by the attribute name. Afterward the attribute image is set to the result if it any
+    >>> res = jsonpath_search_and_return_list(
     >>>     jp_str=f'*[?name = "{filename}"]',
     >>>     val_key="full_page_title",
     >>>     search_tar=entities_as_dict,
     >>>     class_to_match=HelperWikiFile,
     >>> )
     >>> if len(res) > 0:
-    >>>     self.image = res[0]
+    >>>     image = res[0]
 
     """
     jp_parse = jp.parse(path=jp_str)

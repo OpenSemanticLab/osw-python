@@ -32,6 +32,8 @@ To install all optional/extra dependencies run
 pip install osw[all]
 ```
 
+## Getting started
+You can find examples in the tutorial folder, e.g. [entity creation](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/create_entity.py), [entity manipulaton](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/store_entity.py), [querying](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/query_minimal.py), and [file downloads](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/file_download_minimal.py)
 
 ## Troubleshooting
 

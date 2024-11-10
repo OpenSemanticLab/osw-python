@@ -604,6 +604,8 @@ class WtSite:
         """Configuration object for the page dump"""
         debug: Optional[bool] = True
         """If True, debug messages will be printed."""
+        parallel: Optional[bool] = None
+        """If true, processes the pages in parallel."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -648,30 +650,34 @@ class WtSite:
             return
         if not bundle.packages[config.name].pages:
             bundle.packages[config.name].pages = []
-        for title in config.titles:
-            if title in added_titles:
-                continue  # prevent duplicates
-            else:
-                added_titles.append(title)
-            page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
+        # remove duplicates with intermediate set
+        added_titles = list(set(config.titles))
+        pages = self.get_page(
+            WtSite.GetPageParam(titles=added_titles, parallel=param.parallel)
+        ).pages
+        added_file_titles = []
+        for page in pages:
             # Appends an item of type: package.PagePackagePage:
             bundle.packages[config.name].pages.append(page.dump(dump_config))
             if config.include_files:
                 referenced_file_pages = page.find_file_page_refs_in_slots()
-                for file_name in referenced_file_pages:
-                    if file_name in added_titles:
-                        continue
-                    else:
-                        added_titles.append(file_name)
-                    print(f"Added files: {added_titles}")
-                    file_page = self.get_page(
-                        WtSite.GetPageParam(titles=[file_name])
-                    ).pages[0]
-                    if not file_page.exists:
-                        continue
-                    bundle.packages[config.name].pages.append(
-                        file_page.dump(dump_config)
+                if debug and len(referenced_file_pages) > 0:
+                    print(
+                        f"File pages referenced in {page.title}: {referenced_file_pages}"
                     )
+                added_file_titles = list(set(added_file_titles + referenced_file_pages))
+
+        added_titles = list(set(added_titles + added_file_titles))
+
+        if len(added_file_titles) > 0:
+            file_pages = self.get_page(
+                WtSite.GetPageParam(titles=added_file_titles, parallel=param.parallel)
+            ).pages
+            for file_page in file_pages:
+                if not file_page.exists:
+                    continue
+                # ToDo: Make this parallel as well
+                bundle.packages[config.name].pages.append(file_page.dump(dump_config))
 
         content = bundle.json(exclude_none=True, indent=4, ensure_ascii=False)
         # This will create the JSON (e.g., package.json) with the PagePackageConfig,

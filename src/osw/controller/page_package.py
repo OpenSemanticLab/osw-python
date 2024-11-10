@@ -216,11 +216,36 @@ def read_package_info_file(
     matching_files_in_dir = list(package_dir.glob(package_info_fn))
     if len(matching_files_in_dir) == 0:
         raise FileNotFoundError(f"No file {package_info_fn} found in {package_dir}")
+    if len(matching_files_in_dir) > 1:
+        raise ValueError(
+            f"Multiple files {package_info_fn} found in {package_dir}: {matching_files_in_dir}"
+        )
     else:
         package_info_fp = matching_files_in_dir[0]
         with open(package_info_fp, "r") as package_info_fp:
             package_info = json.load(package_info_fp)
         return package_info
+
+
+def find_package_dir(
+    package_or_script_name: str, search_paths: List[Path] = None
+) -> Path:
+    """searches for the subfolder or script name with
+    name <package_or_script_name> in the search_paths"""
+    if search_paths is None:
+        search_paths = []
+    matching_dirs = []
+    for search_path in search_paths:
+        matching_dirs.extend(list(search_path.glob(f"{package_or_script_name}")))
+    if len(matching_dirs) == 0:
+        raise FileNotFoundError(f"{package_or_script_name} not found in {search_paths}")
+    if len(matching_dirs) > 1:
+        raise ValueError(
+            f"""Multiple elements {package_or_script_name} found in
+            {search_paths}: {matching_dirs}"""
+        )
+    else:
+        return matching_dirs[0]
 
 
 def get_listed_pages_from_package_info(package_info: Union[dict, Path]) -> List[str]:
@@ -461,6 +486,11 @@ class PagePackageController(model.PagePackageMetaData):
         Only required if read_listed_pages_from_script is True"""
         label_missing_pages: bool = None
         """Whether to get the labels of the missing pages from the OSW"""
+        additional_script_dirs: List[Union[str, Path]] = None
+        """Additional directories to search for management scripts of dependencies
+        Note: This may lead to errors for relative imports"""
+        additional_package_dirs: List[Union[str, Path]] = None
+        """Additional directories to search for dependencies"""
 
         # class Config:
         #     arbitrary_types_allowed = True
@@ -475,6 +505,11 @@ class PagePackageController(model.PagePackageMetaData):
         """
         if params.label_missing_pages is None:
             params.label_missing_pages = params.direct_call
+
+        if params.additional_package_dirs is None:
+            params.additional_package_dirs = []
+        if params.additional_script_dirs is None:
+            params.additional_script_dirs = []
 
         # Set self.requiredPages (either load from file or generate list)
         if params.direct_call:
@@ -494,21 +529,37 @@ class PagePackageController(model.PagePackageMetaData):
             rec_count += 1
             # else:
             if params.read_listed_pages_from_script:
-                package_script = read_package_script_file(
-                    params.script_dir / f"{package_to_process}.py"
-                )
-                new_listed_pages = get_listed_pages_from_package_script(package_script)
-                required_packages = get_required_packages_from_package_script(
-                    package_script
-                )
+                search_paths = [params.script_dir]
+                search_paths.extend(params.additional_script_dirs)
+                try:
+                    script_path = find_package_dir(
+                        f"{package_to_process}.py", search_paths
+                    )
+                    package_script = read_package_script_file(script_path)
+                    new_listed_pages = get_listed_pages_from_package_script(
+                        package_script
+                    )
+                    required_packages = get_required_packages_from_package_script(
+                        package_script
+                    )
+                except Exception as e:
+                    warn(f"Error reading package script for {package_to_process}: {e}")
+                    new_listed_pages = []
+                    required_packages = []
             else:
-                package_info = read_package_info_file(
-                    params.creation_config.working_dir.parent / package_to_process
-                )
-                new_listed_pages = get_listed_pages_from_package_info(package_info)
-                required_packages = get_required_packages_from_package_info_file(
-                    package_info
-                )
+                search_paths = [params.creation_config.working_dir.parent]
+                search_paths.extend(params.additional_package_dirs)
+                try:
+                    package_dir = find_package_dir(package_to_process, search_paths)
+                    package_info = read_package_info_file(package_dir)
+                    new_listed_pages = get_listed_pages_from_package_info(package_info)
+                    required_packages = get_required_packages_from_package_info_file(
+                        package_info
+                    )
+                except Exception as e:
+                    warn(f"Error reading package info for {package_to_process}: {e}")
+                    new_listed_pages = []
+                    required_packages = []
             # Check for redundant pages
             for pack_ in listed_pages.keys():
                 new_redundant_pages = list(

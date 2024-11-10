@@ -3,7 +3,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 from warnings import warn
 
 from pydantic.v1 import FilePath
@@ -366,6 +366,9 @@ class PagePackageController(model.PagePackageMetaData):
         working_dir: Union[str, Path]
         """Working directory. Will be created automatically if not existing."""
         skip_slot_suffix_for_main: bool = False
+        ignore_titles: Optional[List[str]] = None
+        """List of page titles to ignore in auto-detected dependencies
+        , e.g. example files"""
 
     def create(
         self,
@@ -416,6 +419,7 @@ class PagePackageController(model.PagePackageMetaData):
             content_path=Path(creation_config.working_dir) / self.subdir,
             bundle=bundle,
             titles=self.page_titles,
+            ignore_titles=creation_config.ignore_titles,
             skip_slot_suffix_for_main=creation_config.skip_slot_suffix_for_main,
         )
         # Create the page package in the working directory

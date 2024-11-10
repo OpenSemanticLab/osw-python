@@ -173,6 +173,9 @@ class PagePackageConfig(BaseModel):
     Will be created automatically if not existing."""
     titles: List[str]
     """List of page titles."""
+    ignore_titles: Optional[List[str]] = None
+    """List of page titles to ignore in auto-detected dependencies
+    , e.g. example files"""
     # replace: Optional[bool] = False
     bundle: PagePackageBundle
     """Bund of pages."""

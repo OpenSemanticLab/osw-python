@@ -650,25 +650,43 @@ class WtSite:
             return
         if not bundle.packages[config.name].pages:
             bundle.packages[config.name].pages = []
-        # remove duplicates with intermediate set
-        added_titles = list(set(config.titles))
+        # remove duplicates while keeping order
+        added_titles = list(dict.fromkeys(config.titles))
+
         pages = self.get_page(
             WtSite.GetPageParam(titles=added_titles, parallel=param.parallel)
         ).pages
         added_file_titles = []
+        page_dumps = {}
+        page_files = {}
+
         for page in pages:
             # Appends an item of type: package.PagePackagePage:
-            bundle.packages[config.name].pages.append(page.dump(dump_config))
+            page_dumps[page.title] = page.dump(dump_config)
             if config.include_files:
                 referenced_file_pages = page.find_file_page_refs_in_slots()
                 if debug and len(referenced_file_pages) > 0:
                     print(
                         f"File pages referenced in {page.title}: {referenced_file_pages}"
                     )
+                if param.config.ignore_titles is not None:
+                    included_file_pages = list(
+                        set(referenced_file_pages) - set(param.config.ignore_titles)
+                    )
+                    # print ignored files
+                    ignored_files_pages = list(
+                        set(referenced_file_pages) - set(included_file_pages)
+                    )
+                    if debug and len(ignored_files_pages) > 0:
+                        print(f"Ignored: {ignored_files_pages}")
+                    referenced_file_pages = included_file_pages
+                # find those files that are not already in the package
+                page_files[page.title] = list(
+                    set(referenced_file_pages) - set(added_file_titles)
+                )
                 added_file_titles = list(set(added_file_titles + referenced_file_pages))
 
-        added_titles = list(set(added_titles + added_file_titles))
-
+        file_dumps = {}
         if len(added_file_titles) > 0:
             file_pages = self.get_page(
                 WtSite.GetPageParam(titles=added_file_titles, parallel=param.parallel)
@@ -677,7 +695,18 @@ class WtSite:
                 if not file_page.exists:
                     continue
                 # ToDo: Make this parallel as well
-                bundle.packages[config.name].pages.append(file_page.dump(dump_config))
+                file_dumps[file_page.title] = file_page.dump(dump_config)
+
+        # bring it all together
+        for page_title in added_titles:
+            if page_title in page_dumps:
+                bundle.packages[config.name].pages.append(page_dumps[page_title])
+            if page_title in page_files:
+                for file_title in page_files[page_title]:
+                    if file_title in file_dumps:
+                        bundle.packages[config.name].pages.append(
+                            file_dumps[file_title]
+                        )
 
         content = bundle.json(exclude_none=True, indent=4, ensure_ascii=False)
         # This will create the JSON (e.g., package.json) with the PagePackageConfig,

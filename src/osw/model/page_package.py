@@ -263,6 +263,8 @@ NAMESPACE_CONST_TO_NAMESPACE_MAPPING = {
     "NS_MEDIA": "Media",
     "NS_MODULE": "Module",
     "NS_JSONSCHEMA": "JsonSchema",
+    "NS_ITEM": "Item",
+    "NS_ITEM_TALK": "Item talk",
     # SMW: https://github.com/SemanticMediaWiki/SemanticMediaWiki/blob/
     # ebb03c1537810f4ee8c1a25198b8d2e243cc38a1/src/NamespaceManager.php#L119
     "SMW_NS_PROPERTY": "Property",
@@ -298,6 +300,7 @@ NAMESPACE_CONST_TO_NAMESPACE_NUMBER_MAPPING = {
     "NS_CATEGORY_TALK": 15,
     "NS_SPECIAL": -1,
     "NS_MEDIA": -2,
+    "NS_ITEM": 7000,
 }
 
 # inverse

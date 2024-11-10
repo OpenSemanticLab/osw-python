@@ -5,6 +5,7 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 import json
 import os
 import shutil
+import urllib
 import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
@@ -1581,11 +1582,12 @@ class WtPage:
             # handle subpages:
             file_path_ = os.path.join(tar_dir, *file_name_.split("/"))
             save_to_file(file_path_, content_)
+            # generate url encoded path for the page package
             if slot_key_ == "main":
-                package_page.urlPath = path_prefix + file_name_
+                package_page.urlPath = urllib.parse.quote(path_prefix + file_name_)
             else:
                 package_page.slots[slot_key_] = package.PagePackagePageSlot(
-                    urlPath=path_prefix + file_name_
+                    urlPath=urllib.parse.quote(path_prefix + file_name_)
                 )
 
         for slot_key in self._slots:

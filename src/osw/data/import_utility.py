@@ -102,34 +102,37 @@ class HelperModel(model.OswBaseModel):
 
     def transform_attributes(self, dd: dict = None) -> bool:
         if not self.attributes_transformed:
-            uuid = uuid_module.uuid4()
-            if hasattr(self, "uuid"):
-                if self.uuid is not None:
-                    uuid = self.uuid
-            self.full_page_title = uuid_to_full_page_title(uuid=uuid)
+            if getattr(self, "uuid", None) is None:
+                if hasattr(self, "uuid"):
+                    self.uuid = uuid_module.uuid4()
+            self.full_page_title = self.get_iri()
             # All set successfully
             self.attributes_transformed = True
         return True
 
     def transform_references(self, dd: dict = None) -> bool:
+        # Ensure that the attributes are transformed before transforming the references
         if not self.attributes_transformed:
             self.transform_attributes(dd)
         if not self.references_transformed:
             # Test casting
-            superclass = self.__class__.__bases__[0]
-            self.casted_instance = self.cast_none_to_default(cls=superclass)
+            # superclass = self.__class__.__bases__[0]
+            # Todo: this might cast with attributes not yet set
+            # self.casted_instance = self.cast_none_to_default(cls=superclass)
             # All set successfully
             self.references_transformed = True
         return True
 
-    def cast_to_superclass(self, dd: dict = None, return_casted: bool = False) -> bool:
+    def cast_to_superclass(
+        self, dd: dict = None, return_casted: bool = False
+    ) -> Union[bool, Type[model.OswBaseModel]]:
         """Casts the instance to the superclass of the inheriting class. Assumes that
         the first base of the inheriting class is the target class."""
         if not self.references_transformed:
             self.transform_references(dd)
-        else:
-            superclass = self.__class__.__bases__[0]
-            self.casted_instance = self.cast_none_to_default(cls=superclass)
+
+        superclass = self.__class__.__bases__[0]
+        self.casted_instance = self.cast_none_to_default(cls=superclass)
         if return_casted:
             return self.casted_instance
         return True

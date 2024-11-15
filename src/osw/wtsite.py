@@ -385,7 +385,10 @@ class WtSite:
                     cookie.domain, cookie.path, cookie.name
                 )
 
-    def prefix_search(self, text: Union[str, wt.SearchParam]):
+    class SearchParam(wt.SearchParam):
+        pass
+
+    def prefix_search(self, text: Union[str, SearchParam]):
         """Send a prefix search request to the site.
 
         Parameters
@@ -399,7 +402,7 @@ class WtSite:
         """
         return wt.prefix_search(self._site, text)
 
-    def semantic_search(self, query: Union[str, wt.SearchParam]):
+    def semantic_search(self, query: Union[str, SearchParam]):
         """Send a swm ask query to the site.
 
         Parameters
@@ -922,7 +925,7 @@ class WtSite:
 
     def get_file_info_and_usage(
         self,
-        page_titles: Union[str, List[str], wt.SearchParam],
+        page_titles: Union[str, List[str], SearchParam],
     ) -> list:
         """Get the file info and usage for one or more file pages.
 

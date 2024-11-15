@@ -5,6 +5,7 @@ This module provides convenience functions for osw-python.
 
 import importlib.util
 import re
+from io import TextIOWrapper
 from pathlib import Path
 from warnings import warn
 
@@ -33,8 +34,11 @@ CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / CREDENTIALS_FN_DEFAULT
 DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
 
 DEPENDENCIES = {
-    # "Entity": "Category:Entity",  # depends on nothing
+    # "Entity": "Category:Entity",  # depends on nothing#
+    "Category": "Category:Category",  # depends on Entity
+    "Property": "Category:Property",  # depends on Entity
     # "Item": "Category:Item",  # depends on Entity
+    "Characteristics": "Category:OSW93ccae36243542ceac6c951450a81d47",  # depends on Item
     # "Data": "Category:OSW2ac4493f8635481eaf1db961b63c8325", # depends on Item
     # "File": "Category:OSWff333fd349af4f65a69100405a9e60c7",  # depends on Data
     "LocalFile": "Category:OSW3e3f5dd4f71842fbb8f270e511af8031",  # depends on File
@@ -358,6 +362,7 @@ class DataModel(OswBaseModel):
 
 def import_with_fallback(
     to_import: Union[List[DataModel], Dict[str, str]],
+    caller_globals: dict,
     module: str = None,
     dependencies: Dict[str, str] = None,
     domain: str = None,
@@ -370,6 +375,9 @@ def import_with_fallback(
     to_import
         List of DataModel objects or a dictionary, with (key: value) pairs (class_name:
         osw_fpt) to import.
+    caller_globals
+        (Mandatory!) The globals dictionary as returned by globals() in the calling
+        script.
     module
         (Optional) The module to import the data models from. Used only if to_import
         is of type List[Dict]. Defaults to 'osw.model.entity' if not specified.
@@ -380,9 +388,16 @@ def import_with_fallback(
         The domain of the OSL instance to connect to, if the dependencies are not
         available in the local osw.model.entity module.
 
+    Examples
+    --------
+    >>> import_with_fallback(
+    >>>     [DataModel(module="osw.controller.file.base",class_name="FileController")],
+    >>>     globals(),
+    >>> )
+
     Returns
     -------
-
+    None
     """
     if isinstance(to_import, dict):
         # The arg 'to_import' should have the right structure to act as 'dependencies'
@@ -398,11 +413,16 @@ def import_with_fallback(
             )
             for key, value in to_import.items()
         ]
+    if to_import is None:
+        raise ValueError(
+            "Either the argument 'to_import' or 'dependencies' must be passed to the "
+            "function import_with_fallback()."
+        )
     try:
         # Try to import the listed data models from the (listed) module(s)
         for ti in to_import:
             # Raises AttributeError if the target could not be found
-            globals()[ti.class_name] = getattr(
+            caller_globals[ti.class_name] = getattr(
                 importlib.import_module(ti.module), ti.class_name
             )
     except Exception as e:
@@ -419,7 +439,6 @@ def import_with_fallback(
         }
         dependencies.update(new_dependencies)
         if not dependencies:
-            # If dependencies is still an empty dict,
             raise AttributeError(
                 f"An exception occurred while loading the module dependencies: \n'{e}'"
                 "No 'dependencies' were passed to the function import_with_fallback() "
@@ -427,7 +446,7 @@ def import_with_fallback(
             )
         warn(
             f"An exception occurred while loading the module dependencies: \n'{e}'"
-            "You will be now have to connect to an OSW instance to fetch the "
+            "You will now have to connect to an OSW instance to fetch the "
             "dependencies from!"
         )
         if domain is None:
@@ -441,7 +460,7 @@ def import_with_fallback(
         # Try again to import the data models
         for ti in to_import:
             # Raises AttributeError if the target could not be found
-            globals()[ti.class_name] = getattr(
+            caller_globals[ti.class_name] = getattr(
                 importlib.import_module(ti.module), ti.class_name
             )
 
@@ -465,6 +484,7 @@ import_with_fallback(
             class_name="WikiFileController",
         ),
     ],
+    caller_globals=globals(),
     dependencies=DEPENDENCIES,
 )
 
@@ -478,7 +498,7 @@ if TYPE_CHECKING:
 class FileResult(OswBaseModel):
     url_or_title: Optional[str] = None
     """The URL or full page title of the WikiFile page."""
-    file_io: Optional[TextIO] = None
+    file_io: Optional[Union[TextIO, TextIOWrapper, None]] = None
     """The file object. They type depends on the file type."""
     mode: str = "r"
     """The mode to open the file in. Default is 'r'. Implements the built-in open."""
@@ -512,7 +532,7 @@ class FileResult(OswBaseModel):
             mode = self.mode
         kwargs["mode"] = mode
         if self.file_io is None or self.file_io.closed:
-            return open(self.path, **kwargs)
+            self.file_io = open(self.path, **kwargs)
         return self.file_io
 
     def close(self) -> None:
@@ -538,7 +558,7 @@ class FileResult(OswBaseModel):
     def __enter__(self):
         """Open the file when entering the context manager."""
         if self.file_io is None or self.file_io.closed:
-            self.file_io = self.open()
+            self.open()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):

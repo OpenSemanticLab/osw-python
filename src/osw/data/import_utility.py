@@ -138,7 +138,7 @@ class HelperModel(model.OswBaseModel):
         return True
 
     @property
-    def casted(self):
+    def transformed(self):
         return self.cast_to_superclass(return_casted=True)
 
 

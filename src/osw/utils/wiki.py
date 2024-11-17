@@ -1,8 +1,7 @@
-from typing import Type, Union
 from uuid import UUID
 
-import osw.model.entity as model
-from osw.model.static import OswBaseModel
+# Legacy imports:
+from osw.model.static import get_full_title, get_namespace, get_title  # noqa: F401
 
 
 def get_osw_id(uuid: UUID) -> str:
@@ -34,51 +33,6 @@ def get_uuid(osw_id) -> UUID:
         uuid object, e.g., UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
     """
     return UUID(osw_id.replace("OSW", ""))
-
-
-def get_namespace(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str, None]:
-    """Determines the wiki namespace based on the entity's type/class
-
-    Parameters
-    ----------
-    entity
-        The entity to determine the namespace for
-
-    Returns
-    -------
-        The namespace as a string or None if the namespace could not be determined
-    """
-    return entity.get_namespace()
-
-
-def get_title(entity: model.Entity) -> Union[str, None]:
-    """Determines the wiki page title based on the entity's data
-
-    Parameters
-    ----------
-    entity
-        the entity to determine the title for
-
-    Returns
-    -------
-        the title as a string or None if the title could not be determined
-    """
-    return entity.get_title()
-
-
-def get_full_title(entity: model.Entity) -> Union[str, None]:
-    """determines the wiki full title (namespace:title) based on the entity's data
-
-    Parameters
-    ----------
-    entity
-        the entity to determine the full title for
-
-    Returns
-    -------
-        the full title as a string or None if the title could not be determined
-    """
-    return entity.get_full_title()
 
 
 def namespace_from_full_title(full_title: str) -> str:

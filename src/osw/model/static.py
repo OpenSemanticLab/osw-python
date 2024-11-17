@@ -2,7 +2,9 @@
 This module is to be imported in the dynamically created and updated entity.py module.
 """
 
+from types import NoneType
 from typing import TYPE_CHECKING, Type, TypeVar, Union
+from uuid import UUID
 
 from pydantic.v1 import BaseModel
 
@@ -79,10 +81,10 @@ def custom_isinstance(obj: Union[type, T], class_name: str) -> bool:
 @_basemodel_decorator
 class OswBaseModel(BaseModel):
 
-    class Config:
-        strict = False  # Additional fields are allowed
-        validate_assignment = True  # Ensures that the assignment of a value to a
-        # field is validated
+    # class Config:
+    #     strict = False  # Additional fields are allowed
+    #     validate_assignment = True  # Ensures that the assignment of a value to a
+    #     field is validated
 
     def full_dict(self, **kwargs):  # extent BaseClass export function
         d = super().dict(**kwargs)
@@ -116,7 +118,12 @@ class OswBaseModel(BaseModel):
         includes None values, the attribute is not passed to the instance of the
         target class, which will then fall back to the default."""
 
-        def test_if_empty_list_or_none(obj) -> bool:
+        def test_if_empty_list_or_none(
+            obj: Union[
+                NoneType,
+                list,
+            ]
+        ) -> bool:
             if obj is None:
                 return True
             elif isinstance(obj, list):
@@ -134,61 +141,43 @@ class OswBaseModel(BaseModel):
             del combined_args["type"]
         return cls(**combined_args)
 
-    def get_uuid(self) -> Union[str, None]:
+    def get_uuid(self) -> Union[str, UUID, NoneType]:
+        """Getter for the attribute 'uuid' of the entity
+
+        Returns
+        -------
+            The uuid as a string or None if the uuid could not be determined
+        """
         return getattr(self, "uuid", None)
 
-    def get_osw_id(self) -> Union[str, None]:
-        osw_id = getattr(self, "osw_id", None)
-        uuid = self.get_uuid()
-        from_uuid = None if uuid is None else f"OSW{str(uuid).replace('-', '')}"
-        if osw_id is None:
-            return from_uuid
-        if osw_id != from_uuid:
-            raise ValueError(f"OSW-ID does not match UUID: {osw_id} != {from_uuid}")
-        return osw_id
+    def get_osw_id(self) -> Union[str, NoneType]:
+        """Determines the OSW-ID based on the entity's uuid.
 
-    def get_namespace(self) -> Union[str, None]:
+        Returns
+        -------
+            The OSW-ID as a string or None if the OSW-ID could not be determined
+        """
+        return get_osw_id(self)
+
+    def get_namespace(self) -> Union[str, NoneType]:
         """Determines the wiki namespace based on the entity's type/class
 
         Returns
         -------
             The namespace as a string or None if the namespace could not be determined
         """
-        namespace = None
+        return get_namespace(self)
 
-        if hasattr(self, "meta") and self.meta and self.meta.wiki_page:
-            if self.meta.wiki_page.namespace:
-                namespace = self.meta.wiki_page.namespace
+    def get_title(self) -> Union[str, NoneType]:
+        """Determines the wiki page title based on the entity's data
 
-        if namespace is None:
-            if custom_issubclass(self, "Entity"):
-                namespace = "Category"
-            elif custom_isinstance(self, "Category"):
-                namespace = "Category"
-            elif custom_issubclass(self, "Characteristic"):
-                namespace = "Category"
-            elif custom_isinstance(self, "Item"):
-                namespace = "Item"
-            elif custom_isinstance(self, "Property"):
-                namespace = "Property"
-            elif custom_isinstance(self, "WikiFile"):
-                namespace = "File"
+        Returns
+        -------
+            The title as a string or None if the title could not be determined
+        """
+        return get_title(self)
 
-        return namespace
-
-    def get_title(self) -> Union[str, None]:
-        title = None
-
-        if hasattr(self, "meta") and self.meta and self.meta.wiki_page:
-            if self.meta.wiki_page.title:
-                title = self.meta.wiki_page.title
-
-        if title is None:
-            title = self.get_osw_id()
-
-        return title
-
-    def get_iri(self) -> Union[str, None]:
+    def get_iri(self) -> Union[str, NoneType]:
         """Determines the IRI / wiki full title (namespace:title) based on the entity's
         data
 
@@ -196,12 +185,111 @@ class OswBaseModel(BaseModel):
         -------
             The full title as a string or None if the title could not be determined.
         """
-        namespace = self.get_namespace()
-        title = self.get_title()
-        if namespace is not None and title is not None:
-            return namespace + ":" + title
-        elif title is not None:
-            return title
+        return get_full_title(self)
+
+
+def get_osw_id(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str, NoneType]:
+    """Determines the OSW-ID based on the entity's data - either from the entity's
+    attribute 'osw_id' or 'uuid'.
+
+    Parameters
+    ----------
+    entity
+        The entity to determine the OSW-ID for
+
+    Returns
+    -------
+        The OSW-ID as a string or None if the OSW-ID could not be determined
+    """
+    osw_id = getattr(entity, "osw_id", None)
+    uuid = entity.get_uuid()
+    from_uuid = None if uuid is None else f"OSW{str(uuid).replace('-', '')}"
+    if osw_id is None:
+        return from_uuid
+    if osw_id != from_uuid:
+        raise ValueError(f"OSW-ID does not match UUID: {osw_id} != {from_uuid}")
+    return osw_id
+
+
+def get_namespace(
+    entity: Union[OswBaseModel, Type[OswBaseModel]]
+) -> Union[str, NoneType]:
+    """Determines the wiki namespace based on the entity's type/class
+
+    Parameters
+    ----------
+    entity
+        The entity to determine the namespace for
+
+    Returns
+    -------
+        The namespace as a string or None if the namespace could not be determined
+    """
+    namespace = None
+
+    if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
+        if entity.meta.wiki_page.namespace:
+            namespace = entity.meta.wiki_page.namespace
+
+    if namespace is None:
+        if custom_issubclass(entity, "Entity"):
+            namespace = "Category"
+        elif custom_isinstance(entity, "Category"):
+            namespace = "Category"
+        elif custom_issubclass(entity, "Characteristic"):
+            namespace = "Category"
+        elif custom_isinstance(entity, "Item"):
+            namespace = "Item"
+        elif custom_isinstance(entity, "Property"):
+            namespace = "Property"
+        elif custom_isinstance(entity, "WikiFile"):
+            namespace = "File"
+
+    return namespace
+
+
+def get_title(entity: OswBaseModel) -> Union[str, NoneType]:
+    """Determines the wiki page title based on the entity's data
+
+    Parameters
+    ----------
+    entity
+        the entity to determine the title for
+
+    Returns
+    -------
+        the title as a string or None if the title could not be determined
+    """
+    title = None
+
+    if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
+        if entity.meta.wiki_page.title:
+            title = entity.meta.wiki_page.title
+
+    if title is None:
+        title = get_osw_id(entity)
+
+    return title
+
+
+def get_full_title(entity: OswBaseModel) -> Union[str, NoneType]:
+    """determines the wiki full title (namespace:title) based on the entity's data
+
+    Parameters
+    ----------
+    entity
+        the entity to determine the full title for
+
+    Returns
+    -------
+        the full title as a string or None if the title could not be determined
+    """
+    namespace = get_namespace(entity)
+    title = get_title(entity)
+    if namespace is not None and title is not None:
+        return namespace + ":" + title
+    elif title is not None:
+        return title
 
 
 class Ontology(OswBaseModel):

@@ -9,8 +9,8 @@ from warnings import warn
 import yaml
 from pydantic.v1 import PrivateAttr
 
+from osw.custom_types import FilePath
 from osw.model.static import OswBaseModel
-from osw.types import FilePath
 
 CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
 

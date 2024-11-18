@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic.v1 import BaseModel
 
-from osw.types import NoneType
+from osw.custom_types import NoneType
 
 T = TypeVar("T", bound=BaseModel)
 

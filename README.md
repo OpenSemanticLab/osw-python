@@ -3,7 +3,8 @@
 [![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticLab/osw-python/main.svg)](https://coveralls.io/r/OpenSemanticLab/osw)
 [![docs](xx.xx)](https://opensemanticlab.github.io/osw-python/)
 ![license](https://img.shields.io/github/license/OpenSemanticLab/osw-python.svg)
-[![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json)](https://pydantic.dev)
+<!-- [![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.
+com/pydantic/pydantic/main/docs/badge/v2.json)](https://pydantic.dev) -->
 [![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
 
 # osw

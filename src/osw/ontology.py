@@ -738,7 +738,7 @@ class OntologyImporter(OswBaseModel):
                 if not hasattr(e, "subclass_of"):
                     e.subclass_of = []
                 if len(e.subclass_of) == 0:
-                    e.subclass_of = self.import_config.meta_class_title
+                    e.subclass_of.append(self.import_config.meta_class_title)
             elif namespace == "Property":
                 smw_import_type = "Type:" + e.cast(model.Property).property_type
             else:

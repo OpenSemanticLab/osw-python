@@ -7,9 +7,10 @@ from typing import List, Optional, Union
 from warnings import warn
 
 import yaml
-from pydantic.v1 import FilePath, PrivateAttr
+from pydantic.v1 import PrivateAttr
 
 from osw.model.static import OswBaseModel
+from osw.types import FilePath
 
 CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
 
@@ -254,6 +255,7 @@ class CredentialManager(OswBaseModel):
             if self.cred_filepath is None:
                 filepath_ = [Path.cwd() / CREDENTIALS_FN_DEFAULT]
         if set_cred_filepath:
+            # Creates error if file does not exist -> Using custom FilePath
             self.cred_filepath = filepath_
         for fp in filepath_:
             file = Path(fp)

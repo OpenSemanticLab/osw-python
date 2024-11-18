@@ -9,7 +9,7 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Optional, Type, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 from warnings import warn
 
 import rdflib
@@ -969,6 +969,10 @@ class OSW(BaseModel):
         """A list of OverwriteClassParam objects. If a class specific overwrite setting
         is set, this setting is used.
         """
+        change_id: Optional[str] = None
+        """ID to document the change. Entities within the same store_entity() call will
+        share the same change_id. This parameter can also be used to link multiple
+        store_entity() calls."""
         meta_category_title: Optional[str] = "Category:Category"
         debug: Optional[bool] = False
         _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
@@ -981,6 +985,15 @@ class OSW(BaseModel):
             super().__init__(**data)
             if not isinstance(self.entities, list):
                 self.entities = [self.entities]
+            if self.change_id is None:
+                self.change_id = str(uuid4())
+            for entity in self.entities:
+                if not hasattr(entity, "meta"):
+                    entity.meta = model.Meta()
+                if entity.meta.change_id is None:
+                    entity.meta.change_id = []
+                if self.change_id not in entity.meta.change_id:
+                    entity.meta.change_id.append(self.change_id)
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
@@ -1006,9 +1019,15 @@ class OSW(BaseModel):
                     self._overwrite_per_class["by name"][model_name] = param
                     self._overwrite_per_class["by type"][model_type] = param
 
+    class StoreEntityResult(OswBaseModel):
+        """Result of store_entity()"""
+
+        change_id: str
+        """The ID of the change"""
+
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
-    ) -> None:
+    ) -> StoreEntityResult:
         """stores the given dataclass instance as OSW page by calling BaseModel.json()
 
         Parameters
@@ -1171,6 +1190,7 @@ class OSW(BaseModel):
                 handle_upload_object_(upload_object)
                 for upload_object in upload_object_list
             ]
+        return OSW.StoreEntityResult(change_id=param.change_id)
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
@@ -1304,126 +1324,6 @@ class OSW(BaseModel):
         full_page_titles = self.site.semantic_search(search_param)
         return full_page_titles
 
-    class JsonLdMode(str, Enum):
-        """enum for jsonld processing mode"""
-
-        expand = "expand"
-        flatten = "flatten"
-        compact = "compact"
-        frame = "frame"
-
-    class ExportJsonLdParams(OswBaseModel):
-        context_loader_config: Optional[WtSite.JsonLdContextLoaderParams] = None
-        """The configuration for the JSON-LD context loader."""
-        entities: Union[OswBaseModel, List[OswBaseModel]]
-        """The entities to convert to JSON-LD. Can be a single entity or a list of
-        entities."""
-        resolve_context: Optional[bool] = True
-        """If True, remote context URLs are resolved."""
-        mode: Optional[OSW.JsonLdMode] = "expand"
-        """The JSON-LD processing mode to apply if resolve_context is True."""
-        context: Optional[Union[str, list, Dict[str, Any]]] = None
-        """The JSON-LD context to apply. Replaces any existing context."""
-        additional_context: Optional[Union[str, list, Dict[str, Any]]] = None
-        """The JSON-LD context to apply on top of the existing context."""
-        frame: Optional[Dict[str, Any]] = None
-        """The JSON-LD frame to use for framed mode. If not set, the existing context is used"""
-        build_rdf_graph: Optional[bool] = False
-        """If True, the output is a graph."""
-        debug: Optional[bool] = False
-
-        def __init__(self, **data):
-            super().__init__(**data)
-            if not isinstance(self.entities, list):
-                self.entities = [self.entities]
-
-    class ExportJsonLdResult(OswBaseModel):
-        documents: List[Union[Dict[str, Any]]]
-        """A single JSON-LD document per entity"""
-        graph_document: Dict[str, Any] = None
-        """A single JSON-LD document with a @graph element containing all entities"""
-        graph: rdflib.Graph = None
-        """RDF graph containing all entities. Build only if build_rdf_graph is True"""
-
-        class Config:
-            arbitrary_types_allowed = True
-
-    def export_jsonld(self, params: ExportJsonLdParams) -> ExportJsonLdResult:
-        """Exports the given entity/entities as JSON-LD."""
-
-        if params.resolve_context:
-            jsonld.set_document_loader(
-                self.site.get_jsonld_context_loader(params.context_loader_config)
-            )
-
-        documents = []
-        graph_document = {"@graph": []}
-        graph = None
-        if params.build_rdf_graph:
-            graph = rdflib.Graph()
-            prefixes = self.site.get_prefix_dict()
-            for prefix in prefixes:
-                graph.bind(prefix, prefixes[prefix])
-
-        for e in params.entities:
-            data = json.loads(e.json(exclude_none=True, indent=4, ensure_ascii=False))
-
-            data["@context"] = []
-            if params.context is None:
-                for t in e.type:
-                    data["@context"].append("/wiki/" + t)
-                if params.context is not None:
-                    data["@context"].append(params.context)
-            else:
-                data["@context"] = {
-                    **self.site.get_jsonld_context_prefixes(),
-                    **params.context,
-                }
-            if params.additional_context is not None:
-                if data["@context"] is None:
-                    data["@context"] = []
-                elif not isinstance(data["@context"], list):
-                    data["@context"] = [data["@context"]]
-                data["@context"].append(params.additional_context)
-
-            data["@id"] = get_full_title(e)
-
-            if params.resolve_context:
-                graph_document["@graph"].append(jsonld.expand(data))
-                if params.mode == "expand":
-                    data = jsonld.expand(data)
-                    if isinstance(data, list):
-                        data = data[0]
-                elif params.mode == "flatten":
-                    data = jsonld.flatten(data)
-                elif params.mode == "compact":
-                    # data = jsonld.expand(data)
-                    # if isinstance(data, list): data = data[0]
-                    data = jsonld.compact(
-                        data,
-                        data["@context"] if params.context is None else params.context,
-                    )
-                elif params.mode == "frame":
-                    data = jsonld.frame(
-                        data,
-                        (
-                            {"@context": data["@context"]}
-                            if params.frame is None
-                            else params.frame
-                        ),
-                    )
-
-                if params.build_rdf_graph:
-                    graph.parse(data=json.dumps(data), format="json-ld")
-
-            documents.append(data)
-
-        result = OSW.ExportJsonLdResult(
-            documents=documents, graph_document=graph_document, graph=graph
-        )
-        return result
-
 
 OSW._ApplyOverwriteParam.update_forward_refs()
 OSW.StoreEntityParam.update_forward_refs()
-OSW.ExportJsonLdParams.update_forward_refs()

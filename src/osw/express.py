@@ -7,6 +7,7 @@ import importlib.util
 import re
 from io import TextIOWrapper
 from pathlib import Path
+from uuid import uuid4
 from warnings import warn
 
 from typing_extensions import (
@@ -300,6 +301,7 @@ class OswExpress(OSW):
         label: Optional[List[model.Label]] = None,
         name: Optional[str] = None,
         description: Optional[List[model.Description]] = None,
+        change_id: Optional[str] = None,
         **properties: Dict[str, Any],
     ) -> "UploadFileResult":
         """Upload a file to an OSL page.
@@ -327,6 +329,9 @@ class OswExpress(OSW):
         description
             The description to set on the WikiFile data model prior to uploading it to the
             OSL instance.
+        change_id
+            The id of the change to use for the upload. If None, a new change id will be
+            generated.
         properties
             The properties to set on the WikiFile data model prior to uploading it to
             the OSL instance. Properties listed here, won't overwrite properties handed
@@ -781,7 +786,7 @@ class UploadFileResult(FileResult, WikiFileController):
     overwrite: OVERWRITE_CLASS_OPTIONS = OverwriteOptions.true
     """If True, the file will be overwritten if it already exists. If False, the file
     will not be uploaded if it already exists. See osw.core for more information."""
-    change_id: Optional[List[str]] = None
+    change_id: Optional[str] = None
     """The change ID of the WikiFile page to upload the file to, stored in the meta
     property."""
 
@@ -870,15 +875,24 @@ class UploadFileResult(FileResult, WikiFileController):
                     domain=data.get("domain"),
                     cred_mngr=data.get("cred_mngr"),
                 )
+        # If no change_id is given, generate a new one
+        if data.get("change_id") is None:
+            data["change_id"] = str(uuid4())
+        # Change_id will be returned in the UploadFileResult.change_id attribute
         # If given set titel and namespace
         if data.get("target_fpt") is not None:
             namespace = data.get("target_fpt").split(":")[0]
             title = data.get("target_fpt").split(":")[-1]
             wiki_page = model.WikiPage(namespace=namespace, title=title)
             data["meta"] = model.Meta(wiki_page=wiki_page)
-            if data.get("change_id") is not None:
-                data["meta"].change_id = data.get("change_id")
             data["title"] = title
+        # Set change_id to existing meta
+        for meta in [data.get("meta"), getattr(data["source_file_controller"], "meta")]:
+            if meta is not None:
+                if getattr(meta, "change_id", None) is None:
+                    meta.change_id = [data["change_id"]]
+                else:
+                    meta.change_id.append(data.get("change_id"))
         # Clean data dict
         data = {key: value for key, value in data.items() if value is not None}
         # Create the WikiFileController from the source_file_controller
@@ -908,6 +922,7 @@ def osw_upload_file(
     label: Optional[List[model.Label]] = None,
     name: Optional[str] = None,
     description: Optional[List[model.Description]] = None,
+    change_id: Optional[str] = None,
     **properties: Dict[str, Any],
 ) -> UploadFileResult:
     """Upload a file to an OSL page.
@@ -949,6 +964,9 @@ def osw_upload_file(
     description
         The description to set on the WikiFile data model prior to uploading it to the
         OSL instance.
+    change_id
+        The change ID of the WikiFile page to upload the file to, stored in the meta
+        property.
     properties
         The properties to set on the WikiFile data model prior to uploading it to
         the OSL instance. Properties listed here, won't overwrite properties handed

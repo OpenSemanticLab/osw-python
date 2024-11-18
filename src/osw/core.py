@@ -988,7 +988,7 @@ class OSW(BaseModel):
             if self.change_id is None:
                 self.change_id = str(uuid4())
             for entity in self.entities:
-                if not hasattr(entity, "meta"):
+                if getattr(entity, "meta", None) is None:
                     entity.meta = model.Meta()
                 if entity.meta.change_id is None:
                     entity.meta.change_id = []

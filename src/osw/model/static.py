@@ -82,10 +82,11 @@ def custom_isinstance(obj: Union[type, T], class_name: str) -> bool:
 @_basemodel_decorator
 class OswBaseModel(BaseModel):
 
-    # class Config:
-    #     strict = False  # Additional fields are allowed
-    #     validate_assignment = True  # Ensures that the assignment of a value to a
-    #     field is validated
+    class Config:
+        #     strict = False
+        # Additional fields are allowed
+        validate_assignment = True
+        # Ensures that the assignment of a value to a field is validated
 
     def full_dict(self, **kwargs):  # extent BaseClass export function
         d = super().dict(**kwargs)

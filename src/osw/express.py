@@ -27,6 +27,7 @@ import osw.model.entity as model
 from osw.auth import CREDENTIALS_FN_DEFAULT, CredentialManager
 from osw.core import OSW, OVERWRITE_CLASS_OPTIONS, OverwriteOptions
 from osw.model.static import OswBaseModel
+from osw.utils.wiki import namespace_from_full_title, title_from_full_title
 from osw.wtsite import WtSite
 
 # Definition of constants
@@ -667,13 +668,14 @@ class DownloadFileResult(FileResult, LocalFileController):
             data = {key: value for key, value in data.items() if value is not None}
             super().__init__(**data)  # data includes "path"
         else:
-            if data.get("osw_express") is None:
-                data["osw_express"] = OswExpress(
+            osw_obj: OswExpress = data.get("osw_express")
+            if osw_obj is None:
+                osw_obj = OswExpress(
                     domain=data.get("domain"),
                     cred_mngr=data.get("cred_mngr"),
                 )
             title: str = "File:" + url_or_title.split("File:")[-1]
-            file = data.get("osw_express").load_entity(title)
+            file = osw_obj.load_entity(title)
             wf: WikiFileController = file.cast(
                 WikiFileController, osw=data.get("osw_express")
             )
@@ -818,7 +820,11 @@ class UploadFileResult(FileResult, WikiFileController):
             data["source_file_controller"] = LocalFileController(path=data.get("path"))
         elif isinstance(source, IO):
             data["source_file_controller"] = InMemoryController(stream=source)
-
+        else:
+            raise ValueError(
+                "The 'source' argument must be a LocalFileController, WikiFileController,"
+                " str, Path or IO object."
+            )
         # If url_or_title is given, it either
         # * contains a valid domain, which can be used in osw_express
         # * contains a full page title, which is the target page
@@ -881,8 +887,8 @@ class UploadFileResult(FileResult, WikiFileController):
         # Change_id will be returned in the UploadFileResult.change_id attribute
         # If given set titel and namespace
         if data.get("target_fpt") is not None:
-            namespace = data.get("target_fpt").split(":")[0]
-            title = data.get("target_fpt").split(":")[-1]
+            namespace = namespace_from_full_title(data.get("target_fpt"))
+            title = title_from_full_title(data.get("target_fpt"))
             wiki_page = model.WikiPage(namespace=namespace, title=title)
             data["meta"] = model.Meta(wiki_page=wiki_page)
             data["title"] = title
@@ -900,8 +906,8 @@ class UploadFileResult(FileResult, WikiFileController):
             other=data.get("source_file_controller"),
             osw=data.get("osw_express"),
             **data,
-            # Passes arguments to the cast() method, e.g. overwrite the label
-            # cast method will call init
+            # Passes arguments to the cast() method, e.g., overwrite the label
+            #  cast method will call init
         )
         # Upload to the target OSW instance
         wfc.put_from(data.get("source_file_controller"), **data)
@@ -1011,4 +1017,3 @@ OswExpress.update_forward_refs()
 #      * Save a pandas.DataFrame to a WikiFile (as table, e.g. as csv, xlsx,
 #        json)
 #    * Save a wiki page as pdf
-#  * make upload function work with IO objects

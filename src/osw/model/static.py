@@ -2,11 +2,12 @@
 This module is to be imported in the dynamically created and updated entity.py module.
 """
 
-from types import NoneType
 from typing import TYPE_CHECKING, Type, TypeVar, Union
 from uuid import UUID
 
 from pydantic.v1 import BaseModel
+
+from osw.types import NoneType
 
 T = TypeVar("T", bound=BaseModel)
 

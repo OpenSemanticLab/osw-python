@@ -668,19 +668,19 @@ class OSW(BaseModel):
                     )
                     schemas.append(schema)
                     # generate model if not already exists
-                    cls = schema["title"]
-                    if not hasattr(model, cls):
+                    cls_name: str = schema["title"]
+                    if not hasattr(model, cls_name):
                         if param.autofetch_schema:
                             self.fetch_schema(
                                 OSW.FetchSchemaParam(
                                     schema_title=category, mode="append"
                                 )
                             )
-                    if not hasattr(model, cls):
+                    if not hasattr(model, cls_name):
                         schemas_fetched = False
                         print(
-                            f"Error: Model {cls} not found. Schema {category} needs to "
-                            f"be fetched first."
+                            f"Error: Model {cls_name} not found. Schema {category} "
+                            f"needs to be fetched first."
                         )
             if not schemas_fetched:
                 continue
@@ -689,7 +689,7 @@ class OSW(BaseModel):
                 print("Error: no schema defined")
 
             elif len(schemas) == 1:
-                cls = getattr(model, schemas[0]["title"])
+                cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
                 entity: model.Entity = cls(**jsondata)
 
             else:
@@ -1216,28 +1216,28 @@ class OSW(BaseModel):
         if comment is not None:
             entity.comment = comment
 
-        def delete_entity_(entity, comment_: str = None):
+        def delete_entity_(entity_, comment_: str = None):
             """Deletes the given entity from the OSW instance.
 
             Parameters
             ----------
-            entity:
+            entity_:
                 The dataclass instance to delete
             comment_:
                 Command for the change log, by default None
             """
             title_ = None
             namespace_ = None
-            if hasattr(entity, "meta"):
-                if entity.meta and entity.meta.wiki_page:
-                    if entity.meta.wiki_page.title:
-                        title_ = entity.meta.wiki_page.title
-                    if entity.meta.wiki_page.namespace:
-                        namespace_ = entity.meta.wiki_page.namespace
+            if hasattr(entity_, "meta"):
+                if entity_.meta and entity_.meta.wiki_page:
+                    if entity_.meta.wiki_page.title:
+                        title_ = entity_.meta.wiki_page.title
+                    if entity_.meta.wiki_page.namespace:
+                        namespace_ = entity_.meta.wiki_page.namespace
             if namespace_ is None:
-                namespace_ = get_namespace(entity)
+                namespace_ = get_namespace(entity_)
             if title_ is None:
-                title_ = OSW.get_osw_id(entity.uuid)
+                title_ = OSW.get_osw_id(entity_.uuid)
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
@@ -1263,7 +1263,9 @@ class OSW(BaseModel):
             _ = [delete_entity_(e, entity.comment) for e in entity.entities]
 
     class QueryInstancesParam(OswBaseModel):
-        categories: Union[Union[str, OswBaseModel], List[Union[str, OswBaseModel]]]
+        categories: Union[
+            Union[str, Type[OswBaseModel]], List[Union[str, Type[OswBaseModel]]]
+        ]
         parallel: Optional[bool] = None
         debug: Optional[bool] = False
         limit: Optional[int] = 1000
@@ -1272,20 +1274,20 @@ class OSW(BaseModel):
 
         @staticmethod
         def get_full_page_name_parts(
-            category_: Union[str, OswBaseModel]
+            category_: Union[str, Type[OswBaseModel]]
         ) -> Dict[str, str]:
             error_msg = (
                 f"Category must be a string like 'Category:<category name>' or a "
-                f"dataclass instance with a 'type' attribute. This error occurred on "
+                f"dataclass subclass with a 'type' attribute. This error occurred on "
                 f"'{str(category_)}'"
             )
             if isinstance(category_, str):
                 string_to_split = category_
-            elif isinstance(category_, OswBaseModel):
-                type_ = getattr(category_, "type", None)
-                if type_ is None:
+            elif issubclass(category_, OswBaseModel):
+                type_ = category_.__fields__.get("type")
+                if getattr(type_, "default", None) is None:
                     raise TypeError(error_msg)
-                string_to_split = type_[0]
+                string_to_split = type_.default[0]
             else:
                 raise TypeError(error_msg)
             if "Category:" not in string_to_split:

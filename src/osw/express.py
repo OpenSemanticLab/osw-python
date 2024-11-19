@@ -668,14 +668,13 @@ class DownloadFileResult(FileResult, LocalFileController):
             data = {key: value for key, value in data.items() if value is not None}
             super().__init__(**data)  # data includes "path"
         else:
-            osw_obj: OswExpress = data.get("osw_express")
-            if osw_obj is None:
-                osw_obj = OswExpress(
+            if data.get("osw_express") is None:
+                data["osw_express"] = OswExpress(
                     domain=data.get("domain"),
                     cred_mngr=data.get("cred_mngr"),
                 )
             title: str = "File:" + url_or_title.split("File:")[-1]
-            file = osw_obj.load_entity(title)
+            file = data.get("osw_express").load_entity(title)
             wf: WikiFileController = file.cast(
                 WikiFileController, osw=data.get("osw_express")
             )

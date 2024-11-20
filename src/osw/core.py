@@ -8,12 +8,14 @@ import re
 import sys
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID
 from warnings import warn
 
+import rdflib
 from jsonpath_ng.ext import parse
 from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
+from pyld import jsonld
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
@@ -23,6 +25,7 @@ from osw.utils.templates import (
 )
 from osw.utils.util import parallelize
 from osw.utils.wiki import (
+    get_full_title,
     get_namespace,
     get_title,
     get_uuid,
@@ -1300,6 +1303,109 @@ class OSW(BaseModel):
         full_page_titles = self.site.semantic_search(search_param)
         return full_page_titles
 
+    class JsonLdMode(str, Enum):
+        """enum for jsonld processing mode"""
+
+        expand = "expand"
+        flatten = "flatten"
+        compact = "compact"
+        frame = "frame"
+
+    class ExportJsonLdParams(OswBaseModel):
+        entities: Union[OswBaseModel, List[OswBaseModel]]
+        """The entities to convert to JSON-LD. Can be a single entity or a list of
+        entities."""
+        resolve_context: Optional[bool] = True
+        """If True, remote context URLs are resolved."""
+        mode: Optional[OSW.JsonLdMode] = "expand"
+        """The JSON-LD processing mode to apply if resolve_context is True."""
+        context: Optional[Union[str, list, Dict[str, Any]]] = None
+        """The JSON-LD context to use for compacted mode.
+        If not set, the existing context is used"""
+        frame: Optional[Dict[str, Any]] = None
+        """The JSON-LD frame to use for framed mode. If not set, the existing context is used"""
+        build_rdf_graph: Optional[bool] = False
+        """If True, the output is a graph."""
+        debug: Optional[bool] = False
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.entities, list):
+                self.entities = [self.entities]
+
+    class ExportJsonLdResult(OswBaseModel):
+        documents: List[Union[Dict[str, Any]]]
+        """A single JSON-LD document per entity"""
+        graph_document: Dict[str, Any] = None
+        """A single JSON-LD document with a @graph element containing all entities"""
+        graph: rdflib.Graph = None
+        """RDF graph containing all entities. Build only if build_rdf_graph is True"""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    def export_jsonld(self, params: ExportJsonLdParams) -> ExportJsonLdResult:
+        """Exports the given entity/entities as JSON-LD."""
+
+        if params.resolve_context:
+            jsonld.set_document_loader(self.site.get_jsonld_context_loader())
+
+        documents = []
+        graph_document = {"@graph": []}
+        graph = None
+        if params.build_rdf_graph:
+            graph = rdflib.Graph()
+            prefixes = self.site.get_prefix_dict()
+            for prefix in prefixes:
+                graph.bind(prefix, prefixes[prefix])
+
+        for e in params.entities:
+            data = json.loads(e.json(exclude_none=True, indent=4, ensure_ascii=False))
+
+            data["@context"] = []
+            for t in e.type:
+                data["@context"].append("/wiki/" + t)
+            if params.context is not None:
+                data["@context"].append(params.context)
+            data["@id"] = get_full_title(e)
+            # print(data)
+            if params.resolve_context:
+                graph_document["@graph"].append(jsonld.expand(data))
+                if params.mode == "expand":
+                    data = jsonld.expand(data)
+                    print(data)
+                    if isinstance(data, list):
+                        data = data[0]
+                elif params.mode == "flatten":
+                    data = jsonld.flatten(data)
+                elif params.mode == "compact":
+                    # data = jsonld.expand(data)
+                    # if isinstance(data, list): data = data[0]
+                    data = jsonld.compact(
+                        data,
+                        data["@context"] if params.context is None else params.context,
+                    )
+                elif params.mode == "frame":
+                    data = jsonld.frame(
+                        data,
+                        (
+                            {"@context": data["@context"]}
+                            if params.frame is None
+                            else params.frame
+                        ),
+                    )
+
+                if params.build_rdf_graph:
+                    graph.parse(data=json.dumps(data), format="json-ld")
+            print(data)
+            documents.append(data)
+
+        result = OSW.ExportJsonLdResult(
+            documents=documents, graph_document=graph_document, graph=graph
+        )
+        return result
+
 
 OSW._ApplyOverwriteParam.update_forward_refs()
 OSW.StoreEntityParam.update_forward_refs()
+OSW.ExportJsonLdParams.update_forward_refs()

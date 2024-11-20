@@ -17,6 +17,7 @@ from time import sleep
 from typing import Any, Dict, List, Optional, Union
 
 import mwclient
+import pyld
 import requests
 from jsonpath_ng.ext import parse
 from pydantic.v1 import FilePath
@@ -943,6 +944,99 @@ class WtSite:
         else:  # SearchParam
             title = page_titles
         return wt.get_file_info_and_usage(site=self._site, title=title)
+
+    def get_prefix_dict(self):
+        """Returns a dictionary with the custom prefixes used in osl"""
+        prefix_dict = {
+            "Property": "https://{domain}/id/Property-3A",
+            "File": "https://{domain}/id/File-3A",
+            "Category": "https://{domain}/id/Category-3A",
+            "Item": "https://{domain}/id/Item-3A",
+            "wiki": "https://{domain}/id/",
+        }
+        for prefix in prefix_dict:
+            prefix_dict[prefix] = prefix_dict[prefix].replace(
+                "{domain}", self._site.host
+            )
+        return prefix_dict
+
+    def replace_jsonld_context_mapping(self, context: Union[str, list, dict]):
+        """
+        interate over a jsonld context
+        set <prefix> to the value of <prefix>* if not set yet
+        handle string, list and dict values
+        handle mappings direct to iri as well as
+        {"@id": "http://example.org/property", @type": "@id"} and scoped contexts
+        """
+        if isinstance(context, str):
+            return context
+        if isinstance(context, list):
+            return [self.replace_jsonld_context_mapping(e) for e in context]
+        if isinstance(context, dict):
+            context_iter = context.copy()
+            for key in context_iter:
+                value = context[key]
+                if key == "wiki":
+                    context[key] = f"https://{self._site.host}/id/"
+                    # print(f"apply https://{self._site.host}/id/ to {key}")
+                if isinstance(value, str):
+                    base_key = key.split("*")[0]
+                    if base_key not in context:
+                        context[base_key] = value
+                        # print(f"apply {key} to {base_key}")
+                elif isinstance(value, list):
+                    context[key] = [
+                        self.replace_jsonld_context_mapping(e) for e in value
+                    ]
+                elif isinstance(value, dict):
+                    if "@id" in value:
+                        base_key = key.split("*")[0]
+                        if base_key not in context:
+                            context[base_key] = value
+                            print(f"apply {key} to {base_key}")
+                    elif "@context" in value:
+                        context[key] = self.replace_jsonld_context_mapping(
+                            value["@context"]
+                        )
+            return context
+
+    def get_jsonld_context_loader(self, *args, **kwargs):
+        """to overwrite the default jsonld document loader to load
+        relative context from the osl"""
+        requests_loader = pyld.documentloader.requests.requests_document_loader(
+            *args, **kwargs
+        )
+
+        def loader(url, options=None):
+            if options is None:
+                options = {}
+            # print("Requesting", url)
+            if "/wiki/" in url:
+                title = url.split("/wiki/")[-1].split("?")[0]
+                page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
+                if "JsonSchema:" in title:
+                    schema = page.get_slot_content("main")
+                else:
+                    schema = page.get_slot_content("jsonschema")
+                if isinstance(schema, str):
+                    schema = json.loads(schema)
+                schema["@context"] = self.replace_jsonld_context_mapping(
+                    schema["@context"]
+                )
+
+                doc = {
+                    "contentType": "application/json",
+                    "contextUrl": None,
+                    "documentUrl": url,
+                    "document": schema,
+                }
+                # print("Loaded", doc)
+                return doc
+
+            else:
+                return requests_loader(url, options)
+
+        return loader
 
 
 class WtPage:

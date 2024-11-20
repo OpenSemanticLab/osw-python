@@ -4,7 +4,6 @@ import re
 import uuid
 from typing import Dict, List, Literal, Optional, Type
 
-import pyld
 from pydantic.v1 import PrivateAttr
 from pyld import jsonld
 from rdflib import Graph
@@ -214,36 +213,7 @@ class OntologyImporter(OswBaseModel):
         """
 
         # overwrite the default document loader to load relative context from the wiki
-        def myloader(*args, **kwargs):
-            requests_loader = pyld.documentloader.requests.requests_document_loader(
-                *args, **kwargs
-            )
-
-            def loader(url, options=None):
-                if options is None:
-                    options = {}
-                if "/wiki/" in url:
-                    title = url.replace("/wiki/", "").split("?")[0]
-                    page = self.osw.site.get_page(
-                        WtSite.GetPageParam(titles=[title])
-                    ).pages[0]
-                    schema = page.get_slot_content("jsonschema")
-                    if isinstance(schema, str):
-                        schema = json.loads(schema)
-                    doc = {
-                        "contentType": "application/json",
-                        "contextUrl": None,
-                        "documentUrl": url,
-                        "document": schema,
-                    }
-                    return doc
-
-                else:
-                    return requests_loader(url, options)
-
-            return loader
-
-        jsonld.set_document_loader(myloader())
+        jsonld.set_document_loader(self.osw.site.get_jsonld_context_loader())
 
         self.import_config = config
 

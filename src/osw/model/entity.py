@@ -47,6 +47,7 @@ class WikiPage(OswBaseModel):
 
 
 class Meta(OswBaseModel):
+    uuid: UUID = Field(default_factory=uuid4, title="UUID")  # todo: code generator?
     wiki_page: Optional[WikiPage] = Field(None, title="Wiki page")
     """
     The wiki page containing this entity

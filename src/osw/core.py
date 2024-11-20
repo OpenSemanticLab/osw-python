@@ -1312,6 +1312,8 @@ class OSW(BaseModel):
         frame = "frame"
 
     class ExportJsonLdParams(OswBaseModel):
+        context_loader_config: Optional[WtSite.JsonLdContextLoaderParams] = None
+        """The configuration for the JSON-LD context loader."""
         entities: Union[OswBaseModel, List[OswBaseModel]]
         """The entities to convert to JSON-LD. Can be a single entity or a list of
         entities."""
@@ -1320,8 +1322,9 @@ class OSW(BaseModel):
         mode: Optional[OSW.JsonLdMode] = "expand"
         """The JSON-LD processing mode to apply if resolve_context is True."""
         context: Optional[Union[str, list, Dict[str, Any]]] = None
-        """The JSON-LD context to use for compacted mode.
-        If not set, the existing context is used"""
+        """The JSON-LD context to apply. Replaces any existing context."""
+        additional_context: Optional[Union[str, list, Dict[str, Any]]] = None
+        """The JSON-LD context to apply on top of the existing context."""
         frame: Optional[Dict[str, Any]] = None
         """The JSON-LD frame to use for framed mode. If not set, the existing context is used"""
         build_rdf_graph: Optional[bool] = False
@@ -1348,7 +1351,9 @@ class OSW(BaseModel):
         """Exports the given entity/entities as JSON-LD."""
 
         if params.resolve_context:
-            jsonld.set_document_loader(self.site.get_jsonld_context_loader())
+            jsonld.set_document_loader(
+                self.site.get_jsonld_context_loader(params.context_loader_config)
+            )
 
         documents = []
         graph_document = {"@graph": []}
@@ -1363,17 +1368,29 @@ class OSW(BaseModel):
             data = json.loads(e.json(exclude_none=True, indent=4, ensure_ascii=False))
 
             data["@context"] = []
-            for t in e.type:
-                data["@context"].append("/wiki/" + t)
-            if params.context is not None:
-                data["@context"].append(params.context)
+            if params.context is None:
+                for t in e.type:
+                    data["@context"].append("/wiki/" + t)
+                if params.context is not None:
+                    data["@context"].append(params.context)
+            else:
+                data["@context"] = {
+                    **self.site.get_jsonld_context_prefixes(),
+                    **params.context,
+                }
+            if params.additional_context is not None:
+                if data["@context"] is None:
+                    data["@context"] = []
+                elif not isinstance(data["@context"], list):
+                    data["@context"] = [data["@context"]]
+                data["@context"].append(params.additional_context)
+
             data["@id"] = get_full_title(e)
-            # print(data)
+
             if params.resolve_context:
                 graph_document["@graph"].append(jsonld.expand(data))
                 if params.mode == "expand":
                     data = jsonld.expand(data)
-                    print(data)
                     if isinstance(data, list):
                         data = data[0]
                 elif params.mode == "flatten":
@@ -1397,7 +1414,7 @@ class OSW(BaseModel):
 
                 if params.build_rdf_graph:
                     graph.parse(data=json.dumps(data), format="json-ld")
-            print(data)
+
             documents.append(data)
 
         result = OSW.ExportJsonLdResult(

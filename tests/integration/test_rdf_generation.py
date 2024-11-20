@@ -29,7 +29,10 @@ def test_local_rdf_graph_with_remote_context(wiki_domain, wiki_username, wiki_pa
 
     res = osw_obj.export_jsonld(
         params=OSW.ExportJsonLdParams(
-            entities=[i1, i2], mode=OSW.JsonLdMode.expand, build_rdf_graph=True
+            entities=[i1, i2],
+            mode=OSW.JsonLdMode.expand,
+            build_rdf_graph=True,
+            additional_context="https://json-ld.org/contexts/remote-context.jsonld",
         )
     )
 

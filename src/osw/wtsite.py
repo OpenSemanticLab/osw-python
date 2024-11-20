@@ -960,7 +960,24 @@ class WtSite:
             )
         return prefix_dict
 
-    def replace_jsonld_context_mapping(self, context: Union[str, list, dict]):
+    def get_jsonld_context_prefixes(self):
+        """Returns a dictionary with the custom prefixes used in osl for jsonld context"""
+        context = {}
+        for prefix, iri in self.get_prefix_dict().items():
+            context[prefix] = {
+                "@id": iri,
+                "@prefix": True,
+            }
+        return context
+
+    class JsonLdContextLoaderParams(OswBaseModel):
+        prefer_external_vocal: Optional[bool] = True
+        """Whether to prefer external vocabularies (e.g. skos, schema, etc.)
+        over the local properties (Namespace 'Property:')"""
+
+    def _replace_jsonld_context_mapping(
+        self, context: Union[str, list, dict], config: JsonLdContextLoaderParams
+    ):
         """
         interate over a jsonld context
         set <prefix> to the value of <prefix>* if not set yet
@@ -971,7 +988,7 @@ class WtSite:
         if isinstance(context, str):
             return context
         if isinstance(context, list):
-            return [self.replace_jsonld_context_mapping(e) for e in context]
+            return [self._replace_jsonld_context_mapping(e, config) for e in context]
         if isinstance(context, dict):
             context_iter = context.copy()
             for key in context_iter:
@@ -984,28 +1001,48 @@ class WtSite:
                     if base_key not in context:
                         context[base_key] = value
                         # print(f"apply {key} to {base_key}")
+                    if config.prefer_external_vocal is False:
+                        base_mapping = context[base_key]
+                        if isinstance(base_mapping, dict):
+                            base_mapping = base_mapping["@id"]
+                        mapping = value
+                        if mapping.startswith(
+                            "Property:"
+                        ) and not base_mapping.startswith("Property:"):
+                            context[base_key] = value
+                            # print(f"apply {key} to {base_key}")
                 elif isinstance(value, list):
                     context[key] = [
-                        self.replace_jsonld_context_mapping(e) for e in value
+                        self._replace_jsonld_context_mapping(e, config) for e in value
                     ]
                 elif isinstance(value, dict):
                     if "@id" in value:
                         base_key = key.split("*")[0]
                         if base_key not in context:
                             context[base_key] = value
-                            print(f"apply {key} to {base_key}")
+                            # print(f"apply {key} to {base_key}")
+                        if config.prefer_external_vocal is False:
+                            base_mapping = context[base_key]
+                            if isinstance(base_mapping, dict):
+                                base_mapping = base_mapping["@id"]
+                            mapping = value["@id"]
+                            if mapping.startswith(
+                                "Property:"
+                            ) and not base_mapping.startswith("Property:"):
+                                context[base_key] = value
+                                # print(f"apply {key} to {base_key}")
                     elif "@context" in value:
-                        context[key] = self.replace_jsonld_context_mapping(
-                            value["@context"]
+                        context[key] = self._replace_jsonld_context_mapping(
+                            value["@context"], config
                         )
             return context
 
-    def get_jsonld_context_loader(self, *args, **kwargs):
+    def get_jsonld_context_loader(self, params: JsonLdContextLoaderParams = None):
+        if params is None:
+            params = self.JsonLdContextLoaderParams()
+
         """to overwrite the default jsonld document loader to load
         relative context from the osl"""
-        requests_loader = pyld.documentloader.requests.requests_document_loader(
-            *args, **kwargs
-        )
 
         def loader(url, options=None):
             if options is None:
@@ -1020,8 +1057,8 @@ class WtSite:
                     schema = page.get_slot_content("jsonschema")
                 if isinstance(schema, str):
                     schema = json.loads(schema)
-                schema["@context"] = self.replace_jsonld_context_mapping(
-                    schema["@context"]
+                schema["@context"] = self._replace_jsonld_context_mapping(
+                    schema["@context"], params
                 )
 
                 doc = {
@@ -1034,6 +1071,9 @@ class WtSite:
                 return doc
 
             else:
+                requests_loader = (
+                    pyld.documentloader.requests.requests_document_loader()
+                )
                 return requests_loader(url, options)
 
         return loader

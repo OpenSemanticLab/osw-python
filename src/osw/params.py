@@ -1,5 +1,3 @@
-from typing_extensions import deprecated
-
 from osw.auth import CredentialManager  # noqa: F401
 from osw.core import (  # noqa: F401
     OSW,
@@ -23,8 +21,9 @@ class UserPwdCredential(CredentialManager.UserPwdCredential):
     pass
 
 
-class CredentialFallback(CredentialManager.CredentialFallback):
-    pass
+# Enum
+# class CredentialFallback(CredentialManager.CredentialFallback):
+#     pass
 
 
 class CredentialConfig(CredentialManager.CredentialConfig):
@@ -40,8 +39,9 @@ class SchemaRegistration(OSW.SchemaRegistration):
     pass
 
 
-class FetchSchemaMode(OSW.FetchSchemaMode):
-    pass
+# Enum
+# class FetchSchemaMode(OSW.FetchSchemaMode):
+#     pass
 
 
 class FetchSchemaParam(OSW.FetchSchemaParam):
@@ -73,11 +73,6 @@ class WtSiteConfig(WtSite.WtSiteConfig):
     pass
 
 
-@deprecated("Use WtSiteConfig instead")
-class WtSiteLegacyConfig(WtSite.WtSiteLegacyConfig):
-    pass
-
-
 class GetPageParam(WtSite.GetPageParam):
     pass
 
@@ -103,6 +98,10 @@ class ReadPagePackageParam(WtSite.ReadPagePackageParam):
 
 
 class UploadPagePackageParam(WtSite.UploadPagePackageParam):
+    pass
+
+
+class DeletePageParam(WtSite.DeletePageParam):
     pass
 
 

@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from pydantic.v1 import Field, constr
 
 from osw.model.static import OswBaseModel
+from osw.utils.strings import pascal_case
 
 
 class ReadAccess(OswBaseModel):
@@ -47,7 +48,7 @@ class WikiPage(OswBaseModel):
 
 
 class Meta(OswBaseModel):
-    uuid: UUID = Field(default_factory=uuid4, title="UUID")  # todo: code generator?
+    uuid: UUID = Field(default_factory=uuid4, title="UUID")
     wiki_page: Optional[WikiPage] = Field(None, title="Wiki page")
     """
     The wiki page containing this entity
@@ -100,6 +101,19 @@ class Entity(OswBaseModel):
     ] = Field(None, title="Statements")
     attachments: Optional[List[str]] = Field(None, title="File attachments")
     meta: Optional[Meta] = None
+
+    def __init__(self, **data):
+        if data.get("label"):
+            labels = []
+            for label in data["label"]:
+                if isinstance(label, dict):
+                    data["label"] = labels.append(Label(**label))
+                else:
+                    labels.append(Label(text=label))
+            data["label"] = labels
+        if data.get("name") is None and "label" in data:
+            data["name"] = pascal_case(data["label"][0].text)
+        super().__init__(**data)
 
 
 class ObjectStatement(OswBaseModel):

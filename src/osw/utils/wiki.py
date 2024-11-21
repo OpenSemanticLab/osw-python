@@ -1,3 +1,4 @@
+from copy import deepcopy
 from uuid import UUID
 
 # Legacy imports:
@@ -73,3 +74,33 @@ def is_empty(val):
     elif isinstance(val, list) or isinstance(val, str) or isinstance(val, dict):
         return len(val) == 0
     return False
+
+
+def remove_empty_strings(d: dict, inplace: bool = True) -> dict:
+    """Iterates through the dictionary structure and removes key-value pairs
+    where the value is an empty string
+
+    Parameters
+    ----------
+    d:
+        The dictionary to perform the operation on
+    inplace:
+        Whether to perform the operation in place or return a new dictionary
+
+    Returns
+    -------
+    result:
+        The modified dictionary
+    """
+    if not inplace:
+        d = deepcopy(d)
+    for key, value in d.items():
+        if isinstance(value, dict):
+            remove_empty_strings(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    remove_empty_strings(item)
+        if value == "":
+            del d[key]
+    return d

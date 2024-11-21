@@ -31,6 +31,7 @@ from osw.utils.wiki import (
     get_uuid,
     is_empty,
     namespace_from_full_title,
+    remove_empty_strings,
     title_from_full_title,
 )
 from osw.wiki_tools import SearchParam
@@ -604,6 +605,8 @@ class OSW(BaseModel):
         autofetch_schema: Optional[bool] = True
         """If true, load the corresponding schemas /
         categories ad-hoc if not already present"""
+        remove_empty_strings: Optional[bool] = True
+        """If true, remove key with an empty string value from the jsondata."""
         disable_cache: bool = False
         """If true, disable the cache for the loading process"""
 
@@ -659,6 +662,8 @@ class OSW(BaseModel):
             schemas = []
             schemas_fetched = True
             jsondata = page.get_slot_content("jsondata")
+            if param.remove_empty_strings:
+                remove_empty_strings(jsondata)
             if jsondata:
                 for category in jsondata["type"]:
                     schema = (
@@ -700,7 +705,7 @@ class OSW(BaseModel):
                 entity: model.Entity = cls(**jsondata)
 
             if entity is not None:
-                # make sure we do not override existing meta data
+                # make sure we do not override existing metadata
                 if not hasattr(entity, "meta") or entity.meta is None:
                     entity.meta = model.Meta()
                 if (
@@ -775,6 +780,7 @@ class OSW(BaseModel):
         namespace: Optional[str]
         meta_category_title: Optional[str]
         meta_category_template_str: Optional[str]
+        remove_empty_strings: Optional[bool] = False
         inplace: Optional[bool] = False
         debug: Optional[bool] = False
 
@@ -855,6 +861,8 @@ class OSW(BaseModel):
         ):
             # Use pydantic serialization, skip none values:
             new_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
+            if param.remove_empty_strings:
+                remove_empty_strings(new_content["jsondata"])
             set_content(new_content)
             page.changed = True
             return page  # Guard clause --> exit function
@@ -969,6 +977,8 @@ class OSW(BaseModel):
         """A list of OverwriteClassParam objects. If a class specific overwrite setting
         is set, this setting is used.
         """
+        remove_empty_strings: Optional[bool] = True
+        """If true, remove key with an empty string value from the jsondata."""
         change_id: Optional[str] = None
         """ID to document the change. Entities within the same store_entity() call will
         share the same change_id. This parameter can also be used to link multiple
@@ -1087,14 +1097,18 @@ class OSW(BaseModel):
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     meta_category_template_str=meta_category_template_str,
+                    remove_empty_strings=param.remove_empty_strings,
                     debug=param.debug,
                 )
             )
             if meta_category_template:
                 try:
+                    jsondata = page.get_slot_content("jsondata")
+                    if param.remove_empty_strings:
+                        remove_empty_strings(jsondata)
                     schema_str = eval_compiled_handlebars_template(
                         meta_category_template,
-                        page.get_slot_content("jsondata"),
+                        jsondata,
                         {
                             "_page_title": entity_title,  # Legacy
                             "_current_subject_": entity_title,
@@ -1208,7 +1222,9 @@ class OSW(BaseModel):
                 self.parallel = False
 
     def delete_entity(
-        self, entity: Union[OswBaseModel, DeleteEntityParam], comment: str = None
+        self,
+        entity: Union[OswBaseModel, List[OswBaseModel], DeleteEntityParam],
+        comment: str = None,
     ):
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):

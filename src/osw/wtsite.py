@@ -600,6 +600,65 @@ class WtSite:
         else:
             return [copy_single_page(content) for content in content_list]
 
+    class DeletePageParam(OswBaseModel):
+        page: Union["WtPage", List["WtPage"], str, List[str]]
+        comment: Optional[str] = None
+        debug: Optional[bool] = True
+        """If True, debug messages will be printed."""
+        parallel: Optional[bool] = None
+        """If true, processes the pages in parallel."""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+        def __init__(self, **data):
+            super().__init__(**data)
+            if not isinstance(self.page, list):
+                self.page = [self.page]
+            if not self.comment:
+                self.comment = "Deleted via osw-python"
+            if len(self.page) > 5 and self.parallel is None:
+                self.parallel = True
+
+    def delete_page(
+        self,
+        param: Union["WtPage", List["WtPage"], str, List[str], DeletePageParam],
+        comment: str = None,
+    ):
+        """Deletes a page or a list of pages from the site.
+
+        Parameters
+        ----------
+        param:
+            DeletePageParam object
+        comment:
+            The comment to leave when deleting the page
+        """
+        if not isinstance(param, WtSite.DeletePageParam):
+            param = WtSite.DeletePageParam(page=param)
+        if comment:
+            param.comment = comment
+        pages = []
+        for page in param.page:
+            if isinstance(page, str):
+                pages.append(WtPage(self, title=page, do_init=True))
+            else:
+                pages.append(page)
+        param.page = pages
+
+        def delete_single_page(page_: "WtPage", comment: str):
+            return page_.delete(comment=comment)
+
+        if param.parallel:
+            return ut.parallelize(
+                delete_single_page,
+                param.page,
+                comment=param.comment,
+                flush_at_end=param.debug,
+            )
+        else:
+            return [delete_single_page(page, param.comment) for page in param.page]
+
     class CreatePagePackageParam(OswBaseModel):
         """Parameter object for create_page_package method."""
 
@@ -1536,7 +1595,7 @@ class WtPage:
         """
         self._page.delete(comment)
 
-    def move(self, new_title: str, comment: str = None, redirect=True):
+    def move(self, new_title: str, comment: str = None, redirect: bool = True):
         """Moves (=renames) the page to a new title
 
         Parameters
@@ -1998,3 +2057,4 @@ WtSite.GetPageResult.update_forward_refs()
 WtSite.CreatePagePackageParam.update_forward_refs()
 WtSite.UploadPagePackageParam.update_forward_refs()
 WtSite.ReadPagePackageResult.update_forward_refs()
+WtSite.DeletePageParam.update_forward_refs()

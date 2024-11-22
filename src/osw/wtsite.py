@@ -15,11 +15,13 @@ from pathlib import Path
 from pprint import pprint
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
+from warnings import warn
 
 import mwclient
 import pyld
 import requests
 from jsonpath_ng.ext import parse
+from mwclient.page import Page as MwPage
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
 
@@ -639,25 +641,38 @@ class WtSite:
         if comment:
             param.comment = comment
         pages = []
+        string_in_pages = False
         for page in param.page:
             if isinstance(page, str):
-                pages.append(WtPage(self, title=page, do_init=True))
-            else:
+                string_in_pages = True
+                try:
+                    page = self._site.pages[page]
+                    pages.append(page)
+                except Exception as e:
+                    warn(
+                        f"Page '{page}' could not be added to the list of "
+                        f"to-be-deleted pages. The following Exception occurred:\n{e}"
+                    )
+            else:  # page is a WtPage object
                 pages.append(page)
-        param.page = pages
 
-        def delete_single_page(page_: "WtPage", comment: str):
-            return page_.delete(comment=comment)
+        if string_in_pages:
+            self._site.tokens["csrf"] = self._site.get_token("csrf")
+
+        def delete_single_page(page_: Union["WtPage", MwPage], comment: str):
+            if isinstance(page_, WtPage):
+                return page_.delete(comment=comment)
+            return page_.delete(reason=comment)
 
         if param.parallel:
             return ut.parallelize(
                 delete_single_page,
-                param.page,
+                pages,
                 comment=param.comment,
                 flush_at_end=param.debug,
             )
         else:
-            return [delete_single_page(page, param.comment) for page in param.page]
+            return [delete_single_page(page, param.comment) for page in pages]
 
     class CreatePagePackageParam(OswBaseModel):
         """Parameter object for create_page_package method."""

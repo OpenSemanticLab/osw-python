@@ -94,7 +94,9 @@ def remove_empty_strings(d: dict, inplace: bool = True) -> dict:
     """
     if not inplace:
         d = deepcopy(d)
-    for key, value in d.items():
+    keys = list(d.keys())
+    for key in keys:
+        value = d[key]
         if isinstance(value, dict):
             remove_empty_strings(value)
         elif isinstance(value, list):

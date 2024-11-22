@@ -104,13 +104,22 @@ class Entity(OswBaseModel):
 
     def __init__(self, **data):
         if data.get("label"):
+            if not isinstance(data["label"], list):
+                raise ValueError(
+                    "label must be a list of Label objects",
+                )
             labels = []
             for label in data["label"]:
                 if isinstance(label, dict):
-                    data["label"] = labels.append(Label(**label))
+                    labels.append(Label(**label))
                 else:
-                    labels.append(Label(text=label))
+                    # The list element should be a Label object
+                    labels.append(label)
             data["label"] = labels
+            if not all(isinstance(label, Label) for label in data["label"]):
+                raise ValueError(
+                    "label must be a list of Label objects",
+                )
         if data.get("name") is None and "label" in data:
             data["name"] = pascal_case(data["label"][0].text)
         super().__init__(**data)

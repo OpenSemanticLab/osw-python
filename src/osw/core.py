@@ -780,7 +780,7 @@ class OSW(BaseModel):
         namespace: Optional[str]
         meta_category_title: Optional[str]
         meta_category_template_str: Optional[str]
-        remove_empty_strings: Optional[bool] = False
+        remove_empty_strings: Optional[bool] = True
         inplace: Optional[bool] = False
         debug: Optional[bool] = False
 
@@ -892,6 +892,8 @@ class OSW(BaseModel):
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
             remote_content[slot] = page.get_slot_content(slot)
             # Todo: remote content does not contain properties that are not set
+        if param.remove_empty_strings:
+            remove_empty_strings(remote_content["jsondata"])
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
         if remote_content["footer"]:
@@ -902,6 +904,8 @@ class OSW(BaseModel):
         # Properties that are not set in the local content will be set to None
         # We want those not to be listed as keys
         local_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
+        if param.remove_empty_strings:
+            remove_empty_strings(local_content["jsondata"])
         if param.debug:
             print(f"'local_content': {str(remote_content)}")
         # Apply the overwrite logic

@@ -106,3 +106,35 @@ def remove_empty_strings(d: dict, inplace: bool = True) -> dict:
         if value == "":
             del d[key]
     return d
+
+
+def remove_empty(d: dict, inplace: bool = True) -> dict:
+    """Iterates through the dictionary structure and removes key-value pairs
+    where the value is an empty string, list, set or dictionary
+
+    Parameters
+    ----------
+    d:
+        The dictionary to perform the operation on
+    inplace:
+        Whether to perform the operation in place or return a new dictionary
+
+    Returns
+    -------
+    result:
+        The modified dictionary
+    """
+    if not inplace:
+        d = deepcopy(d)
+    keys = list(d.keys())
+    for key in keys:
+        value = d[key]
+        if isinstance(value, dict):
+            remove_empty(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    remove_empty(item)
+        if value in ["", [], {}, set()]:
+            del d[key]
+    return d

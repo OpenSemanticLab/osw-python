@@ -4,7 +4,7 @@ from uuid import UUID
 
 import osw.model.entity as model
 from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
-from osw.utils.wiki import remove_empty_strings
+from osw.utils.wiki import remove_empty
 from osw.wtsite import WtPage
 
 
@@ -58,8 +58,8 @@ def check_false(original: model.Entity, altered: model.Entity, stored: model.Ent
     assert stored.name == original.name
     # empty string property is removed on store and load:
     assert stored.iri == altered.iri
-    if len(original.description) == 0:
-        assert stored.description == original.description
+    if original.description is None or len(original.description) == 0:
+        assert stored.description == altered.description
     else:
         assert stored.description[0].text == original.description[0].text
     assert stored.query_label == altered.query_label  # value == None -->
@@ -108,7 +108,10 @@ def check_keep_existing(
     # assert stored.iri == original.iri
     # empty string property is removed on store and load:
     assert getattr(stored, "iri", None) is None
-    assert stored.description == original.description  # empty list
+    if original.description is None or len(original.description) == 0:  # empty list
+        assert stored.description is None
+    else:
+        assert stored.description[0].text == original.description[0].text
     assert stored.query_label == original.query_label
     assert stored.image == original.image
     assert getattr(stored, "attachments", None) is None
@@ -154,9 +157,9 @@ def test_apply_overwrite_policy():
             + OSW.get_osw_id(original_item_local.uuid)
         )
         jsondata = json.loads(original_item_local.json(exclude_none=True))
-        # Emulate the default setting for StoreEntityParam.remove_empty_strings,
+        # Emulate the default setting for StoreEntityParam.remove_empty,
         #  which is True and applied on store_entity
-        remove_empty_strings(jsondata)
+        remove_empty(jsondata)
 
         original_page.set_slot_content("jsondata", jsondata)
         # To reproduce what happens in the OSL instance, we need to get the content

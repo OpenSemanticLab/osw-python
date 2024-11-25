@@ -71,6 +71,8 @@ class FilePathDefault(OswBaseModel):
     def __eq__(self, other):
         if isinstance(other, CredentialsFpDefault):
             return self.default == other.default
+        elif isinstance(other, DownloadDirDefault):
+            return self.default == other.default
         return False
 
     @property

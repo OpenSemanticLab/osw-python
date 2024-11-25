@@ -639,6 +639,7 @@ class WtSite:
         if comment:
             param.comment = comment
         pages = []
+        print("Getting pages to delete ...")
         for page in param.page:
             if isinstance(page, str):
                 pages.append(WtPage(self, title=page, do_init=True))

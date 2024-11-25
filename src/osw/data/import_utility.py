@@ -12,11 +12,11 @@ from geopy import Nominatim
 from jsonpath_ng import ext as jp
 from pydantic.v1.fields import ModelField
 
-import osw.utils.strings as strutil
 from osw import wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.model import entity as model
+from osw.utils.regex import MatchResult, RegExPatternExtended
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
 from osw.wtsite import WtSite
 
@@ -502,8 +502,8 @@ def nan_empty_or_none(inp: Any) -> bool:
 
 
 def regex_match_list(
-    pattern: Union[str, strutil.RegExPatternExtended], list_of_strings: List[str]
-) -> List[Union[str, strutil.MatchResult]]:
+    pattern: Union[str, RegExPatternExtended], list_of_strings: List[str]
+) -> List[Union[str, MatchResult]]:
     """Returns a subset of the 'list_of_strings' that matched the regex 'pattern'.
 
     Parameters
@@ -522,7 +522,7 @@ def regex_match_list(
             if re.match(pattern=pattern, string=string):
                 matches.append(string)
         return matches
-    elif isinstance(pattern, strutil.RegExPatternExtended):
+    elif isinstance(pattern, RegExPatternExtended):
         matches = []
         for string in list_of_strings:
             match_result_obj = pattern.match(string)

@@ -1,7 +1,8 @@
 import uuid
 
 import osw.model.entity as model
-from osw.utils.strings import count_match_groups, pascal_case
+from osw.utils.regex import count_match_groups
+from osw.utils.strings import pascal_case
 from osw.utils.wiki import (
     get_full_title,
     get_namespace,

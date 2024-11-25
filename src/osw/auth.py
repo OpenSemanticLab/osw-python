@@ -9,7 +9,7 @@ from warnings import warn
 import yaml
 from pydantic.v1 import PrivateAttr
 
-from osw.custom_types import FilePath
+from osw.custom_types import PossibleFilePath
 from osw.model.static import OswBaseModel
 
 CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
@@ -18,9 +18,13 @@ CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
 class CredentialManager(OswBaseModel):
     """Handles credentials"""
 
-    cred_filepath: Optional[Union[Union[str, FilePath], List[Union[str, FilePath]]]]
+    cred_filepath: Optional[
+        Union[Union[str, PossibleFilePath], List[Union[str, PossibleFilePath]]]
+    ]
     """Filepath to yaml file with credentials for osw and connected services"""
-    cert_filepath: Optional[Union[Union[str, FilePath], List[Union[str, FilePath]]]]
+    cert_filepath: Optional[
+        Union[Union[str, PossibleFilePath], List[Union[str, PossibleFilePath]]]
+    ]
     """Filepath to the certificates for osw and connected services"""
 
     _credentials: List[BaseCredential] = PrivateAttr([])
@@ -234,7 +238,7 @@ class CredentialManager(OswBaseModel):
 
     def save_credentials_to_file(
         self,
-        filepath: Union[str, FilePath] = None,
+        filepath: Union[str, PossibleFilePath] = None,
         set_cred_filepath: bool = False,
     ):
         """Saves the in memory credentials to a file

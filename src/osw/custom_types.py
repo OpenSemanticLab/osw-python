@@ -10,7 +10,7 @@ else:
     from types import NoneType  # noqa: F401
 
 
-class FilePath(PydanticFilePath):
+class PossibleFilePath(PydanticFilePath):
     # Overwrite the Pydantic FilePath class to allow non-existing paths
     @classmethod
     def __get_validators__(cls):

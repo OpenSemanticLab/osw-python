@@ -7,8 +7,9 @@ from typing import List, Optional, Union
 from warnings import warn
 
 import yaml
-from pydantic.v1 import FilePath, PrivateAttr
+from pydantic.v1 import PrivateAttr
 
+from osw.custom_types import PossibleFilePath
 from osw.model.static import OswBaseModel
 
 CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
@@ -17,9 +18,13 @@ CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
 class CredentialManager(OswBaseModel):
     """Handles credentials"""
 
-    cred_filepath: Optional[Union[Union[str, FilePath], List[Union[str, FilePath]]]]
+    cred_filepath: Optional[
+        Union[Union[str, PossibleFilePath], List[Union[str, PossibleFilePath]]]
+    ]
     """Filepath to yaml file with credentials for osw and connected services"""
-    cert_filepath: Optional[Union[Union[str, FilePath], List[Union[str, FilePath]]]]
+    cert_filepath: Optional[
+        Union[Union[str, PossibleFilePath], List[Union[str, PossibleFilePath]]]
+    ]
     """Filepath to the certificates for osw and connected services"""
 
     _credentials: List[BaseCredential] = PrivateAttr([])
@@ -233,7 +238,7 @@ class CredentialManager(OswBaseModel):
 
     def save_credentials_to_file(
         self,
-        filepath: Union[str, FilePath] = None,
+        filepath: Union[str, PossibleFilePath] = None,
         set_cred_filepath: bool = False,
     ):
         """Saves the in memory credentials to a file
@@ -254,6 +259,7 @@ class CredentialManager(OswBaseModel):
             if self.cred_filepath is None:
                 filepath_ = [Path.cwd() / CREDENTIALS_FN_DEFAULT]
         if set_cred_filepath:
+            # Creates error if file does not exist -> Using custom FilePath
             self.cred_filepath = filepath_
         for fp in filepath_:
             file = Path(fp)

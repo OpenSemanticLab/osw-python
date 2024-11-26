@@ -37,7 +37,6 @@ local_file = osw_download_file(
     overwrite=True,  # Required if file already exists
 )
 local_file_path = local_file.path
-local_file.close()  # required to release the file lock
 
 # Open a file with context manager directly from an OSW instance
 with osw_download_file(

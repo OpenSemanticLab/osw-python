@@ -9,7 +9,7 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Optional, Type, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 from warnings import warn
 
 import rdflib
@@ -31,6 +31,7 @@ from osw.utils.wiki import (
     get_uuid,
     is_empty,
     namespace_from_full_title,
+    remove_empty,
     title_from_full_title,
 )
 from osw.wiki_tools import SearchParam
@@ -604,6 +605,9 @@ class OSW(BaseModel):
         autofetch_schema: Optional[bool] = True
         """If true, load the corresponding schemas /
         categories ad-hoc if not already present"""
+        remove_empty: Optional[bool] = True
+        """If true, remove key with an empty string, list, dict or set as value
+        from the jsondata."""
         disable_cache: bool = False
         """If true, disable the cache for the loading process"""
 
@@ -659,6 +663,8 @@ class OSW(BaseModel):
             schemas = []
             schemas_fetched = True
             jsondata = page.get_slot_content("jsondata")
+            if param.remove_empty:
+                remove_empty(jsondata)
             if jsondata:
                 for category in jsondata["type"]:
                     schema = (
@@ -668,19 +674,19 @@ class OSW(BaseModel):
                     )
                     schemas.append(schema)
                     # generate model if not already exists
-                    cls = schema["title"]
-                    if not hasattr(model, cls):
+                    cls_name: str = schema["title"]
+                    if not hasattr(model, cls_name):
                         if param.autofetch_schema:
                             self.fetch_schema(
                                 OSW.FetchSchemaParam(
                                     schema_title=category, mode="append"
                                 )
                             )
-                    if not hasattr(model, cls):
+                    if not hasattr(model, cls_name):
                         schemas_fetched = False
                         print(
-                            f"Error: Model {cls} not found. Schema {category} needs to "
-                            f"be fetched first."
+                            f"Error: Model {cls_name} not found. Schema {category} "
+                            f"needs to be fetched first."
                         )
             if not schemas_fetched:
                 continue
@@ -689,7 +695,7 @@ class OSW(BaseModel):
                 print("Error: no schema defined")
 
             elif len(schemas) == 1:
-                cls = getattr(model, schemas[0]["title"])
+                cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
                 entity: model.Entity = cls(**jsondata)
 
             else:
@@ -700,7 +706,7 @@ class OSW(BaseModel):
                 entity: model.Entity = cls(**jsondata)
 
             if entity is not None:
-                # make sure we do not override existing meta data
+                # make sure we do not override existing metadata
                 if not hasattr(entity, "meta") or entity.meta is None:
                     entity.meta = model.Meta()
                 if (
@@ -775,6 +781,7 @@ class OSW(BaseModel):
         namespace: Optional[str]
         meta_category_title: Optional[str]
         meta_category_template_str: Optional[str]
+        remove_empty: Optional[bool] = True
         inplace: Optional[bool] = False
         debug: Optional[bool] = False
 
@@ -840,8 +847,10 @@ class OSW(BaseModel):
                 page.set_slot_content(slot_, content_to_set[slot_])
 
         # Create a variable to hold the new content
-        new_content = {  # required for json parsing and header rendering
-            "header": "{{#invoke:Entity|header}}",  # required for footer rendering
+        new_content = {
+            # required for json parsing and header rendering
+            "header": "{{#invoke:Entity|header}}",
+            # required for footer rendering
             "footer": "{{#invoke:Entity|footer}}",
         }
         # Take the shortcut if
@@ -853,6 +862,8 @@ class OSW(BaseModel):
         ):
             # Use pydantic serialization, skip none values:
             new_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
+            if param.remove_empty:
+                remove_empty(new_content["jsondata"])
             set_content(new_content)
             page.changed = True
             return page  # Guard clause --> exit function
@@ -880,9 +891,10 @@ class OSW(BaseModel):
         remote_content = {}
         # Get the remote content
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
-            remote_content[slot] = page.get_slot_content(
-                slot
-            )  # Todo: remote content does not contain properties that are not set
+            remote_content[slot] = page.get_slot_content(slot)
+            # Todo: remote content does not contain properties that are not set
+        if param.remove_empty:
+            remove_empty(remote_content["jsondata"])
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
         if remote_content["footer"]:
@@ -893,6 +905,8 @@ class OSW(BaseModel):
         # Properties that are not set in the local content will be set to None
         # We want those not to be listed as keys
         local_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
+        if param.remove_empty:
+            remove_empty(local_content["jsondata"])
         if param.debug:
             print(f"'local_content': {str(remote_content)}")
         # Apply the overwrite logic
@@ -968,6 +982,12 @@ class OSW(BaseModel):
         """A list of OverwriteClassParam objects. If a class specific overwrite setting
         is set, this setting is used.
         """
+        remove_empty: Optional[bool] = True
+        """If true, remove key with an empty string value from the jsondata."""
+        change_id: Optional[str] = None
+        """ID to document the change. Entities within the same store_entity() call will
+        share the same change_id. This parameter can also be used to link multiple
+        store_entity() calls."""
         meta_category_title: Optional[str] = "Category:Category"
         debug: Optional[bool] = False
         _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
@@ -980,6 +1000,15 @@ class OSW(BaseModel):
             super().__init__(**data)
             if not isinstance(self.entities, list):
                 self.entities = [self.entities]
+            if self.change_id is None:
+                self.change_id = str(uuid4())
+            for entity in self.entities:
+                if getattr(entity, "meta", None) is None:
+                    entity.meta = model.Meta()
+                if entity.meta.change_id is None:
+                    entity.meta.change_id = []
+                if self.change_id not in entity.meta.change_id:
+                    entity.meta.change_id.append(self.change_id)
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
@@ -1005,9 +1034,15 @@ class OSW(BaseModel):
                     self._overwrite_per_class["by name"][model_name] = param
                     self._overwrite_per_class["by type"][model_type] = param
 
+    class StoreEntityResult(OswBaseModel):
+        """Result of store_entity()"""
+
+        change_id: str
+        """The ID of the change"""
+
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
-    ) -> None:
+    ) -> StoreEntityResult:
         """stores the given dataclass instance as OSW page by calling BaseModel.json()
 
         Parameters
@@ -1067,22 +1102,26 @@ class OSW(BaseModel):
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     meta_category_template_str=meta_category_template_str,
+                    remove_empty=param.remove_empty,
                     debug=param.debug,
                 )
             )
             if meta_category_template:
                 try:
+                    jsondata = page.get_slot_content("jsondata")
+                    if param.remove_empty:
+                        remove_empty(jsondata)
                     schema_str = eval_compiled_handlebars_template(
                         meta_category_template,
-                        page.get_slot_content("jsondata"),
+                        jsondata,
                         {
-                            "_page_title": entity_title,  # legacy
+                            "_page_title": entity_title,  # Legacy
                             "_current_subject_": entity_title,
                         },
                     )
                     schema = json.loads(schema_str)
-                    # put generated schema in definitions section
-                    # currently only enabled for Characteristics
+                    # Put generated schema in definitions section,
+                    #  currently only enabled for Characteristics
                     if hasattr(model, "CharacteristicType") and isinstance(
                         entity_, model.CharacteristicType
                     ):
@@ -1170,6 +1209,7 @@ class OSW(BaseModel):
                 handle_upload_object_(upload_object)
                 for upload_object in upload_object_list
             ]
+        return OSW.StoreEntityResult(change_id=param.change_id)
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
@@ -1187,7 +1227,9 @@ class OSW(BaseModel):
                 self.parallel = False
 
     def delete_entity(
-        self, entity: Union[OswBaseModel, DeleteEntityParam], comment: str = None
+        self,
+        entity: Union[OswBaseModel, List[OswBaseModel], DeleteEntityParam],
+        comment: str = None,
     ):
         """Deletes the given entity/entities from the OSW instance."""
         if not isinstance(entity, OSW.DeleteEntityParam):
@@ -1195,28 +1237,28 @@ class OSW(BaseModel):
         if comment is not None:
             entity.comment = comment
 
-        def delete_entity_(entity, comment_: str = None):
+        def delete_entity_(entity_, comment_: str = None):
             """Deletes the given entity from the OSW instance.
 
             Parameters
             ----------
-            entity:
+            entity_:
                 The dataclass instance to delete
             comment_:
                 Command for the change log, by default None
             """
             title_ = None
             namespace_ = None
-            if hasattr(entity, "meta"):
-                if entity.meta and entity.meta.wiki_page:
-                    if entity.meta.wiki_page.title:
-                        title_ = entity.meta.wiki_page.title
-                    if entity.meta.wiki_page.namespace:
-                        namespace_ = entity.meta.wiki_page.namespace
+            if hasattr(entity_, "meta"):
+                if entity_.meta and entity_.meta.wiki_page:
+                    if entity_.meta.wiki_page.title:
+                        title_ = entity_.meta.wiki_page.title
+                    if entity_.meta.wiki_page.namespace:
+                        namespace_ = entity_.meta.wiki_page.namespace
             if namespace_ is None:
-                namespace_ = get_namespace(entity)
+                namespace_ = get_namespace(entity_)
             if title_ is None:
-                title_ = OSW.get_osw_id(entity.uuid)
+                title_ = OSW.get_osw_id(entity_.uuid)
             if namespace_ is None or title_ is None:
                 print("Error: Unsupported entity type")
                 return
@@ -1242,7 +1284,9 @@ class OSW(BaseModel):
             _ = [delete_entity_(e, entity.comment) for e in entity.entities]
 
     class QueryInstancesParam(OswBaseModel):
-        categories: Union[Union[str, OswBaseModel], List[Union[str, OswBaseModel]]]
+        categories: Union[
+            Union[str, Type[OswBaseModel]], List[Union[str, Type[OswBaseModel]]]
+        ]
         parallel: Optional[bool] = None
         debug: Optional[bool] = False
         limit: Optional[int] = 1000
@@ -1251,20 +1295,20 @@ class OSW(BaseModel):
 
         @staticmethod
         def get_full_page_name_parts(
-            category_: Union[str, OswBaseModel]
+            category_: Union[str, Type[OswBaseModel]]
         ) -> Dict[str, str]:
             error_msg = (
                 f"Category must be a string like 'Category:<category name>' or a "
-                f"dataclass instance with a 'type' attribute. This error occurred on "
+                f"dataclass subclass with a 'type' attribute. This error occurred on "
                 f"'{str(category_)}'"
             )
             if isinstance(category_, str):
                 string_to_split = category_
-            elif isinstance(category_, OswBaseModel):
-                type_ = getattr(category_, "type", None)
-                if type_ is None:
+            elif issubclass(category_, OswBaseModel):
+                type_ = category_.__fields__.get("type")
+                if getattr(type_, "default", None) is None:
                     raise TypeError(error_msg)
-                string_to_split = type_[0]
+                string_to_split = type_.default[0]
             else:
                 raise TypeError(error_msg)
             if "Category:" not in string_to_split:

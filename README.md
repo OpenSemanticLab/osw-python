@@ -1,12 +1,18 @@
 [![PyPI-Server](https://img.shields.io/pypi/v/osw.svg)](https://pypi.org/project/osw/)
 [![DOI](https://zenodo.org/badge/458130867.svg)](https://zenodo.org/badge/latestdoi/458130867)
-[![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticLab/osw-python/main.svg)](https://coveralls.io/r/<USER>/osw)
+[![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticLab/osw-python/main.svg)](https://coveralls.io/r/OpenSemanticLab/osw)
+[![docs](xx.xx)](https://opensemanticlab.github.io/osw-python/)
+![license](https://img.shields.io/github/license/OpenSemanticLab/osw-python.svg)
+<!-- [![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.
+com/pydantic/pydantic/main/docs/badge/v2.json)](https://pydantic.dev) -->
 [![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
 
 # osw
 
 Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab.
-General features for object oriented interaction with knowledge graphs are planned to be moved to a standalone package: [oold-python](https://github.com/OpenSemanticWorld/oold-python)
+
+General features for object-oriented interaction with knowledge graphs are planned to be moved to a standalone package:
+[oold-python](https://github.com/OpenSemanticWorld/oold-python)
 
 ## Installation
 ```
@@ -47,6 +53,10 @@ os.environ["PATH"] += os.pathsep + "/home/jovyan/.local/bin"
 
 https://opensemanticlab.github.io/osw-python/
 
+### Tutorials
+
+Tutorials can be found at [tutorials](docs/tutorials/)
+- [Basics](docs/tutorials/basics.md) - a description of the data model of OpenSemanticLab and how to interact with it
 
 ## Development
 

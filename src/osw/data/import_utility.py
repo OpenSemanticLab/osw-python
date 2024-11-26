@@ -1,20 +1,22 @@
 import copy
+import inspect
 import re
 import uuid as uuid_module
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 import deepl
 import numpy as np
 from geopy import Nominatim
 from jsonpath_ng import ext as jp
+from pydantic.v1.fields import ModelField
 
-import osw.utils.strings as strutil
 from osw import wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.model import entity as model
+from osw.utils.regex import MatchResult, RegExPatternExtended
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
 from osw.wtsite import WtSite
 
@@ -28,41 +30,116 @@ REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
 
 # Classes
 class HelperModel(model.OswBaseModel):
+    """Helper class for model transformations. The first base of the inheriting class
+    should always be the target class and the second base should be this class.
+
+    Example
+    -------
+    >>> class Person(model.OswBaseModel):
+    >>>     first_name: str
+    >>>     surname: str
+    >>>     email: Set[str]
+    >>>
+    >>> john_dict = {"FirstName": "John", "LastName": "Doe", "Email": {
+    "john.doe@example.com"}}
+    >>>
+    >>> class PersonHelper(Person, HelperModel):
+    >>>     FirstName: Any
+    >>>     LastName: Any
+    >>>     Email: Any
+    >>>
+    >>>     def transform_attributes(self, dd: dict = None) -> bool:
+    >>>         super().transform_attributes(dd)
+    >>>         self.first_name = self.FirstName
+    >>>         self.surname = self.LastName
+    >>>         self.email = {self.Email}
+    >>>         return True
+    """
+
     # Custom attributes
     attributes_transformed: bool = False
     references_transformed: bool = False
     casted_instance: Any = None
     full_page_title: Optional[str]
 
-    def transform_attributes(self, dd: dict) -> bool:
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init_subclass__(cls, **kwargs):
+        """Will overwrite the annotations and fields of the inheriting class,
+        defined in the first base class with Optional[Any] annotations. This is
+        necessary to prevent errors when casting to the inheriting class."""
+        super().__init_subclass__(**kwargs)
+        first_base: Type[model.OswBaseModel] = cls.__bases__[0]
+        if not issubclass(first_base, model.OswBaseModel):
+            return None
+
+        model_fields = {}
+        constructor_kwargs = [
+            ele
+            for ele in list(inspect.signature(ModelField.__init__).parameters.keys())
+            if ele != "self"
+        ]
+        for field_name in first_base.__fields__:
+            model_field_kwargs = {}
+            for arg in constructor_kwargs:
+                arg_val = getattr(first_base.__fields__[field_name], arg)
+                if arg_val is None:
+                    # Keeps the default values of the ModelField class constructor
+                    continue
+                # Reuses values originally passed to construct the ModelField instance
+                model_field_kwargs[arg] = arg_val
+            # Overwrite the type and required model_field_kwargs
+            model_field_kwargs["type_"] = Optional[Any]
+            model_field_kwargs["required"] = False
+            # Create a new ModelField instance
+            model_fields[field_name] = ModelField(**model_field_kwargs)
+        for field_name in model_fields:
+            if field_name in cls.__fields__:  # Replace existing fields
+                cls.__fields__[field_name] = model_fields[field_name]
+            if field_name in cls.__annotations__:  # Replace existing annotations
+                cls.__annotations__[field_name] = Optional[Any]
+
+    def transform_attributes(self, dd: dict = None) -> bool:
         if not self.attributes_transformed:
-            uuid = uuid_module.uuid4()
-            if hasattr(self, "uuid"):
-                if self.uuid is not None:
-                    uuid = self.uuid
-            self.full_page_title = uuid_to_full_page_title(uuid=uuid)
+            if getattr(self, "uuid", None) is None:
+                if hasattr(self, "uuid"):
+                    self.uuid = uuid_module.uuid4()
+            self.full_page_title = self.get_iri()
             # All set successfully
             self.attributes_transformed = True
         return True
 
-    def transform_references(self, dd: dict) -> bool:
+    def transform_references(self, dd: dict = None) -> bool:
+        # Ensure that the attributes are transformed before transforming the references
         if not self.attributes_transformed:
             self.transform_attributes(dd)
         if not self.references_transformed:
             # Test casting
-            superclass = self.__class__.__bases__[0]
-            self.casted_instance = self.cast_none_to_default(cls=superclass)
+            # superclass = self.__class__.__bases__[0]
+            # Todo: this might cast with attributes not yet set
+            # self.casted_instance = self.cast_none_to_default(cls=superclass)
             # All set successfully
             self.references_transformed = True
         return True
 
-    def cast_to_superclass(self, dd):
+    def cast_to_superclass(
+        self, dd: dict = None, return_casted: bool = False
+    ) -> Union[bool, Type[model.OswBaseModel]]:
+        """Casts the instance to the superclass of the inheriting class. Assumes that
+        the first base of the inheriting class is the target class."""
         if not self.references_transformed:
             self.transform_references(dd)
-        else:
-            superclass = self.__class__.__bases__[0]
-            self.casted_instance = self.cast_none_to_default(cls=superclass)
+
+        superclass = self.__class__.__bases__[0]
+        self.casted_instance = self.cast_none_to_default(cls=superclass)
+        if return_casted:
+            return self.casted_instance
         return True
+
+    @property
+    def transformed(self):
+        return self.cast_to_superclass(return_casted=True)
 
 
 # Functions
@@ -89,6 +166,7 @@ def transform_attributes_and_merge(
     if not inplace:
         ent = copy.deepcopy(ent)
         ent_as_dict = copy.deepcopy(ent_as_dict)
+    # Transform attributes
     ent, ent_as_dict = loop_and_call_method(
         entities=ent,
         method_name="transform_attributes",
@@ -162,6 +240,7 @@ def get_uuid_from_object_via_type(obj: Any) -> Union[uuid_module.UUID, None]:
 
 def get_lang_specific_label(label: list, lang: str) -> Union[str, None]:
     """Get the label in a specific language from a list of labels"""
+    # todo: rework to not break on missing LangCode
     for ele in label:
         if ele["lang"] == model.LangCode(lang):
             return ele["text"]
@@ -310,15 +389,15 @@ def jsonpath_search_and_return_list(
     -------
     Searching through entites of type HelperWikiFile within all entities (
     entities_as_dict) and returning the full_page_title of entities matching filename
-    by the attribute name. Afterwards the attribute image is set to the result if it any
-    >>> res = diu.jsonpath_search_and_return_list(
+    by the attribute name. Afterward the attribute image is set to the result if it any
+    >>> res = jsonpath_search_and_return_list(
     >>>     jp_str=f'*[?name = "{filename}"]',
     >>>     val_key="full_page_title",
     >>>     search_tar=entities_as_dict,
     >>>     class_to_match=HelperWikiFile,
     >>> )
     >>> if len(res) > 0:
-    >>>     self.image = res[0]
+    >>>     image = res[0]
 
     """
     jp_parse = jp.parse(path=jp_str)
@@ -423,8 +502,8 @@ def nan_empty_or_none(inp: Any) -> bool:
 
 
 def regex_match_list(
-    pattern: Union[str, strutil.RegExPatternExtended], list_of_strings: List[str]
-) -> List[Union[str, strutil.MatchResult]]:
+    pattern: Union[str, RegExPatternExtended], list_of_strings: List[str]
+) -> List[Union[str, MatchResult]]:
     """Returns a subset of the 'list_of_strings' that matched the regex 'pattern'.
 
     Parameters
@@ -443,7 +522,7 @@ def regex_match_list(
             if re.match(pattern=pattern, string=string):
                 matches.append(string)
         return matches
-    elif isinstance(pattern, strutil.RegExPatternExtended):
+    elif isinstance(pattern, RegExPatternExtended):
         matches = []
         for string in list_of_strings:
             match_result_obj = pattern.match(string)

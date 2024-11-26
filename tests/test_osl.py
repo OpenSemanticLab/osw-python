@@ -4,6 +4,7 @@ from uuid import UUID
 
 import osw.model.entity as model
 from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
+from osw.utils.wiki import remove_empty
 from osw.wtsite import WtPage
 
 
@@ -55,9 +56,10 @@ def check_false(original: model.Entity, altered: model.Entity, stored: model.Ent
     but add those additionally present in the altered entity."""
     assert stored.label[0].text == original.label[0].text
     assert stored.name == original.name
-    assert stored.iri == original.iri
-    if len(original.description) == 0:
-        assert stored.description == original.description
+    # empty string property is removed on store and load:
+    assert stored.iri == altered.iri
+    if original.description is None or len(original.description) == 0:
+        assert stored.description == altered.description
     else:
         assert stored.description[0].text == original.description[0].text
     assert stored.query_label == altered.query_label  # value == None -->
@@ -74,6 +76,7 @@ def check_only_empty(
     entity in the OSW that are empty, but are not empty in the altered entity."""
     assert stored.label[0].text == original.label[0].text
     assert stored.name == original.name
+    # empty string property is removed on store and load:
     assert stored.iri == altered.iri
     assert stored.description[0].text == altered.description[0].text
     assert stored.query_label == altered.query_label
@@ -102,8 +105,13 @@ def check_keep_existing(
     'keep existing', which is supposed to keep the existing entity in the OSW."""
     assert stored.label[0].text == original.label[0].text
     assert stored.name == original.name
-    assert stored.iri == original.iri
-    assert stored.description == original.description  # empty list
+    # assert stored.iri == original.iri
+    # empty string property is removed on store and load:
+    assert getattr(stored, "iri", None) is None
+    if original.description is None or len(original.description) == 0:  # empty list
+        assert stored.description is None
+    else:
+        assert stored.description[0].text == original.description[0].text
     assert stored.query_label == original.query_label
     assert stored.image == original.image
     assert getattr(stored, "attachments", None) is None
@@ -135,7 +143,7 @@ def test_apply_overwrite_policy():
 
     for check in checks:
         # Create a new item with some properties
-        original_item = model.Item(
+        original_item_local = model.Item(
             label=[model.Label(text="My Item")],
             name="MyItem",
             iri="",  # Empty string property
@@ -146,11 +154,19 @@ def test_apply_overwrite_policy():
         original_page = OfflineWtPage(
             # wtSite=OSW.wt_site,  # todo: missing
             title="Item:"
-            + OSW.get_osw_id(original_item.uuid)
+            + OSW.get_osw_id(original_item_local.uuid)
         )
-        original_page.set_slot_content(
-            "jsondata", json.loads(original_item.json(exclude_none=True))
-        )
+        jsondata = json.loads(original_item_local.json(exclude_none=True))
+        # Emulate the default setting for StoreEntityParam.remove_empty,
+        #  which is True and applied on store_entity
+        remove_empty(jsondata)
+
+        original_page.set_slot_content("jsondata", jsondata)
+        # To reproduce what happens in the OSL instance, we need to get the content
+        #  from the page again
+        original_content = original_page.get_slot_content("jsondata")
+        # And create the original item from that content
+        original_item = model.Item(**original_content)
         # Alter some of the property values
         altered_props = {
             "label": [model.Label(text="My Item Duplicate")],

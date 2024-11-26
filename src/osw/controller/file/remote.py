@@ -4,7 +4,8 @@ from typing import IO, Any, Dict
 from osw.controller.file.base import FileController
 from osw.core import model
 
-# TODO: add addional remove file with https://docs.prefect.io/2.11.4/concepts/filesystems/
+# TODO: add additional remove file with
+#  https://docs.prefect.io/2.11.4/concepts/filesystems/
 
 
 # Note: the order of the base classes is important

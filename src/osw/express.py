@@ -5,13 +5,17 @@ This module provides convenience functions for osw-python.
 
 import importlib.util
 import re
+from io import TextIOWrapper
 from pathlib import Path
+from uuid import uuid4
 from warnings import warn
 
 from typing_extensions import (
     IO,
     TYPE_CHECKING,
     Any,
+    AnyStr,
+    Buffer,
     Dict,
     List,
     Optional,
@@ -23,6 +27,7 @@ import osw.model.entity as model
 from osw.auth import CREDENTIALS_FN_DEFAULT, CredentialManager
 from osw.core import OSW, OVERWRITE_CLASS_OPTIONS, OverwriteOptions
 from osw.model.static import OswBaseModel
+from osw.utils.wiki import namespace_from_full_title, title_from_full_title
 from osw.wtsite import WtSite
 
 # Definition of constants
@@ -31,8 +36,11 @@ CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / CREDENTIALS_FN_DEFAULT
 DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
 
 DEPENDENCIES = {
-    # "Entity": "Category:Entity",  # depends on nothing
+    # "Entity": "Category:Entity",  # depends on nothing#
+    "Category": "Category:Category",  # depends on Entity
+    "Property": "Category:Property",  # depends on Entity
     # "Item": "Category:Item",  # depends on Entity
+    "Characteristics": "Category:OSW93ccae36243542ceac6c951450a81d47",  # depends on Item
     # "Data": "Category:OSW2ac4493f8635481eaf1db961b63c8325", # depends on Item
     # "File": "Category:OSWff333fd349af4f65a69100405a9e60c7",  # depends on Data
     "LocalFile": "Category:OSW3e3f5dd4f71842fbb8f270e511af8031",  # depends on File
@@ -62,6 +70,8 @@ class FilePathDefault(OswBaseModel):
 
     def __eq__(self, other):
         if isinstance(other, CredentialsFpDefault):
+            return self.default == other.default
+        elif isinstance(other, DownloadDirDefault):
             return self.default == other.default
         return False
 
@@ -178,19 +188,22 @@ class OswExpress(OSW):
         self.cred_filepath = cred_filepath
 
     def __enter__(self):
+        """Return self when entering the context manager."""
         return self
 
     def __exit__(self):
+        """Close the connection to the OSL instance when exiting the context manager."""
         self.close_connection()
 
     def close_connection(self):
+        """Close the connection to the OSL instance."""
         self.site._site.connection.close()
 
     def shut_down(self):
+        """Makes sure this OSL instance can't be reused after it was shut down,
+        as the connection can't be reopened except when initializing a new instance."""
         self.close_connection()
         del self
-        # Make sure this osw instance can't be reused after it was shut down (the
-        # connection can't be reopened except when initializing a new instance)
 
     def install_dependencies(
         self,
@@ -291,6 +304,7 @@ class OswExpress(OSW):
         label: Optional[List[model.Label]] = None,
         name: Optional[str] = None,
         description: Optional[List[model.Description]] = None,
+        change_id: Optional[str] = None,
         **properties: Dict[str, Any],
     ) -> "UploadFileResult":
         """Upload a file to an OSL page.
@@ -318,6 +332,9 @@ class OswExpress(OSW):
         description
             The description to set on the WikiFile data model prior to uploading it to the
             OSL instance.
+        change_id
+            The id of the change to use for the upload. If None, a new change id will be
+            generated.
         properties
             The properties to set on the WikiFile data model prior to uploading it to
             the OSL instance. Properties listed here, won't overwrite properties handed
@@ -334,8 +351,10 @@ class OswExpress(OSW):
         data = {**locals(), **properties}
         # Clean data dict to avoid passing None values
         data = {key: value for key, value in data.items() if value is not None}
+        # Make sure self is passed as osw_express
+        data["osw_express"] = self
         # Initialize the UploadFileResult object
-        return UploadFileResult(source=source, osw_express=self, **data)
+        return UploadFileResult(source=source, **data)
 
 
 class DataModel(OswBaseModel):
@@ -350,7 +369,11 @@ class DataModel(OswBaseModel):
 
 
 def import_with_fallback(
-    to_import: List[DataModel], dependencies: Dict[str, str] = None, domain: str = None
+    to_import: Union[List[DataModel], Dict[str, str]],
+    caller_globals: dict,
+    module: str = None,
+    dependencies: Dict[str, str] = None,
+    domain: str = None,
 ):
     """Imports data models with a fallback to fetch the dependencies from an OSL
     instance if the data models are not available in the local osw.model.entity module.
@@ -358,7 +381,14 @@ def import_with_fallback(
     Parameters
     ----------
     to_import
-        List of DataModel objects to import.
+        List of DataModel objects or a dictionary, with (key: value) pairs (class_name:
+        osw_fpt) to import.
+    caller_globals
+        (Mandatory!) The globals dictionary as returned by globals() in the calling
+        script.
+    module
+        (Optional) The module to import the data models from. Used only if to_import
+        is of type List[Dict]. Defaults to 'osw.model.entity' if not specified.
     dependencies
         A dictionary with the keys being the names of the dependencies and the values
         being the full page name of the dependencies.
@@ -366,14 +396,41 @@ def import_with_fallback(
         The domain of the OSL instance to connect to, if the dependencies are not
         available in the local osw.model.entity module.
 
+    Examples
+    --------
+    >>> import_with_fallback(
+    >>>     [DataModel(module="osw.controller.file.base",class_name="FileController")],
+    >>>     globals(),
+    >>> )
+
     Returns
     -------
-
+    None
     """
+    if isinstance(to_import, dict):
+        # The arg 'to_import' should have the right structure to act as 'dependencies'
+        # Assume all DataModels are part of osw.model.entity
+        if module is None:
+            module = "osw.model.entity"
+        # A list of DataModels will be derived from the dict
+        to_import = [
+            DataModel(
+                module=module,
+                class_name=key,
+                osw_fpt=value,
+            )
+            for key, value in to_import.items()
+        ]
+    if to_import is None:
+        raise ValueError(
+            "Either the argument 'to_import' or 'dependencies' must be passed to the "
+            "function import_with_fallback()."
+        )
     try:
+        # Try to import the listed data models from the (listed) module(s)
         for ti in to_import:
             # Raises AttributeError if the target could not be found
-            globals()[ti.class_name] = getattr(
+            caller_globals[ti.class_name] = getattr(
                 importlib.import_module(ti.module), ti.class_name
             )
     except Exception as e:
@@ -381,24 +438,23 @@ def import_with_fallback(
             dependencies = {}
             warn(
                 "No 'dependencies' were passed to the function "
-                "import_with_fallback()!"
+                "import_with_fallback()! Trying to derive them from 'to_import'."
             )
         new_dependencies = {
-            f"{module.class_name}": module.osw_fpt
+            module.class_name: module.osw_fpt
             for module in to_import
             if module.osw_fpt is not None
         }
+        dependencies.update(new_dependencies)
         if not dependencies:
-            # If dependencies is an empty dict,
             raise AttributeError(
                 f"An exception occurred while loading the module dependencies: \n'{e}'"
                 "No 'dependencies' were passed to the function import_with_fallback() "
                 "and could not be derived from 'to_import'!"
             )
-        dependencies.update(new_dependencies)
         warn(
             f"An exception occurred while loading the module dependencies: \n'{e}'"
-            "You will be now have to connect to an OSW instance to fetch the "
+            "You will now have to connect to an OSW instance to fetch the "
             "dependencies from!"
         )
         if domain is None:
@@ -409,10 +465,10 @@ def import_with_fallback(
 
         osw_express.install_dependencies(dependencies, mode="append")
         osw_express.shut_down()  # Avoiding connection error
-        # Try again
+        # Try again to import the data models
         for ti in to_import:
             # Raises AttributeError if the target could not be found
-            globals()[ti.class_name] = getattr(
+            caller_globals[ti.class_name] = getattr(
                 importlib.import_module(ti.module), ti.class_name
             )
 
@@ -436,6 +492,7 @@ import_with_fallback(
             class_name="WikiFileController",
         ),
     ],
+    caller_globals=globals(),
     dependencies=DEPENDENCIES,
 )
 
@@ -449,7 +506,7 @@ if TYPE_CHECKING:
 class FileResult(OswBaseModel):
     url_or_title: Optional[str] = None
     """The URL or full page title of the WikiFile page."""
-    file: Optional[TextIO] = None
+    file_io: Optional[Union[TextIO, TextIOWrapper, None]] = None
     """The file object. They type depends on the file type."""
     mode: str = "r"
     """The mode to open the file in. Default is 'r'. Implements the built-in open."""
@@ -476,20 +533,45 @@ class FileResult(OswBaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def open(self, mode: str = "r", **kwargs):
+    def open(self, mode: str = None, **kwargs) -> TextIO:
+        """Open the file, if not already opened using the 'mode' argument (priority) or
+        the 'mode' attribute."""
+        if mode is None:
+            mode = self.mode
         kwargs["mode"] = mode
-        return open(self.path, **kwargs)
+        if self.file_io is None or self.file_io.closed:
+            self.file_io = open(self.path, **kwargs)
+        return self.file_io
 
-    def close(self):
-        self.file.close()
+    def close(self) -> None:
+        """Close the file, if not already closed."""
+        if self.file_io is None or self.file_io.closed:
+            warn("File already closed or not opened.")
+        else:
+            self.file_io.close()
 
-    def read(self, *args, **kwargs):
-        return self.file.read(*args, **kwargs)
+    def read(self, n: int = -1) -> AnyStr:
+        """Read the file. If n is not specified, the entire file will be read.
+        If the file is not already opened, it will be opened."""
+        if self.file_io is None or self.file_io.closed:
+            self.file_io = self.open(mode="r")
+        return self.file_io.read(n)
+
+    def write(self, s: Union[Buffer, AnyStr]):
+        """Write to the file. If the file is not already opened, it will be opened."""
+        if self.file_io is None or self.file_io.closed:
+            self.file_io = self.open(mode="w")
+        return self.file_io.write(s)
 
     def __enter__(self):
+        """Open the file when entering the context manager."""
+        if self.file_io is None or self.file_io.closed:
+            self.open()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """Close the file when exiting the context manager, and deletes the file if
+        'delete_after_use' was set."""
         self.close()
         if self.delete_after_use and self.path.exists():
             self.path.unlink()
@@ -505,6 +587,14 @@ class FileResult(OswBaseModel):
             if data.get(key) is None:
                 data[key] = value
         # Do replacements
+        if (
+            data.get("label") == InMemoryController.__fields__["label"].default
+            or data.get("label") == LocalFileController.__fields__["label"].default
+            or data.get("label") == WikiFileController.__fields__["label"].default
+        ):
+            # Make sure that the label is not set to the default value, it will be
+            # set by the source file controller
+            del data["label"]
         if data.get("cred_filepath") is None:
             data["cred_filepath"] = cred_filepath_default.get_default()
         if not data.get("cred_filepath").parent.exists():
@@ -603,8 +693,7 @@ class DownloadFileResult(FileResult, LocalFileController):
             data = {key: value for key, value in data.items() if value is not None}
             super().__init__(**{**lf.dict(), **data})
             self.put_from(wf)
-        # Do open
-        self.file = self.open(mode=data.get("mode"))
+        # File is only opened at request to avoid locking the file
 
 
 def osw_download_file(
@@ -700,7 +789,7 @@ class UploadFileResult(FileResult, WikiFileController):
     overwrite: OVERWRITE_CLASS_OPTIONS = OverwriteOptions.true
     """If True, the file will be overwritten if it already exists. If False, the file
     will not be uploaded if it already exists. See osw.core for more information."""
-    change_id: Optional[List[str]] = None
+    change_id: Optional[str] = None
     """The change ID of the WikiFile page to upload the file to, stored in the meta
     property."""
 
@@ -732,7 +821,11 @@ class UploadFileResult(FileResult, WikiFileController):
             data["source_file_controller"] = LocalFileController(path=data.get("path"))
         elif isinstance(source, IO):
             data["source_file_controller"] = InMemoryController(stream=source)
-
+        else:
+            raise ValueError(
+                "The 'source' argument must be a LocalFileController, WikiFileController,"
+                " str, Path or IO object."
+            )
         # If url_or_title is given, it either
         # * contains a valid domain, which can be used in osw_express
         # * contains a full page title, which is the target page
@@ -777,19 +870,36 @@ class UploadFileResult(FileResult, WikiFileController):
                 )
         # Create an osw_express object if not given
         if data.get("osw_express") is None:
-            data["osw_express"] = OswExpress(
-                domain=data.get("domain"),
-                cred_mngr=data.get("cred_mngr"),
-            )
+            create_new = True
+            # Try to get the osw_express object from the source_file_controller
+            if data.get("source_file_controller") is not None:
+                if hasattr(data["source_file_controller"], "osw_express"):
+                    create_new = False
+                    data["osw_express"] = data["source_file_controller"].osw_express
+            # Otherwise create a new osw_express object
+            if create_new:
+                data["osw_express"] = OswExpress(
+                    domain=data.get("domain"),
+                    cred_mngr=data.get("cred_mngr"),
+                )
+        # If no change_id is given, generate a new one
+        if data.get("change_id") is None:
+            data["change_id"] = str(uuid4())
+        # Change_id will be returned in the UploadFileResult.change_id attribute
         # If given set titel and namespace
         if data.get("target_fpt") is not None:
-            namespace = data.get("target_fpt").split(":")[0]
-            title = data.get("target_fpt").split(":")[-1]
+            namespace = namespace_from_full_title(data.get("target_fpt"))
+            title = title_from_full_title(data.get("target_fpt"))
             wiki_page = model.WikiPage(namespace=namespace, title=title)
             data["meta"] = model.Meta(wiki_page=wiki_page)
-            if data.get("change_id") is not None:
-                data["meta"].change_id = data.get("change_id")
             data["title"] = title
+        # Set change_id to existing meta
+        for meta in [data.get("meta"), getattr(data["source_file_controller"], "meta")]:
+            if meta is not None:
+                if getattr(meta, "change_id", None) is None:
+                    meta.change_id = [data["change_id"]]
+                else:
+                    meta.change_id.append(data.get("change_id"))
         # Clean data dict
         data = {key: value for key, value in data.items() if value is not None}
         # Create the WikiFileController from the source_file_controller
@@ -797,15 +907,14 @@ class UploadFileResult(FileResult, WikiFileController):
             other=data.get("source_file_controller"),
             osw=data.get("osw_express"),
             **data,
-            # Passes arguments to the cast() method, e.g. overwrite the label
-            # cast method will call init
+            # Passes arguments to the cast() method, e.g., overwrite the label
+            #  cast method will call init
         )
         # Upload to the target OSW instance
         wfc.put_from(data.get("source_file_controller"), **data)
         data["url_or_title"] = wfc.url
-        super().__init__(
-            **{**wfc.dict(), **data}
-        )  # Don't open the local (uploaded) file
+        super().__init__(**{**wfc.dict(), **data})
+        # Don't open the local (uploaded) file
 
 
 def osw_upload_file(
@@ -820,6 +929,7 @@ def osw_upload_file(
     label: Optional[List[model.Label]] = None,
     name: Optional[str] = None,
     description: Optional[List[model.Description]] = None,
+    change_id: Optional[str] = None,
     **properties: Dict[str, Any],
 ) -> UploadFileResult:
     """Upload a file to an OSL page.
@@ -861,6 +971,9 @@ def osw_upload_file(
     description
         The description to set on the WikiFile data model prior to uploading it to the
         OSL instance.
+    change_id
+        The change ID of the WikiFile page to upload the file to, stored in the meta
+        property.
     properties
         The properties to set on the WikiFile data model prior to uploading it to
         the OSL instance. Properties listed here, won't overwrite properties handed
@@ -905,4 +1018,3 @@ OswExpress.update_forward_refs()
 #      * Save a pandas.DataFrame to a WikiFile (as table, e.g. as csv, xlsx,
 #        json)
 #    * Save a wiki page as pdf
-#  * make upload function work with IO objects

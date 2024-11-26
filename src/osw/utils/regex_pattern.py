@@ -1,4 +1,4 @@
-from osw.utils.strings import RegExPatternExtended
+from osw.utils.regex import RegExPatternExtended
 
 REGEX_PATTERN_LIST = [
     RegExPatternExtended(

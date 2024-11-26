@@ -1,8 +1,8 @@
-from typing import Type, Union
+from copy import deepcopy
 from uuid import UUID
 
-import osw.model.entity as model
-from osw.model.static import OswBaseModel
+# Legacy imports:
+from osw.model.static import get_full_title, get_namespace, get_title  # noqa: F401
 
 
 def get_osw_id(uuid: UUID) -> str:
@@ -12,11 +12,11 @@ def get_osw_id(uuid: UUID) -> str:
     Parameters
     ----------
     uuid
-        uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+        An UUID object, e.g., UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
 
     Returns
     -------
-        OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+        OSW-ID string, e.g., OSW2ea5b605c91f4e5a95593dff79fdd4a5
     """
     return "OSW" + str(uuid).replace("-", "")
 
@@ -27,120 +27,13 @@ def get_uuid(osw_id) -> UUID:
     Parameters
     ----------
     osw_id
-        OSW-ID string, e. g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+        OSW-ID string, e.g., OSW2ea5b605c91f4e5a95593dff79fdd4a5
 
     Returns
     -------
-        uuid object, e. g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
+        uuid object, e.g., UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
     """
     return UUID(osw_id.replace("OSW", ""))
-
-
-def get_namespace(entity: Union[OswBaseModel, Type[OswBaseModel]]) -> Union[str, None]:
-    """determines the wiki namespace based on the entity's type/class
-
-    Parameters
-    ----------
-    entity
-        the entity to determine the namespace for
-
-    Returns
-    -------
-        the namespace as a string or None if the namespace could not be determined
-    """
-    namespace = None
-
-    if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
-        if entity.meta.wiki_page.namespace:
-            namespace = entity.meta.wiki_page.namespace
-
-    #  (model classes may not exist => try except)
-    #  note: this may not work properly with dynamic reloaded model module
-    #  note: some of these lines lead to AssertationError in coverage.py
-    #        and are therefore excluded from coverage
-    #        (see also https://github.com/OpenSemanticLab/osw-python/issues/74)
-    if namespace is None:
-        try:
-            if issubclass(entity, model.Entity):
-                namespace = "Category"
-        except (TypeError, AttributeError):
-            pass
-    if namespace is None:
-        try:
-            if isinstance(entity, model.Category):  # pragma: no cover
-                namespace = "Category"
-        except AttributeError:
-            pass
-    if namespace is None:
-        try:
-            if issubclass(entity, model.Characteristic):  # pragma: no cover
-                namespace = "Category"
-        except (TypeError, AttributeError):
-            pass
-    if namespace is None:
-        try:
-            if isinstance(entity, model.Item):
-                namespace = "Item"
-        except AttributeError:
-            pass
-    if namespace is None:
-        try:
-            if isinstance(entity, model.Property):  # pragma: no cover
-                namespace = "Property"
-        except AttributeError:
-            pass
-    if namespace is None:
-        try:
-            if isinstance(entity, model.WikiFile):  # pragma: no cover
-                namespace = "File"
-        except AttributeError:
-            pass
-
-    return namespace
-
-
-def get_title(entity: model.Entity) -> Union[str, None]:
-    """determines the wiki page title based on the entity's data
-
-    Parameters
-    ----------
-    entity
-        the entity to determine the title for
-
-    Returns
-    -------
-        the title as a string or None if the title could not be determined
-    """
-    title = None
-
-    if hasattr(entity, "meta") and entity.meta and entity.meta.wiki_page:
-        if entity.meta.wiki_page.title:
-            title = entity.meta.wiki_page.title
-
-    if title is None:
-        title = get_osw_id(entity.uuid)
-
-    return title
-
-
-def get_full_title(entity: model.Entity) -> Union[str, None]:
-    """determines the wiki full title (namespace:title) based on the entity's data
-
-    Parameters
-    ----------
-    entity
-        the entity to determine the full title for
-
-    Returns
-    -------
-        the full title as a string or None if the title could not be determined
-    """
-    namespace = get_namespace(entity)
-    title = get_title(entity)
-    if namespace is not None and title is not None:
-        return namespace + ":" + title
-    else:
-        return title
 
 
 def namespace_from_full_title(full_title: str) -> str:
@@ -170,7 +63,8 @@ def title_from_full_title(full_title: str) -> str:
     -------
         the title as a string
     """
-    return full_title.split(":")[-1]
+    namespace = full_title.split(":")[0]
+    return full_title.split(f"{namespace}:")[-1]
 
 
 def is_empty(val):
@@ -180,3 +74,67 @@ def is_empty(val):
     elif isinstance(val, list) or isinstance(val, str) or isinstance(val, dict):
         return len(val) == 0
     return False
+
+
+def remove_empty_strings(d: dict, inplace: bool = True) -> dict:
+    """Iterates through the dictionary structure and removes key-value pairs
+    where the value is an empty string
+
+    Parameters
+    ----------
+    d:
+        The dictionary to perform the operation on
+    inplace:
+        Whether to perform the operation in place or return a new dictionary
+
+    Returns
+    -------
+    result:
+        The modified dictionary
+    """
+    if not inplace:
+        d = deepcopy(d)
+    keys = list(d.keys())
+    for key in keys:
+        value = d[key]
+        if isinstance(value, dict):
+            remove_empty_strings(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    remove_empty_strings(item)
+        if value == "":
+            del d[key]
+    return d
+
+
+def remove_empty(d: dict, inplace: bool = True) -> dict:
+    """Iterates through the dictionary structure and removes key-value pairs
+    where the value is an empty string, list, set or dictionary
+
+    Parameters
+    ----------
+    d:
+        The dictionary to perform the operation on
+    inplace:
+        Whether to perform the operation in place or return a new dictionary
+
+    Returns
+    -------
+    result:
+        The modified dictionary
+    """
+    if not inplace:
+        d = deepcopy(d)
+    keys = list(d.keys())
+    for key in keys:
+        value = d[key]
+        if isinstance(value, dict):
+            remove_empty(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    remove_empty(item)
+        if value in ["", [], {}, set()]:
+            del d[key]
+    return d

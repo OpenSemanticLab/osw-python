@@ -257,7 +257,7 @@ class CredentialManager(OswBaseModel):
         if filepath is None:
             filepath_ = self.cred_filepath
             if self.cred_filepath is None:
-                filepath_ = [Path.cwd() / CREDENTIALS_FN_DEFAULT]
+                filepath_ = [Path.cwd() / "osw_files" / CREDENTIALS_FN_DEFAULT]
         if set_cred_filepath:
             # Creates error if file does not exist -> Using custom FilePath
             self.cred_filepath = filepath_

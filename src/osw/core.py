@@ -163,7 +163,7 @@ class OSW(BaseModel):
                 model_type = None
             else:
                 # Get class type if available
-                model_type = entity.__class__.__fields__["type"].default[0]
+                model_type = entity.__class__.__fields__["type"].get_default()[0]
             # Add entity to by_name
             if name not in by_name:
                 by_name[name] = []
@@ -1016,12 +1016,12 @@ class OSW(BaseModel):
                     True  # Set to True after implementation of asynchronous upload
                 )
             if self.overwrite is None:
-                self.overwrite = self.__fields__["overwrite"].default
+                self.overwrite = self.__fields__["overwrite"].get_default()
             self._overwrite_per_class = {"by name": {}, "by type": {}}
             if self.overwrite_per_class is not None:
                 for param in self.overwrite_per_class:
                     model_name = param.model.__name__
-                    model_type = param.model.__fields__["type"].default[0]
+                    model_type = param.model.__fields__["type"].get_default()[0]
                     if (
                         model_name in self._overwrite_per_class["by name"].keys()
                         or model_type in self._overwrite_per_class["by type"].keys()

@@ -24,17 +24,15 @@ from typing_extensions import (
 )
 
 import osw.model.entity as model
-from osw.auth import CREDENTIALS_FN_DEFAULT, CredentialManager
+from osw.auth import CredentialManager
 from osw.core import OSW, OVERWRITE_CLASS_OPTIONS, OverwriteOptions
+from osw.defaults import params as default_params
+from osw.defaults import paths as default_paths
 from osw.model.static import OswBaseModel
 from osw.utils.wiki import namespace_from_full_title, title_from_full_title
 from osw.wtsite import WtSite
 
 # Definition of constants
-BASE_PATH = Path.cwd()
-CREDENTIALS_FP_DEFAULT = BASE_PATH / "osw_files" / CREDENTIALS_FN_DEFAULT
-DOWNLOAD_DIR_DEFAULT = BASE_PATH / "osw_files" / "downloads"
-
 DEPENDENCIES = {
     # "Entity": "Category:Entity",  # depends on nothing#
     "Category": "Category:Category",  # depends on Entity
@@ -47,84 +45,6 @@ DEPENDENCIES = {
     # "RemoteFile": "Category:OSW05b244d0a669436e96fe4e1631d5a171",  # depends on File
     "WikiFile": "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",  # depends on RemoteFile
 }
-
-
-class FilePathDefault(OswBaseModel):
-    """A class to store the default file path. This is a helper class to make the
-    default file path, defined within this module, accessible from a calling script."""
-
-    default: Union[str, Path] = BASE_PATH
-
-    class Config:
-        arbitrary_types_allowed = True
-
-    def __init__(self, str_or_path: Union[str, Path] = BASE_PATH):
-        super().__init__(default=str_or_path)
-        self.default = Path(str_or_path)
-
-    def __str__(self):
-        return str(self.default)
-
-    def __repr__(self):
-        return f"FilePathDefault(str_or_path={self.default})"
-
-    def __eq__(self, other):
-        if isinstance(other, CredentialsFpDefault):
-            return self.default == other.default
-        elif isinstance(other, DownloadDirDefault):
-            return self.default == other.default
-        return False
-
-    @property
-    def path(self):
-        return Path(self.default)
-
-    def set_default(self, new: Union[str, Path]):
-        self.default = new
-
-    def get_default(self):
-        return self.default
-
-
-class CredentialsFpDefault(FilePathDefault):
-    """A class to store the default credentials filepath. This is a helper class to
-    make the default credentials file path, defined within this module, accessible
-    from a calling script."""
-
-    default: Union[str, Path] = CREDENTIALS_FP_DEFAULT
-
-    def __init__(self, str_or_path: Union[str, Path] = CREDENTIALS_FP_DEFAULT):
-        super().__init__(str_or_path)
-
-    def __repr__(self):
-        return f"CredentialsFpDefault(str_or_path={self.default})"
-
-
-class DownloadDirDefault(CredentialsFpDefault):
-    """A class to store the default download directory. This is a helper class to make
-    the default download directory, defined within this module, accessible from a
-    calling script."""
-
-    default: Union[str, Path] = DOWNLOAD_DIR_DEFAULT
-
-    def __init__(self, str_or_path: Union[str, Path] = DOWNLOAD_DIR_DEFAULT):
-        super().__init__(str_or_path)
-
-    def __repr__(self):
-        return f"DownloadDirDefault(str_or_path={self.default})"
-
-
-# Create instances for reuse
-"""Use the set_default method to change the default file path."""
-base_path_default = FilePathDefault()
-"""If you want to have the sub folders created in an directory that is not the current
-working directory of the calling script, use base_path_default.set_default(new_path)."""
-cred_filepath_default = CredentialsFpDefault()
-"""If you want to specify the saving location of the credentials file, use
-cred_filepath_default.set_default(new_path)."""
-download_dir_default = DownloadDirDefault()
-"""If you want to specify the default download directory, use
-  download_dir_default.set_default(new_path)."""
 
 
 class OswExpress(OSW):
@@ -151,7 +71,7 @@ class OswExpress(OSW):
         cred_mngr: CredentialManager = None,
     ):
         if cred_filepath is None:
-            cred_filepath = cred_filepath_default.get_default()
+            cred_filepath = default_paths.cred_fp
             if cred_mngr is not None:
                 if cred_mngr.cred_filepath is not None:
                     cred_filepath = cred_mngr.cred_filepath[0]
@@ -460,8 +380,8 @@ def import_with_fallback(
         if domain is None:
             domain = input("Please enter the domain of the OSW instance to connect to:")
         if domain == "" or domain is None:
-            domain = "wiki-dev.open-semantic-lab.org"
-        osw_express = OswExpress(domain=domain)
+            domain = default_params.wiki_domain
+        osw_express = OswExpress(domain=domain, cred_filepath=default_paths.cred_fp)
 
         osw_express.install_dependencies(dependencies, mode="append")
         osw_express.shut_down()  # Avoiding connection error
@@ -473,6 +393,11 @@ def import_with_fallback(
             )
 
 
+# If the default was not changed, make sure the user is prompted to enter the domain
+if default_params.has_changed("wiki_domain"):
+    wiki_domain = default_params.wiki_domain
+else:
+    wiki_domain = None
 import_with_fallback(
     to_import=[
         DataModel(
@@ -494,6 +419,7 @@ import_with_fallback(
     ],
     caller_globals=globals(),
     dependencies=DEPENDENCIES,
+    domain=wiki_domain,
 )
 
 if TYPE_CHECKING:
@@ -588,15 +514,16 @@ class FileResult(OswBaseModel):
                 data[key] = value
         # Do replacements
         if (
-            data.get("label") == InMemoryController.__fields__["label"].default
-            or data.get("label") == LocalFileController.__fields__["label"].default
-            or data.get("label") == WikiFileController.__fields__["label"].default
+            data.get("label") == InMemoryController.__fields__["label"].get_default()
+            or data.get("label")
+            == LocalFileController.__fields__["label"].get_default()
+            or data.get("label") == WikiFileController.__fields__["label"].get_default()
         ):
             # Make sure that the label is not set to the default value, it will be
             # set by the source file controller
             del data["label"]
         if data.get("cred_filepath") is None:
-            data["cred_filepath"] = cred_filepath_default.get_default()
+            data["cred_filepath"] = default_paths.cred_fp
         if not data.get("cred_filepath").parent.exists():
             data["cred_filepath"].parent.mkdir(parents=True)
         if data.get("cred_mngr") is None:
@@ -645,7 +572,7 @@ class DownloadFileResult(FileResult, LocalFileController):
         if data.get("target_fn") is None:
             data["target_fn"] = url_or_title.split("File:")[-1]
         if data.get("target_dir") is None:
-            data["target_dir"] = download_dir_default.get_default()
+            data["target_dir"] = default_paths.download_dir
         if isinstance(data.get("target_dir"), str):
             data["target_dir"] = Path(data.get("target_dir"))
         if data.get("target_fp") is None:

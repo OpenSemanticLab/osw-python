@@ -5,13 +5,7 @@ from osw.core import (  # noqa: F401
     AddOverwriteClassOptions,
     OverwriteOptions,
 )
-from osw.express import (  # noqa: F401
-    CredentialsFpDefault,
-    DataModel,
-    DownloadDirDefault,
-    FilePathDefault,
-    OswExpress,
-)
+from osw.express import DataModel, OswExpress  # noqa: F401
 from osw.wiki_tools import SearchParam  # noqa: F401
 from osw.wtsite import WtPage, WtSite  # noqa: F401
 

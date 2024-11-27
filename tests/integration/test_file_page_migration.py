@@ -115,7 +115,7 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
             raise ValueError(
                 "jsondata is None - meta data was not written to the file " "page!"
             )
-        assert jsondata["type"] == WikiFile.__fields__["type"].default
+        assert jsondata["type"] == WikiFile.__fields__["type"].get_default()
         modified_using_page = wtsite.get_page(
             WtSite.GetPageParam(titles=[using_page_fpt])
         ).pages[0]

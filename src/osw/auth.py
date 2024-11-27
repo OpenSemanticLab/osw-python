@@ -10,9 +10,8 @@ import yaml
 from pydantic.v1 import PrivateAttr
 
 from osw.custom_types import PossibleFilePath
+from osw.defaults import paths as default_paths
 from osw.model.static import OswBaseModel
-
-CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
 
 
 class CredentialManager(OswBaseModel):
@@ -253,15 +252,16 @@ class CredentialManager(OswBaseModel):
             If True, the cred_filepath is set to the given filepath. If False, the
             cred_filepath of the CredentialManager is not changed.
         """
-        filepath_ = [filepath]
+        cred_filepaths = [filepath]
+        """The filepath to save the credentials to."""
         if filepath is None:
-            filepath_ = self.cred_filepath
+            cred_filepaths = self.cred_filepath
             if self.cred_filepath is None:
-                filepath_ = [Path.cwd() / CREDENTIALS_FN_DEFAULT]
+                cred_filepaths = [default_paths.cred_fp]
         if set_cred_filepath:
             # Creates error if file does not exist -> Using custom FilePath
-            self.cred_filepath = filepath_
-        for fp in filepath_:
+            self.cred_filepath = cred_filepaths
+        for fp in cred_filepaths:
             file = Path(fp)
             if not file.parent.exists():
                 file.parent.mkdir(parents=True)
@@ -282,30 +282,61 @@ class CredentialManager(OswBaseModel):
 
         # Creating or updating .gitignore file in the working directory
         cwd = Path.cwd()
-        potential_fp = [cwd / ".gitignore", cwd.parent / ".gitignore"]
-        write_to_fp = potential_fp[0]
+        potential_fp = [
+            cwd / ".gitignore",
+            cwd.parent / ".gitignore",
+        ]
+        gitignore_fp = potential_fp[0]
+        # Stops if a .gitignore file is found
         for fp in potential_fp:
             if fp.exists():
-                write_to_fp = fp
+                gitignore_fp = fp
                 break
-        if not write_to_fp.exists():
-            if not write_to_fp.parent.exists():
-                write_to_fp.parent.mkdir(parents=True)
-            write_to_fp.touch()
-        with open(write_to_fp, "r") as stream:
+        # Creates a .gitignore file if none is found
+        if not gitignore_fp.exists():
+            if not gitignore_fp.parent.exists():
+                gitignore_fp.parent.mkdir(parents=True)
+            gitignore_fp.touch()
+        # Reads the .gitignore file
+        with open(gitignore_fp, "r") as stream:
             content = stream.read()
         comment_set = False
-        for _ii, fp in enumerate(filepath_):
-            if fp.name not in content:
-                print(f"Adding '{fp.name}' to gitignore file '{write_to_fp}'.")
-                with open(write_to_fp, "a") as stream:
-                    if comment_set:
+        osw_dir_added = False
+        # For every file path in the list of credentials file paths
+        for _ii, fp in enumerate(cred_filepaths):
+            to_add = ""
+            if default_paths.osw_files_dir in fp.parents and not osw_dir_added:
+                print(
+                    f"Adding '{default_paths.osw_files_dir}' to gitignore file "
+                    f"'{gitignore_fp}'."
+                )
+                containing_gitignore = gitignore_fp.parent.absolute()
+
+                if containing_gitignore in default_paths.osw_files_dir.parents:
+                    # If the default_path.osw_files_dir is a subdirectory of the directory
+                    # containing the .gitignore file, add the relative path to the
+                    # .gitignore file
+                    rel = default_paths.osw_files_dir.relative_to(containing_gitignore)
+                    to_add = f"\n*{str(rel.as_posix())}/*"
+                else:
+                    # Test if the default_path.osw_files_dir is a subdirectory of the
+                    # directory containing the .gitignore file
+                    to_add = f"\n*{default_paths.osw_files_dir.absolute().as_posix()}/*"
+                osw_dir_added = True
+            elif fp.name not in content:
+                print(f"Adding '{fp.name}' to gitignore file '{gitignore_fp}'.")
+                to_add = f"\n*{fp.name}"
+            # If to_add is not empty, write to .gitignore file
+            if to_add:
+                with open(gitignore_fp, "a") as stream:
+                    # Only add comment if not already set
+                    if not comment_set:
                         stream.write(
                             "\n# Automatically added by osw.auth.CredentialManager."
                             "save_credentials_to_file:"
                         )
                         comment_set = True
-                    stream.write(f"\n*{fp.name}")
+                    stream.write(to_add)
 
 
 CredentialManager.CredentialConfig.update_forward_refs()

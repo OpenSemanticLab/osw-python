@@ -15,17 +15,14 @@ from pydantic.v1.fields import ModelField
 from osw import wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.core import OSW
+from osw.defaults import paths as default_paths
 from osw.model import entity as model
 from osw.utils.regex import MatchResult, RegExPatternExtended
-from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
+from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.wtsite import WtSite
 
 # Constants
-PACKAGE_ROOT_PATH = Path(__file__).parents[2]
-CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
-# For compatibility with the old version of the module
-REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
 
 
 # Classes
@@ -177,7 +174,7 @@ def transform_attributes_and_merge(
         sorted_ = ent_as_dict["sorted"]
     else:
         sorted_ = False
-    cls_type_str = str(sel_cls.__fields__["type"].default)
+    cls_type_str = str(sel_cls.__fields__["type"].get_default())
 
     # Merge entries with the same name / uuid
     entities_copy = copy.deepcopy(ent)  # Copy to loop over
@@ -298,7 +295,7 @@ def isclass(obj, cls):
             obj_type = obj.get("type")
         else:
             obj_type = getattr(obj, "type", None)
-        cls_type = cls.__fields__["type"].default
+        cls_type = cls.__fields__["type"].get_default()
         if isinstance(obj_type, list):
             obj_type.sort()
         if isinstance(cls_type, list):
@@ -408,7 +405,7 @@ def jsonpath_search_and_return_list(
     if sorted_ and class_to_match:
         # See definition in loop_and_call_method with argument 'sorted'
         try:
-            cls_type = class_to_match.__fields__["type"].default
+            cls_type = class_to_match.__fields__["type"].get_default()
             # Search in a dramatically reduced number of entries
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:
@@ -879,7 +876,7 @@ def translate_list_with_deepl(
 ) -> dict:
     """Translates a list of strings with DeepL."""
     if credentials_file_path is None:
-        credentials_file_path = CREDENTIALS_FILE_PATH_DEFAULT
+        credentials_file_path = default_paths.cred_fp
     if translations is None:
         translations = {}
     domains, accounts = wt.read_domains_from_credentials_file(credentials_file_path)

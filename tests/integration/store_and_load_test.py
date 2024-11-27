@@ -1,12 +1,13 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 import osw.model.entity as model
 from osw.auth import CredentialManager
 from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
 from osw.utils.wiki import get_full_title
-
-# from osw.wiki_tools import SearchParam
+from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
 # run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
@@ -142,36 +143,37 @@ def test_query_instances(wiki_domain, wiki_username, wiki_password):
     osw.delete_entity(my_item)
 
 
-# def test_statement_creation(wiki_domain, wiki_username, wiki_password):
-#     cm = CredentialManager()
-#     cm.add_credential(
-#         CredentialManager.UserPwdCredential(
-#             iri=wiki_domain, username=wiki_username, password=wiki_password
-#         )
-#     )
-#     wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
-#     osw = OSW(site=wtsite)
-#
-#     my_entity = model.Item(
-#         label=[model.Label(text="MyItem")],
-#         statements=[
-#             model.DataStatement(property="Property:TestProperty", value="TestValue")
-#         ],
-#     )
-#
-#     osw.store_entity(my_entity)
-#
-#     search_param = SearchParam(query="[[TestProperty::TestValue]]")
-#     full_page_titles = osw.site.semantic_search(search_param)
-#     assert f"Item:{OSW.get_osw_id(my_entity.uuid)}" in full_page_titles
-#
-#     search_param = SearchParam(
-#         query="[[HasStatement.HasProperty::Property:TestProperty]]"
-#     )
-#     full_page_titles = osw.site.semantic_search(search_param)
-#     assert f"Item:{OSW.get_osw_id(my_entity.uuid)}" in full_page_titles
-#
-#     osw.delete_entity(my_entity)
+@pytest.mark.skip(reason="Temporarily disabled - Failing due to unresolved error")
+def test_statement_creation(wiki_domain, wiki_username, wiki_password):
+    cm = CredentialManager()
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
+    osw = OSW(site=wtsite)
+
+    my_entity = model.Item(
+        label=[model.Label(text="MyItem")],
+        statements=[
+            model.DataStatement(property="Property:TestProperty", value="TestValue")
+        ],
+    )
+
+    osw.store_entity(my_entity)
+
+    search_param = SearchParam(query="[[TestProperty::TestValue]]")
+    full_page_titles = osw.site.semantic_search(search_param)
+    assert f"Item:{OSW.get_osw_id(my_entity.uuid)}" in full_page_titles
+
+    search_param = SearchParam(
+        query="[[HasStatement.HasProperty::Property:TestProperty]]"
+    )
+    full_page_titles = osw.site.semantic_search(search_param)
+    assert f"Item:{OSW.get_osw_id(my_entity.uuid)}" in full_page_titles
+
+    osw.delete_entity(my_entity)
 
 
 def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):

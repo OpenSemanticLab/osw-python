@@ -283,7 +283,6 @@ class CredentialManager(OswBaseModel):
         # Creating or updating .gitignore file in the working directory
         cwd = Path.cwd()
         potential_fp = [
-            cwd / "osw_files",
             cwd / ".gitignore",
             cwd.parent / ".gitignore",
         ]

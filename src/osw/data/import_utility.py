@@ -15,17 +15,14 @@ from pydantic.v1.fields import ModelField
 from osw import wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.core import OSW
+from osw.defaults import paths as default_paths
 from osw.model import entity as model
 from osw.utils.regex import MatchResult, RegExPatternExtended
-from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
+from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.wtsite import WtSite
 
 # Constants
-PACKAGE_ROOT_PATH = Path(__file__).parents[2]
-CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
-# For compatibility with the old version of the module
-REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
 
 
 # Classes
@@ -879,7 +876,7 @@ def translate_list_with_deepl(
 ) -> dict:
     """Translates a list of strings with DeepL."""
     if credentials_file_path is None:
-        credentials_file_path = CREDENTIALS_FILE_PATH_DEFAULT
+        credentials_file_path = default_paths.cred_fp
     if translations is None:
         translations = {}
     domains, accounts = wt.read_domains_from_credentials_file(credentials_file_path)

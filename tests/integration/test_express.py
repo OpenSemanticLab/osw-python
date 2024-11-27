@@ -79,7 +79,7 @@ def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     mocked_getpass.return_value = wiki_password
     osw_express = osw.express.OswExpress(domain=wiki_domain)
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
-    assert osw_express.cred_filepath == Path(osw.express.cred_filepath_default.default)
+    assert osw_express.cred_filepath == Path(osw.express.default_paths.cred_fp)
     osw_express.shut_down()
     osw_express.cred_filepath.unlink()
 

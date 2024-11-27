@@ -282,7 +282,11 @@ class CredentialManager(OswBaseModel):
 
         # Creating or updating .gitignore file in the working directory
         cwd = Path.cwd()
-        potential_fp = [cwd / ".gitignore", cwd.parent / ".gitignore"]
+        potential_fp = [
+            cwd / "osw_files",
+            cwd / ".gitignore",
+            cwd.parent / ".gitignore",
+        ]
         write_to_fp = potential_fp[0]
         for fp in potential_fp:
             if fp.exists():

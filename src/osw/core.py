@@ -1361,6 +1361,9 @@ class OSW(BaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
         """The entities to convert to JSON-LD. Can be a single entity or a list of
         entities."""
+        id_keys: Optional[List[str]] = ["osw_id"]
+        """The keys to use as @id in the JSON-LD output. If not found in the entity at root
+        level, the full page title is used."""
         resolve_context: Optional[bool] = True
         """If True, remote context URLs are resolved."""
         mode: Optional[OSW.JsonLdMode] = "expand"
@@ -1412,16 +1415,23 @@ class OSW(BaseModel):
             data = json.loads(e.json(exclude_none=True, indent=4, ensure_ascii=False))
 
             data["@context"] = []
+            if params.id_keys is not None:
+                # append "@id" mappings to the context in an additional object
+                id_mapping = {}
+                for k in params.id_keys:
+                    id_mapping[k] = "@id"
+                data["@context"].append(id_mapping)
             if params.context is None:
                 for t in e.type:
                     data["@context"].append("/wiki/" + t)
                 if params.context is not None:
                     data["@context"].append(params.context)
             else:
-                data["@context"] = {
-                    **self.site.get_jsonld_context_prefixes(),
-                    **params.context,
-                }
+                data["@context"].append(self.site.get_jsonld_context_prefixes())
+                if isinstance(params.context, list):
+                    data["@context"].extend(params.context)
+                else:
+                    data["@context"].append(params.context)
             if params.additional_context is not None:
                 if data["@context"] is None:
                     data["@context"] = []
@@ -1429,13 +1439,15 @@ class OSW(BaseModel):
                     data["@context"] = [data["@context"]]
                 data["@context"].append(params.additional_context)
 
-            data["@id"] = get_full_title(e)
+            # if none of the id_keys is found, use the full title
+            if not any(k in data for k in params.id_keys):
+                data["@id"] = get_full_title(e)
 
             if params.resolve_context:
                 graph_document["@graph"].append(jsonld.expand(data))
                 if params.mode == "expand":
                     data = jsonld.expand(data)
-                    if isinstance(data, list):
+                    if isinstance(data, list) and len(data) > 0:
                         data = data[0]
                 elif params.mode == "flatten":
                     data = jsonld.flatten(data)

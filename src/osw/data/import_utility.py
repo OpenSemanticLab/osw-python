@@ -174,7 +174,7 @@ def transform_attributes_and_merge(
         sorted_ = ent_as_dict["sorted"]
     else:
         sorted_ = False
-    cls_type_str = str(sel_cls.__fields__["type"].default)
+    cls_type_str = str(sel_cls.__fields__["type"].get_default())
 
     # Merge entries with the same name / uuid
     entities_copy = copy.deepcopy(ent)  # Copy to loop over
@@ -295,7 +295,7 @@ def isclass(obj, cls):
             obj_type = obj.get("type")
         else:
             obj_type = getattr(obj, "type", None)
-        cls_type = cls.__fields__["type"].default
+        cls_type = cls.__fields__["type"].get_default()
         if isinstance(obj_type, list):
             obj_type.sort()
         if isinstance(cls_type, list):
@@ -405,7 +405,7 @@ def jsonpath_search_and_return_list(
     if sorted_ and class_to_match:
         # See definition in loop_and_call_method with argument 'sorted'
         try:
-            cls_type = class_to_match.__fields__["type"].default
+            cls_type = class_to_match.__fields__["type"].get_default()
             # Search in a dramatically reduced number of entries
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:

@@ -514,9 +514,10 @@ class FileResult(OswBaseModel):
                 data[key] = value
         # Do replacements
         if (
-            data.get("label") == InMemoryController.__fields__["label"].default
-            or data.get("label") == LocalFileController.__fields__["label"].default
-            or data.get("label") == WikiFileController.__fields__["label"].default
+            data.get("label") == InMemoryController.__fields__["label"].get_default()
+            or data.get("label")
+            == LocalFileController.__fields__["label"].get_default()
+            or data.get("label") == WikiFileController.__fields__["label"].get_default()
         ):
             # Make sure that the label is not set to the default value, it will be
             # set by the source file controller

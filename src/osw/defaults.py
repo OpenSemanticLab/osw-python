@@ -12,8 +12,8 @@ PACKAGE_ROOT_PATH = Path(__file__).parents[1]
 BASE_PATH = Path.cwd()
 OSW_FILES_DIR_DEFAULT = BASE_PATH / "osw_files"
 DOWNLOAD_DIR_DEFAULT = OSW_FILES_DIR_DEFAULT / "downloads"
-CREDENTIALS_FN_DEFAULT = "credentials.pwd.yaml"
-CREDENTIALS_FP_DEFAULT = OSW_FILES_DIR_DEFAULT / CREDENTIALS_FN_DEFAULT
+CRED_FILENAME_DEFAULT = "credentials.pwd.yaml"
+CRED_FILEPATH_DEFAULT = OSW_FILES_DIR_DEFAULT / CRED_FILENAME_DEFAULT
 WIKI_DOMAIN_DEFAULT = "wiki.open-semantic-lab.org"
 
 
@@ -62,9 +62,9 @@ class Paths(OswBaseModel):
     osw_files_dir: Path = OSW_FILES_DIR_DEFAULT
     """If you want to specify the default OSW files directory, use
     Path.osw_files_dir = new_path."""
-    cred_fp: Path = CREDENTIALS_FP_DEFAULT
+    cred_filepath: Path = CRED_FILEPATH_DEFAULT
     """If you want to specify the saving location of the credentials file, use
-    Path.cred_fp = new_path."""
+    Path.cred_filepath = new_path."""
     download_dir: Path = DOWNLOAD_DIR_DEFAULT
     """If you want to specify the default download directory, use
     Path.download_dir = new_path."""
@@ -119,13 +119,13 @@ class Paths(OswBaseModel):
         if attr_name == "base":
             update_attr(
                 "base",
-                ["osw_files_dir", "cred_fp", "download_dir"],
+                ["osw_files_dir", "cred_filepath", "download_dir"],
                 old_value,
                 new_value,
             )
         elif attr_name == "osw_files_dir":
             update_attr(
-                "osw_files_dir", ["cred_fp", "download_dir"], old_value, new_value
+                "osw_files_dir", ["cred_filepath", "download_dir"], old_value, new_value
             )
 
 

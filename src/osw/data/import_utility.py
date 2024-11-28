@@ -758,7 +758,7 @@ def create_page_name_from_label(label: str) -> str:
 def get_entities_from_osw(
     category_to_search: Union[str, uuid_module.UUID],
     model_to_cast_to,
-    credentials_fp,
+    cred_filepath,
     domain,
     osw_obj: OSW = None,
     debug: bool = False,
@@ -773,8 +773,12 @@ def get_entities_from_osw(
         Category to search for.
     model_to_cast_to:
         Model to cast the entities to.
-    credentials_fp:
+    cred_filepath:
         Filepath to the credentials file, used to access the OSW instance.
+    domain:
+        Domain of the OSW instance.
+    osw_obj:
+        OSW instance to use. If None, a new instance is created.
     debug:
         If True, prints debug information.
 
@@ -799,7 +803,7 @@ def get_entities_from_osw(
     else:  # elif isinstance(category_to_search, uuid_module.UUID):
         category_uuid = str(category_to_search)
     if osw_obj is None:
-        cred_man = CredentialManager(cred_filepath=credentials_fp)
+        cred_man = CredentialManager(cred_filepath=cred_filepath)
         osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_man)))
     wtsite_obj = osw_obj.site
     entities_from_osw = []
@@ -870,16 +874,16 @@ def create_full_page_title(
 
 def translate_list_with_deepl(
     seq: list,
-    credentials_file_path: Union[str, Path] = None,
+    cred_filepath: Union[str, Path] = None,
     target_lang: str = "EN-US",
     translations: dict = None,
 ) -> dict:
     """Translates a list of strings with DeepL."""
-    if credentials_file_path is None:
-        credentials_file_path = default_paths.cred_fp
+    if cred_filepath is None:
+        cred_filepath = default_paths.cred_filepath
     if translations is None:
         translations = {}
-    domains, accounts = wt.read_domains_from_credentials_file(credentials_file_path)
+    domains, accounts = wt.read_domains_from_credentials_file(cred_filepath)
     domain = "api-free.deepl.com"
     auth = accounts[domain]["password"]
     translator = deepl.Translator(auth)

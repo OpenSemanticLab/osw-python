@@ -13,7 +13,7 @@ from osw.express import OswExpress, osw_download_file, osw_upload_file  # noqa: 
 # cred_filepath_default.set_default(r"C:\Users\gold\ownCloud\Personal\accounts.pwd.yaml")
 
 # Check setting
-print(f"Credentials loaded from '{str(default_paths.cred_fp)}'")
+print(f"Credentials loaded from '{str(default_paths.cred_filepath)}'")
 
 # The domain to connect to
 domain = "wiki-dev.open-semantic-lab.org"

@@ -33,7 +33,7 @@ LWD_DEFAULT = Path(os.getcwd()).parent / "data"
 SETTINGS_FILE_PATH_DEFAULT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "settings.json"
 )
-CREDENTIALS_FILE_PATH_DEFAULT = os.path.join(
+CRED_FILEPATH_DEFAULT = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "accounts.pwd.yaml"
 )
 PACKAGE_INFO_FILE_NAME = "packages.json"
@@ -144,7 +144,7 @@ if __name__ == "__main__":
         settings_read_from_file = True
     else:
         settings = {
-            "credentials_file_path": str(CREDENTIALS_FILE_PATH_DEFAULT),
+            "cred_filepath": str(CRED_FILEPATH_DEFAULT),
             "local_working_directory": str(LWD_DEFAULT),
             "settings_file_path": str(SETTINGS_FILE_PATH_DEFAULT),
             "target_page": TARGET_PAGE_DEFAULT,
@@ -156,9 +156,7 @@ if __name__ == "__main__":
         }
         settings_read_from_file = False
 
-    domains, accounts = read_domains_from_credentials_file(
-        settings["credentials_file_path"]
-    )
+    domains, accounts = read_domains_from_credentials_file(settings["cred_filepath"])
     if "wiki-dev.open-semantic-lab.org" in domains:
         domain = "wiki-dev.open-semantic-lab.org"
     else:
@@ -166,7 +164,7 @@ if __name__ == "__main__":
     if settings_read_from_file:
         settings["domain"] = domain
 
-    cm = CredentialManager(cred_filepath=settings["credentials_file_path"])
+    cm = CredentialManager(cred_filepath=settings["cred_filepath"])
     osw_obj = OswExpress(domain=domain, cred_mngr=cm)
     wtsite_obj = osw_obj.site
 
@@ -215,7 +213,7 @@ if __name__ == "__main__":
                             size=(50, 1),
                             enable_events=True,
                             key="-CREDENTIALS-",
-                            default_text=settings["credentials_file_path"],
+                            default_text=settings["cred_filepath"],
                         ),
                         psg.FileBrowse(
                             button_text="Browse", key="-BROWSE_CREDENTIALS-"
@@ -352,7 +350,7 @@ if __name__ == "__main__":
             with open(settings["settings_file_path"], "r") as f:
                 settings = json.load(f)
             # update GUI
-            window["-CREDENTIALS-"].update(settings["credentials_file_path"])
+            window["-CREDENTIALS-"].update(settings["cred_filepath"])
             window["-LWD-"].update(settings["local_working_directory"])
             window["-DOMAIN-"].update(settings["domain"])
             window["-ADDRESS-"].update(settings["target_page"])
@@ -369,9 +367,9 @@ if __name__ == "__main__":
             with open(settings["settings_file_path"], "w") as f:
                 json.dump(settings, f, indent=4)
         elif event == "-CREDENTIALS-":
-            settings["credentials_file_path"] = values["-CREDENTIALS-"]
+            settings["cred_filepath"] = values["-CREDENTIALS-"]
             domains, accounts = read_domains_from_credentials_file(
-                settings["credentials_file_path"]
+                settings["cred_filepath"]
             )
             window["-DOMAIN-"].update(values=domains)
         elif event == "-LWD-":

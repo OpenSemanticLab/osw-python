@@ -71,7 +71,7 @@ class OswExpress(OSW):
         cred_mngr: CredentialManager = None,
     ):
         if cred_filepath is None:
-            cred_filepath = default_paths.cred_fp
+            cred_filepath = default_paths.cred_filepath
             if cred_mngr is not None:
                 if cred_mngr.cred_filepath is not None:
                     cred_filepath = cred_mngr.cred_filepath[0]
@@ -381,7 +381,9 @@ def import_with_fallback(
             domain = input("Please enter the domain of the OSW instance to connect to:")
         if domain == "" or domain is None:
             domain = default_params.wiki_domain
-        osw_express = OswExpress(domain=domain, cred_filepath=default_paths.cred_fp)
+        osw_express = OswExpress(
+            domain=domain, cred_filepath=default_paths.cred_filepath
+        )
 
         osw_express.install_dependencies(dependencies, mode="append")
         osw_express.shut_down()  # Avoiding connection error
@@ -523,7 +525,7 @@ class FileResult(OswBaseModel):
             # set by the source file controller
             del data["label"]
         if data.get("cred_filepath") is None:
-            data["cred_filepath"] = default_paths.cred_fp
+            data["cred_filepath"] = default_paths.cred_filepath
         if not data.get("cred_filepath").parent.exists():
             data["cred_filepath"].parent.mkdir(parents=True)
         if data.get("cred_mngr") is None:

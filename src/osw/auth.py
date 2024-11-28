@@ -85,7 +85,7 @@ class CredentialManager(OswBaseModel):
         if self.cred_filepath:
             if not isinstance(self.cred_filepath, list):
                 self.cred_filepath = [self.cred_filepath]
-        # Make sure to at least warn the user if they pass cred_fp instead of
+        # Make sure to at least warn the user if they pass cred_filepath instead of
         # cred_filepath
         attribute_names = self.__dict__.keys()
         unexpected_kwargs = [key for key in data.keys() if key not in attribute_names]
@@ -257,7 +257,7 @@ class CredentialManager(OswBaseModel):
         if filepath is None:
             cred_filepaths = self.cred_filepath
             if self.cred_filepath is None:
-                cred_filepaths = [default_paths.cred_fp]
+                cred_filepaths = [default_paths.cred_filepath]
         if set_cred_filepath:
             # Creates error if file does not exist -> Using custom FilePath
             self.cred_filepath = cred_filepaths

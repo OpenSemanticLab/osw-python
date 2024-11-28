@@ -14,7 +14,7 @@ from osw.wtsite import SLOTS, WtPage, WtSite
 
 class OswInstance(OswBaseModel):
     domain: str
-    cred_fp: Union[str, Path]
+    cred_filepath: Union[str, Path]
     credentials_manager: Optional[CredentialManager]
     osw: Optional[OSW]
     wtsite: Optional[WtSite]
@@ -22,9 +22,9 @@ class OswInstance(OswBaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def __init__(self, domain: str, cred_fp: Union[str, Path]):
-        super().__init__(**{"domain": domain, "cred_fp": cred_fp})
-        self.credentials_manager = CredentialManager(cred_filepath=cred_fp)
+    def __init__(self, domain: str, cred_filepath: Union[str, Path]):
+        super().__init__(**{"domain": domain, "cred_filepath": cred_filepath})
+        self.credentials_manager = CredentialManager(cred_filepath=cred_filepath)
         self.osw = OSW(
             site=WtSite(
                 WtSite.WtSiteConfig(iri=domain, cred_mngr=self.credentials_manager)
@@ -115,7 +115,7 @@ def copy_pages_from(
     source_domain: str,
     to_target_domains: List[str],
     page_titles: List[str],
-    cred_fp: Union[str, Path],
+    cred_filepath: Union[str, Path],
     comment: str = None,
     overwrite: bool = False,
 ):
@@ -123,12 +123,12 @@ def copy_pages_from(
         comment = f"[bot edit] Copied from {source_domain}"
     osw_source = OswInstance(
         domain=source_domain,
-        cred_fp=cred_fp,
+        cred_filepath=cred_filepath,
     )
     osw_targets = [
         OswInstance(
             domain=domain,
-            cred_fp=cred_fp,
+            cred_filepath=cred_filepath,
         )
         for domain in to_target_domains
     ]
@@ -150,7 +150,7 @@ def copy_pages_from(
 
 
 if __name__ == "__main__":
-    credentials_fp = Path(r"accounts.pwd.yaml")
+    cred_filepath_ = Path(r"accounts.pwd.yaml")
     source = "onto-wiki.eu"
     targets = ["wiki-dev.open-semantic-lab.org"]
     titles = [
@@ -164,26 +164,26 @@ if __name__ == "__main__":
             source_domain=source,
             to_target_domains=targets,
             page_titles=titles,
-            cred_fp=credentials_fp,
+            cred_filepath=cred_filepath_,
             overwrite=True,
         )
     # Implementation within wtsite
     use_wtsite = True
     if use_wtsite:
-        osw_source = OswInstance(
+        osw_source_ = OswInstance(
             domain=source,
-            cred_fp=credentials_fp,
+            cred_filepath=cred_filepath_,
         )
-        osw_targets = [
+        osw_targets_ = [
             OswInstance(
                 domain=target,
-                cred_fp=credentials_fp,
+                cred_filepath=cred_filepath_,
             )
             for target in targets
         ]
-        source_site = osw_source.wtsite
-        target_sites = [osw_target.wtsite for osw_target in osw_targets]
-        result = {}
+        source_site = osw_source_.wtsite
+        target_sites: List[WtSite] = [osw_target.wtsite for osw_target in osw_targets_]
+        result_ = {}
         for target_site in target_sites:
             target = target_site.mw_site.host
             copied_pages = target_site.copy_pages(
@@ -194,4 +194,4 @@ if __name__ == "__main__":
                     parallel=False,
                 )
             )
-            result[target] = copied_pages
+            result_[target] = copied_pages

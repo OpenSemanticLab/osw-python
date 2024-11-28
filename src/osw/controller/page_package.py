@@ -361,7 +361,7 @@ class PagePackageController(model.PagePackageMetaData):
 
         domain: str
         """A string formatted as domain"""
-        credentials_file_path: Union[str, FilePath]
+        cred_filepath: Union[str, FilePath]
         """Path to a existing credentials yaml files"""
         working_dir: Union[str, Path]
         """Working directory. Will be created automatically if not existing."""
@@ -386,7 +386,7 @@ class PagePackageController(model.PagePackageMetaData):
             WtSite.WtSiteConfig(
                 iri=creation_config.domain,
                 cred_mngr=CredentialManager(
-                    cred_filepath=creation_config.credentials_file_path
+                    cred_filepath=creation_config.cred_filepath
                 ),
             )
         )
@@ -676,7 +676,7 @@ class PagePackageController(model.PagePackageMetaData):
                     WtSite.WtSiteConfig(
                         iri=params.creation_config.domain,
                         cred_mngr=CredentialManager(
-                            cred_filepath=params.creation_config.credentials_file_path
+                            cred_filepath=params.creation_config.cred_filepath
                         ),
                     )
                 )

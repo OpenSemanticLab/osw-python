@@ -321,11 +321,13 @@ class CredentialManager(OswBaseModel):
                 else:
                     # Test if the default_path.osw_files_dir is a subdirectory of the
                     # directory containing the .gitignore file
-                    to_add = f"\n*{default_paths.osw_files_dir.absolute().as_posix()}/*"
+                    to_add = (
+                        f"\n*/{default_paths.osw_files_dir.absolute().as_posix()}/*"
+                    )
                 osw_dir_added = True
-            elif fp.name not in content:
+            elif f"*/{fp.name}" not in content:
                 print(f"Adding '{fp.name}' to gitignore file '{gitignore_fp}'.")
-                to_add = f"\n*{fp.name}"
+                to_add = f"\n*/{fp.name}"
             # If to_add is not empty, write to .gitignore file
             if to_add:
                 with open(gitignore_fp, "a") as stream:

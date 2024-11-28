@@ -71,6 +71,10 @@ class Paths(OswBaseModel):
     _changed: List[str] = PrivateAttr(default_factory=list)
     """A flag to indicate if any of the paths have been changed."""
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._changed = [key for key in data.keys() if key != "_changed"]
+
     def __setattr__(self, name, value):
         old_value = getattr(self, name)
         super().__setattr__(name, value)
@@ -80,6 +84,10 @@ class Paths(OswBaseModel):
 
     def has_changed(self, name):
         return name in self._changed
+
+    @property
+    def changed(self):
+        return self._changed
 
     def on_attribute_set(self, attr_name, new_value, old_value):
         """
@@ -136,19 +144,27 @@ class Params(OswBaseModel):
     _changed: List[str] = PrivateAttr(default_factory=list)
     """A flag to indicate if any of the parameters have been changed."""
 
-    @validator("wiki_domain")
-    def validate_wiki_domain(cls, v):
-        pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
-        assert re.match(pattern, v), "The wiki domain is not valid."
-        return v
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._changed = [key for key in data.keys() if key != "_changed"]
 
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
         if name not in self._changed:
             self._changed.append(name)
 
+    @validator("wiki_domain")
+    def validate_wiki_domain(cls, v):
+        pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
+        assert re.match(pattern, v), "The wiki domain is not valid."
+        return v
+
     def has_changed(self, name):
         return name in self._changed
+
+    @property
+    def changed(self):
+        return self._changed
 
 
 params = Params()

@@ -760,6 +760,7 @@ def get_entities_from_osw(
     model_to_cast_to,
     cred_filepath,
     domain,
+    limit: int = None,
     osw_obj: OSW = None,
     debug: bool = False,
 ) -> list:
@@ -777,6 +778,8 @@ def get_entities_from_osw(
         Filepath to the credentials file, used to access the OSW instance.
     domain:
         Domain of the OSW instance.
+    limit:
+        Maximum number of entities returned by this query
     osw_obj:
         OSW instance to use. If None, a new instance is created.
     debug:
@@ -810,9 +813,17 @@ def get_entities_from_osw(
     if debug:
         print(f"Searching for instances of {category_to_search} in OSW...")
     entities = wtsite_obj.semantic_search(
-        query=wt.SearchParam(
-            query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
-            debug=debug,
+        query=(
+            wt.SearchParam(
+                query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
+                debug=debug,
+            )
+            if limit is None
+            else wt.SearchParam(
+                query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
+                debug=debug,
+                limit=limit,
+            )
         )
     )
     for entity in entities:

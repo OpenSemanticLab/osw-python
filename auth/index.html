@@ -1198,7 +1198,9 @@
 <span class="normal">336</span>
 <span class="normal">337</span>
 <span class="normal">338</span>
-<span class="normal">339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handles credentials&quot;&quot;&quot;</span>
 
     <span class="n">cred_filepath</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
@@ -1505,11 +1507,13 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c1"># Test if the default_path.osw_files_dir is a subdirectory of the</span>
                     <span class="c1"># directory containing the .gitignore file</span>
-                    <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="si">}</span><span class="s2">/*&quot;</span>
+                    <span class="n">to_add</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="si">}</span><span class="s2">/*&quot;</span>
+                    <span class="p">)</span>
                 <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">elif</span> <span class="n">fp</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+            <span class="k">elif</span> <span class="sa">f</span><span class="s2">&quot;*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
-                <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="c1"># If to_add is not empty, write to .gitignore file</span>
             <span class="k">if</span> <span class="n">to_add</span><span class="p">:</span>
                 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
@@ -2866,7 +2870,9 @@ cred_filepath of the CredentialManager is not changed.</p>
 <span class="normal">336</span>
 <span class="normal">337</span>
 <span class="normal">338</span>
-<span class="normal">339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PossibleFilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">set_cred_filepath</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -2952,11 +2958,13 @@ cred_filepath of the CredentialManager is not changed.</p>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Test if the default_path.osw_files_dir is a subdirectory of the</span>
                 <span class="c1"># directory containing the .gitignore file</span>
-                <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="si">}</span><span class="s2">/*&quot;</span>
+                <span class="n">to_add</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="si">}</span><span class="s2">/*&quot;</span>
+                <span class="p">)</span>
             <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">fp</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="sa">f</span><span class="s2">&quot;*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
-            <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="c1"># If to_add is not empty, write to .gitignore file</span>
         <span class="k">if</span> <span class="n">to_add</span><span class="p">:</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>

@@ -150,7 +150,7 @@ class Params(OswBaseModel):
 
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
-        if name not in self._changed:
+        if name != "_changed" and name not in self._changed:
             self._changed.append(name)
 
     @validator("wiki_domain")

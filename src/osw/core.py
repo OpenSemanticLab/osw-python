@@ -747,9 +747,7 @@ class OSW(BaseModel):
         """Defines the overall overwriting behavior. Used for any property if the
         property specific setting is not set."""
         per_property: Optional[Dict[str, OverwriteOptions]] = None
-        """A key (property name) - value (overwrite setting) pair. Careful! - When
-        setting values of this dictionary after validation, the validator won't be
-        called again. The same applies for the __init__ function!"""
+        """A key (property name) - value (overwrite setting) pair."""
         _per_property: Dict[str, OVERWRITE_CLASS_OPTIONS] = PrivateAttr()
         """Private property, for internal use only. Use 'per_property' instead"""
 
@@ -766,6 +764,29 @@ class OSW(BaseModel):
 
             return per_property
 
+        def __setattr__(self, key, value):
+            """Called when setting an attribute"""
+            super().__setattr__(key, value)
+            if key == "per_property":
+                # compare value and self.per_property
+                if value != self.per_property and value is not None:
+                    self._per_property = {
+                        field_name: value.get(field_name, self.overwrite)
+                        for field_name in self.model.__fields__.keys()
+                    }
+            elif key == "overwrite":
+                if self.per_property is not None:
+                    self._per_property = {
+                        field_name: self.per_property.get(field_name, self.overwrite)
+                        for field_name in self.model.__fields__.keys()
+                    }
+            elif key == "model":
+                if self.per_property is not None:
+                    self._per_property = {
+                        field_name: self.per_property.get(field_name, self.overwrite)
+                        for field_name in self.model.__fields__.keys()
+                    }
+
         def __init__(self, **data):
             """Called after validation. Sets the fallback for every property that
             has not been specified in per_property."""
@@ -779,6 +800,10 @@ class OSW(BaseModel):
             }
             # todo: from class definition get properties with hidden /
             #  read_only option  #  those can be safely overwritten - set the to True
+
+        def get_overwrite_setting(self, property_name: str) -> OverwriteOptions:
+            """Returns the fallback overwrite option for the given field name"""
+            return self._per_property.get(property_name, self.overwrite)
 
     class _ApplyOverwriteParam(OswBaseModel):
         page: WtPage
@@ -944,7 +969,7 @@ class OSW(BaseModel):
             {
                 key: value
                 for (key, value) in local_content["jsondata"].items()
-                if param.policy._per_property.get(key) == OverwriteOptions.true
+                if param.policy.get_overwrite_setting(key) == OverwriteOptions.true
             }
         )
         if param.debug:
@@ -953,7 +978,7 @@ class OSW(BaseModel):
             {
                 key: value
                 for (key, value) in remote_content["jsondata"].items()
-                if param.policy._per_property.get(key) == OverwriteOptions.false
+                if param.policy.get_overwrite_setting(key) == OverwriteOptions.false
             }
         )
         if param.debug:
@@ -963,7 +988,8 @@ class OSW(BaseModel):
                 key: value
                 for (key, value) in local_content["jsondata"].items()
                 if (
-                    param.policy._per_property.get(key) == OverwriteOptions.only_empty
+                    param.policy.get_overwrite_setting(key)
+                    == OverwriteOptions.only_empty
                     and is_empty(remote_content["jsondata"].get(key))
                 )
             }

@@ -34,7 +34,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
 
     def get(self) -> IO:
         self._init()
-        file = self.osw.site._site.images[self.title]
+        file = self.osw.mw_site.images[self.title]
         # return file.download() # in-memory - limited by available RAM
 
         # use web api
@@ -43,13 +43,13 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         response = None
         try:
             url = (
-                f"{self.osw.site._site.scheme}://"
-                f"{self.osw.site._site.host}"
-                f"{self.osw.site._site.path}"
+                f"{self.osw.mw_site.scheme}://"
+                f"{self.osw.mw_site.host}"
+                f"{self.osw.mw_site.path}"
                 f"api.php?action=download&format=json&title={full_title}"
             )
             # print("Use web api: ", url)
-            response = self.osw.site._site.connection.get(url, stream=True)
+            response = self.osw.mw_site.connection.get(url, stream=True)
             api_error = response.headers.get("Mediawiki-Api-Error")
             if api_error is not None:
                 if api_error == "download-notfound":
@@ -72,7 +72,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
                 "download from ",
                 url,
             )
-            response = self.osw.site._site.connection.get(url, stream=True)
+            response = self.osw.mw_site.connection.get(url, stream=True)
 
         if response.status_code != 200:
             raise Exception(
@@ -89,10 +89,10 @@ class WikiFileController(model.WikiFile, RemoteFileController):
 
     def get_to(self, other: "FileController"):
         self._init()
-        file = self.osw.site._site.images[self.title]
+        file = self.osw.mw_site.images[self.title]
         # return file.download() # in-memory - limited by available RAM
 
-        with self.osw.site._site.connection.get(
+        with self.osw.mw_site.connection.get(
             file.imageinfo["url"], stream=True
         ) as response:
             # for chunk in response.iter_content(1024):
@@ -136,7 +136,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
                 **se_params,
             )
         )
-        self.osw.site._site.upload(
+        self.osw.mw_site.upload(
             file=file,
             filename=self.title,
             # comment="",
@@ -165,7 +165,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
     @property
     def url(self):
         return (
-            f"{self.osw.site._site.scheme}://{self.osw.site._site.host}"
+            f"{self.osw.mw_site.scheme}://{self.osw.mw_site.host}"
             f"/wiki/File:{self.title}"
         )
 

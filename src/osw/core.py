@@ -14,6 +14,7 @@ from warnings import warn
 
 import rdflib
 from jsonpath_ng.ext import parse
+from mwclient.client import Site
 from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
 from pyld import jsonld
 
@@ -85,6 +86,11 @@ class OSW(BaseModel):
         arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
     site: WtSite
+
+    @property
+    def mw_site(self) -> Site:
+        """Returns the mwclient Site object of the OSW instance."""
+        return self.site.mw_site
 
     @staticmethod
     def get_osw_id(uuid: uuid) -> str:
@@ -427,7 +433,7 @@ class OSW(BaseModel):
 
         jsonpath_expr = parse("$..dollarref")
         for match in jsonpath_expr.find(schema):
-            # value = "https://" + self.site._site.host + match.value
+            # value = "https://" + self.mw_site.host + match.value
             if match.value.startswith("#"):
                 continue  # skip self references
             ref_schema_title = match.value.replace("/wiki/", "").split("?")[0]

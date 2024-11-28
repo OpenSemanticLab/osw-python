@@ -185,7 +185,7 @@ if __name__ == "__main__":
         target_sites = [osw_target.wtsite for osw_target in osw_targets]
         result = {}
         for target_site in target_sites:
-            target = target_site._site.host
+            target = target_site.mw_site.host
             copied_pages = target_site.copy_pages(
                 WtSite.CopyPagesParam(
                     source_site=source_site,

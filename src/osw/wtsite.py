@@ -89,7 +89,7 @@ class WtSite:
         scheme = "https"
 
         if isinstance(config, WtSite.WtSiteLegacyConfig):
-            self._site = config.site
+            self._site: mwclient.Site = config.site
         else:
             cred = config.cred_mngr.get_credential(
                 CredentialManager.CredentialConfig(
@@ -143,6 +143,11 @@ class WtSite:
         #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
+
+    @property
+    def mw_site(self) -> mwclient.client.Site:
+        """Returns the mwclient.Site object of the WtSite instance"""
+        return self._site
 
     @classmethod
     @deprecated("Use contructor instead")
@@ -1175,7 +1180,7 @@ class WtPage:
     def init(self):
         """Initializes the page by loading the content and meta data from the site"""
         # inits the mwclient object - triggers an API call
-        self._page = self.wtSite._site.pages[self.title]
+        self._page = self.wtSite.mw_site.pages[self.title]
         self.exists = self._page.exists
 
         if self.exists:
@@ -1183,7 +1188,7 @@ class WtPage:
             self._content = self._original_content
             # multi content revisions
             # second API call - ToDo: combine / replace with first call
-            rev = self.wtSite._site.api(
+            rev = self.wtSite.mw_site.api(
                 "query",
                 prop="revisions",
                 titles=self.title,
@@ -1381,7 +1386,7 @@ class WtPage:
         -------
             the URL of the page
         """
-        return "https://" + self.wtSite._site.host + "/wiki/" + self.title
+        return "https://" + self.wtSite.mw_site.host + "/wiki/" + self.title
 
     def is_file_page(self) -> bool:
         """Checks if this page is a file page (containing an image, pdf, etc.)
@@ -1557,9 +1562,9 @@ class WtPage:
                     params["slot_" + slot_key] = content
             if changed:
                 self.changed = True
-                self.wtSite._site.api(
+                self.wtSite.mw_site.api(
                     "editslots",
-                    token=self.wtSite._site.get_token("csrf"),
+                    token=self.wtSite.mw_site.get_token("csrf"),
                     title=self.title,
                     summary=comment,
                     **params,
@@ -1574,9 +1579,9 @@ class WtPage:
                     content = self._slots[slot_key]
                     if self._content_model[slot_key] == "json":
                         content = json.dumps(content, ensure_ascii=False)
-                    self.wtSite._site.api(
+                    self.wtSite.mw_site.api(
                         "editslot",
-                        token=self.wtSite._site.get_token("csrf"),
+                        token=self.wtSite.mw_site.get_token("csrf"),
                         title=self.title,
                         slot=slot_key,
                         text=content,
@@ -1655,7 +1660,7 @@ class WtPage:
 
     def copy(self, config: CopyPageConfig) -> PageCopyResult:
         if config.comment is None:
-            config.comment = f"[bot edit] Copied from {config.source_site._site.host}"
+            config.comment = f"[bot edit] Copied from {config.source_site.mw_site.host}"
         result = config.source_site.get_page_content([config.existing_page])
         for title, slot_contents in result.contents.items():
             self.title = title
@@ -1685,10 +1690,14 @@ class WtPage:
                 )
                 self.set_slot_content(slot_key=slot, content=slot_contents[slot])
             self.edit(comment=config.comment)
-            s2p = f"Page {verb}: 'https://{self.wtSite._site.host}/wiki/{self.title}'."
+            s2p = (
+                f"Page {verb}: "
+                f"'https://{self.wtSite.mw_site.host}/wiki/{self.title}'."
+            )
             if verb == "updated":
                 s2p = (
-                    f"Page {verb}: 'https://{self.wtSite._site.host}/w/index.php?title"
+                    f"Page {verb}: "
+                    f"'https://{self.wtSite.mw_site.host}/w/index.php?title"
                     f"={self.title}&action=history'."
                 )
             print(s2p)
@@ -1800,7 +1809,7 @@ class WtPage:
                 dump_slot_content(slot_key, content_type, content)
 
         if self.is_file_page():
-            file = self.wtSite._site.images[self.title.split(":")[-1]]
+            file = self.wtSite.mw_site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
             file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages
             # The following will return KeyError "url" if the file is not found
@@ -1826,7 +1835,7 @@ class WtPage:
             and 'usage'.
         """
         return wt.get_file_info_and_usage(
-            site=self.wtSite._site,
+            site=self.wtSite.mw_site,
             title=wt.SearchParam(query=self.title, debug=debug),
         )[0]
 
@@ -1913,10 +1922,10 @@ class WtPage:
         if config is None:
             config = WtPage.ExportConfig()
         url = (
-            self.wtSite._site.scheme
+            self.wtSite.mw_site.scheme
             + "://"
-            + self.wtSite._site.host
-            + self.wtSite._site.path
+            + self.wtSite.mw_site.host
+            + self.wtSite.mw_site.path
             + "index.php?title=Special:Export/"
             + self.title
         )
@@ -1924,14 +1933,14 @@ class WtPage:
             "title": "Special:Export",
             "catname": "",
             "pages": self.title,
-            "wpEditToken": self.wtSite._site.get_token("csrf"),
+            "wpEditToken": self.wtSite.mw_site.get_token("csrf"),
             "wpDownload": "1",
         }
         if not config.full_history:
             data["curonly"] = "1"
         if config.include_templates:
             data["templates"] = "1"
-        response = self.wtSite._site.connection.post(url, data=data)
+        response = self.wtSite.mw_site.connection.post(url, data=data)
         if response.status_code != 200:
             return WtPage.ExportResult(success=False, xml="")
         else:
@@ -2008,17 +2017,17 @@ class WtPage:
         )
 
         api_url = (
-            self.wtSite._site.scheme
+            self.wtSite.mw_site.scheme
             + "://"
-            + self.wtSite._site.host
-            + self.wtSite._site.path
+            + self.wtSite.mw_site.host
+            + self.wtSite.mw_site.path
             + "api.php"
         )
-        response = self.wtSite._site.connection.post(
+        response = self.wtSite.mw_site.connection.post(
             url=api_url,
             data={
                 "action": "import",
-                "token": self.wtSite._site.get_token("csrf"),
+                "token": self.wtSite.mw_site.get_token("csrf"),
                 "fullhistory": "1" if config.full_history else "0",
                 "templates": "1" if config.include_templates else "0",
                 "assignknownusers": "1",

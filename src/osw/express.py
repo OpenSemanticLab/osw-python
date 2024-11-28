@@ -117,7 +117,7 @@ class OswExpress(OSW):
 
     def close_connection(self):
         """Close the connection to the OSL instance."""
-        self.site._site.connection.close()
+        self.mw_site.connection.close()
 
     def shut_down(self):
         """Makes sure this OSL instance can't be reused after it was shut down,

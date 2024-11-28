@@ -72,7 +72,7 @@ def get_file_info_and_usage_single(
     wtsite_obj: WtSite, page_title: str, debug: bool = False
 ) -> dict:
     result = wt.get_file_info_and_usage(
-        site=wtsite_obj._site,
+        site=wtsite_obj.mw_site,
         title=wt.SearchParam(
             query=page_title,
             debug=debug,
@@ -92,7 +92,7 @@ def get_file_info_and_usage_extended(
     parallel: bool = True,
 ) -> List[dict]:
     result = wt.get_file_info_and_usage(
-        site=wtsite_obj._site,
+        site=wtsite_obj.mw_site,
         title=wt.SearchParam(
             query=page_titles,
             debug=debug,

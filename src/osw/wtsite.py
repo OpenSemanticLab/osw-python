@@ -161,11 +161,11 @@ class WtSite:
 
         Parameters
         ----------
-        domain, optional
+        domain
             the wiki domain, by default None
-        password_file, optional
+        password_file
             password file with credentials for the wiki site, by default None
-        credentials, optional
+        credentials
             credentials of the wiki site, by default None
 
         Returns
@@ -456,13 +456,13 @@ class WtSite:
             The search query.
         modify_page
             The callback that modifies the pages.
-        limit, optional
+        limit
             query limit, by default None
-        comment, optional
+        comment
             edit comment, by default None
-        log, optional
+        log
             log changes, by default False
-        dryrun, optional
+        dryrun
             if True, no actual changes are made, by default False
         """
         titles = []
@@ -1156,11 +1156,11 @@ class WtPage:
 
         Parameters
         ----------
-        wtSite, optional
+        wtSite
             The instance site object, by default None
-        title, optional
+        title
             the page title, by default None
-        do_init, optional
+        do_init
             whether to initialize the page, by default True
         """
         self.wtSite = wtSite
@@ -1406,9 +1406,9 @@ class WtPage:
 
         Parameters
         ----------
-        template_name, optional
+        template_name
             the name of the template, by default None
-        template_params, optional
+        template_params
             the parameters of the template, by default None
 
         Returns
@@ -1483,7 +1483,7 @@ class WtPage:
             The JSONPath expression
         value
             The value to set
-        replace, optional
+        replace
             Whether to replace the value, by default False
 
         Returns
@@ -1596,7 +1596,7 @@ class WtPage:
 
         Parameters
         ----------
-        comment, optional
+        comment
             The delete comment, by default None
         """
         self._page.delete(comment)
@@ -1608,9 +1608,9 @@ class WtPage:
         ----------
         new_title
             the new title of the page
-        comment, optional
+        comment
             the edit comment
-        redirect, optional
+        redirect
             whether to create a redirect from the old title to the new title
         """
         if new_title != self.title:
@@ -1912,7 +1912,7 @@ class WtPage:
 
         Parameters
         ----------
-        config, optional
+        config
             see ExportConfig
 
         Returns

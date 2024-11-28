@@ -30,11 +30,11 @@ def eval_compiled_handlebars_template(
         the compiled template
     data
         the data dictionary
-    helpers, optional
+    helpers
         helper functions, by default {}
-    partials, optional
+    partials
         partials, by default {}
-    add_self_as_partial, optional
+    add_self_as_partial
         if true, add the compiled template as partial 'self', by default True
 
     Returns
@@ -66,11 +66,11 @@ def eval_handlebars_template(
         the template string
     data
         the data dictionary
-    helpers, optional
+    helpers
         helper functions, by default {}
-    partials, optional
+    partials
         partials, by default {}
-    add_self_as_partial, optional
+    add_self_as_partial
         if true, add the compiled template as partial 'self', by default True
 
     Returns

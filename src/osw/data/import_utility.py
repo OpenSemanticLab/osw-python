@@ -19,7 +19,7 @@ from osw.defaults import paths as default_paths
 from osw.model import entity as model
 from osw.utils.regex import MatchResult, RegExPatternExtended
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
-from osw.wtsite import WtSite
+from osw.wtsite import WtPage, WtSite
 
 # Constants
 ENABLE_SORTING = True
@@ -761,6 +761,7 @@ def get_entities_from_osw(
     cred_filepath,
     domain,
     limit: int = None,
+    parallel: bool = True,
     osw_obj: OSW = None,
     debug: bool = False,
 ) -> list:
@@ -780,6 +781,8 @@ def get_entities_from_osw(
         Domain of the OSW instance.
     limit:
         Maximum number of entities returned by this query
+    parallel:
+        If True, the search and getting entities is done in parallel.
     osw_obj:
         OSW instance to use. If None, a new instance is created.
     debug:
@@ -817,25 +820,31 @@ def get_entities_from_osw(
             wt.SearchParam(
                 query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
                 debug=debug,
+                parallel=parallel,
             )
             if limit is None
             else wt.SearchParam(
                 query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
                 debug=debug,
                 limit=limit,
+                parallel=parallel,
             )
         )
     )
-    for entity in entities:
-        # entity = full page name
-        page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[entity])).pages[0]
+
+    pages: List[WtPage] = wtsite_obj.get_page(
+        WtSite.GetPageParam(titles=entities, parallel=parallel)
+    ).pages
+
+    for page in pages:
         if page.exists:
             jsondata = page.get_slot_content("jsondata")
-            jsondata["full_page_title"] = entity
+            jsondata["full_page_title"] = page.title
             kwargs = {
                 k: v for k, v in jsondata.items() if not test_if_empty_list_or_none(v)
             }
             entities_from_osw.append(model_to_cast_to(**kwargs))
+
     return entities_from_osw
 
 

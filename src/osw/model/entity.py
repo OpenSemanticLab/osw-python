@@ -10,7 +10,6 @@ from uuid import UUID, uuid4
 from pydantic.v1 import Field, constr
 
 from osw.model.static import OswBaseModel
-from osw.utils.strings import pascal_case
 
 
 class ReadAccess(OswBaseModel):
@@ -101,28 +100,6 @@ class Entity(OswBaseModel):
     ] = Field(None, title="Statements")
     attachments: Optional[List[str]] = Field(None, title="File attachments")
     meta: Optional[Meta] = None
-
-    def __init__(self, **data):
-        if data.get("label"):
-            if not isinstance(data["label"], list):
-                raise ValueError(
-                    "label must be a list of Label objects",
-                )
-            labels = []
-            for label in data["label"]:
-                if isinstance(label, dict):
-                    labels.append(Label(**label))
-                else:
-                    # The list element should be a Label object
-                    labels.append(label)
-            data["label"] = labels
-            if not all(isinstance(label, Label) for label in data["label"]):
-                raise ValueError(
-                    "label must be a list of Label objects",
-                )
-        if data.get("name") is None and "label" in data:
-            data["name"] = pascal_case(data["label"][0].text)
-        super().__init__(**data)
 
 
 class ObjectStatement(OswBaseModel):

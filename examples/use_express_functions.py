@@ -1,22 +1,24 @@
 from pathlib import Path
 
-from osw.express import (
-    OswExpress,
-    cred_filepath_default,
-    osw_download_file,
-    osw_upload_file,
-)
+from osw.defaults import params as default_params
+from osw.defaults import paths as default_paths
+
+# The domain, osw.express will be initialized with
+default_params.wiki_domain = "wiki-dev.open-semantic-lab.org"
+
+from osw.express import OswExpress, osw_download_file, osw_upload_file  # noqa: E402
 
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
 #  it will use the default location (current working directory)
 # cred_filepath_default.set_default(r"C:\Users\gold\ownCloud\Personal\accounts.pwd.yaml")
 
 # Check setting
-print(f"Credentials loaded from '{str(cred_filepath_default)}")
+print(f"Credentials loaded from '{str(default_paths.cred_filepath)}'")
 
-# Create an OswExpress object
+# The domain to connect to
 domain = "wiki-dev.open-semantic-lab.org"
-# domain = "arkeve.test.digital.isc.fraunhofer.de"
+# domain = "demo.open-semantic-lab.org"
+# Create an OswExpress object
 osw_obj = OswExpress(domain=domain)
 
 # Create a file

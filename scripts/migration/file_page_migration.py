@@ -12,8 +12,8 @@ import osw.data.import_utility as iu
 import osw.wiki_tools as wt
 from osw.core import OSW
 from osw.model.entity import Label, WikiFile
+from osw.utils.regex import match_first_regex_pattern, test_regex_pattern
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
-from osw.utils.strings import match_first_regex_pattern, test_regex_pattern
 from osw.utils.util import parallelize
 from osw.wtsite import WtPage, WtSite
 
@@ -72,7 +72,7 @@ def get_file_info_and_usage_single(
     wtsite_obj: WtSite, page_title: str, debug: bool = False
 ) -> dict:
     result = wt.get_file_info_and_usage(
-        site=wtsite_obj._site,
+        site=wtsite_obj.mw_site,
         title=wt.SearchParam(
             query=page_title,
             debug=debug,
@@ -92,7 +92,7 @@ def get_file_info_and_usage_extended(
     parallel: bool = True,
 ) -> List[dict]:
     result = wt.get_file_info_and_usage(
-        site=wtsite_obj._site,
+        site=wtsite_obj.mw_site,
         title=wt.SearchParam(
             query=page_titles,
             debug=debug,

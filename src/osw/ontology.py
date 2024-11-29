@@ -412,7 +412,7 @@ class OntologyImporter(OswBaseModel):
             the graph (list of nodes) to delete from
         id
             the id of the node to delete
-        key, optional
+        key
             the id key, by default '@id'
 
         Returns

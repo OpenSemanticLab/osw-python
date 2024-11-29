@@ -1,9 +1,9 @@
-from osw.utils.strings import RegExPatternExtended
+from osw.utils.regex import RegExPatternExtended
 
 REGEX_PATTERN_LIST = [
     RegExPatternExtended(
         description="File page full page title (new format) to label",
-        pattern=r"File:(OS[WL]{1}[[a-f0-9]{32})"
+        pattern=r"File:(OS[WL]{1}[a-f0-9]{32})"
         r"(\.[a-zA-Z0-9]*[a-zA-Z]+[a-zA-Z0-9]*)",
         group_keys=["Label", "Suffix(es)"],  # ["OSW-ID", "Suffix(es)"]
         example_str="File:OSW11a53cdfbdc24524bf8ac435cbf65d9d.svg",

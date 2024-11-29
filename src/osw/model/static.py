@@ -2,12 +2,13 @@
 This module is to be imported in the dynamically created and updated entity.py module.
 """
 
-from typing import TYPE_CHECKING, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Literal, Optional, Type, TypeVar, Union
 from uuid import UUID
 
-from pydantic.v1 import BaseModel
+from pydantic.v1 import BaseModel, Field, constr
 
 from osw.custom_types import NoneType
+from osw.utils.strings import pascal_case
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -87,6 +88,31 @@ class OswBaseModel(BaseModel):
         # Additional fields are allowed
         validate_assignment = True
         # Ensures that the assignment of a value to a field is validated
+
+    def __init__(self, **data):
+        if data.get("label"):
+            if not isinstance(data["label"], list):
+                raise ValueError(
+                    "label must be a list of Label objects",
+                )
+            labels = []
+            for label in data["label"]:
+                if isinstance(label, dict):
+                    labels.append(Label(**label))
+                else:
+                    # The list element should be a Label object
+                    labels.append(label)
+            data["label"] = labels
+            # Ensure that the label attribute is a list of Label objects, but use
+            #  custom_isinstance to avoid circular imports and ValidationError since
+            #  osw.model.entity defines its own Label class
+            if not all(custom_isinstance(label, "Label") for label in data["label"]):
+                raise ValueError(
+                    "label must be a list of Label objects",
+                )
+        if data.get("name") is None and "label" in data:
+            data["name"] = pascal_case(data["label"][0].text)
+        super().__init__(**data)
 
     def full_dict(self, **kwargs):  # extent BaseClass export function
         d = super().dict(**kwargs)
@@ -300,3 +326,8 @@ class Ontology(OswBaseModel):
     name: str
     prefix_name: str
     link: str
+
+
+class Label(OswBaseModel):
+    text: constr(min_length=1) = Field(..., title="Text")
+    lang: Optional[Literal["en", "de"]] = Field("en", title="Lang code")

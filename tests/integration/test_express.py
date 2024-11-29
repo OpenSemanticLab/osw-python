@@ -79,7 +79,7 @@ def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     mocked_getpass.return_value = wiki_password
     osw_express = osw.express.OswExpress(domain=wiki_domain)
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
-    assert osw_express.cred_filepath == Path(osw.express.cred_filepath_default.default)
+    assert osw_express.cred_filepath == Path(osw.express.default_paths.cred_filepath)
     osw_express.shut_down()
     osw_express.cred_filepath.unlink()
 
@@ -110,7 +110,9 @@ def test_init_with_cred_filepath_but_missing_credentials(
     mocked_getpass = mocker.patch("getpass.getpass")
     mocked_input.return_value = wiki_username
     mocked_getpass.return_value = wiki_password
-    cred_filepath = Path.cwd() / "accounts.pwd.yaml"
+    cred_filepath = Path.cwd() / "osw_files" / "accounts.pwd.yaml"
+    if not cred_filepath.parent.exists():
+        cred_filepath.parent.mkdir(parents=True)
     with open(cred_filepath, "w") as f:
         yaml.dump({"dummy.domain": {"username": "dummy", "password": "password"}}, f)
     import osw.express

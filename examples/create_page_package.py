@@ -47,7 +47,7 @@ package = Package(
 # Provide the information needed (only) to create the page package
 config = Package.CreationConfig(
     # Specify the path to the credentials file
-    credentials_file_path=Path(__file__).parent / "accounts.pwd.yaml",
+    cred_filepath=Path(__file__).parent / "accounts.pwd.yaml",
     # Specify the domain of the OSW/OSL instance to load pages from
     domain="wiki-dev.open-semantic-lab.org",
     # Specify the path to the working directory - where the package is stored on disk

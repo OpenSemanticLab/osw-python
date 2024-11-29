@@ -12,20 +12,17 @@ from geopy import Nominatim
 from jsonpath_ng import ext as jp
 from pydantic.v1.fields import ModelField
 
-import osw.utils.strings as strutil
 from osw import wiki_tools as wt
 from osw.auth import CredentialManager
 from osw.core import OSW
+from osw.defaults import paths as default_paths
 from osw.model import entity as model
-from osw.utils.regex_pattern import REGEX_PATTERN_LIB, REGEX_PATTERN_LIST
-from osw.wtsite import WtSite
+from osw.utils.regex import MatchResult, RegExPatternExtended
+from osw.utils.regex_pattern import REGEX_PATTERN_LIB
+from osw.wtsite import WtPage, WtSite
 
 # Constants
-PACKAGE_ROOT_PATH = Path(__file__).parents[2]
-CREDENTIALS_FILE_PATH_DEFAULT = PACKAGE_ROOT_PATH / "examples" / "accounts.pwd.yaml"
 ENABLE_SORTING = True
-# For compatibility with the old version of the module
-REGEX_PATTERN = {rep.description: rep.dict() for rep in REGEX_PATTERN_LIST}
 
 
 # Classes
@@ -177,7 +174,7 @@ def transform_attributes_and_merge(
         sorted_ = ent_as_dict["sorted"]
     else:
         sorted_ = False
-    cls_type_str = str(sel_cls.__fields__["type"].default)
+    cls_type_str = str(sel_cls.__fields__["type"].get_default())
 
     # Merge entries with the same name / uuid
     entities_copy = copy.deepcopy(ent)  # Copy to loop over
@@ -298,7 +295,7 @@ def isclass(obj, cls):
             obj_type = obj.get("type")
         else:
             obj_type = getattr(obj, "type", None)
-        cls_type = cls.__fields__["type"].default
+        cls_type = cls.__fields__["type"].get_default()
         if isinstance(obj_type, list):
             obj_type.sort()
         if isinstance(cls_type, list):
@@ -408,7 +405,7 @@ def jsonpath_search_and_return_list(
     if sorted_ and class_to_match:
         # See definition in loop_and_call_method with argument 'sorted'
         try:
-            cls_type = class_to_match.__fields__["type"].default
+            cls_type = class_to_match.__fields__["type"].get_default()
             # Search in a dramatically reduced number of entries
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:
@@ -502,8 +499,8 @@ def nan_empty_or_none(inp: Any) -> bool:
 
 
 def regex_match_list(
-    pattern: Union[str, strutil.RegExPatternExtended], list_of_strings: List[str]
-) -> List[Union[str, strutil.MatchResult]]:
+    pattern: Union[str, RegExPatternExtended], list_of_strings: List[str]
+) -> List[Union[str, MatchResult]]:
     """Returns a subset of the 'list_of_strings' that matched the regex 'pattern'.
 
     Parameters
@@ -522,7 +519,7 @@ def regex_match_list(
             if re.match(pattern=pattern, string=string):
                 matches.append(string)
         return matches
-    elif isinstance(pattern, strutil.RegExPatternExtended):
+    elif isinstance(pattern, RegExPatternExtended):
         matches = []
         for string in list_of_strings:
             match_result_obj = pattern.match(string)
@@ -761,8 +758,10 @@ def create_page_name_from_label(label: str) -> str:
 def get_entities_from_osw(
     category_to_search: Union[str, uuid_module.UUID],
     model_to_cast_to,
-    credentials_fp,
+    cred_filepath,
     domain,
+    limit: int = None,
+    parallel: bool = True,
     osw_obj: OSW = None,
     debug: bool = False,
 ) -> list:
@@ -776,8 +775,16 @@ def get_entities_from_osw(
         Category to search for.
     model_to_cast_to:
         Model to cast the entities to.
-    credentials_fp:
+    cred_filepath:
         Filepath to the credentials file, used to access the OSW instance.
+    domain:
+        Domain of the OSW instance.
+    limit:
+        Maximum number of entities returned by this query
+    parallel:
+        If True, the search and getting entities is done in parallel.
+    osw_obj:
+        OSW instance to use. If None, a new instance is created.
     debug:
         If True, prints debug information.
 
@@ -802,28 +809,42 @@ def get_entities_from_osw(
     else:  # elif isinstance(category_to_search, uuid_module.UUID):
         category_uuid = str(category_to_search)
     if osw_obj is None:
-        cred_man = CredentialManager(cred_filepath=credentials_fp)
+        cred_man = CredentialManager(cred_filepath=cred_filepath)
         osw_obj = OSW(site=WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_man)))
     wtsite_obj = osw_obj.site
     entities_from_osw = []
     if debug:
         print(f"Searching for instances of {category_to_search} in OSW...")
     entities = wtsite_obj.semantic_search(
-        query=wt.SearchParam(
-            query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
-            debug=debug,
+        query=(
+            wt.SearchParam(
+                query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
+                debug=debug,
+                parallel=parallel,
+            )
+            if limit is None
+            else wt.SearchParam(
+                query=f"[[HasType::Category:OSW{str(category_uuid).replace('-', '')}]]",
+                debug=debug,
+                limit=limit,
+                parallel=parallel,
+            )
         )
     )
-    for entity in entities:
-        # entity = full page name
-        page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[entity])).pages[0]
+
+    pages: List[WtPage] = wtsite_obj.get_page(
+        WtSite.GetPageParam(titles=entities, parallel=parallel)
+    ).pages
+
+    for page in pages:
         if page.exists:
             jsondata = page.get_slot_content("jsondata")
-            jsondata["full_page_title"] = entity
+            jsondata["full_page_title"] = page.title
             kwargs = {
                 k: v for k, v in jsondata.items() if not test_if_empty_list_or_none(v)
             }
             entities_from_osw.append(model_to_cast_to(**kwargs))
+
     return entities_from_osw
 
 
@@ -873,16 +894,16 @@ def create_full_page_title(
 
 def translate_list_with_deepl(
     seq: list,
-    credentials_file_path: Union[str, Path] = None,
+    cred_filepath: Union[str, Path] = None,
     target_lang: str = "EN-US",
     translations: dict = None,
 ) -> dict:
     """Translates a list of strings with DeepL."""
-    if credentials_file_path is None:
-        credentials_file_path = CREDENTIALS_FILE_PATH_DEFAULT
+    if cred_filepath is None:
+        cred_filepath = default_paths.cred_filepath
     if translations is None:
         translations = {}
-    domains, accounts = wt.read_domains_from_credentials_file(credentials_file_path)
+    domains, accounts = wt.read_domains_from_credentials_file(cred_filepath)
     domain = "api-free.deepl.com"
     auth = accounts[domain]["password"]
     translator = deepl.Translator(auth)

@@ -14,6 +14,7 @@ from warnings import warn
 
 import rdflib
 from jsonpath_ng.ext import parse
+from mwclient.client import Site
 from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
 from pyld import jsonld
 
@@ -31,7 +32,7 @@ from osw.utils.wiki import (
     get_uuid,
     is_empty,
     namespace_from_full_title,
-    remove_empty_strings,
+    remove_empty,
     title_from_full_title,
 )
 from osw.wiki_tools import SearchParam
@@ -85,6 +86,11 @@ class OSW(BaseModel):
         arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
     site: WtSite
+
+    @property
+    def mw_site(self) -> Site:
+        """Returns the mwclient Site object of the OSW instance."""
+        return self.site.mw_site
 
     @staticmethod
     def get_osw_id(uuid: uuid) -> str:
@@ -163,7 +169,7 @@ class OSW(BaseModel):
                 model_type = None
             else:
                 # Get class type if available
-                model_type = entity.__class__.__fields__["type"].default[0]
+                model_type = entity.__class__.__fields__["type"].get_default()[0]
             # Add entity to by_name
             if name not in by_name:
                 by_name[name] = []
@@ -427,7 +433,7 @@ class OSW(BaseModel):
 
         jsonpath_expr = parse("$..dollarref")
         for match in jsonpath_expr.find(schema):
-            # value = "https://" + self.site._site.host + match.value
+            # value = "https://" + self.mw_site.host + match.value
             if match.value.startswith("#"):
                 continue  # skip self references
             ref_schema_title = match.value.replace("/wiki/", "").split("?")[0]
@@ -605,8 +611,9 @@ class OSW(BaseModel):
         autofetch_schema: Optional[bool] = True
         """If true, load the corresponding schemas /
         categories ad-hoc if not already present"""
-        remove_empty_strings: Optional[bool] = True
-        """If true, remove key with an empty string value from the jsondata."""
+        remove_empty: Optional[bool] = True
+        """If true, remove key with an empty string, list, dict or set as value
+        from the jsondata."""
         disable_cache: bool = False
         """If true, disable the cache for the loading process"""
 
@@ -662,8 +669,8 @@ class OSW(BaseModel):
             schemas = []
             schemas_fetched = True
             jsondata = page.get_slot_content("jsondata")
-            if param.remove_empty_strings:
-                remove_empty_strings(jsondata)
+            if param.remove_empty:
+                remove_empty(jsondata)
             if jsondata:
                 for category in jsondata["type"]:
                     schema = (
@@ -740,9 +747,7 @@ class OSW(BaseModel):
         """Defines the overall overwriting behavior. Used for any property if the
         property specific setting is not set."""
         per_property: Optional[Dict[str, OverwriteOptions]] = None
-        """A key (property name) - value (overwrite setting) pair. Careful! - When
-        setting values of this dictionary after validation, the validator won't be
-        called again. The same applies for the __init__ function!"""
+        """A key (property name) - value (overwrite setting) pair."""
         _per_property: Dict[str, OVERWRITE_CLASS_OPTIONS] = PrivateAttr()
         """Private property, for internal use only. Use 'per_property' instead"""
 
@@ -759,6 +764,29 @@ class OSW(BaseModel):
 
             return per_property
 
+        def __setattr__(self, key, value):
+            """Called when setting an attribute"""
+            super().__setattr__(key, value)
+            if key == "per_property":
+                # compare value and self.per_property
+                if value != self.per_property and value is not None:
+                    self._per_property = {
+                        field_name: value.get(field_name, self.overwrite)
+                        for field_name in self.model.__fields__.keys()
+                    }
+            elif key == "overwrite":
+                if self.per_property is not None:
+                    self._per_property = {
+                        field_name: self.per_property.get(field_name, self.overwrite)
+                        for field_name in self.model.__fields__.keys()
+                    }
+            elif key == "model":
+                if self.per_property is not None:
+                    self._per_property = {
+                        field_name: self.per_property.get(field_name, self.overwrite)
+                        for field_name in self.model.__fields__.keys()
+                    }
+
         def __init__(self, **data):
             """Called after validation. Sets the fallback for every property that
             has not been specified in per_property."""
@@ -773,6 +801,10 @@ class OSW(BaseModel):
             # todo: from class definition get properties with hidden /
             #  read_only option  #  those can be safely overwritten - set the to True
 
+        def get_overwrite_setting(self, property_name: str) -> OverwriteOptions:
+            """Returns the fallback overwrite option for the given field name"""
+            return self._per_property.get(property_name, self.overwrite)
+
     class _ApplyOverwriteParam(OswBaseModel):
         page: WtPage
         entity: OswBaseModel  # actually model.Entity but this causes the "type" error
@@ -780,7 +812,7 @@ class OSW(BaseModel):
         namespace: Optional[str]
         meta_category_title: Optional[str]
         meta_category_template_str: Optional[str]
-        remove_empty_strings: Optional[bool] = True
+        remove_empty: Optional[bool] = True
         inplace: Optional[bool] = False
         debug: Optional[bool] = False
 
@@ -861,8 +893,8 @@ class OSW(BaseModel):
         ):
             # Use pydantic serialization, skip none values:
             new_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
-            if param.remove_empty_strings:
-                remove_empty_strings(new_content["jsondata"])
+            if param.remove_empty:
+                remove_empty(new_content["jsondata"])
             set_content(new_content)
             page.changed = True
             return page  # Guard clause --> exit function
@@ -892,8 +924,8 @@ class OSW(BaseModel):
         for slot in ["jsondata", "header", "footer"]:  # SLOTS:
             remote_content[slot] = page.get_slot_content(slot)
             # Todo: remote content does not contain properties that are not set
-        if param.remove_empty_strings:
-            remove_empty_strings(remote_content["jsondata"])
+        if param.remove_empty:
+            remove_empty(remote_content["jsondata"])
         if remote_content["header"]:  # not None or {} or ""
             new_content["header"] = remote_content["header"]
         if remote_content["footer"]:
@@ -904,8 +936,8 @@ class OSW(BaseModel):
         # Properties that are not set in the local content will be set to None
         # We want those not to be listed as keys
         local_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
-        if param.remove_empty_strings:
-            remove_empty_strings(local_content["jsondata"])
+        if param.remove_empty:
+            remove_empty(local_content["jsondata"])
         if param.debug:
             print(f"'local_content': {str(remote_content)}")
         # Apply the overwrite logic
@@ -937,7 +969,7 @@ class OSW(BaseModel):
             {
                 key: value
                 for (key, value) in local_content["jsondata"].items()
-                if param.policy._per_property.get(key) == OverwriteOptions.true
+                if param.policy.get_overwrite_setting(key) == OverwriteOptions.true
             }
         )
         if param.debug:
@@ -946,7 +978,7 @@ class OSW(BaseModel):
             {
                 key: value
                 for (key, value) in remote_content["jsondata"].items()
-                if param.policy._per_property.get(key) == OverwriteOptions.false
+                if param.policy.get_overwrite_setting(key) == OverwriteOptions.false
             }
         )
         if param.debug:
@@ -956,7 +988,8 @@ class OSW(BaseModel):
                 key: value
                 for (key, value) in local_content["jsondata"].items()
                 if (
-                    param.policy._per_property.get(key) == OverwriteOptions.only_empty
+                    param.policy.get_overwrite_setting(key)
+                    == OverwriteOptions.only_empty
                     and is_empty(remote_content["jsondata"].get(key))
                 )
             }
@@ -981,7 +1014,7 @@ class OSW(BaseModel):
         """A list of OverwriteClassParam objects. If a class specific overwrite setting
         is set, this setting is used.
         """
-        remove_empty_strings: Optional[bool] = True
+        remove_empty: Optional[bool] = True
         """If true, remove key with an empty string value from the jsondata."""
         change_id: Optional[str] = None
         """ID to document the change. Entities within the same store_entity() call will
@@ -1015,12 +1048,12 @@ class OSW(BaseModel):
                     True  # Set to True after implementation of asynchronous upload
                 )
             if self.overwrite is None:
-                self.overwrite = self.__fields__["overwrite"].default
+                self.overwrite = self.__fields__["overwrite"].get_default()
             self._overwrite_per_class = {"by name": {}, "by type": {}}
             if self.overwrite_per_class is not None:
                 for param in self.overwrite_per_class:
                     model_name = param.model.__name__
-                    model_type = param.model.__fields__["type"].default[0]
+                    model_type = param.model.__fields__["type"].get_default()[0]
                     if (
                         model_name in self._overwrite_per_class["by name"].keys()
                         or model_type in self._overwrite_per_class["by type"].keys()
@@ -1101,15 +1134,15 @@ class OSW(BaseModel):
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     meta_category_template_str=meta_category_template_str,
-                    remove_empty_strings=param.remove_empty_strings,
+                    remove_empty=param.remove_empty,
                     debug=param.debug,
                 )
             )
             if meta_category_template:
                 try:
                     jsondata = page.get_slot_content("jsondata")
-                    if param.remove_empty_strings:
-                        remove_empty_strings(jsondata)
+                    if param.remove_empty:
+                        remove_empty(jsondata)
                     schema_str = eval_compiled_handlebars_template(
                         meta_category_template,
                         jsondata,
@@ -1360,6 +1393,9 @@ class OSW(BaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
         """The entities to convert to JSON-LD. Can be a single entity or a list of
         entities."""
+        id_keys: Optional[List[str]] = ["osw_id"]
+        """The keys to use as @id in the JSON-LD output. If not found in the entity at root
+        level, the full page title is used."""
         resolve_context: Optional[bool] = True
         """If True, remote context URLs are resolved."""
         mode: Optional[OSW.JsonLdMode] = "expand"
@@ -1411,16 +1447,23 @@ class OSW(BaseModel):
             data = json.loads(e.json(exclude_none=True, indent=4, ensure_ascii=False))
 
             data["@context"] = []
+            if params.id_keys is not None:
+                # append "@id" mappings to the context in an additional object
+                id_mapping = {}
+                for k in params.id_keys:
+                    id_mapping[k] = "@id"
+                data["@context"].append(id_mapping)
             if params.context is None:
                 for t in e.type:
                     data["@context"].append("/wiki/" + t)
                 if params.context is not None:
                     data["@context"].append(params.context)
             else:
-                data["@context"] = {
-                    **self.site.get_jsonld_context_prefixes(),
-                    **params.context,
-                }
+                data["@context"].append(self.site.get_jsonld_context_prefixes())
+                if isinstance(params.context, list):
+                    data["@context"].extend(params.context)
+                else:
+                    data["@context"].append(params.context)
             if params.additional_context is not None:
                 if data["@context"] is None:
                     data["@context"] = []
@@ -1428,13 +1471,15 @@ class OSW(BaseModel):
                     data["@context"] = [data["@context"]]
                 data["@context"].append(params.additional_context)
 
-            data["@id"] = get_full_title(e)
+            # if none of the id_keys is found, use the full title
+            if not any(k in data for k in params.id_keys):
+                data["@id"] = get_full_title(e)
 
             if params.resolve_context:
                 graph_document["@graph"].append(jsonld.expand(data))
                 if params.mode == "expand":
                     data = jsonld.expand(data)
-                    if isinstance(data, list):
+                    if isinstance(data, list) and len(data) > 0:
                         data = data[0]
                 elif params.mode == "flatten":
                     data = jsonld.flatten(data)

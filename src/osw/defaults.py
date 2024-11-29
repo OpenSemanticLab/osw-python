@@ -12,7 +12,7 @@ PACKAGE_ROOT_PATH = Path(__file__).parents[1]
 BASE_PATH = Path.cwd()
 OSW_FILES_DIR_DEFAULT = BASE_PATH / "osw_files"
 DOWNLOAD_DIR_DEFAULT = OSW_FILES_DIR_DEFAULT / "downloads"
-CRED_FILENAME_DEFAULT = "credentials.pwd.yaml"
+CRED_FILENAME_DEFAULT = "accounts.pwd.yaml"
 CRED_FILEPATH_DEFAULT = OSW_FILES_DIR_DEFAULT / CRED_FILENAME_DEFAULT
 WIKI_DOMAIN_DEFAULT = "wiki.open-semantic-lab.org"
 

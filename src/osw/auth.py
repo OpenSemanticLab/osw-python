@@ -3,15 +3,19 @@ from __future__ import annotations
 import getpass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 from warnings import warn
 
 import yaml
 from pydantic.v1 import PrivateAttr
 
-from osw.custom_types import PossibleFilePath
 from osw.defaults import paths as default_paths
 from osw.model.static import OswBaseModel
+
+if TYPE_CHECKING:
+    PossibleFilePath = Path
+else:
+    from osw.custom_types import PossibleFilePath
 
 
 class CredentialManager(OswBaseModel):
@@ -85,6 +89,7 @@ class CredentialManager(OswBaseModel):
         if self.cred_filepath:
             if not isinstance(self.cred_filepath, list):
                 self.cred_filepath = [self.cred_filepath]
+            self.cred_filepath = [Path(fp) for fp in self.cred_filepath if fp != ""]
         # Make sure to at least warn the user if they pass cred_filepath instead of
         # cred_filepath
         attribute_names = self.__dict__.keys()
@@ -114,41 +119,40 @@ class CredentialManager(OswBaseModel):
                 filepaths = [filepaths]
 
             for filepath in filepaths:
-                if filepath != "":
-                    with open(filepath, "r", encoding="utf-8") as stream:
-                        try:
-                            accounts = yaml.safe_load(stream)
-                            if accounts is None:  # Catch empty file
-                                continue
-                            for iri in accounts.keys():
-                                if (
-                                    "username" in accounts[iri]
-                                    and "password" in accounts[iri]
-                                ):
-                                    cred = CredentialManager.UserPwdCredential(
-                                        username=accounts[iri]["username"],
-                                        password=accounts[iri]["password"],
-                                        iri=iri,
-                                    )
-                                    _file_credentials.append(cred)
-                                if (
-                                    "consumer_token" in accounts[iri]
-                                    and "consumer_secret" in accounts[iri]
-                                    and "access_token" in accounts[iri]
-                                    and "access_secret" in accounts[iri]
-                                ):
-                                    cred = CredentialManager.OAuth1Credential(
-                                        consumer_token=accounts[iri]["consumer_token"],
-                                        consumer_secret=accounts[iri][
-                                            "consumer_secret"
-                                        ],
-                                        access_token=accounts[iri]["access_token"],
-                                        access_secret=accounts[iri]["access_secret"],
-                                        iri=iri,
-                                    )
-                                    _file_credentials.append(cred)
-                        except yaml.YAMLError as exc:
-                            print(exc)
+                if not filepath.exists():
+                    continue
+                with open(filepath, "r", encoding="utf-8") as stream:
+                    try:
+                        accounts = yaml.safe_load(stream)
+                        if accounts is None:  # Catch empty file
+                            continue
+                        for iri in accounts.keys():
+                            if (
+                                "username" in accounts[iri]
+                                and "password" in accounts[iri]
+                            ):
+                                cred = CredentialManager.UserPwdCredential(
+                                    username=accounts[iri]["username"],
+                                    password=accounts[iri]["password"],
+                                    iri=iri,
+                                )
+                                _file_credentials.append(cred)
+                            if (
+                                "consumer_token" in accounts[iri]
+                                and "consumer_secret" in accounts[iri]
+                                and "access_token" in accounts[iri]
+                                and "access_secret" in accounts[iri]
+                            ):
+                                cred = CredentialManager.OAuth1Credential(
+                                    consumer_token=accounts[iri]["consumer_token"],
+                                    consumer_secret=accounts[iri]["consumer_secret"],
+                                    access_token=accounts[iri]["access_token"],
+                                    access_secret=accounts[iri]["access_secret"],
+                                    iri=iri,
+                                )
+                                _file_credentials.append(cred)
+                    except yaml.YAMLError as exc:
+                        print(exc)
 
         match_iri = ""
         cred = None

@@ -71,17 +71,20 @@ class OswExpress(OSW):
         cred_mngr: CredentialManager = None,
     ):
         if cred_filepath is None:
+            # Set default
             cred_filepath = default_paths.cred_filepath
             if cred_mngr is not None:
                 if cred_mngr.cred_filepath is not None:
+                    # But overwrite if the cred_mngr has a cred_filepath
                     cred_filepath = cred_mngr.cred_filepath[0]
         if not isinstance(cred_filepath, Path):
             cred_filepath = Path(cred_filepath)
         if cred_mngr is None:
-            if cred_filepath.exists():
-                cred_mngr = CredentialManager(cred_filepath=cred_filepath)
-            else:
+            # Create a credentials manager
+            if cred_filepath is None:
                 cred_mngr = CredentialManager()
+            else:  # Reuse passed cred_filepath
+                cred_mngr = CredentialManager(cred_filepath=cred_filepath)
         if not cred_mngr.iri_in_file(domain):
             cred = cred_mngr.get_credential(
                 CredentialManager.CredentialConfig(
@@ -294,9 +297,17 @@ def import_with_fallback(
     module: str = None,
     dependencies: Dict[str, str] = None,
     domain: str = None,
+    cred_filepath: Union[str, Path] = None,
+    osw_express: OswExpress = None,
 ):
     """Imports data models with a fallback to fetch the dependencies from an OSL
     instance if the data models are not available in the local osw.model.entity module.
+
+    DISCLAIMER: Will prompt the user to enter domain and credentials if no domain and
+    cred_filepath or osw_express was passed.
+
+    BEST USAGE: See examples, for best usage in a script to be rerun multiple times
+    (without refetching datamodels).
 
     Parameters
     ----------
@@ -315,12 +326,24 @@ def import_with_fallback(
     domain
         The domain of the OSL instance to connect to, if the dependencies are not
         available in the local osw.model.entity module.
+    cred_filepath
+        The filepath to the credentials file. If None, a credentials file is created
+        under the default path.
+    osw_express
+        An OswExpress object. If None, a new OswExpress object will be created using
+        the credentials_manager or domain and cred_filepath.
 
     Examples
     --------
+    >>> from pathlib import Path
+    >>> from osw.defaults import paths, params
+    >>> from osw.express import import_with_fallback, DataModel, OswExpress
+    >>> wiki_domain__ = "wiki-dev.open-semantic-lab.org"
+    >>> cred_filepath__ = Path(r"accounts.pwd.yaml")
+    >>> osw_obj = OswExpress(domain=wiki_domain__, cred_filepath=cred_filepath__)
     >>> import_with_fallback(
     >>>     [DataModel(module="osw.controller.file.base",class_name="FileController")],
-    >>>     globals(),
+    >>>     globals(), osw_express=osw_obj
     >>> )
 
     Returns
@@ -368,22 +391,31 @@ def import_with_fallback(
         dependencies.update(new_dependencies)
         if not dependencies:
             raise AttributeError(
-                f"An exception occurred while loading the module dependencies: \n'{e}'"
+                f"An exception occurred while loading the module dependencies: \n"
+                f'"{e}"\n'
                 "No 'dependencies' were passed to the function import_with_fallback() "
                 "and could not be derived from 'to_import'!"
             )
         warn(
-            f"An exception occurred while loading the module dependencies: \n'{e}'"
+            f'An exception occurred while loading the module dependencies: \n"'
+            f'{e}"\n'
             "You will now have to connect to an OSW instance to fetch the "
             "dependencies from!"
         )
+        # If the user has set the default domain, use it
         if domain is None:
-            domain = input("Please enter the domain of the OSW instance to connect to:")
-        if domain == "" or domain is None:
-            domain = default_params.wiki_domain
-        osw_express = OswExpress(
-            domain=domain, cred_filepath=default_paths.cred_filepath
-        )
+            if default_params.has_changed("wiki_domain"):
+                domain = default_params.wiki_domain
+            else:
+                domain = input(
+                    "Please enter the domain of the OSW instance to connect to:"
+                )
+                if domain == "":
+                    domain = default_params.wiki_domain
+        if cred_filepath is None:
+            cred_filepath = default_paths.cred_filepath
+        if osw_express is None:
+            osw_express = OswExpress(domain=domain, cred_filepath=cred_filepath)
 
         osw_express.install_dependencies(dependencies, mode="append")
         osw_express.shut_down()  # Avoiding connection error
@@ -397,9 +429,13 @@ def import_with_fallback(
 
 # If the default was not changed, make sure the user is prompted to enter the domain
 if default_params.has_changed("wiki_domain"):
-    wiki_domain = default_params.wiki_domain
+    wiki_domain_ = default_params.wiki_domain
 else:
-    wiki_domain = None
+    wiki_domain_ = None
+if default_paths.has_changed("cred_filepath"):
+    cred_filepath_ = default_paths.cred_filepath
+else:
+    cred_filepath_ = None
 import_with_fallback(
     to_import=[
         DataModel(
@@ -421,7 +457,8 @@ import_with_fallback(
     ],
     caller_globals=globals(),
     dependencies=DEPENDENCIES,
-    domain=wiki_domain,
+    domain=wiki_domain_,
+    cred_filepath=cred_filepath_,
 )
 
 if TYPE_CHECKING:

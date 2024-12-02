@@ -367,8 +367,8 @@ class PagePackageController(model.PagePackageMetaData):
         """Working directory. Will be created automatically if not existing."""
         skip_slot_suffix_for_main: bool = False
         ignore_titles: Optional[List[str]] = None
-        """List of page titles to ignore in auto-detected dependencies
-        , e.g. example files"""
+        """List of page titles to ignore in auto-detected dependencies, e.g.,
+        example files"""
 
     def create(
         self,

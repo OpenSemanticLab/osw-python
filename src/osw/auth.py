@@ -321,7 +321,7 @@ class CredentialManager(OswBaseModel):
                     # containing the .gitignore file, add the relative path to the
                     # .gitignore file
                     rel = default_paths.osw_files_dir.relative_to(containing_gitignore)
-                    to_add = f"\n*{str(rel.as_posix())}/*"
+                    to_add = f"\n*/{str(rel.as_posix())}/*"
                 else:
                     # Test if the default_path.osw_files_dir is a subdirectory of the
                     # directory containing the .gitignore file
@@ -329,20 +329,22 @@ class CredentialManager(OswBaseModel):
                         f"\n*/{default_paths.osw_files_dir.absolute().as_posix()}/*"
                     )
                 osw_dir_added = True
-            elif f"*/{fp.name}" not in content:
+            else:
                 print(f"Adding '{fp.name}' to gitignore file '{gitignore_fp}'.")
                 to_add = f"\n*/{fp.name}"
-            # If to_add is not empty, write to .gitignore file
-            if to_add:
-                with open(gitignore_fp, "a") as stream:
-                    # Only add comment if not already set
-                    if not comment_set:
-                        stream.write(
-                            "\n# Automatically added by osw.auth.CredentialManager."
-                            "save_credentials_to_file:"
-                        )
-                        comment_set = True
-                    stream.write(to_add)
+            if not to_add or to_add in content:
+                continue
+
+            with open(gitignore_fp, "a") as stream:
+                # Only add comment if not already set
+                comment = (
+                    "\n# Automatically added by osw.auth.CredentialManager."
+                    "save_credentials_to_file:"
+                )
+                if not comment_set and comment not in content:
+                    stream.write(comment)
+                    comment_set = True
+                stream.write(to_add)
 
 
 CredentialManager.CredentialConfig.update_forward_refs()

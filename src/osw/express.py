@@ -134,14 +134,25 @@ class OswExpress(OSW):
         mode: str = "append",
         policy: str = "force",
     ):
-        """Expects a dictionary with the keys being the names of the dependencies and
-        the values being the full page name of the dependencies.
-        To keep existing dependencies, use mode='append'.
-        Default policy is 'force', which will always load dependencies.
-        If policy is 'if-missing', dependencies will only be loaded if they are not already installed.
-        This may lead to outdated dependencies, if the dependencies have been updated on the server.
-        If policy is 'if-outdated', dependencies will only be loaded if they were updated on the server.
-        (not implemented yet)
+        """Installs data models, listed in the dependencies, in the osw.model.entity
+        module.
+
+        Parameters
+        ----------
+        dependencies
+            A dictionary with the keys being the names of the dependencies and the
+            values being the full page name (IRI) of the dependencies.
+        mode
+            The mode to use when loading the dependencies. Default is 'append',
+            which will keep existing data models and only load the missing ones. The
+            mode 'replace' will replace all existing data models with the new ones.
+        policy
+            The policy to use when loading the dependencies. Default is 'force',
+            which will always load the dependencies. If policy is 'if-missing',
+            dependencies will only be loaded if they are not already installed.
+            This may lead to outdated dependencies, if the dependencies have been
+            updated on the server. If policy is 'if-outdated', dependencies will only
+            be loaded if they were updated on the server. (not implemented yet)
         """
         if dependencies is None:
             dependencies = DEPENDENCIES
@@ -161,6 +172,30 @@ class OswExpress(OSW):
                     "It should be 'Namespace:Name'."
                 )
         self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpts, mode=mode))
+
+    @staticmethod
+    def check_dependencies(dependencies: Dict[str, str]) -> List[str]:
+        """Check if the dependencies are installed in the osw.model.entity module.
+
+        Parameters
+        ----------
+        dependencies
+            A dictionary with the keys being the names of the dependencies and the
+            values being the full page name (IRI) of the dependencies.
+        """
+        return [dep for dep in dependencies if not hasattr(model, dep)]
+
+    def ensure_dependencies(self, dependencies: Dict[str, str]):
+        """Ensure that the dependencies are installed in the osw.model.entity module.
+
+        Parameters
+        ----------
+        dependencies
+            A dictionary with the keys being the names of the dependencies and the
+            values being the full page name (IRI) of the dependencies.
+        """
+        if self.check_dependencies(dependencies):
+            self.install_dependencies(dependencies)
 
     def download_file(
         self,
@@ -280,188 +315,39 @@ class OswExpress(OSW):
         return UploadFileResult(source=source, **data)
 
 
-class DataModel(OswBaseModel):
-    module: str
-    """The full address of the module to import from, e.g., 'osw.model.entity'."""
-    class_name: str
-    """The target class name to import, e.g., 'Entity' in 'from osw.model.entity
-    import Entity'."""
-    osw_fpt: str = None
-    """Full page title of the data model in an OSL instance to be fetched if not
-    already available in osw.model.entity, e.g., 'Category:Entity'."""
-
-
-def import_with_fallback(
-    to_import: Union[List[DataModel], Dict[str, str]],
-    caller_globals: dict,
-    module: str = None,
-    dependencies: Dict[str, str] = None,
-    domain: str = None,
-    cred_filepath: Union[str, Path] = None,
-    osw_express: OswExpress = None,
-):
-    """Imports data models with a fallback to fetch the dependencies from an OSL
-    instance if the data models are not available in the local osw.model.entity module.
-
-    DISCLAIMER: Will prompt the user to enter domain and credentials if no domain and
-    cred_filepath or osw_express was passed.
-
-    BEST USAGE: See examples, for best usage in a script to be rerun multiple times
-    (without refetching datamodels).
-
-    Parameters
-    ----------
-    to_import
-        List of DataModel objects or a dictionary, with (key: value) pairs (class_name:
-        osw_fpt) to import.
-    caller_globals
-        (Mandatory!) The globals dictionary as returned by globals() in the calling
-        script.
-    module
-        (Optional) The module to import the data models from. Used only if to_import
-        is of type List[Dict]. Defaults to 'osw.model.entity' if not specified.
-    dependencies
-        A dictionary with the keys being the names of the dependencies and the values
-        being the full page name of the dependencies.
-    domain
-        The domain of the OSL instance to connect to, if the dependencies are not
-        available in the local osw.model.entity module.
-    cred_filepath
-        The filepath to the credentials file. If None, a credentials file is created
-        under the default path.
-    osw_express
-        An OswExpress object. If None, a new OswExpress object will be created using
-        the credentials_manager or domain and cred_filepath.
-
-    Examples
-    --------
-    >>> from pathlib import Path
-    >>> from osw.defaults import paths, params
-    >>> from osw.express import import_with_fallback, DataModel, OswExpress
-    >>> wiki_domain__ = "wiki-dev.open-semantic-lab.org"
-    >>> cred_filepath__ = Path(r"accounts.pwd.yaml")
-    >>> osw_obj = OswExpress(domain=wiki_domain__, cred_filepath=cred_filepath__)
-    >>> import_with_fallback(
-    >>>     [DataModel(module="osw.controller.file.base",class_name="FileController")],
-    >>>     globals(), osw_express=osw_obj
-    >>> )
-
-    Returns
-    -------
-    None
-    """
-    if isinstance(to_import, dict):
-        # The arg 'to_import' should have the right structure to act as 'dependencies'
-        # Assume all DataModels are part of osw.model.entity
-        if module is None:
-            module = "osw.model.entity"
-        # A list of DataModels will be derived from the dict
-        to_import = [
-            DataModel(
-                module=module,
-                class_name=key,
-                osw_fpt=value,
-            )
-            for key, value in to_import.items()
-        ]
-    if to_import is None:
-        raise ValueError(
-            "Either the argument 'to_import' or 'dependencies' must be passed to the "
-            "function import_with_fallback()."
+try:
+    # To load the dependencies that are not part of the osw.model.entity module as
+    # uploaded to the repository
+    from osw.controller.file.base import FileController  # depends on File
+    from osw.controller.file.local import LocalFileController  # depends on LocalFile
+    from osw.controller.file.memory import InMemoryController  # depends on LocalFile
+    from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
+except AttributeError as e:
+    warn(
+        f'An exception occurred while loading the module dependencies: \n"{e}"'
+        "A connection to an OSW instance, to fetch the dependencies from, has to be "
+        "established!"
+    )
+    # If the default was not changed, make sure the user is prompted to enter the domain
+    if default_params.has_changed("wiki_domain"):
+        domain_ = default_params.wiki_domain
+    else:
+        domain_ = input("Please enter the domain of the OSW instance to connect to:")
+        if domain_ == "":
+            domain_ = default_params.wiki_domain
+    if default_paths.has_changed("cred_filepath"):
+        osw_express_ = OswExpress(
+            domain=domain_, cred_filepath=default_paths.cred_filepath
         )
-    try:
-        # Try to import the listed data models from the (listed) module(s)
-        for ti in to_import:
-            # Raises AttributeError if the target could not be found
-            caller_globals[ti.class_name] = getattr(
-                importlib.import_module(ti.module), ti.class_name
-            )
-    except Exception as e:
-        if dependencies is None:
-            dependencies = {}
-            warn(
-                "No 'dependencies' were passed to the function "
-                "import_with_fallback()! Trying to derive them from 'to_import'."
-            )
-        new_dependencies = {
-            module.class_name: module.osw_fpt
-            for module in to_import
-            if module.osw_fpt is not None
-        }
-        dependencies.update(new_dependencies)
-        if not dependencies:
-            raise AttributeError(
-                f"An exception occurred while loading the module dependencies: \n"
-                f'"{e}"\n'
-                "No 'dependencies' were passed to the function import_with_fallback() "
-                "and could not be derived from 'to_import'!"
-            )
-        warn(
-            f'An exception occurred while loading the module dependencies: \n"'
-            f'{e}"\n'
-            "You will now have to connect to an OSW instance to fetch the "
-            "dependencies from!"
-        )
-        # If the user has set the default domain, use it
-        if domain is None:
-            if default_params.has_changed("wiki_domain"):
-                domain = default_params.wiki_domain
-            else:
-                domain = input(
-                    "Please enter the domain of the OSW instance to connect to:"
-                )
-                if domain == "":
-                    domain = default_params.wiki_domain
-        if cred_filepath is None:
-            cred_filepath = default_paths.cred_filepath
-        if osw_express is None:
-            osw_express = OswExpress(domain=domain, cred_filepath=cred_filepath)
-
-        osw_express.install_dependencies(dependencies, mode="append")
-        osw_express.shut_down()  # Avoiding connection error
-        # Try again to import the data models
-        for ti in to_import:
-            # Raises AttributeError if the target could not be found
-            caller_globals[ti.class_name] = getattr(
-                importlib.import_module(ti.module), ti.class_name
-            )
-
-
-# If the default was not changed, make sure the user is prompted to enter the domain
-if default_params.has_changed("wiki_domain"):
-    wiki_domain_ = default_params.wiki_domain
-else:
-    wiki_domain_ = None
-if default_paths.has_changed("cred_filepath"):
-    cred_filepath_ = default_paths.cred_filepath
-else:
-    cred_filepath_ = None
-import_with_fallback(
-    to_import=[
-        DataModel(
-            module="osw.controller.file.base",
-            class_name="FileController",
-        ),
-        DataModel(
-            module="osw.controller.file.local",
-            class_name="LocalFileController",
-        ),
-        DataModel(
-            module="osw.controller.file.memory",
-            class_name="InMemoryController",
-        ),
-        DataModel(
-            module="osw.controller.file.wiki",
-            class_name="WikiFileController",
-        ),
-    ],
-    caller_globals=globals(),
-    dependencies=DEPENDENCIES,
-    domain=wiki_domain_,
-    cred_filepath=cred_filepath_,
-)
-
-if TYPE_CHECKING:
+    else:
+        osw_express_ = OswExpress(domain=domain_)
+    osw_express_.install_dependencies(DEPENDENCIES)
+    osw_express_.shut_down()  # Avoiding connection error
+    print(
+        "Dependencies specified in the module 'osw.express' have been fetched from "
+        "OSW."
+    )
+    # Try again
     from osw.controller.file.base import FileController  # depends on File
     from osw.controller.file.local import LocalFileController  # depends on LocalFile
     from osw.controller.file.memory import InMemoryController  # depends on LocalFile
@@ -958,6 +844,154 @@ def osw_upload_file(
     data = {key: value for key, value in data.items() if value is not None}
     # Initialize the UploadFileResult object
     return UploadFileResult(**data)
+
+
+class DataModel(OswBaseModel):
+    module: str
+    """The full address of the module to import from, e.g., 'osw.model.entity'."""
+    class_name: str
+    """The target class name to import, e.g., 'Entity' in 'from osw.model.entity
+    import Entity'."""
+    osw_fpt: str = None
+    """Full page title of the data model in an OSL instance to be fetched if not
+    already available in osw.model.entity, e.g., 'Category:Entity'."""
+
+
+def import_with_fallback(
+    to_import: Union[List[DataModel], Dict[str, str]],
+    caller_globals: dict,
+    module: str = None,
+    dependencies: Dict[str, str] = None,
+    domain: str = None,
+    cred_filepath: Union[str, Path] = None,
+    osw_express: OswExpress = None,
+):
+    """Imports data models with a fallback to fetch the dependencies from an OSL
+    instance if the data models are not available in the local osw.model.entity module.
+
+    DISCLAIMER: Will prompt the user to enter domain and credentials if no domain and
+    cred_filepath or osw_express was passed.
+
+    BEST USAGE: See examples, for best usage in a script to be rerun multiple times
+    (without refetching datamodels).
+
+    Parameters
+    ----------
+    to_import
+        List of DataModel objects or a dictionary, with (key: value) pairs (class_name:
+        osw_fpt) to import.
+    caller_globals
+        (Mandatory!) The globals dictionary as returned by globals() in the calling
+        script.
+    module
+        (Optional) The module to import the data models from. Used only if to_import
+        is of type List[Dict]. Defaults to 'osw.model.entity' if not specified.
+    dependencies
+        A dictionary with the keys being the names of the dependencies and the values
+        being the full page name of the dependencies.
+    domain
+        The domain of the OSL instance to connect to, if the dependencies are not
+        available in the local osw.model.entity module.
+    cred_filepath
+        The filepath to the credentials file. If None, a credentials file is created
+        under the default path.
+    osw_express
+        An OswExpress object. If None, a new OswExpress object will be created using
+        the credentials_manager or domain and cred_filepath.
+
+    Examples
+    --------
+    >>> from pathlib import Path
+    >>> from osw.defaults import paths, params
+    >>> from osw.express import import_with_fallback, DataModel, OswExpress
+    >>> wiki_domain__ = "wiki-dev.open-semantic-lab.org"
+    >>> cred_filepath__ = Path(r"accounts.pwd.yaml")
+    >>> osw_obj = OswExpress(domain=wiki_domain__, cred_filepath=cred_filepath__)
+    >>> import_with_fallback(
+    >>>     [DataModel(module="osw.controller.file.base",class_name="FileController")],
+    >>>     globals(), osw_express=osw_obj
+    >>> )
+
+    Returns
+    -------
+    None
+    """
+    if isinstance(to_import, dict):
+        # The arg 'to_import' should have the right structure to act as 'dependencies'
+        # Assume all DataModels are part of osw.model.entity
+        if module is None:
+            module = "osw.model.entity"
+        # A list of DataModels will be derived from the dict
+        to_import = [
+            DataModel(
+                module=module,
+                class_name=key,
+                osw_fpt=value,
+            )
+            for key, value in to_import.items()
+        ]
+    if to_import is None:
+        raise ValueError(
+            "Either the argument 'to_import' or 'dependencies' must be passed to the "
+            "function import_with_fallback()."
+        )
+    try:
+        # Try to import the listed data models from the (listed) module(s)
+        for ti in to_import:
+            # Raises AttributeError if the target could not be found
+            caller_globals[ti.class_name] = getattr(
+                importlib.import_module(ti.module), ti.class_name
+            )
+    except Exception as e:
+        if dependencies is None:
+            dependencies = {}
+            warn(
+                "No 'dependencies' were passed to the function "
+                "import_with_fallback()! Trying to derive them from 'to_import'."
+            )
+        new_dependencies = {
+            module.class_name: module.osw_fpt
+            for module in to_import
+            if module.osw_fpt is not None
+        }
+        dependencies.update(new_dependencies)
+        if not dependencies:
+            raise AttributeError(
+                f"An exception occurred while loading the module dependencies: \n"
+                f'"{e}"\n'
+                "No 'dependencies' were passed to the function import_with_fallback() "
+                "and could not be derived from 'to_import'!"
+            )
+        warn(
+            f'An exception occurred while loading the module dependencies: \n"'
+            f'{e}"\n'
+            "A connection to an OSW instance, to fetch the dependencies from, "
+            "has to be established!"
+        )
+        # todo: should  this be taken from globals?
+        # If the user has set the default domain, use it
+        if domain is None:
+            if default_params.has_changed("wiki_domain"):
+                domain = default_params.wiki_domain
+            else:
+                domain = input(
+                    "Please enter the domain of the OSW instance to connect to:"
+                )
+                if domain == "":
+                    domain = default_params.wiki_domain
+        if cred_filepath is None:
+            cred_filepath = default_paths.cred_filepath
+        if osw_express is None:
+            osw_express = OswExpress(domain=domain, cred_filepath=cred_filepath)
+
+        osw_express.install_dependencies(dependencies, mode="append")
+        osw_express.shut_down()  # Avoiding connection error
+        # Try again to import the data models
+        for ti in to_import:
+            # Raises AttributeError if the target could not be found
+            caller_globals[ti.class_name] = getattr(
+                importlib.import_module(ti.module), ti.class_name
+            )
 
 
 OswExpress.update_forward_refs()

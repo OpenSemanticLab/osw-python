@@ -22,11 +22,10 @@ Tests to be written for express.py:
 * test_upload_file
 """
 
+from contextlib import contextmanager
 from pathlib import Path
 
 import yaml
-
-from osw.auth import CredentialManager
 
 # requires pytest_mock fixture --> pip install pytest-mock
 
@@ -43,6 +42,18 @@ def create_credentials_file(
 def create_dummy_file(file_path: Path):
     with open(file_path, "w") as file:
         file.write("Hello, World!")
+
+
+@contextmanager
+def preserve_entity_py_state():
+    path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
+    with open(path, "r") as f:
+        original_entity = f.read()
+    try:
+        yield None
+    finally:
+        with open(path, "w") as f:
+            f.write(original_entity)
 
 
 def osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password):
@@ -65,23 +76,47 @@ def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     the installation of the dependencies should be triggered here."""
     # Here the initial connection to the wiki is mocked (passing domain, username and
     # password)
-
     mocked_input = mocker.patch("builtins.input")
     mocked_getpass = mocker.patch("getpass.getpass")
     mocked_input.side_effect = [wiki_domain, wiki_username]
     mocked_getpass.return_value = wiki_password
+
+    # Before making changes to osw.model.entity save the original state
+    with preserve_entity_py_state():
+        # This import will trigger the install_dependencies method call on the first run
+        import osw.express
+
+        # A second connection is then opened with domain already set, so mocking is
+        # required for the username and password only
+        mocked_input.side_effect = [wiki_username]
+        mocked_getpass.return_value = wiki_password
+        osw_express = osw.express.OswExpress(domain=wiki_domain)
+        osw_express_and_credentials(
+            osw_express, wiki_domain, wiki_username, wiki_password
+        )
+        assert osw_express.cred_filepath == Path(
+            osw.express.default_paths.cred_filepath
+        )
+        osw_express.shut_down()
+        osw_express.cred_filepath.unlink()
+
+
+def test_init_with_defaults_set(wiki_domain, wiki_username, wiki_password):
+    from osw.defaults import params as default_params
+    from osw.defaults import paths as default_paths
+
+    cred_filepath = Path.cwd() / "accounts.pwd.yaml"
+    create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
+    default_paths.cred_filepath = cred_filepath
+    default_params.wiki_domain = wiki_domain
     # This import will trigger the install_dependencies method call on the first run
     import osw.express
 
-    # A second connection is then opened with domain already set, so mocking is
-    # required for the username and password only
-    mocked_input.side_effect = [wiki_username]
-    mocked_getpass.return_value = wiki_password
     osw_express = osw.express.OswExpress(domain=wiki_domain)
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
-    assert osw_express.cred_filepath == Path(osw.express.default_paths.cred_filepath)
+    assert osw_express.cred_filepath == Path(cred_filepath)
     osw_express.shut_down()
-    osw_express.cred_filepath.unlink()
+    cred_filepath.unlink()
 
 
 def test_init_with_cred_filepath(wiki_domain, wiki_username, wiki_password):
@@ -130,6 +165,8 @@ def test_init_with_cred_filepath_but_missing_credentials(
 
 def test_init_with_cred_mngr(wiki_domain, wiki_username, wiki_password):
     """Test OswExpress initialization with defined domain and cred_mngr."""
+    from osw.auth import CredentialManager
+
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
     cred_mngr = CredentialManager(cred_filepath=cred_filepath)

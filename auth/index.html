@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.46">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.47">
     
     
       
@@ -876,11 +876,7 @@
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 17</span>
-<span class="normal"> 18</span>
-<span class="normal"> 19</span>
-<span class="normal"> 20</span>
-<span class="normal"> 21</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 21</span>
 <span class="normal"> 22</span>
 <span class="normal"> 23</span>
 <span class="normal"> 24</span>
@@ -1200,7 +1196,13 @@
 <span class="normal">338</span>
 <span class="normal">339</span>
 <span class="normal">340</span>
-<span class="normal">341</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handles credentials&quot;&quot;&quot;</span>
 
     <span class="n">cred_filepath</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
@@ -1271,6 +1273,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span> <span class="o">=</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span> <span class="k">for</span> <span class="n">fp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span> <span class="k">if</span> <span class="n">fp</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
         <span class="c1"># Make sure to at least warn the user if they pass cred_filepath instead of</span>
         <span class="c1"># cred_filepath</span>
         <span class="n">attribute_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
@@ -1300,41 +1303,40 @@
                 <span class="n">filepaths</span> <span class="o">=</span> <span class="p">[</span><span class="n">filepaths</span><span class="p">]</span>
 
             <span class="k">for</span> <span class="n">filepath</span> <span class="ow">in</span> <span class="n">filepaths</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">filepath</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
-                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
-                        <span class="k">try</span><span class="p">:</span>
-                            <span class="n">accounts</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
-                            <span class="k">if</span> <span class="n">accounts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Catch empty file</span>
-                                <span class="k">continue</span>
-                            <span class="k">for</span> <span class="n">iri</span> <span class="ow">in</span> <span class="n">accounts</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                                <span class="k">if</span> <span class="p">(</span>
-                                    <span class="s2">&quot;username&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                    <span class="ow">and</span> <span class="s2">&quot;password&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                <span class="p">):</span>
-                                    <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">UserPwdCredential</span><span class="p">(</span>
-                                        <span class="n">username</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
-                                        <span class="n">password</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
-                                        <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
-                                    <span class="p">)</span>
-                                    <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
-                                <span class="k">if</span> <span class="p">(</span>
-                                    <span class="s2">&quot;consumer_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                    <span class="ow">and</span> <span class="s2">&quot;consumer_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                    <span class="ow">and</span> <span class="s2">&quot;access_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                    <span class="ow">and</span> <span class="s2">&quot;access_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                <span class="p">):</span>
-                                    <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">OAuth1Credential</span><span class="p">(</span>
-                                        <span class="n">consumer_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;consumer_token&quot;</span><span class="p">],</span>
-                                        <span class="n">consumer_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span>
-                                            <span class="s2">&quot;consumer_secret&quot;</span>
-                                        <span class="p">],</span>
-                                        <span class="n">access_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_token&quot;</span><span class="p">],</span>
-                                        <span class="n">access_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_secret&quot;</span><span class="p">],</span>
-                                        <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
-                                    <span class="p">)</span>
-                                    <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
-                        <span class="k">except</span> <span class="n">yaml</span><span class="o">.</span><span class="n">YAMLError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">filepath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">accounts</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">accounts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Catch empty file</span>
+                            <span class="k">continue</span>
+                        <span class="k">for</span> <span class="n">iri</span> <span class="ow">in</span> <span class="n">accounts</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                            <span class="k">if</span> <span class="p">(</span>
+                                <span class="s2">&quot;username&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                                <span class="ow">and</span> <span class="s2">&quot;password&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                            <span class="p">):</span>
+                                <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">UserPwdCredential</span><span class="p">(</span>
+                                    <span class="n">username</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+                                    <span class="n">password</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
+                                    <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
+                                <span class="p">)</span>
+                                <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="p">(</span>
+                                <span class="s2">&quot;consumer_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                                <span class="ow">and</span> <span class="s2">&quot;consumer_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                                <span class="ow">and</span> <span class="s2">&quot;access_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                                <span class="ow">and</span> <span class="s2">&quot;access_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                            <span class="p">):</span>
+                                <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">OAuth1Credential</span><span class="p">(</span>
+                                    <span class="n">consumer_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;consumer_token&quot;</span><span class="p">],</span>
+                                    <span class="n">consumer_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;consumer_secret&quot;</span><span class="p">],</span>
+                                    <span class="n">access_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_token&quot;</span><span class="p">],</span>
+                                    <span class="n">access_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_secret&quot;</span><span class="p">],</span>
+                                    <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
+                                <span class="p">)</span>
+                                <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="n">yaml</span><span class="o">.</span><span class="n">YAMLError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
 
         <span class="n">match_iri</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="n">cred</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1503,7 +1505,7 @@
                     <span class="c1"># containing the .gitignore file, add the relative path to the</span>
                     <span class="c1"># .gitignore file</span>
                     <span class="n">rel</span> <span class="o">=</span> <span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">containing_gitignore</span><span class="p">)</span>
-                    <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">rel</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span><span class="si">}</span><span class="s2">/*&quot;</span>
+                    <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">rel</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span><span class="si">}</span><span class="s2">/*&quot;</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c1"># Test if the default_path.osw_files_dir is a subdirectory of the</span>
                     <span class="c1"># directory containing the .gitignore file</span>
@@ -1511,20 +1513,22 @@
                         <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="si">}</span><span class="s2">/*&quot;</span>
                     <span class="p">)</span>
                 <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">elif</span> <span class="sa">f</span><span class="s2">&quot;*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+            <span class="k">else</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
                 <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="c1"># If to_add is not empty, write to .gitignore file</span>
-            <span class="k">if</span> <span class="n">to_add</span><span class="p">:</span>
-                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
-                    <span class="c1"># Only add comment if not already set</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">comment_set</span><span class="p">:</span>
-                        <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
-                            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"># Automatically added by osw.auth.CredentialManager.&quot;</span>
-                            <span class="s2">&quot;save_credentials_to_file:&quot;</span>
-                        <span class="p">)</span>
-                        <span class="n">comment_set</span> <span class="o">=</span> <span class="kc">True</span>
-                    <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">to_add</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">to_add</span> <span class="ow">or</span> <span class="n">to_add</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+                <span class="c1"># Only add comment if not already set</span>
+                <span class="n">comment</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"># Automatically added by osw.auth.CredentialManager.&quot;</span>
+                    <span class="s2">&quot;save_credentials_to_file:&quot;</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">comment_set</span> <span class="ow">and</span> <span class="n">comment</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+                    <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+                    <span class="n">comment_set</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">to_add</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -1610,11 +1614,11 @@
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">32</span>
-<span class="normal">33</span>
-<span class="normal">34</span>
-<span class="normal">35</span>
-<span class="normal">36</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">BaseCredential</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">BaseCredential</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for credentials&quot;&quot;&quot;</span>
 
     <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span>
@@ -1692,15 +1696,15 @@
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span>
-<span class="normal">76</span>
-<span class="normal">77</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">77</span>
 <span class="normal">78</span>
 <span class="normal">79</span>
 <span class="normal">80</span>
-<span class="normal">81</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialConfig</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialConfig</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads credentials from a yaml file&quot;&quot;&quot;</span>
 
     <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span>
@@ -1836,11 +1840,7 @@ match</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
 <span class="normal">66</span>
@@ -1848,7 +1848,11 @@ match</p>
 <span class="normal">68</span>
 <span class="normal">69</span>
 <span class="normal">70</span>
-<span class="normal">71</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialFallback</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialFallback</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Modes of handling missing credentials</span>
 
 <span class="sd">    Attributes</span>
@@ -1914,18 +1918,18 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">46</span>
-<span class="normal">47</span>
-<span class="normal">48</span>
-<span class="normal">49</span>
-<span class="normal">50</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">50</span>
 <span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
 <span class="normal">54</span>
 <span class="normal">55</span>
 <span class="normal">56</span>
-<span class="normal">57</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OAuth1Credential</span><span class="p">(</span><span class="n">BaseCredential</span><span class="p">):</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">OAuth1Credential</span><span class="p">(</span><span class="n">BaseCredential</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;OAuth1 credentials. See</span>
 <span class="sd">    https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html&quot;&quot;&quot;</span>
 
@@ -2073,13 +2077,13 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">42</span>
 <span class="normal">43</span>
-<span class="normal">44</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">UserPwdCredential</span><span class="p">(</span><span class="n">BaseCredential</span><span class="p">):</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">UserPwdCredential</span><span class="p">(</span><span class="n">BaseCredential</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;a username - password credential&quot;&quot;&quot;</span>
 
     <span class="n">username</span><span class="p">:</span> <span class="nb">str</span>
@@ -2198,15 +2202,15 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
-<span class="normal">185</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
 <span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
-<span class="normal">189</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cred</span><span class="p">:</span> <span class="n">BaseCredential</span><span class="p">):</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cred</span><span class="p">:</span> <span class="n">BaseCredential</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;adds a credential to the in memory store</span>
 
 <span class="sd">    Parameters</span>
@@ -2291,12 +2295,7 @@ the matching iri.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">100</span>
 <span class="normal">101</span>
 <span class="normal">102</span>
 <span class="normal">103</span>
@@ -2375,7 +2374,11 @@ the matching iri.</p>
 <span class="normal">176</span>
 <span class="normal">177</span>
 <span class="normal">178</span>
-<span class="normal">179</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">CredentialConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseCredential</span><span class="p">:</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">CredentialConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseCredential</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads credentials from a yaml file or the in memory store</span>
 
 <span class="sd">    Parameters</span>
@@ -2397,41 +2400,40 @@ the matching iri.</p>
             <span class="n">filepaths</span> <span class="o">=</span> <span class="p">[</span><span class="n">filepaths</span><span class="p">]</span>
 
         <span class="k">for</span> <span class="n">filepath</span> <span class="ow">in</span> <span class="n">filepaths</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">filepath</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
-                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">accounts</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="n">accounts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Catch empty file</span>
-                            <span class="k">continue</span>
-                        <span class="k">for</span> <span class="n">iri</span> <span class="ow">in</span> <span class="n">accounts</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                            <span class="k">if</span> <span class="p">(</span>
-                                <span class="s2">&quot;username&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                <span class="ow">and</span> <span class="s2">&quot;password&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                            <span class="p">):</span>
-                                <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">UserPwdCredential</span><span class="p">(</span>
-                                    <span class="n">username</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
-                                    <span class="n">password</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
-                                    <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
-                                <span class="p">)</span>
-                                <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
-                            <span class="k">if</span> <span class="p">(</span>
-                                <span class="s2">&quot;consumer_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                <span class="ow">and</span> <span class="s2">&quot;consumer_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                <span class="ow">and</span> <span class="s2">&quot;access_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                                <span class="ow">and</span> <span class="s2">&quot;access_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
-                            <span class="p">):</span>
-                                <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">OAuth1Credential</span><span class="p">(</span>
-                                    <span class="n">consumer_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;consumer_token&quot;</span><span class="p">],</span>
-                                    <span class="n">consumer_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span>
-                                        <span class="s2">&quot;consumer_secret&quot;</span>
-                                    <span class="p">],</span>
-                                    <span class="n">access_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_token&quot;</span><span class="p">],</span>
-                                    <span class="n">access_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_secret&quot;</span><span class="p">],</span>
-                                    <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
-                                <span class="p">)</span>
-                                <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
-                    <span class="k">except</span> <span class="n">yaml</span><span class="o">.</span><span class="n">YAMLError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                        <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">filepath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">continue</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">accounts</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">accounts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># Catch empty file</span>
+                        <span class="k">continue</span>
+                    <span class="k">for</span> <span class="n">iri</span> <span class="ow">in</span> <span class="n">accounts</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="p">(</span>
+                            <span class="s2">&quot;username&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                            <span class="ow">and</span> <span class="s2">&quot;password&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                        <span class="p">):</span>
+                            <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">UserPwdCredential</span><span class="p">(</span>
+                                <span class="n">username</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+                                <span class="n">password</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
+                                <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
+                            <span class="p">)</span>
+                            <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="p">(</span>
+                            <span class="s2">&quot;consumer_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                            <span class="ow">and</span> <span class="s2">&quot;consumer_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                            <span class="ow">and</span> <span class="s2">&quot;access_token&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                            <span class="ow">and</span> <span class="s2">&quot;access_secret&quot;</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">]</span>
+                        <span class="p">):</span>
+                            <span class="n">cred</span> <span class="o">=</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">OAuth1Credential</span><span class="p">(</span>
+                                <span class="n">consumer_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;consumer_token&quot;</span><span class="p">],</span>
+                                <span class="n">consumer_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;consumer_secret&quot;</span><span class="p">],</span>
+                                <span class="n">access_token</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_token&quot;</span><span class="p">],</span>
+                                <span class="n">access_secret</span><span class="o">=</span><span class="n">accounts</span><span class="p">[</span><span class="n">iri</span><span class="p">][</span><span class="s2">&quot;access_secret&quot;</span><span class="p">],</span>
+                                <span class="n">iri</span><span class="o">=</span><span class="n">iri</span><span class="p">,</span>
+                            <span class="p">)</span>
+                            <span class="n">_file_credentials</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cred</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">yaml</span><span class="o">.</span><span class="n">YAMLError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
 
     <span class="n">match_iri</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
     <span class="n">cred</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2535,11 +2537,7 @@ the matching iri.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
@@ -2551,7 +2549,11 @@ the matching iri.</p>
 <span class="normal">204</span>
 <span class="normal">205</span>
 <span class="normal">206</span>
-<span class="normal">207</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;checks if a credential for a given iri exists</span>
 
 <span class="sd">    Parameters</span>
@@ -2643,11 +2645,7 @@ the matching iri.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
 <span class="normal">214</span>
 <span class="normal">215</span>
 <span class="normal">216</span>
@@ -2670,7 +2668,11 @@ the matching iri.</p>
 <span class="normal">233</span>
 <span class="normal">234</span>
 <span class="normal">235</span>
-<span class="normal">236</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;checks if a credential for a given iri exists in the file</span>
 
 <span class="sd">    Parameters</span>
@@ -2769,11 +2771,7 @@ cred_filepath of the CredentialManager is not changed.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">238</span>
-<span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span>
-<span class="normal">242</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">242</span>
 <span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
@@ -2872,7 +2870,13 @@ cred_filepath of the CredentialManager is not changed.</p>
 <span class="normal">338</span>
 <span class="normal">339</span>
 <span class="normal">340</span>
-<span class="normal">341</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PossibleFilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">set_cred_filepath</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -2954,7 +2958,7 @@ cred_filepath of the CredentialManager is not changed.</p>
                 <span class="c1"># containing the .gitignore file, add the relative path to the</span>
                 <span class="c1"># .gitignore file</span>
                 <span class="n">rel</span> <span class="o">=</span> <span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">containing_gitignore</span><span class="p">)</span>
-                <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">rel</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span><span class="si">}</span><span class="s2">/*&quot;</span>
+                <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">rel</span><span class="o">.</span><span class="n">as_posix</span><span class="p">())</span><span class="si">}</span><span class="s2">/*&quot;</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Test if the default_path.osw_files_dir is a subdirectory of the</span>
                 <span class="c1"># directory containing the .gitignore file</span>
@@ -2962,20 +2966,22 @@ cred_filepath of the CredentialManager is not changed.</p>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span><span class="si">}</span><span class="s2">/*&quot;</span>
                 <span class="p">)</span>
             <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="sa">f</span><span class="s2">&quot;*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+        <span class="k">else</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
             <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="c1"># If to_add is not empty, write to .gitignore file</span>
-        <span class="k">if</span> <span class="n">to_add</span><span class="p">:</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
-                <span class="c1"># Only add comment if not already set</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">comment_set</span><span class="p">:</span>
-                    <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
-                        <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"># Automatically added by osw.auth.CredentialManager.&quot;</span>
-                        <span class="s2">&quot;save_credentials_to_file:&quot;</span>
-                    <span class="p">)</span>
-                    <span class="n">comment_set</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">to_add</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">to_add</span> <span class="ow">or</span> <span class="n">to_add</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+            <span class="c1"># Only add comment if not already set</span>
+            <span class="n">comment</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"># Automatically added by osw.auth.CredentialManager.&quot;</span>
+                <span class="s2">&quot;save_credentials_to_file:&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">comment_set</span> <span class="ow">and</span> <span class="n">comment</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+                <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+                <span class="n">comment_set</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">to_add</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

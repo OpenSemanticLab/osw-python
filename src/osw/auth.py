@@ -308,9 +308,8 @@ class CredentialManager(OswBaseModel):
         osw_dir_added = False
         # For every file path in the list of credentials file paths
         for _ii, fp in enumerate(cred_filepaths):
-            to_add = ""
             if default_paths.osw_files_dir in fp.parents and not osw_dir_added:
-                print(
+                msg = (
                     f"Adding '{default_paths.osw_files_dir}' to gitignore file "
                     f"'{gitignore_fp}'."
                 )
@@ -330,11 +329,11 @@ class CredentialManager(OswBaseModel):
                     )
                 osw_dir_added = True
             else:
-                print(f"Adding '{fp.name}' to gitignore file '{gitignore_fp}'.")
+                msg = f"Adding '{fp.name}' to gitignore file '{gitignore_fp}'."
                 to_add = f"\n*/{fp.name}"
             if not to_add or to_add in content:
                 continue
-
+            print(msg)
             with open(gitignore_fp, "a") as stream:
                 # Only add comment if not already set
                 comment = (

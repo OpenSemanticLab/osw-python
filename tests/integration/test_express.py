@@ -112,7 +112,7 @@ def test_init_with_defaults_set(wiki_domain, wiki_username, wiki_password):
     # This import will trigger the install_dependencies method call on the first run
     import osw.express
 
-    osw_express = osw.express.OswExpress(domain=wiki_domain)
+    osw_express = osw.express.OswExpress()
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
     assert osw_express.cred_filepath == Path(cred_filepath)
     osw_express.shut_down()

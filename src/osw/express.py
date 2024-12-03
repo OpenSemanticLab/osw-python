@@ -7,12 +7,12 @@ import importlib.util
 import re
 from io import TextIOWrapper
 from pathlib import Path
+from typing import overload
 from uuid import uuid4
 from warnings import warn
 
 from typing_extensions import (
     IO,
-    TYPE_CHECKING,
     Any,
     AnyStr,
     Buffer,
@@ -64,12 +64,30 @@ class OswExpress(OSW):
     class Config:
         arbitrary_types_allowed = True
 
+    @overload
     def __init__(
         self,
         domain: str,
         cred_filepath: Union[str, Path] = None,
         cred_mngr: CredentialManager = None,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        domain: str = None,
+        cred_filepath: Union[str, Path] = None,
+        cred_mngr: CredentialManager = None,
     ):
+        if domain is None:
+            if default_params.has_changed("wiki_domain"):
+                domain = default_params.wiki_domain
+            else:
+                raise TypeError(
+                    "The constructor of OswExpress is missing 1 required positional argument: 'domain'."  # noqa: E501
+                    "\nIf no domain was set via "
+                    "osw.defaults.params.wiki_domain = <domain>, "
+                    "'domain' is a required argument."
+                )
         if cred_filepath is None:
             # Set default
             cred_filepath = default_paths.cred_filepath

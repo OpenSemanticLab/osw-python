@@ -11,6 +11,8 @@ from typing import overload
 from uuid import uuid4
 from warnings import warn
 
+import requests
+from pydantic.v1 import validator
 from typing_extensions import (
     IO,
     Any,
@@ -63,6 +65,12 @@ class OswExpress(OSW):
 
     class Config:
         arbitrary_types_allowed = True
+
+    @validator("domain")
+    def validate_domain(cls, v):
+        pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
+        assert re.match(pattern, v), "The domain is not valid."
+        return v
 
     @overload
     def __init__(
@@ -122,7 +130,19 @@ class OswExpress(OSW):
             #  that filepath will be used
             else:
                 cred_mngr.save_credentials_to_file()
-
+        # Test if domain is reachable
+        try:
+            url = f"https://{domain}/wiki/Main_Page"
+            response = requests.get(url)
+            if response.status_code == 200:
+                pass  # Domain is reachable
+            else:
+                raise ConnectionError(
+                    f"Could not connect to '{domain}'. "
+                    f"Response: {response.status_code}"
+                )
+        except Exception as e:
+            raise ConnectionError(f"Could not connect to '{domain}'. Error: {e}")
         site = WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_mngr))
         super().__init__(**{"site": site, "domain": domain})
         self.cred_mngr = cred_mngr

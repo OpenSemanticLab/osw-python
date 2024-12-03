@@ -1201,8 +1201,7 @@
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handles credentials&quot;&quot;&quot;</span>
 
     <span class="n">cred_filepath</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
@@ -1492,9 +1491,8 @@
         <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="c1"># For every file path in the list of credentials file paths</span>
         <span class="k">for</span> <span class="n">_ii</span><span class="p">,</span> <span class="n">fp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cred_filepaths</span><span class="p">):</span>
-            <span class="n">to_add</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
             <span class="k">if</span> <span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span> <span class="ow">in</span> <span class="n">fp</span><span class="o">.</span><span class="n">parents</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">osw_dir_added</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="si">}</span><span class="s2">&#39; to gitignore file &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
                 <span class="p">)</span>
@@ -1514,11 +1512,11 @@
                     <span class="p">)</span>
                 <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
                 <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">to_add</span> <span class="ow">or</span> <span class="n">to_add</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
                 <span class="k">continue</span>
-
+            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
                 <span class="c1"># Only add comment if not already set</span>
                 <span class="n">comment</span> <span class="o">=</span> <span class="p">(</span>
@@ -2875,8 +2873,7 @@ cred_filepath of the CredentialManager is not changed.</p>
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
+<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PossibleFilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">set_cred_filepath</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -2945,9 +2942,8 @@ cred_filepath of the CredentialManager is not changed.</p>
     <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="c1"># For every file path in the list of credentials file paths</span>
     <span class="k">for</span> <span class="n">_ii</span><span class="p">,</span> <span class="n">fp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cred_filepaths</span><span class="p">):</span>
-        <span class="n">to_add</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="k">if</span> <span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span> <span class="ow">in</span> <span class="n">fp</span><span class="o">.</span><span class="n">parents</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">osw_dir_added</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">default_paths</span><span class="o">.</span><span class="n">osw_files_dir</span><span class="si">}</span><span class="s2">&#39; to gitignore file &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
             <span class="p">)</span>
@@ -2967,11 +2963,11 @@ cred_filepath of the CredentialManager is not changed.</p>
                 <span class="p">)</span>
             <span class="n">osw_dir_added</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Adding &#39;</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; to gitignore file &#39;</span><span class="si">{</span><span class="n">gitignore_fp</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
             <span class="n">to_add</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*/</span><span class="si">{</span><span class="n">fp</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">to_add</span> <span class="ow">or</span> <span class="n">to_add</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
             <span class="k">continue</span>
-
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gitignore_fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
             <span class="c1"># Only add comment if not already set</span>
             <span class="n">comment</span> <span class="o">=</span> <span class="p">(</span>

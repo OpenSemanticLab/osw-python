@@ -129,7 +129,9 @@ class HelperModel(model.OswBaseModel):
             self.transform_references(dd)
 
         superclass = self.__class__.__bases__[0]
-        self.casted_instance = self.cast_none_to_default(cls=superclass)
+        self.casted_instance = self.cast(
+            cls=superclass, none_to_default=True, remove_extra=True
+        )
         if return_casted:
             return self.casted_instance
         return True

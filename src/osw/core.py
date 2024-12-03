@@ -15,7 +15,7 @@ from warnings import warn
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
-from pydantic.v1 import BaseModel, PrivateAttr, create_model, validator
+from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
@@ -93,7 +93,7 @@ class OSW(BaseModel):
         return self.site.mw_site
 
     @staticmethod
-    def get_osw_id(uuid: uuid) -> str:
+    def get_osw_id(uuid: Union[str, UUID]) -> str:
         """Generates a OSW-ID based on the given uuid by prefixing "OSW" and removing
         all '-' from the uuid-string
 
@@ -109,7 +109,7 @@ class OSW(BaseModel):
         return "OSW" + str(uuid).replace("-", "")
 
     @staticmethod
-    def get_uuid(osw_id) -> uuid:
+    def get_uuid(osw_id: str) -> UUID:
         """Returns the uuid for a given OSW-ID
 
         Parameters
@@ -182,26 +182,19 @@ class OSW(BaseModel):
         return OSW.SortEntitiesResult(by_name=by_name, by_type=by_type)
 
     class SchemaRegistration(BaseModel):
-        """
-        dataclass param of register_schema()
-
-        Attributes
-        ----------
-        model_cls:
-            the model class
-        schema_name:
-            the name of the schema
-        schema_bases:
-            list of base schemas (referenced by allOf)
-        """
+        """dataclass param of register_schema()"""
 
         class Config:
             arbitrary_types_allowed = True  # allow any class as type
 
         model_cls: Type[OswBaseModel]
+        """The model class"""
         schema_uuid: str  # Optional[str] = model_cls.__uuid__
+        """The schema uuid"""
         schema_name: str  # Optional[str] = model_cls.__name__
-        schema_bases: List[str] = ["Category:Item"]
+        """The schema name"""
+        schema_bases: List[str] = Field(default=["Category:Item"])
+        """A list of base schemas (referenced by allOf)"""
 
     def register_schema(self, schema_registration: SchemaRegistration):
         """Registers a new or updated schema in OSW by creating the corresponding
@@ -271,25 +264,17 @@ class OSW(BaseModel):
         print("Entity stored at " + page.get_url())
 
     class SchemaUnregistration(BaseModel):
-        """
-        dataclass param of register_schema()
-
-        Attributes
-        ----------
-        model_cls:
-            the model class
-        schema_name:
-            the name of the schema
-        schema_bases:
-            list of base schemas (referenced by allOf)
-        """
+        """dataclass param of register_schema()"""
 
         class Config:
             arbitrary_types_allowed = True  # allow any class as type
 
         model_cls: Optional[Type[OswBaseModel]]
+        """The model class"""
         model_uuid: Optional[str]
+        """The model uuid"""
         comment: Optional[str]
+        """The comment for the deletion, to be left behind"""
 
     def unregister_schema(self, schema_unregistration: SchemaUnregistration):
         """deletes the corresponding category page
@@ -1393,7 +1378,7 @@ class OSW(BaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]
         """The entities to convert to JSON-LD. Can be a single entity or a list of
         entities."""
-        id_keys: Optional[List[str]] = ["osw_id"]
+        id_keys: Optional[List[str]] = Field(default=["osw_id"])
         """The keys to use as @id in the JSON-LD output. If not found in the entity at root
         level, the full page title is used."""
         resolve_context: Optional[bool] = True

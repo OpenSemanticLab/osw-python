@@ -362,7 +362,8 @@ try:
     from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
 except AttributeError as e:
     warn(
-        f'An exception occurred while loading the module dependencies: \n"{e}"'
+        f"An exception occurred while loading the module dependencies: \n"
+        f'"{e}"\n'
         "A connection to an OSW instance, to fetch the dependencies from, has to be "
         "established!"
     )
@@ -1001,8 +1002,8 @@ def import_with_fallback(
                 "and could not be derived from 'to_import'!"
             )
         warn(
-            f'An exception occurred while loading the module dependencies: \n"'
-            f'{e}"\n'
+            f"An exception occurred while loading the module dependencies: \n"
+            f'"{e}"\n'
             "A connection to an OSW instance, to fetch the dependencies from, "
             "has to be established!"
         )

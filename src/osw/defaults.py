@@ -8,7 +8,8 @@ from pydantic.v1 import PrivateAttr, validator
 
 from osw.model.static import OswBaseModel
 
-PACKAGE_ROOT_PATH = Path(__file__).parents[1]
+PACKAGE_ROOT_PATH = Path(__file__).parents[2]
+SRC_PATH = PACKAGE_ROOT_PATH / "src"
 BASE_PATH = Path.cwd()
 OSW_FILES_DIR_DEFAULT = BASE_PATH / "osw_files"
 DOWNLOAD_DIR_DEFAULT = OSW_FILES_DIR_DEFAULT / "downloads"
@@ -52,7 +53,30 @@ class FilePathDefault(OswBaseModel):
         return self._default
 
 
-class Paths(OswBaseModel):
+class Defaults(OswBaseModel):
+    """Helper class to create an inheriting classes for storing default values."""
+
+    _changed: List[str] = PrivateAttr(default_factory=list)
+    """A flag to indicate if any of the paths have been changed."""
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._changed = [key for key in data.keys() if key != "_changed"]
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        if name != "_changed" and name not in self._changed:
+            self._changed.append(name)
+
+    def has_changed(self, name):
+        return name in self._changed
+
+    @property
+    def changed(self):
+        return self._changed
+
+
+class Paths(Defaults):
     """A class to store the default paths. This is a helper class to make the default
     paths, defined within this module, accessible from a calling script."""
 
@@ -68,12 +92,6 @@ class Paths(OswBaseModel):
     download_dir: Path = DOWNLOAD_DIR_DEFAULT
     """If you want to specify the default download directory, use
     Path.download_dir = new_path."""
-    _changed: List[str] = PrivateAttr(default_factory=list)
-    """A flag to indicate if any of the paths have been changed."""
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._changed = [key for key in data.keys() if key != "_changed"]
 
     def __setattr__(self, name, value):
         old_value = getattr(self, name)
@@ -81,13 +99,6 @@ class Paths(OswBaseModel):
         self.on_attribute_set(name, value, old_value)
         if name not in self._changed:
             self._changed.append(name)
-
-    def has_changed(self, name):
-        return name in self._changed
-
-    @property
-    def changed(self):
-        return self._changed
 
     def on_attribute_set(self, attr_name, new_value, old_value):
         """
@@ -135,36 +146,18 @@ paths = Paths()
 """To overwrite a default path, execute, e.g.,: paths.base = new_path"""
 
 
-class Params(OswBaseModel):
+class Params(Defaults):
     """A class to store the default parameters. This is a helper class to make the
     default parameters, defined within this module, accessible from a calling script."""
 
     wiki_domain: str = WIKI_DOMAIN_DEFAULT
     """The default domain of the OSW instance to interact with."""
-    _changed: List[str] = PrivateAttr(default_factory=list)
-    """A flag to indicate if any of the parameters have been changed."""
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._changed = [key for key in data.keys() if key != "_changed"]
-
-    def __setattr__(self, name, value):
-        super().__setattr__(name, value)
-        if name != "_changed" and name not in self._changed:
-            self._changed.append(name)
 
     @validator("wiki_domain")
     def validate_wiki_domain(cls, v):
         pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
         assert re.match(pattern, v), "The wiki domain is not valid."
         return v
-
-    def has_changed(self, name):
-        return name in self._changed
-
-    @property
-    def changed(self):
-        return self._changed
 
 
 params = Params()

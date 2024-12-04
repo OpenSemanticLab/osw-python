@@ -135,7 +135,8 @@ class OswExpress(OSW):
             url = f"https://{domain}/wiki/Main_Page"
             response = requests.get(url)
             if response.status_code == 200:
-                pass  # Domain is reachable
+                # Domain is reachable
+                print(f"Connecting to '{domain}'...")
             else:
                 raise ConnectionError(
                     f"Could not connect to '{domain}'. "
@@ -147,6 +148,7 @@ class OswExpress(OSW):
         super().__init__(**{"site": site, "domain": domain})
         self.cred_mngr = cred_mngr
         self.cred_filepath = cred_filepath
+        print(f"Connected to '{domain}'.")
 
     def __enter__(self):
         """Return self when entering the context manager."""

@@ -1201,7 +1201,8 @@
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
-<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">346</span>
+<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CredentialManager</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handles credentials&quot;&quot;&quot;</span>
 
     <span class="n">cred_filepath</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
@@ -1351,8 +1352,9 @@
 
         <span class="k">if</span> <span class="n">cred</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">fallback</span> <span class="ow">is</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">CredentialFallback</span><span class="o">.</span><span class="n">ask</span><span class="p">:</span>
+                <span class="n">filepath_str</span> <span class="o">=</span> <span class="s2">&quot;&#39;, &#39;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span> <span class="k">for</span> <span class="n">fp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span><span class="p">])</span>
                 <span class="nb">print</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;No credentials for </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">iri</span><span class="si">}</span><span class="s2"> found. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;No credentials for </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">iri</span><span class="si">}</span><span class="s2"> found in path &#39;</span><span class="si">{</span><span class="n">filepath_str</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;Please use the prompt to login&quot;</span>
                 <span class="p">)</span>
                 <span class="n">username</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter username: &quot;</span><span class="p">)</span>
@@ -2200,15 +2202,15 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
-<span class="normal">186</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
 <span class="normal">189</span>
 <span class="normal">190</span>
 <span class="normal">191</span>
 <span class="normal">192</span>
-<span class="normal">193</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cred</span><span class="p">:</span> <span class="n">BaseCredential</span><span class="p">):</span>
+<span class="normal">193</span>
+<span class="normal">194</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cred</span><span class="p">:</span> <span class="n">BaseCredential</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;adds a credential to the in memory store</span>
 
 <span class="sd">    Parameters</span>
@@ -2376,7 +2378,8 @@ the matching iri.</p>
 <span class="normal">180</span>
 <span class="normal">181</span>
 <span class="normal">182</span>
-<span class="normal">183</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">CredentialConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseCredential</span><span class="p">:</span>
+<span class="normal">183</span>
+<span class="normal">184</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">CredentialConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseCredential</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Reads credentials from a yaml file or the in memory store</span>
 
 <span class="sd">    Parameters</span>
@@ -2447,8 +2450,9 @@ the matching iri.</p>
 
     <span class="k">if</span> <span class="n">cred</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">fallback</span> <span class="ow">is</span> <span class="n">CredentialManager</span><span class="o">.</span><span class="n">CredentialFallback</span><span class="o">.</span><span class="n">ask</span><span class="p">:</span>
+            <span class="n">filepath_str</span> <span class="o">=</span> <span class="s2">&quot;&#39;, &#39;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span> <span class="k">for</span> <span class="n">fp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cred_filepath</span><span class="p">])</span>
             <span class="nb">print</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;No credentials for </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">iri</span><span class="si">}</span><span class="s2"> found. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;No credentials for </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">iri</span><span class="si">}</span><span class="s2"> found in path &#39;</span><span class="si">{</span><span class="n">filepath_str</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;Please use the prompt to login&quot;</span>
             <span class="p">)</span>
             <span class="n">username</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter username: &quot;</span><span class="p">)</span>
@@ -2535,8 +2539,7 @@ the matching iri.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
-<span class="normal">196</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
 <span class="normal">199</span>
@@ -2551,7 +2554,8 @@ the matching iri.</p>
 <span class="normal">208</span>
 <span class="normal">209</span>
 <span class="normal">210</span>
-<span class="normal">211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="normal">211</span>
+<span class="normal">212</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;checks if a credential for a given iri exists</span>
 
 <span class="sd">    Parameters</span>
@@ -2643,8 +2647,7 @@ the matching iri.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
-<span class="normal">214</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">214</span>
 <span class="normal">215</span>
 <span class="normal">216</span>
 <span class="normal">217</span>
@@ -2670,7 +2673,8 @@ the matching iri.</p>
 <span class="normal">237</span>
 <span class="normal">238</span>
 <span class="normal">239</span>
-<span class="normal">240</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="normal">240</span>
+<span class="normal">241</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iri_in_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iri</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;checks if a credential for a given iri exists in the file</span>
 
 <span class="sd">    Parameters</span>
@@ -2769,8 +2773,7 @@ cred_filepath of the CredentialManager is not changed.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">242</span>
-<span class="normal">243</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
@@ -2873,7 +2876,8 @@ cred_filepath of the CredentialManager is not changed.</p>
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
-<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
+<span class="normal">346</span>
+<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save_credentials_to_file</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">filepath</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PossibleFilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">set_cred_filepath</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>

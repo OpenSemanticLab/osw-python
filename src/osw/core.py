@@ -22,6 +22,11 @@ from pyld import jsonld
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
+from osw.utils.oold import (
+    AggregateGeneratedSchemasParam,
+    AggregateGeneratedSchemasParamMode,
+    aggregate_generated_schemas,
+)
 from osw.utils.templates import (
     compile_handlebars_template,
     eval_compiled_handlebars_template,
@@ -825,8 +830,6 @@ class OSW(BaseModel):
         entity: OswBaseModel  # actually model.Entity but this causes the "type" error
         policy: Union[OSW.OverwriteClassParam, OVERWRITE_CLASS_OPTIONS]
         namespace: Optional[str]
-        meta_category_title: Optional[str]
-        meta_category_template_str: Optional[str]
         remove_empty: Optional[bool] = True
         inplace: Optional[bool] = False
         debug: Optional[bool] = False
@@ -1035,7 +1038,7 @@ class OSW(BaseModel):
         """ID to document the change. Entities within the same store_entity() call will
         share the same change_id. This parameter can also be used to link multiple
         store_entity() calls."""
-        meta_category_title: Optional[str] = "Category:Category"
+        meta_category_title: Optional[Union[str, List[str]]] = "Category:Category"
         debug: Optional[bool] = False
         _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
             PrivateAttr()
@@ -1108,24 +1111,34 @@ class OSW(BaseModel):
 
         max_index = len(param.entities)
 
-        meta_category = self.site.get_page(
-            WtSite.GetPageParam(titles=[param.meta_category_title])
-        ).pages[0]
-        # ToDo: we have to do this iteratively to support meta categories inheritance
-        meta_category_template_str = meta_category.get_slot_content("schema_template")
-        meta_category_template = None
+        meta_category_templates = {}
         if param.namespace == "Category":
-            if param.meta_category_title:
-                meta_category = self.site.get_page(
-                    WtSite.GetPageParam(titles=[param.meta_category_title])
-                ).pages[0]
-                meta_category_template_str = meta_category.get_slot_content(
-                    "schema_template"
+            meta_category_titles = param.meta_category_title
+            if not isinstance(meta_category_titles, list):
+                meta_category_titles = [meta_category_titles]
+            meta_category_template_strs = {}
+            # We have to do this iteratively to support meta categories inheritance
+            while meta_category_titles is not None and len(meta_category_titles) > 0:
+                meta_categories = self.site.get_page(
+                    WtSite.GetPageParam(titles=meta_category_titles)
+                ).pages
+                for meta_category in meta_categories:
+                    meta_category_template_strs[meta_category.title] = (
+                        meta_category.get_slot_content("schema_template")
+                    )
+
+                meta_category_titles = meta_category.get_slot_content("jsondata").get(
+                    "subclass_of"
                 )
-            if meta_category_template_str:
-                meta_category_template = compile_handlebars_template(
-                    meta_category_template_str
-                )
+
+            for title in meta_category_template_strs.keys():
+                meta_category_template_str = meta_category_template_strs[title]
+                if meta_category_template_str:
+                    meta_category_templates[title] = compile_handlebars_template(
+                        meta_category_template_str
+                    )
+            # inverse order to have the most generic template first
+            meta_category_templates = dict(reversed(meta_category_templates.items()))
 
         def store_entity_(
             entity_: model.Entity,
@@ -1148,41 +1161,47 @@ class OSW(BaseModel):
                     entity=entity_,
                     namespace=namespace_,
                     policy=overwrite_class_param,
-                    meta_category_template_str=meta_category_template_str,
                     remove_empty=param.remove_empty,
                     debug=param.debug,
                 )
             )
-            if meta_category_template:
+            if len(meta_category_templates.keys()) > 0:
+                generated_schemas = {}
                 try:
                     jsondata = page.get_slot_content("jsondata")
                     if param.remove_empty:
                         remove_empty(jsondata)
-                    schema_str = eval_compiled_handlebars_template(
-                        meta_category_template,
-                        jsondata,
-                        {
-                            "_page_title": entity_title,  # Legacy
-                            "_current_subject_": entity_title,
-                        },
-                    )
-                    schema = json.loads(schema_str)
-                    # Put generated schema in definitions section,
-                    #  currently only enabled for Characteristics
-                    if hasattr(model, "CharacteristicType") and isinstance(
-                        entity_, model.CharacteristicType
-                    ):
-                        new_schema = {
-                            "$defs": {"generated": schema},
-                            "allOf": [{"$ref": "#/$defs/generated"}],
-                            "@context": schema.pop("@context", None),
-                            "title": schema.pop("title", ""),
-                        }
-                        schema["title"] = "Generated" + new_schema["title"]
-                        schema = new_schema
-                    page.set_slot_content("jsonschema", new_schema)
+
+                    for key in meta_category_templates:
+                        meta_category_template = meta_category_templates[key]
+                        schema_str = eval_compiled_handlebars_template(
+                            meta_category_template,
+                            jsondata,
+                            {
+                                "_page_title": entity_title,  # Legacy
+                                "_current_subject_": entity_title,
+                            },
+                        )
+                        generated_schemas[key] = json.loads(schema_str)
                 except Exception as e:
                     print(f"Schema generation from template failed for {entity_}: {e}")
+
+                mode = AggregateGeneratedSchemasParamMode.ROOT_LEVEL
+                # Put generated schema in definitions section,
+                #  currently only enabled for Characteristics
+                if hasattr(model, "CharacteristicType") and isinstance(
+                    entity_, model.CharacteristicType
+                ):
+                    mode = AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
+
+                new_schema = aggregate_generated_schemas(
+                    AggregateGeneratedSchemasParam(
+                        schema=page.get_slot_content("jsonschema"),
+                        generated_schemas=generated_schemas,
+                        mode=mode,
+                    )
+                ).aggregated_schema
+                page.set_slot_content("jsonschema", new_schema)
             page.edit()  # will set page.changed if the content of the page has changed
             if page.changed:
                 if index is None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import pathlib
 import platform
 import re
 import sys
@@ -12,6 +13,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID, uuid4
 from warnings import warn
 
+import datamodel_code_generator
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
@@ -330,6 +332,8 @@ class OSW(BaseModel):
             "replace"
             # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
+        legacy_generator: Optional[bool] = False
+        """uses legacy command line for code generation if true"""
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
         """Loads the given schemas from the OSW instance and autogenerates python
@@ -348,7 +352,11 @@ class OSW(BaseModel):
             if not first:  # 'replace' makes only sense for the first schema
                 mode = "append"
             self._fetch_schema(
-                OSW._FetchSchemaParam(schema_title=schema_title, mode=mode)
+                OSW._FetchSchemaParam(
+                    schema_title=schema_title,
+                    mode=mode,
+                    legacy_generator=fetchSchemaParam.legacy_generator,
+                )
             )
             first = False
 
@@ -372,6 +380,8 @@ class OSW(BaseModel):
             "replace"
             # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
+        legacy_generator: Optional[bool] = False
+        """uses legacy command line for code generation if true"""
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python
@@ -455,41 +465,61 @@ class OSW(BaseModel):
         result_model_path = os.path.join(model_dir_path, "entity.py")
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if root:
-            exec_name = "datamodel-codegen"
-            # default: assume datamodel-codegen is in PATH
-            exec_path = exec_name
-            if platform.system() == "Windows":
-                exec_name += ".exe"
-                exec_path = os.path.join(
-                    os.path.dirname(os.path.abspath(sys.executable)), exec_name
-                )
-                if not os.path.isfile(exec_path):
+            if fetchSchemaParam.legacy_generator:
+                exec_name = "datamodel-codegen"
+                # default: assume datamodel-codegen is in PATH
+                exec_path = exec_name
+                if platform.system() == "Windows":
+                    exec_name += ".exe"
                     exec_path = os.path.join(
-                        os.path.dirname(os.path.abspath(sys.executable)),
-                        "Scripts",
-                        exec_name,
+                        os.path.dirname(os.path.abspath(sys.executable)), exec_name
                     )
-                if not os.path.isfile(exec_path):
-                    print("Error: datamodel-codegen not found")
-                    return
-            os.system(
-                f"{exec_path}  \
-                --input {schema_path} \
-                --input-file-type jsonschema \
-                --output {temp_model_path} \
-                --base-class osw.model.static.OswBaseModel \
-                --use-default \
-                --use-unique-items-as-set \
-                --enum-field-as-literal all \
-                --use-title-as-name \
-                --use-schema-description \
-                --use-field-description \
-                --encoding utf-8 \
-                --use-double-quotes \
-                --collapse-root-models \
-                --reuse-model \
-            "
-            )
+                    if not os.path.isfile(exec_path):
+                        exec_path = os.path.join(
+                            os.path.dirname(os.path.abspath(sys.executable)),
+                            "Scripts",
+                            exec_name,
+                        )
+                    if not os.path.isfile(exec_path):
+                        print("Error: datamodel-codegen not found")
+                        return
+                os.system(
+                    f"{exec_path}  \
+                    --input {schema_path} \
+                    --input-file-type jsonschema \
+                    --output {temp_model_path} \
+                    --base-class osw.model.static.OswBaseModel \
+                    --use-default \
+                    --use-unique-items-as-set \
+                    --enum-field-as-literal all \
+                    --use-title-as-name \
+                    --use-schema-description \
+                    --use-field-description \
+                    --encoding utf-8 \
+                    --use-double-quotes \
+                    --collapse-root-models \
+                    --reuse-model \
+                "
+                )
+            else:
+                datamodel_code_generator.generate(
+                    input_=pathlib.Path(schema_path),
+                    input_file_type="jsonschema",
+                    output=pathlib.Path(temp_model_path),
+                    base_class="osw.model.static.OswBaseModel",
+                    # use_default=True,
+                    apply_default_values_for_required_fields=True,
+                    use_unique_items_as_set=True,
+                    enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+                    use_title_as_name=True,
+                    use_schema_description=True,
+                    use_field_description=True,
+                    encoding="utf-8",
+                    use_double_quotes=True,
+                    collapse_root_models=True,
+                    reuse_model=True,
+                )
+
             # see https://koxudaxi.github.io/datamodel-code-generator/
             # --base-class OswBaseModel: use a custom base class
             # --custom-template-dir src/model/template_data/

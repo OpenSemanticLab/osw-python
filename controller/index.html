@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.47">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.48">
     
     
       
@@ -1032,7 +1032,7 @@
 
     <span class="n">osw</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OSW</span><span class="p">]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; an OSW instance to fetch related resources (host, server, etc.)&quot;&quot;&quot;</span>
-    <span class="n">cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CredentialManager</span><span class="p">]</span>
+    <span class="n">cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; CredentialManager to login to the database&quot;&quot;&quot;</span>
     <span class="n">engine</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Engine</span><span class="p">]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; the internal sqlalchemy engine &quot;&quot;&quot;</span>
@@ -1164,7 +1164,7 @@
 
 
 <h3 id="osw.controller.DatabaseController.cm" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">CredentialManager</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">CredentialManager</span><span class="o">.</span><span class="n">BaseCredential</span><span class="p">,</span> <span class="n">CredentialManager</span><span class="p">]]</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>

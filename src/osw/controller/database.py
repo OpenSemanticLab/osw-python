@@ -17,7 +17,7 @@ class DatabaseController(model.Database):
 
     osw: Optional[OSW]
     """ an OSW instance to fetch related resources (host, server, etc.)"""
-    cm: Optional[CredentialManager]
+    cm: Optional[Union[CredentialManager.BaseCredential, CredentialManager]]
     """ CredentialManager to login to the database"""
     engine: Optional[Engine]
     """ the internal sqlalchemy engine """

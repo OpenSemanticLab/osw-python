@@ -271,3 +271,59 @@ def test_metamodel_template():
     output = json.loads(eval_handlebars_template(template, data))
 
     assert output == json.loads(expected)
+
+
+def test_helper_join():
+    template = """{
+        "@context": [{
+        {{#join properties}}
+            {{#if rdf_property}}"{{name}}": "{{rdf_property}}"{{/if}}
+        {{/join}}
+        }]
+    }"""
+
+    data = {
+        "properties": [
+            {
+                "name": "test_property",
+                "rdf_property": "Property:TestPropertyWithSchema",
+            },
+            {
+                "name": "test_property2",
+                "rdf_property": "Property:TestPropertyWithSchema",
+            },
+        ]
+    }
+
+    expected = {
+        "@context": [
+            {
+                "test_property": "Property:TestPropertyWithSchema",
+                "test_property2": "Property:TestPropertyWithSchema",
+            }
+        ]
+    }
+
+    output = json.loads(eval_handlebars_template(template, data))
+
+    assert output == expected
+
+    template = """
+    {{#join object_array ", " "[" "]"}}{{#if print}}{{value}}{{/if}}{{/join}}
+    """
+
+    data = {
+        "object_array": [
+            {"value": 1, "print": True},
+            {"value": 2},
+            {"value": 3, "print": True},
+        ]
+    }
+
+    expected = [1, 3]
+
+    output = json.loads(eval_handlebars_template(template, data))
+    assert output == expected
+
+
+test_helper_join()

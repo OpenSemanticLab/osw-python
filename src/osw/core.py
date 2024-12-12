@@ -22,6 +22,7 @@ from pyld import jsonld
 
 import osw.model.entity as model
 from osw.model.static import OswBaseModel
+from osw.utils.codegen import OOLDJsonSchemaParser
 from osw.utils.templates import (
     compile_handlebars_template,
     eval_compiled_handlebars_template,
@@ -334,6 +335,9 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        generate_annotations: Optional[bool] = True
+        """generate custom schema keywords in Fields and Classes.
+        Required to update the schema in OSW without information loss"""
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
         """Loads the given schemas from the OSW instance and autogenerates python
@@ -356,6 +360,7 @@ class OSW(BaseModel):
                     schema_title=schema_title,
                     mode=mode,
                     legacy_generator=fetchSchemaParam.legacy_generator,
+                    generate_annotations=fetchSchemaParam.generate_annotations,
                 )
             )
             first = False
@@ -382,6 +387,9 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        generate_annotations: Optional[bool] = False
+        """generate custom schema keywords in Fields and Classes.
+        Required to update the schema in OSW without information loss"""
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python
@@ -502,6 +510,11 @@ class OSW(BaseModel):
                 "
                 )
             else:
+                if fetchSchemaParam.generate_annotations:
+                    # monkey patch class
+                    datamodel_code_generator.parser.jsonschema.JsonSchemaParser = (
+                        OOLDJsonSchemaParser
+                    )
                 datamodel_code_generator.generate(
                     input_=pathlib.Path(schema_path),
                     input_file_type="jsonschema",
@@ -519,6 +532,43 @@ class OSW(BaseModel):
                     collapse_root_models=True,
                     reuse_model=True,
                 )
+
+                # note: we could use OOLDJsonSchemaParser directly (see below),
+                # but datamodel_code_generator.generate
+                # does some pre- and postprocessing we do not want to duplicate
+
+                # data_model_type = datamodel_code_generator.DataModelType.PydanticBaseModel
+                # #data_model_type = DataModelType.PydanticV2BaseModel
+                # target_python_version = datamodel_code_generator.PythonVersion.PY_38
+                # data_model_types = datamodel_code_generator.model.get_data_model_types(
+                #   data_model_type, target_python_version
+                # )
+                # parser = OOLDJsonSchemaParserFixedRefs(
+                #     source=pathlib.Path(schema_path),
+
+                #     base_class="osw.model.static.OswBaseModel",
+                #     data_model_type=data_model_types.data_model,
+                #     data_model_root_type=data_model_types.root_model,
+                #     data_model_field_type=data_model_types.field_model,
+                #     data_type_manager_type=data_model_types.data_type_manager,
+                #     target_python_version=target_python_version,
+
+                #     #use_default=True,
+                #     apply_default_values_for_required_fields=True,
+                #     use_unique_items_as_set=True,
+                #     enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+                #     use_title_as_name=True,
+                #     use_schema_description=True,
+                #     use_field_description=True,
+                #     encoding="utf-8",
+                #     use_double_quotes=True,
+                #     collapse_root_models=True,
+                #     reuse_model=True,
+                #     #field_include_all_keys=True
+                # )
+                # result = parser.parse()
+                # with open(temp_model_path, "w", encoding="utf-8") as f:
+                #     f.write(result)
 
             # see https://koxudaxi.github.io/datamodel-code-generator/
             # --base-class OswBaseModel: use a custom base class
@@ -593,7 +643,6 @@ class OSW(BaseModel):
                     r"class\s*([\S]*)\s*\(\s*\S*\s*\)\s*:.*\n"
                 )  # match class definition [\s\S]*(?:[^\S\n]*\n){2,}
                 for cls in re.findall(pattern, org_content):
-                    print(cls)
                     content = re.sub(
                         r"(class\s*"
                         + cls

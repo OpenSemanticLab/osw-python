@@ -4,7 +4,7 @@ https://github.com/OpenSemanticLab/mediawiki-extensions-MwJson/blob/main/modules
 """
 
 from copy import deepcopy
-from enum import StrEnum
+from enum import Enum
 from typing import Dict, Optional, TypeVar
 
 from pydantic import BaseModel
@@ -246,7 +246,7 @@ def merge_jsonld_context_object_list(context: list) -> list:
     return result
 
 
-class AggregateGeneratedSchemasParamMode(StrEnum):
+class AggregateGeneratedSchemasParamMode(str, Enum):
     ROOT_LEVEL = "root_level"
     """ The generated schema is merged at the root level """
     DEFINITIONS_SECTION = "definitions_section"

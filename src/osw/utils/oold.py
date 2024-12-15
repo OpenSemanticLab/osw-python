@@ -396,3 +396,35 @@ def aggregate_generated_schemas(
                     schema["description"] = generated_schema["description"]
 
     return AggregateGeneratedSchemasResult(aggregated_schema=schema)
+
+
+def escape_double_quotes(obj: JsonType) -> JsonType:
+    """replace double quotes `"` with escaped double quotes `\"` in strings.
+    If the object is a string, the escaped string is returned.
+    If the object is a list, the function is called recursively for each element.
+    If the object is a dictionary, the function is called recursively for each value.
+    Else the object is returned as is.
+
+    Parameters
+    ----------
+    obj
+        the object to handle
+
+    Returns
+    -------
+        returns the object with double quotes escaped if applicable
+    """
+    if isinstance(obj, str):
+        # Escape double quotes in string
+        return obj.replace('"', '\\"')
+    elif isinstance(obj, list):
+        # Iterate over array elements
+        return [escape_double_quotes(item) for item in obj]
+    elif isinstance(obj, dict):
+        # Iterate over object properties
+        escaped_obj = {}
+        for key, value in obj.items():
+            escaped_obj[key] = escape_double_quotes(value)
+        return escaped_obj
+    # Return the value as is for non-string, non-object types
+    return obj

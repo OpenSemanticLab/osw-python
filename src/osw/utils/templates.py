@@ -1,3 +1,5 @@
+import re
+
 from pybars import Compiler
 
 
@@ -15,6 +17,13 @@ def compile_handlebars_template(template):
         the compiled template
     """
     compiler = Compiler()
+    # pybars does not support inline escaping, so we have to wrap the raw block
+    # e.g. \{{escaped}} => {{{{raw}}}}{{escaped}}{{{{/raw}}}}
+    # this workaround does not support expressions withing the escaped block,
+    # e.g. \{{escaped {{some_var}} }} will not work
+    # see https://handlebarsjs.com/guide/expressions.html#escaping-handlebars-expressions
+    # see https://github.com/wbond/pybars3/pull/47
+    template = re.sub(r"\\\{\{([^}]+)\}\}", r"{{{{raw}}}}{{\1}}{{{{/raw}}}}", template)
     compiled_template = compiler.compile(template)
     return compiled_template
 

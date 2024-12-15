@@ -3,6 +3,7 @@ from osw.utils.oold import (
     AggregateGeneratedSchemasParamMode,
     aggregate_generated_schemas,
     deep_equal,
+    escape_double_quotes,
     merge_deep,
     merge_jsonld_context_object_list,
     unique_array,
@@ -133,3 +134,8 @@ def test_aggregate_generated_schemas():
         },
         "$ref": "#/$defs/generated",
     }
+
+
+def test_escape_double_quotes():
+    data = 'test "string"'
+    assert escape_double_quotes(data) == r"test \"string\""

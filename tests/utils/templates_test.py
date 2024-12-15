@@ -1,6 +1,7 @@
 # flake8: noqa: E501
 import json
 
+from osw.utils.oold import escape_double_quotes
 from osw.utils.templates import eval_handlebars_template
 
 
@@ -49,7 +50,7 @@ def test_category_template():
         "metaclass": ["Category:OSW725a3cf5458f4daea86615fcbd0029f8"],
         "description": [
             {
-                "text": "Represents the set of all individuals. In the DL literature this is often called the top concept.",
+                "text": 'Represents the set of all "individuals". In the DL literature this is often called the top concept.',
                 "lang": "en",
             }
         ],
@@ -72,9 +73,9 @@ def test_category_template():
   "title*": {
     "en": "OwlThing"
   },
-  "description": "Represents the set of all individuals. In the DL literature this is often called the top concept.",
+  "description": "Represents the set of all \\"individuals\\". In the DL literature this is often called the top concept.",
   "description*": {
-    "en": "Represents the set of all individuals. In the DL literature this is often called the top concept."
+    "en": "Represents the set of all \\"individuals\\". In the DL literature this is often called the top concept."
   },
   "required": [
     "type"
@@ -92,7 +93,7 @@ def test_category_template():
     output = json.loads(
         eval_handlebars_template(
             template,
-            data,
+            escape_double_quotes(data),
             {"_page_title": "Category:OSW379d5a1589c74c82bc0de47938264d00"},
         )
     )
@@ -326,4 +327,41 @@ def test_helper_join():
     assert output == expected
 
 
-test_helper_join()
+def test_raw_block():
+    template = """
+{
+    "unit": {
+        "format": "autocomplete",
+        "options": {
+            "autocomplete": {
+                "query": "[[-HasUnit::{{{quantity}}}]][[HasSymbol::like:*\{{_user_input}}*]]OR[[-HasPrefixUnit.-HasUnit::{{{quantity}}}]][[HasSymbol::like:*\{{_user_input}}*]]|?HasSymbol=label"
+            }
+        }
+    }
+}"""
+
+    data = {
+        "quantity": "Item:OSW1bd92826da6f5c53982ed6ea45bc1b9b",
+    }
+
+    expected = """
+{
+    "unit": {
+        "format": "autocomplete",
+        "options": {
+            "autocomplete": {
+                "query": "[[-HasUnit::Item:OSW1bd92826da6f5c53982ed6ea45bc1b9b]][[HasSymbol::like:*{{_user_input}}*]]OR[[-HasPrefixUnit.-HasUnit::Item:OSW1bd92826da6f5c53982ed6ea45bc1b9b]][[HasSymbol::like:*{{_user_input}}*]]|?HasSymbol=label"
+            }
+        }
+    }
+}
+"""
+    res = eval_handlebars_template(
+        template,
+        data,
+        {"_page_title": "Category:OSW379d5a1589c74c82bc0de47938264d00"},
+    )
+
+    output = json.loads(res)
+
+    assert output == json.loads(expected)

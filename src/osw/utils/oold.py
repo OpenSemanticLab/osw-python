@@ -3,6 +3,7 @@ and JSON-LD context objects. Python implementation of
 https://github.com/OpenSemanticLab/mediawiki-extensions-MwJson/blob/main/modules/ext.MwJson.util/MwJson_util.js
 """
 
+import json
 from copy import deepcopy
 from enum import Enum
 from typing import Dict, Optional, TypeVar
@@ -398,8 +399,9 @@ def aggregate_generated_schemas(
     return AggregateGeneratedSchemasResult(aggregated_schema=schema)
 
 
-def escape_double_quotes(obj: JsonType) -> JsonType:
-    """replace double quotes `"` with escaped double quotes `\"` in strings.
+def escape_json_strings(obj: JsonType) -> JsonType:
+    """replace double quotes `"` with escaped double quotes `\"` in
+    and non-standard escape-squences in strings.
     If the object is a string, the escaped string is returned.
     If the object is a list, the function is called recursively for each element.
     If the object is a dictionary, the function is called recursively for each value.
@@ -416,15 +418,16 @@ def escape_double_quotes(obj: JsonType) -> JsonType:
     """
     if isinstance(obj, str):
         # Escape double quotes in string
-        return obj.replace('"', '\\"')
+        # Replace invalid backslashes outside of math environments
+        return json.dumps(obj)[1:-1]
     elif isinstance(obj, list):
         # Iterate over array elements
-        return [escape_double_quotes(item) for item in obj]
+        return [escape_json_strings(item) for item in obj]
     elif isinstance(obj, dict):
         # Iterate over object properties
         escaped_obj = {}
         for key, value in obj.items():
-            escaped_obj[key] = escape_double_quotes(value)
+            escaped_obj[key] = escape_json_strings(value)
         return escaped_obj
     # Return the value as is for non-string, non-object types
     return obj

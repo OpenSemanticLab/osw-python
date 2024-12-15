@@ -1,9 +1,11 @@
+import json
+
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
     aggregate_generated_schemas,
     deep_equal,
-    escape_double_quotes,
+    escape_json_strings,
     merge_deep,
     merge_jsonld_context_object_list,
     unique_array,
@@ -136,6 +138,24 @@ def test_aggregate_generated_schemas():
     }
 
 
-def test_escape_double_quotes():
-    data = 'test "string"'
-    assert escape_double_quotes(data) == r"test \"string\""
+def test_escape_json_strings():
+    org_data = {
+        "test": "normal string",
+        "test2": 'string with "double quotes"',
+        "test3": r"latex command $\textit{impedance}$",
+        "test4": r"math $$M \cdot L^2 \cdot  T^{-2} \cdot N^{-1}$$",
+    }
+    data = escape_json_strings(org_data)
+
+    data_string = "{"
+    # serialize manually to json as a handlebars template would do
+    for key, value in data.items():
+        data_string += f'\n   "{key}": "{value}"'
+        if key != list(data.keys())[-1]:
+            data_string += ", "
+    data_string += "\n}"
+    data = data_string
+
+    result = json.loads(data)
+
+    assert result == org_data

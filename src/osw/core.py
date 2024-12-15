@@ -26,7 +26,7 @@ from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
     aggregate_generated_schemas,
-    escape_double_quotes,
+    escape_json_strings,
 )
 from osw.utils.templates import (
     compile_handlebars_template,
@@ -1177,7 +1177,7 @@ class OSW(BaseModel):
                         meta_category_template = meta_category_templates[key]
                         schema_str = eval_compiled_handlebars_template(
                             meta_category_template,
-                            escape_double_quotes(jsondata),
+                            escape_json_strings(jsondata),
                             {
                                 "_page_title": entity_title,  # Legacy
                                 "_current_subject_": entity_title,

@@ -1,7 +1,7 @@
 # flake8: noqa: E501
 import json
 
-from osw.utils.oold import escape_double_quotes
+from osw.utils.oold import escape_json_strings
 from osw.utils.templates import eval_handlebars_template
 
 
@@ -93,7 +93,7 @@ def test_category_template():
     output = json.loads(
         eval_handlebars_template(
             template,
-            escape_double_quotes(data),
+            escape_json_strings(data),
             {"_page_title": "Category:OSW379d5a1589c74c82bc0de47938264d00"},
         )
     )

@@ -47,6 +47,8 @@ DEPENDENCIES = {
     # "RemoteFile": "Category:OSW05b244d0a669436e96fe4e1631d5a171",  # depends on File
     "WikiFile": "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",  # depends on RemoteFile
 }
+# Setting dependencies as default
+default_params.dependencies = DEPENDENCIES
 
 
 class OswExpress(OSW):
@@ -158,84 +160,11 @@ class OswExpress(OSW):
         """Close the connection to the OSL instance when exiting the context manager."""
         self.close_connection()
 
-    def close_connection(self):
-        """Close the connection to the OSL instance."""
-        self.mw_site.connection.close()
-
     def shut_down(self):
         """Makes sure this OSL instance can't be reused after it was shut down,
         as the connection can't be reopened except when initializing a new instance."""
         self.close_connection()
         del self
-
-    def install_dependencies(
-        self,
-        dependencies: Dict[str, str] = None,
-        mode: str = "append",
-        policy: str = "force",
-    ):
-        """Installs data models, listed in the dependencies, in the osw.model.entity
-        module.
-
-        Parameters
-        ----------
-        dependencies
-            A dictionary with the keys being the names of the dependencies and the
-            values being the full page name (IRI) of the dependencies.
-        mode
-            The mode to use when loading the dependencies. Default is 'append',
-            which will keep existing data models and only load the missing ones. The
-            mode 'replace' will replace all existing data models with the new ones.
-        policy
-            The policy to use when loading the dependencies. Default is 'force',
-            which will always load the dependencies. If policy is 'if-missing',
-            dependencies will only be loaded if they are not already installed.
-            This may lead to outdated dependencies, if the dependencies have been
-            updated on the server. If policy is 'if-outdated', dependencies will only
-            be loaded if they were updated on the server. (not implemented yet)
-        """
-        if dependencies is None:
-            dependencies = DEPENDENCIES
-        schema_fpts = []
-        for k, v in dependencies.items():
-            if policy != "if-missing" or not hasattr(model, k):
-                schema_fpts.append(v)
-            if policy == "if-outdated":
-                raise NotImplementedError(
-                    "The policy 'if-outdated' is not implemented yet."
-                )
-        schema_fpts = list(set(schema_fpts))
-        for schema_fpt in schema_fpts:
-            if not schema_fpt.count(":") == 1:
-                raise ValueError(
-                    f"Full page title '{schema_fpt}' does not have the correct format. "
-                    "It should be 'Namespace:Name'."
-                )
-        self.fetch_schema(OSW.FetchSchemaParam(schema_title=schema_fpts, mode=mode))
-
-    @staticmethod
-    def check_dependencies(dependencies: Dict[str, str]) -> List[str]:
-        """Check if the dependencies are installed in the osw.model.entity module.
-
-        Parameters
-        ----------
-        dependencies
-            A dictionary with the keys being the names of the dependencies and the
-            values being the full page name (IRI) of the dependencies.
-        """
-        return [dep for dep in dependencies if not hasattr(model, dep)]
-
-    def ensure_dependencies(self, dependencies: Dict[str, str]):
-        """Ensure that the dependencies are installed in the osw.model.entity module.
-
-        Parameters
-        ----------
-        dependencies
-            A dictionary with the keys being the names of the dependencies and the
-            values being the full page name (IRI) of the dependencies.
-        """
-        if self.check_dependencies(dependencies):
-            self.install_dependencies(dependencies)
 
     def download_file(
         self,
@@ -1036,10 +965,6 @@ def import_with_fallback(
 
 
 OswExpress.update_forward_refs()
-
-# todo:
-#  * create a .gitignore in the basepath that lists the default credentials file (
-#  accounts.pwd.yaml) OR append to an existing .gitignore#
 
 # todo:
 #  Ideas:

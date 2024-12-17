@@ -152,6 +152,8 @@ class Params(Defaults):
 
     wiki_domain: str = WIKI_DOMAIN_DEFAULT
     """The default domain of the OSW instance to interact with."""
+    dependencies: dict = None
+    """The default dependencies to install."""
 
     @validator("wiki_domain")
     def validate_wiki_domain(cls, v):

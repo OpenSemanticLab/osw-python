@@ -85,8 +85,11 @@ def custom_isinstance(obj: Union[type, T], class_name: str) -> bool:
 class OswBaseModel(BaseModel):
 
     class Config:
+        """Configuration for the OswBaseModel"""
+
         # strict = False
-        # Additional fields are allowed
+        # extra = "ignore"
+        # Additional fields are ignored
         validate_assignment = True
         # Ensures that the assignment of a value to a field is validated
 

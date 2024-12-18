@@ -341,7 +341,7 @@ class OSW(BaseModel):
         """uses legacy command line for code generation if true"""
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
-        """Loads the given schemas from the OSW instance and autogenerates python
+        """Loads the given schemas from the OSW instance and auto-generates python
         datasclasses within osw.model.entity from it
 
         Parameters

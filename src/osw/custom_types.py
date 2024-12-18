@@ -8,6 +8,10 @@ if sys.version_info < (3, 10):
     NoneType = type(None)
 else:
     from types import NoneType  # noqa: F401
+if sys.version_info < (3, 11):
+    from backports.strenum import StrEnum  # noqa: F401
+else:
+    from enum import StrEnum  # noqa: F401
 
 
 class PossibleFilePath(PydanticFilePath):

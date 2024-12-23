@@ -1,3 +1,5 @@
+import re
+
 from pybars import Compiler
 
 
@@ -15,8 +17,52 @@ def compile_handlebars_template(template):
         the compiled template
     """
     compiler = Compiler()
+    # pybars does not support inline escaping, so we have to wrap the raw block
+    # e.g. \{{escaped}} => {{{{raw}}}}{{escaped}}{{{{/raw}}}}
+    # this workaround does not support expressions withing the escaped block,
+    # e.g. \{{escaped {{some_var}} }} will not work
+    # see https://handlebarsjs.com/guide/expressions.html#escaping-handlebars-expressions
+    # see https://github.com/wbond/pybars3/pull/47
+    template = re.sub(r"\\\{\{([^}]+)\}\}", r"{{{{raw}}}}{{\1}}{{{{/raw}}}}", template)
     compiled_template = compiler.compile(template)
     return compiled_template
+
+
+# Python implementations of handlebars helpers
+# https://github.com/OpenSemanticLab/mediawiki-extensions-MwJson/blob/main/modules/ext.MwJson.editor/MwJson_editor.js#L1342
+
+
+def helper_join(this, options, context, separator=None, intro=None, outro=None):
+    """
+    removes all empty interation results and delimits them with
+    the given separator (default: ", ")
+    {{#join literal_array }}{{.}}{{/join}}
+    {{#join object_array ", " "[" "]"}}{{#if print}}{{value}}{{/if}}{{/join}}
+    """
+
+    # handle optional params
+    if intro is None:
+        intro = ""
+    if outro is None:
+        outro = ""
+    if separator is None:
+        separator = ", "
+
+    if context is None:
+        context = []
+    items = []
+
+    for e in context:
+        inner = "".join(options["fn"](e))
+        items.append(inner)
+
+    # Remove empty or whitespace-only elements
+    items = [item for item in items if item.strip() != ""]
+    if len(items) == 0:
+        intro = outro = ""
+
+    # Join with separator, wrap with intro + outro
+    return intro + separator.join(items) + outro
 
 
 def eval_compiled_handlebars_template(
@@ -41,12 +87,19 @@ def eval_compiled_handlebars_template(
     -------
         the evaluated template as a string
     """
+
+    default_helpers = {
+        "join": helper_join,
+    }
     if helpers is None:
         helpers = {}
+    helpers = {**default_helpers, **helpers}
+
     if partials is None:
         partials = {}
     if add_self_as_partial:
         partials["self"] = compiled_template
+
     return compiled_template(data, helpers=helpers, partials=partials)
 
 

@@ -15,7 +15,7 @@ from osw.model import page_package as package
 from osw.model.page_package import NAMESPACE_CONST_TO_NAMESPACE_MAPPING
 from osw.model.static import OswBaseModel
 from osw.utils.regex import RegExPatternExtended
-from osw.wtsite import WtSite
+from osw.wtsite import WtPage, WtSite
 
 # Definition of constants
 PATTERNS = {
@@ -369,6 +369,12 @@ class PagePackageController(model.PagePackageMetaData):
         ignore_titles: Optional[List[str]] = None
         """List of page titles to ignore in auto-detected dependencies, e.g.,
         example files"""
+        offline_pages: Optional[Dict[str, WtPage]] = None
+        """A dictionary of pages that are already loaded. Pages in this dictionary
+        will not be fetched again."""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def create(
         self,
@@ -423,7 +429,12 @@ class PagePackageController(model.PagePackageMetaData):
             skip_slot_suffix_for_main=creation_config.skip_slot_suffix_for_main,
         )
         # Create the page package in the working directory
-        wtsite.create_page_package(WtSite.CreatePagePackageParam(config=config))
+        wtsite.create_page_package(
+            WtSite.CreatePagePackageParam(
+                config=config,
+                offline_pages=creation_config.offline_pages,
+            )
+        )
 
     class GetRequiredPagesParams(OswBaseModel):
         creation_config: "PagePackageController.CreationConfig"

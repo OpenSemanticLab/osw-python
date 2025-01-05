@@ -690,6 +690,9 @@ class WtSite:
         """If True, debug messages will be printed."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
+        offline_pages: Optional[Dict[str, "WtPage"]] = None
+        """A dictionary of pages that are already loaded. Pages in this dictionary
+        will not be fetched again."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -736,10 +739,27 @@ class WtSite:
             bundle.packages[config.name].pages = []
         # remove duplicates while keeping order
         added_titles = list(dict.fromkeys(config.titles))
+        titles_to_fetch = added_titles.copy()
 
-        pages = self.get_page(
-            WtSite.GetPageParam(titles=added_titles, parallel=param.parallel)
-        ).pages
+        pages = []
+        if param.offline_pages is not None:
+            pages.extend(
+                (
+                    param.offline_pages[title]
+                    for title in added_titles
+                    if title in param.offline_pages
+                )
+            )
+            titles_to_fetch = list(
+                set(titles_to_fetch) - set(param.offline_pages.keys())
+            )
+
+        if len(titles_to_fetch) > 0:
+            pages.extend(
+                self.get_page(
+                    WtSite.GetPageParam(titles=titles_to_fetch, parallel=param.parallel)
+                ).pages
+            )
         added_file_titles = []
         page_dumps = {}
         page_files = {}
@@ -771,10 +791,27 @@ class WtSite:
                 added_file_titles = list(set(added_file_titles + referenced_file_pages))
 
         file_dumps = {}
+
         if len(added_file_titles) > 0:
-            file_pages = self.get_page(
-                WtSite.GetPageParam(titles=added_file_titles, parallel=param.parallel)
-            ).pages
+            file_titles_to_fetch = added_file_titles.copy()
+            file_pages = []
+            if param.offline_pages is not None:
+                file_pages.extend(
+                    (
+                        param.offline_pages[title]
+                        for title in added_file_titles
+                        if title in param.offline_pages
+                    )
+                )
+                file_titles_to_fetch = list(
+                    set(added_file_titles) - set(param.offline_pages.keys())
+                )
+            if len(file_titles_to_fetch) > 0:
+                file_pages = self.get_page(
+                    WtSite.GetPageParam(
+                        titles=file_titles_to_fetch, parallel=param.parallel
+                    )
+                ).pages
             for file_page in file_pages:
                 if not file_page.exists:
                     continue

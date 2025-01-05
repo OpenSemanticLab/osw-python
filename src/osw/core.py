@@ -914,6 +914,7 @@ class OSW(BaseModel):
         remove_empty: Optional[bool] = True
         inplace: Optional[bool] = False
         debug: Optional[bool] = False
+        offline: Optional[bool] = False
 
         class Config:
             arbitrary_types_allowed = True
@@ -989,6 +990,7 @@ class OSW(BaseModel):
         if (
             not page.exists
             or param.policy.overwrite == AddOverwriteClassOptions.replace_remote
+            or param.offline is True
         ):
             # Use pydantic serialization, skip none values:
             new_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
@@ -1123,6 +1125,9 @@ class OSW(BaseModel):
         store_entity() calls."""
         meta_category_title: Optional[Union[str, List[str]]] = "Category:Category"
         debug: Optional[bool] = False
+        offline: Optional[bool] = False
+        """If set to True, the processed entities are not upload but only returned as WtPages.
+        Can be used to create WtPage objects from entities without uploading them."""
         _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
             PrivateAttr()
         )
@@ -1172,6 +1177,11 @@ class OSW(BaseModel):
 
         change_id: str
         """The ID of the change"""
+        pages: Dict[str, WtPage]
+        """The pages that have been stored"""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
@@ -1193,6 +1203,7 @@ class OSW(BaseModel):
         param: OSW.StoreEntityParam = param
 
         max_index = len(param.entities)
+        created_pages = {}
 
         meta_category_templates = {}
         if param.namespace == "Category":
@@ -1240,12 +1251,15 @@ class OSW(BaseModel):
             entity_title = namespace_ + ":" + title_
             page = self._apply_overwrite_policy(
                 OSW._ApplyOverwriteParam(
-                    page=WtPage(wtSite=self.site, title=entity_title),
+                    page=WtPage(
+                        wtSite=self.site, title=entity_title, do_init=not param.offline
+                    ),
                     entity=entity_,
                     namespace=namespace_,
                     policy=overwrite_class_param,
                     remove_empty=param.remove_empty,
                     debug=param.debug,
+                    offline=param.offline,
                 )
             )
             if len(meta_category_templates.keys()) > 0:
@@ -1285,8 +1299,9 @@ class OSW(BaseModel):
                     )
                 ).aggregated_schema
                 page.set_slot_content("jsonschema", new_schema)
-            page.edit()  # will set page.changed if the content of the page has changed
-            if page.changed:
+            if param.offline is False:
+                page.edit()  # will set page.changed if the content of the page has changed
+            if not param.offline and page.changed:
                 if index is None:
                     print(f"Entity stored at '{page.get_url()}'.")
                 else:
@@ -1294,6 +1309,7 @@ class OSW(BaseModel):
                         f"({index + 1}/{max_index}) Entity stored at "
                         f"'{page.get_url()}'."
                     )
+            created_pages[page.title] = page
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
         print(
@@ -1358,7 +1374,7 @@ class OSW(BaseModel):
                 handle_upload_object_(upload_object)
                 for upload_object in upload_object_list
             ]
-        return OSW.StoreEntityResult(change_id=param.change_id)
+        return OSW.StoreEntityResult(change_id=param.change_id, pages=created_pages)
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]

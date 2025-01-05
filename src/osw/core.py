@@ -1042,6 +1042,8 @@ class OSW(BaseModel):
         # Apply the overwrite logic
         # a) If there is a key in the remote content that is not in the local
         #    content, we have to keep it
+        if remote_content["jsondata"] is None:
+            remote_content["jsondata"] = {}
         new_content["jsondata"] = remote_content["jsondata"]
         # new_content["jsondata"] = {
         #     key: value

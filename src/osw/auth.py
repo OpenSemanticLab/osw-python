@@ -168,11 +168,12 @@ class CredentialManager(OswBaseModel):
 
         if cred is None:
             if config.fallback is CredentialManager.CredentialFallback.ask:
-                filepath_str = "', '".join([str(fp) for fp in self.cred_filepath])
-                print(
-                    f"No credentials for {config.iri} found in path '{filepath_str}'. "
-                    f"Please use the prompt to login"
-                )
+                if self.cred_filepath:
+                    filepath_str = "', '".join([str(fp) for fp in self.cred_filepath])
+                    print(
+                        f"No credentials for {config.iri} found in path '{filepath_str}'. "
+                        f"Please use the prompt to login"
+                    )
                 username = input("Enter username: ")
                 password = getpass.getpass("Enter password: ")
                 cred = CredentialManager.UserPwdCredential(

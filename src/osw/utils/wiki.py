@@ -124,6 +124,8 @@ def remove_empty(d: dict, inplace: bool = True) -> dict:
     result:
         The modified dictionary
     """
+    if d is None:
+        return d
     if not inplace:
         d = deepcopy(d)
     keys = list(d.keys())

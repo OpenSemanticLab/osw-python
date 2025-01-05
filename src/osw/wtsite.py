@@ -1190,6 +1190,8 @@ class WtPage:
 
         if do_init:
             self.init()
+        else:
+            self.exists = False  # actually this is unknown
 
     def init(self):
         """Initializes the page by loading the content and meta data from the site"""

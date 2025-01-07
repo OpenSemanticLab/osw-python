@@ -1,0 +1,22 @@
+{
+  "devDependencies": {
+    "@anywidget/vite": "^0.2.0",
+    "@kanamone/vite-plugin-dynamic-import-with-import-map": "^0.1.2",
+    "@rollup/plugin-alias": "^5.1.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "less": "^4.2.1",
+    "sass": "^1.83.0",
+    "sass-embedded": "^1.83.0",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.6.1",
+    "@json-editor/json-editor": "^2.15.2",
+    "bootstrap": "^5.3.2",
+    "rollup-plugin-import-map": "^3.0.0",
+    "vue": "^3.5.13"
+  },
+  "scripts": {
+    "build": "vite build --config vite.config.js && vite build --config vite.config.anywidget.mjs"
+  }
+}

@@ -1,10 +1,10 @@
-import { openBlock as i, createElementBlock as a, createElementVNode as p, toDisplayString as c, createApp as d } from "vue";
-const l = (t, n) => {
-  const e = t.__vccOpts || t;
-  for (const [o, s] of n)
-    e[o] = s;
-  return e;
-}, m = {
+import { openBlock as n, createElementBlock as i, createElementVNode as l, toDisplayString as p, createApp as c } from "vue";
+const _ = (e, t) => {
+  const o = e.__vccOpts || e;
+  for (const [s, a] of t)
+    o[s] = a;
+  return o;
+}, d = {
   name: "dm-json-form3",
   components: {},
   props: {
@@ -27,8 +27,10 @@ const l = (t, n) => {
     }
   },
   async mounted() {
-    await import("jsoneditor"), console.warn("Options: ", this.options);
-    var t = new JSONEditor(this.$el, this.options);
+    await import("jsoneditor");
+    const e = { theme: "bootstrap4", iconlib: "spectre", remove_button_labels: !0, ajax: !0, ajax_cache_responses: !1, disable_collapse: !1, disable_edit_json: !0, disable_properties: !1, use_default_values: !0, required_by_default: !1, display_required_only: !0, show_opt_in: !1, show_errors: "always", disable_array_reorder: !1, disable_array_delete_all_rows: !1, disable_array_delete_last_row: !1, keep_oneof_values: !1, no_additional_properties: !0, case_sensitive_property_search: !1, ...this.options };
+    console.warn("Options: ", e);
+    var t = new JSONEditor(this.$el, e);
     console.warn("Editor: ", this.editor), t.on("ready", () => {
       this.enabled === !1 && t.disable();
     }), t.on("change", () => {
@@ -36,33 +38,33 @@ const l = (t, n) => {
     });
   },
   emits: ["onChange"]
-}, h = {
+}, u = {
   ref: "jsoneditor",
   id: "jsoneditor",
   class: "bootstrap-wrapper"
 };
-function f(t, n, e, o, s, r) {
-  return i(), a("div", h, [
-    p("h2", null, c(e.title), 1)
+function f(e, t, o, s, a, r) {
+  return n(), i("div", u, [
+    l("h2", null, p(o.title), 1)
   ], 512);
 }
-const u = /* @__PURE__ */ l(m, [["render", f]]);
-function _({ model: t, el: n }) {
-  const e = document.createElement("div");
-  e.setAttribute("id", "jsoneditor-container"), n.append(e), console.log("Create App");
-  let o = t.get("options");
-  o = o || {
+const b = /* @__PURE__ */ _(d, [["render", f]]);
+function m({ model: e, el: t }) {
+  const o = document.createElement("div");
+  o.setAttribute("id", "jsoneditor-container"), t.append(o), console.log("Create App");
+  let s = e.get("options");
+  s = s || {
     theme: "bootstrap5",
     iconlib: "fontawesome5",
     schema: { properties: { test: { type: "string" } } }
     //   startval: this.data
-  }, d(u, {
-    options: o,
+  }, c(b, {
+    options: s,
     onChange: (r) => {
-      console.log("CHANGE", r), t.set("value", r), t.save_changes();
+      console.log("CHANGE", r), e.set("value", r), e.save_changes();
     }
-  }).mount(n);
+  }).mount(t);
 }
 export {
-  _ as render
+  m as render
 };

@@ -35,16 +35,31 @@ export default {
     //debugger;
     // access our input using template refs, then focus
     await import("jsoneditor");
-    // this.$options = {
-    //   //theme: 'bootstrap4',
-    //   //iconlib: 'fontawesome4',
-    //   theme: 'tailwind',
-    //   //iconlib: 'spectre',
-    //   schema: {"properties": {"test": {"type": "string"}}},
-    //   startval: this.data
-    // }
-    console.warn("Options: ", this.options)
-    var editor = new JSONEditor(this.$el, this.options);
+    const options = {...{
+      "theme": "bootstrap4",
+      "iconlib": "spectre",
+      "remove_button_labels": true,
+      "ajax": true,
+      "ajax_cache_responses": false,
+      "disable_collapse": false,
+      "disable_edit_json": true,
+      "disable_properties": false,
+      "use_default_values": true,
+      "required_by_default": false,
+      "display_required_only": true,
+      "show_opt_in": false,
+      "show_errors": "always",
+      "disable_array_reorder": false,
+      "disable_array_delete_all_rows": false,
+      "disable_array_delete_last_row": false,
+      "keep_oneof_values": false,
+      "no_additional_properties": true,
+      "case_sensitive_property_search": false,
+      //"form_name_root": "this.jsonschema.getSchema().id",
+      //"user_language": "this.config.lang"
+    }, ...this.options}
+    console.warn("Options: ", options)
+    var editor = new JSONEditor(this.$el, options);
     console.warn("Editor: ", this.editor)
 
     editor.on('ready', () => {

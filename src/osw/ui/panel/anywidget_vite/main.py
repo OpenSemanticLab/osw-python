@@ -5,6 +5,9 @@ import panel as pn
 import param
 from panel.custom import AnyWidgetComponent
 
+import osw.model.entity as model
+from osw.model.static import OswBaseModel
+
 pn.extension()
 
 bundled_assets_dir = Path(__file__).parent.parent.parent / "vue" / "dist" / "default"
@@ -16,12 +19,13 @@ class JsonEditor(AnyWidgetComponent):
     _esm = (bundled_assets_dir / "jsoneditor_vue.mjs").read_text()
 
     _stylesheets = [
-        # bundled_assets_dir / "style.css",
+        # includes bootstrap and spectre
+        (bundled_assets_dir / "jsoneditor_vue.css").read_text(),
         # v5 does not work properly:
-        "https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css",
+        # "https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css",
         # does not work:
         # 'https://use.fontawesome.com/releases/v5.12.1/css/all.css',
-        "https://unpkg.com/spectre.css/dist/spectre-icons.min.css",
+        # "https://unpkg.com/spectre.css/dist/spectre-icons.min.css",
     ]
     _importmap = {
         "imports": {
@@ -34,10 +38,7 @@ class JsonEditor(AnyWidgetComponent):
             #   "@latest/dist/jsoneditor.min.js"
             # ),
             # works with `import("jsoneditor")`:
-            "jsoneditor": (
-                "https://cdn.jsdelivr.net/npm/@json-editor/json-editor",
-                "@latest/dist/jsoneditor.min.js",
-            ),
+            "jsoneditor": "https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js",  # noqa
         }
     }
     # __javascript__= [
@@ -48,10 +49,13 @@ class JsonEditor(AnyWidgetComponent):
     value = param.Dict()
     options = param.Dict(
         default={
-            "theme": "bootstrap4",
+            # "theme": "bootstrap4",
             # "iconlib": 'fontawesome5',
-            "iconlib": "spectre",
-            "schema": {"properties": {"testxy": {"type": "string"}}},
+            # "iconlib": "spectre",
+            "schema": {
+                "required": ["testxy"],
+                "properties": {"testxy": {"type": "string"}},
+            },
         }
     )
 
@@ -69,19 +73,30 @@ class JsonEditor(AnyWidgetComponent):
 
 class OswEditor(JsonEditor):
 
-    options = param.Dict(
-        default={
-            "theme": "bootstrap4",
+    # entity: OswBaseModel = None,
+    def __init__(self, entity: OswBaseModel, **params):
+
+        options = {
+            # "theme": "bootstrap4",
             # "iconlib": 'fontawesome5',
-            "iconlib": "spectre",
-            "schema": {"properties": {"testxy": {"type": "string"}}},
+            # "iconlib": "spectre",
+            "schema": {
+                "required": ["testxy"],
+                "properties": {"testxy": {"type": "string"}},
+            },
         }
-    )
+
+        if entity is not None:
+            options["schema"] = json.loads(entity.schema_json())
+
+        params["options"] = options
+        super().__init__(**params)
 
 
 if __name__ == "__main__":
 
-    jsoneditor = JsonEditor(height=500, max_width=800)
+    # jsoneditor = JsonEditor(height=500, max_width=800)
+    jsoneditor = OswEditor(model.Item)
     pn.serve(
         pn.Column(
             jsoneditor, pn.pane.JSON(jsoneditor.param.value, theme="light")

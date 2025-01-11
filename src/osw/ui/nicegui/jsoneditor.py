@@ -12,7 +12,7 @@ from osw.model.static import OswBaseModel
 class JsonEditor(
     Element,
     component="../vue/src/jsoneditor.vue",
-    dependencies=["node_modules/@json-editor/json-editor/dist/jsoneditor.js"],
+    dependencies=["../vue/node_modules/@json-editor/json-editor/dist/jsoneditor.js"],
 ):
 
     def __init__(
@@ -80,7 +80,7 @@ class OswEditor(JsonEditor):
     def handle_change(self, e: GenericEventArguments) -> None:
         print(e)
         try:
-            i = self.entity(**e.args)
+            self.entity(**e.args)
         except Exception as ex:
-            print("No valid instance: ", i, ex)
+            print("No valid instance: ", ex)
         super().handle_change(e)

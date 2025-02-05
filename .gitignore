@@ -61,3 +61,7 @@ site
 # Specific to this project
 src/osw/model/*.json
 playground
+nb/quantities/data
+# Automatically added by osw.auth.CredentialManager.save_credentials_to_file:
+*/osw_files/*
+*/accounts.pwd.yaml

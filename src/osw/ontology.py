@@ -199,7 +199,9 @@ class OntologyImporter(OswBaseModel):
 
         return rdf_graph
 
-    def import_ontology(self, config: ImportConfig):
+    def import_ontology(
+        self, config: ImportConfig
+    ) -> Dict[str, List[model.OswBaseModel]]:
         """Imports an ontology into OSW
 
         Parameters
@@ -209,7 +211,8 @@ class OntologyImporter(OswBaseModel):
 
         Returns
         -------
-            None
+            Dict[str, model.OswBaseModel]: a dictionary of the imported ontologies
+            in the form of <prefix>: [<OswBaseModel>] pairs
         """
 
         # overwrite the default document loader to load relative context from the wiki
@@ -335,13 +338,13 @@ class OntologyImporter(OswBaseModel):
         #     )
         # )
 
-        if not self.import_config.dry_run:
-            self._store_ontologies(
-                OntologyImporter.StoreOntologiesParam(
-                    ontologies=self.import_config.ontologies,
-                    entities=self._entities,
-                )
+        return self._store_ontologies(
+            OntologyImporter.StoreOntologiesParam(
+                ontologies=self.import_config.ontologies,
+                entities=self._entities,
+                dryrun=self.import_config.dry_run,
             )
+        )
 
     def _sanitize_graph(self) -> None:
         ps = self.parser_settings
@@ -774,7 +777,9 @@ class OntologyImporter(OswBaseModel):
         ontologies: Optional[List[model.OwlOntology]]
         dryrun: Optional[bool] = False
 
-    def _store_ontologies(self, param: StoreOntologiesParam = None):
+    def _store_ontologies(
+        self, param: StoreOntologiesParam = None
+    ) -> Dict[str, List[model.OswBaseModel]]:
         entities = self._entities
         dry_run = self.import_config.dry_run
         ontologies = self.import_config.ontologies
@@ -819,3 +824,4 @@ class OntologyImporter(OswBaseModel):
                             ontology=onto, entities=prefix_dict[prefix]
                         )
                     )
+        return prefix_dict

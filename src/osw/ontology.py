@@ -77,6 +77,8 @@ class ImportConfig(OswBaseModel):
     """the name of the ontology"""
     ontologies: List[model.OwlOntology]
     """Ontology metadata, including imported ontologies"""
+    additional_imports: Optional[List[model.OwlOntology]] = []
+    """Ontologies to import additionally to the imported main ontology"""
     import_mapping: Optional[Dict[str, str]] = {}
     """Mapping of imported ontologies iri to their resolveable file url in case both
     are not identical"""
@@ -138,6 +140,7 @@ class OntologyImporter(OswBaseModel):
         format_: str = "turtle",
         imported_ontologies: list = None,
         import_mapping=None,
+        rdf_graph=None,
     ):
         """Recursively import ontologies from owl:imports statements in the given
         ontology file.
@@ -158,7 +161,8 @@ class OntologyImporter(OswBaseModel):
             imported_ontologies = []
         if import_mapping is None:
             import_mapping = {}
-        rdf_graph = Graph()
+        if rdf_graph is None:
+            rdf_graph = Graph()
         rdf_graph.parse(file, format=format_)
 
         # load the graph into a dict
@@ -220,6 +224,19 @@ class OntologyImporter(OswBaseModel):
 
         self.import_config = config
 
+        # import
+        rdf_graph = Graph()
+        if self.import_config.additional_imports is not None:
+            for onto in self.import_config.additional_imports:
+                iri = onto.iri
+                if (
+                    self.import_config.import_mapping
+                    and iri in self.import_config.import_mapping
+                ):
+                    iri = self.import_config.import_mapping[iri]
+                print(f"Importing {iri}")
+                rdf_graph.parse(iri)
+
         # load the ontology file
         self._imported_ontologies = []
         rdf_graph = self._recursive_ontology_import(
@@ -227,6 +244,7 @@ class OntologyImporter(OswBaseModel):
             self.import_config.file_format,
             self._imported_ontologies,
             self.import_config.import_mapping,
+            rdf_graph,
         )
 
         if self.import_config.dump_files:

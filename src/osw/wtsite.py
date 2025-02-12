@@ -1594,6 +1594,8 @@ class WtPage:
                 if retry < max_retry:
                     retry += 1
                     print(f"Page edit failed: {e}. Retry ({retry}/{max_retry})")
+                    # refresh token for longer running processes
+                    self.wtSite._site.get_token("csrf", force=True)
                     sleep(5)
 
     def _edit(self, comment: str = None, mode="action-multislot"):

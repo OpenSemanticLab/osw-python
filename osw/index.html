@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.2">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.3">
     
     
       
@@ -796,6 +796,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityParam.offline" class="md-nav__link">
+    <span class="md-ellipsis">
+      offline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osw.core.OSW.StoreEntityParam.overwrite" class="md-nav__link">
     <span class="md-ellipsis">
       overwrite
@@ -850,6 +859,15 @@
   <a href="#osw.core.OSW.StoreEntityResult.change_id" class="md-nav__link">
     <span class="md-ellipsis">
       change_id
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityResult.pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      pages
     </span>
   </a>
   
@@ -1631,6 +1649,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityParam.offline" class="md-nav__link">
+    <span class="md-ellipsis">
+      offline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osw.core.OSW.StoreEntityParam.overwrite" class="md-nav__link">
     <span class="md-ellipsis">
       overwrite
@@ -1685,6 +1712,15 @@
   <a href="#osw.core.OSW.StoreEntityResult.change_id" class="md-nav__link">
     <span class="md-ellipsis">
       change_id
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityResult.pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      pages
     </span>
   </a>
   
@@ -3473,7 +3509,25 @@
 <span class="normal">1638</span>
 <span class="normal">1639</span>
 <span class="normal">1640</span>
-<span class="normal">1641</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">1641</span>
+<span class="normal">1642</span>
+<span class="normal">1643</span>
+<span class="normal">1644</span>
+<span class="normal">1645</span>
+<span class="normal">1646</span>
+<span class="normal">1647</span>
+<span class="normal">1648</span>
+<span class="normal">1649</span>
+<span class="normal">1650</span>
+<span class="normal">1651</span>
+<span class="normal">1652</span>
+<span class="normal">1653</span>
+<span class="normal">1654</span>
+<span class="normal">1655</span>
+<span class="normal">1656</span>
+<span class="normal">1657</span>
+<span class="normal">1658</span>
+<span class="normal">1659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -4320,6 +4374,7 @@
         <span class="n">remove_empty</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">inplace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">offline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
             <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
@@ -4395,6 +4450,7 @@
         <span class="k">if</span> <span class="p">(</span>
             <span class="ow">not</span> <span class="n">page</span><span class="o">.</span><span class="n">exists</span>
             <span class="ow">or</span> <span class="n">param</span><span class="o">.</span><span class="n">policy</span><span class="o">.</span><span class="n">overwrite</span> <span class="o">==</span> <span class="n">AddOverwriteClassOptions</span><span class="o">.</span><span class="n">replace_remote</span>
+            <span class="ow">or</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">is</span> <span class="kc">True</span>
         <span class="p">):</span>
             <span class="c1"># Use pydantic serialization, skip none values:</span>
             <span class="n">new_content</span><span class="p">[</span><span class="s2">&quot;jsondata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entity</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">exclude_none</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
@@ -4448,6 +4504,8 @@
         <span class="c1"># Apply the overwrite logic</span>
         <span class="c1"># a) If there is a key in the remote content that is not in the local</span>
         <span class="c1">#    content, we have to keep it</span>
+        <span class="k">if</span> <span class="n">remote_content</span><span class="p">[</span><span class="s2">&quot;jsondata&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">remote_content</span><span class="p">[</span><span class="s2">&quot;jsondata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">new_content</span><span class="p">[</span><span class="s2">&quot;jsondata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote_content</span><span class="p">[</span><span class="s2">&quot;jsondata&quot;</span><span class="p">]</span>
         <span class="c1"># new_content[&quot;jsondata&quot;] = {</span>
         <span class="c1">#     key: value</span>
@@ -4527,6 +4585,9 @@
 <span class="sd">        store_entity() calls.&quot;&quot;&quot;</span>
         <span class="n">meta_category_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s2">&quot;Category:Category&quot;</span>
         <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">offline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;If set to True, the processed entities are not upload but only returned as WtPages.</span>
+<span class="sd">        Can be used to create WtPage objects from entities without uploading them.&quot;&quot;&quot;</span>
         <span class="n">_overwrite_per_class</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">OverwriteClassParam</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">PrivateAttr</span><span class="p">()</span>
         <span class="p">)</span>
@@ -4576,6 +4637,11 @@
 
         <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;The ID of the change&quot;&quot;&quot;</span>
+        <span class="n">pages</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WtPage</span><span class="p">]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The pages that have been stored&quot;&quot;&quot;</span>
+
+        <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
+            <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -4597,6 +4663,7 @@
         <span class="n">param</span><span class="p">:</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityParam</span> <span class="o">=</span> <span class="n">param</span>
 
         <span class="n">max_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
+        <span class="n">created_pages</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="n">meta_category_templates</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">namespace</span> <span class="o">==</span> <span class="s2">&quot;Category&quot;</span><span class="p">:</span>
@@ -4644,12 +4711,15 @@
             <span class="n">entity_title</span> <span class="o">=</span> <span class="n">namespace_</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">title_</span>
             <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_overwrite_policy</span><span class="p">(</span>
                 <span class="n">OSW</span><span class="o">.</span><span class="n">_ApplyOverwriteParam</span><span class="p">(</span>
-                    <span class="n">page</span><span class="o">=</span><span class="n">WtPage</span><span class="p">(</span><span class="n">wtSite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">entity_title</span><span class="p">),</span>
+                    <span class="n">page</span><span class="o">=</span><span class="n">WtPage</span><span class="p">(</span>
+                        <span class="n">wtSite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">entity_title</span><span class="p">,</span> <span class="n">do_init</span><span class="o">=</span><span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span>
+                    <span class="p">),</span>
                     <span class="n">entity</span><span class="o">=</span><span class="n">entity_</span><span class="p">,</span>
                     <span class="n">namespace</span><span class="o">=</span><span class="n">namespace_</span><span class="p">,</span>
                     <span class="n">policy</span><span class="o">=</span><span class="n">overwrite_class_param</span><span class="p">,</span>
                     <span class="n">remove_empty</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">remove_empty</span><span class="p">,</span>
                     <span class="n">debug</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">debug</span><span class="p">,</span>
+                    <span class="n">offline</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">offline</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta_category_templates</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -4689,8 +4759,9 @@
                     <span class="p">)</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">aggregated_schema</span>
                 <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;jsonschema&quot;</span><span class="p">,</span> <span class="n">new_schema</span><span class="p">)</span>
-            <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
-            <span class="k">if</span> <span class="n">page</span><span class="o">.</span><span class="n">changed</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">and</span> <span class="n">page</span><span class="o">.</span><span class="n">changed</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity stored at &#39;</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -4698,6 +4769,7 @@
                         <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">max_index</span><span class="si">}</span><span class="s2">) Entity stored at &quot;</span>
                         <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
                     <span class="p">)</span>
+            <span class="n">created_pages</span><span class="p">[</span><span class="n">page</span><span class="o">.</span><span class="n">title</span><span class="p">]</span> <span class="o">=</span> <span class="n">page</span>
 
         <span class="n">sorted_entities</span> <span class="o">=</span> <span class="n">OSW</span><span class="o">.</span><span class="n">sort_list_of_entities_by_class</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span>
@@ -4762,7 +4834,7 @@
                 <span class="n">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">upload_object</span> <span class="ow">in</span> <span class="n">upload_object_list</span>
             <span class="p">]</span>
-        <span class="k">return</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span><span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span><span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span> <span class="n">pages</span><span class="o">=</span><span class="n">created_pages</span><span class="p">)</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">DeleteEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
         <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -5088,25 +5160,7 @@
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1520</span>
-<span class="normal">1521</span>
-<span class="normal">1522</span>
-<span class="normal">1523</span>
-<span class="normal">1524</span>
-<span class="normal">1525</span>
-<span class="normal">1526</span>
-<span class="normal">1527</span>
-<span class="normal">1528</span>
-<span class="normal">1529</span>
-<span class="normal">1530</span>
-<span class="normal">1531</span>
-<span class="normal">1532</span>
-<span class="normal">1533</span>
-<span class="normal">1534</span>
-<span class="normal">1535</span>
-<span class="normal">1536</span>
-<span class="normal">1537</span>
-<span class="normal">1538</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1538</span>
 <span class="normal">1539</span>
 <span class="normal">1540</span>
 <span class="normal">1541</span>
@@ -5114,7 +5168,25 @@
 <span class="normal">1543</span>
 <span class="normal">1544</span>
 <span class="normal">1545</span>
-<span class="normal">1546</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1546</span>
+<span class="normal">1547</span>
+<span class="normal">1548</span>
+<span class="normal">1549</span>
+<span class="normal">1550</span>
+<span class="normal">1551</span>
+<span class="normal">1552</span>
+<span class="normal">1553</span>
+<span class="normal">1554</span>
+<span class="normal">1555</span>
+<span class="normal">1556</span>
+<span class="normal">1557</span>
+<span class="normal">1558</span>
+<span class="normal">1559</span>
+<span class="normal">1560</span>
+<span class="normal">1561</span>
+<span class="normal">1562</span>
+<span class="normal">1563</span>
+<span class="normal">1564</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">context_loader_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WtSite</span><span class="o">.</span><span class="n">JsonLdContextLoaderParams</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The configuration for the JSON-LD context loader.&quot;&quot;&quot;</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -5390,16 +5462,16 @@ level, the full page title is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1548</span>
-<span class="normal">1549</span>
-<span class="normal">1550</span>
-<span class="normal">1551</span>
-<span class="normal">1552</span>
-<span class="normal">1553</span>
-<span class="normal">1554</span>
-<span class="normal">1555</span>
-<span class="normal">1556</span>
-<span class="normal">1557</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1566</span>
+<span class="normal">1567</span>
+<span class="normal">1568</span>
+<span class="normal">1569</span>
+<span class="normal">1570</span>
+<span class="normal">1571</span>
+<span class="normal">1572</span>
+<span class="normal">1573</span>
+<span class="normal">1574</span>
+<span class="normal">1575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">documents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A single JSON-LD document per entity&quot;&quot;&quot;</span>
     <span class="n">graph_document</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -5770,13 +5842,13 @@ level, the full page title is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1512</span>
-<span class="normal">1513</span>
-<span class="normal">1514</span>
-<span class="normal">1515</span>
-<span class="normal">1516</span>
-<span class="normal">1517</span>
-<span class="normal">1518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1530</span>
+<span class="normal">1531</span>
+<span class="normal">1532</span>
+<span class="normal">1533</span>
+<span class="normal">1534</span>
+<span class="normal">1535</span>
+<span class="normal">1536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;enum for jsonld processing mode&quot;&quot;&quot;</span>
 
     <span class="n">expand</span> <span class="o">=</span> <span class="s2">&quot;expand&quot;</span>
@@ -6770,11 +6842,7 @@ has not been specified in per_property.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1117</span>
-<span class="normal">1118</span>
-<span class="normal">1119</span>
-<span class="normal">1120</span>
-<span class="normal">1121</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1121</span>
 <span class="normal">1122</span>
 <span class="normal">1123</span>
 <span class="normal">1124</span>
@@ -6834,7 +6902,14 @@ has not been specified in per_property.</p>
 <span class="normal">1178</span>
 <span class="normal">1179</span>
 <span class="normal">1180</span>
-<span class="normal">1181</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1181</span>
+<span class="normal">1182</span>
+<span class="normal">1183</span>
+<span class="normal">1184</span>
+<span class="normal">1185</span>
+<span class="normal">1186</span>
+<span class="normal">1187</span>
+<span class="normal">1188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>  <span class="c1"># actually model.Entity</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The entities to store. Can be a single entity or a list of entities.&quot;&quot;&quot;</span>
     <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -6856,6 +6931,9 @@ has not been specified in per_property.</p>
 <span class="sd">    store_entity() calls.&quot;&quot;&quot;</span>
     <span class="n">meta_category_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s2">&quot;Category:Category&quot;</span>
     <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">offline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;If set to True, the processed entities are not upload but only returned as WtPages.</span>
+<span class="sd">    Can be used to create WtPage objects from entities without uploading them.&quot;&quot;&quot;</span>
     <span class="n">_overwrite_per_class</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">OverwriteClassParam</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">PrivateAttr</span><span class="p">()</span>
     <span class="p">)</span>
@@ -7006,6 +7084,29 @@ entity.</p>
 
 
 
+<h3 id="osw.core.OSW.StoreEntityParam.offline" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">offline</span> <span class="o">=</span> <span class="kc">False</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>If set to True, the processed entities are not upload but only returned as WtPages.
+Can be used to create WtPage objects from entities without uploading them.</p>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h3 id="osw.core.OSW.StoreEntityParam.overwrite" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">overwrite</span> <span class="o">=</span> <span class="s1">&#39;keep existing&#39;</span></code>
 
@@ -7130,15 +7231,25 @@ is set, this setting is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1183</span>
-<span class="normal">1184</span>
-<span class="normal">1185</span>
-<span class="normal">1186</span>
-<span class="normal">1187</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1190</span>
+<span class="normal">1191</span>
+<span class="normal">1192</span>
+<span class="normal">1193</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span>
+<span class="normal">1197</span>
+<span class="normal">1198</span>
+<span class="normal">1199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of store_entity()&quot;&quot;&quot;</span>
 
     <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The ID of the change&quot;&quot;&quot;</span>
+    <span class="n">pages</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WtPage</span><span class="p">]</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The pages that have been stored&quot;&quot;&quot;</span>
+
+    <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
+        <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -7169,6 +7280,27 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
 
         <p>The ID of the change</p>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="osw.core.OSW.StoreEntityResult.pages" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">pages</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The pages that have been stored</p>
     </div>
 
 </div>
@@ -7260,7 +7392,8 @@ is set, this setting is used.</p>
 <span class="normal">975</span>
 <span class="normal">976</span>
 <span class="normal">977</span>
-<span class="normal">978</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">_ApplyOverwriteParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">978</span>
+<span class="normal">979</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">_ApplyOverwriteParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">page</span><span class="p">:</span> <span class="n">WtPage</span>
     <span class="n">entity</span><span class="p">:</span> <span class="n">OswBaseModel</span>  <span class="c1"># actually model.Entity but this causes the &quot;type&quot; error</span>
     <span class="n">policy</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OSW</span><span class="o">.</span><span class="n">OverwriteClassParam</span><span class="p">,</span> <span class="n">OVERWRITE_CLASS_OPTIONS</span><span class="p">]</span>
@@ -7268,6 +7401,7 @@ is set, this setting is used.</p>
     <span class="n">remove_empty</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="n">inplace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">offline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
         <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
@@ -7345,8 +7479,7 @@ is set, this setting is used.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">936</span>
-<span class="normal">937</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">937</span>
 <span class="normal">938</span>
 <span class="normal">939</span>
 <span class="normal">940</span>
@@ -7375,7 +7508,8 @@ is set, this setting is used.</p>
 <span class="normal">963</span>
 <span class="normal">964</span>
 <span class="normal">965</span>
-<span class="normal">966</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validator</span><span class="p">(</span><span class="s2">&quot;entity&quot;</span><span class="p">)</span>
+<span class="normal">966</span>
+<span class="normal">967</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validator</span><span class="p">(</span><span class="s2">&quot;entity&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">validate_entity</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Make sure that the passed entity has the same uuid as the page&quot;&quot;&quot;</span>
     <span class="n">page</span><span class="p">:</span> <span class="n">WtPage</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;page&quot;</span><span class="p">)</span>
@@ -8219,25 +8353,7 @@ values being the full page name (IRI) of the dependencies.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1391</span>
-<span class="normal">1392</span>
-<span class="normal">1393</span>
-<span class="normal">1394</span>
-<span class="normal">1395</span>
-<span class="normal">1396</span>
-<span class="normal">1397</span>
-<span class="normal">1398</span>
-<span class="normal">1399</span>
-<span class="normal">1400</span>
-<span class="normal">1401</span>
-<span class="normal">1402</span>
-<span class="normal">1403</span>
-<span class="normal">1404</span>
-<span class="normal">1405</span>
-<span class="normal">1406</span>
-<span class="normal">1407</span>
-<span class="normal">1408</span>
-<span class="normal">1409</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1409</span>
 <span class="normal">1410</span>
 <span class="normal">1411</span>
 <span class="normal">1412</span>
@@ -8274,7 +8390,25 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">1443</span>
 <span class="normal">1444</span>
 <span class="normal">1445</span>
-<span class="normal">1446</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
+<span class="normal">1446</span>
+<span class="normal">1447</span>
+<span class="normal">1448</span>
+<span class="normal">1449</span>
+<span class="normal">1450</span>
+<span class="normal">1451</span>
+<span class="normal">1452</span>
+<span class="normal">1453</span>
+<span class="normal">1454</span>
+<span class="normal">1455</span>
+<span class="normal">1456</span>
+<span class="normal">1457</span>
+<span class="normal">1458</span>
+<span class="normal">1459</span>
+<span class="normal">1460</span>
+<span class="normal">1461</span>
+<span class="normal">1462</span>
+<span class="normal">1463</span>
+<span class="normal">1464</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">],</span> <span class="n">DeleteEntityParam</span><span class="p">],</span>
     <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8425,25 +8559,7 @@ values being the full page name (IRI) of the dependencies.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1559</span>
-<span class="normal">1560</span>
-<span class="normal">1561</span>
-<span class="normal">1562</span>
-<span class="normal">1563</span>
-<span class="normal">1564</span>
-<span class="normal">1565</span>
-<span class="normal">1566</span>
-<span class="normal">1567</span>
-<span class="normal">1568</span>
-<span class="normal">1569</span>
-<span class="normal">1570</span>
-<span class="normal">1571</span>
-<span class="normal">1572</span>
-<span class="normal">1573</span>
-<span class="normal">1574</span>
-<span class="normal">1575</span>
-<span class="normal">1576</span>
-<span class="normal">1577</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1577</span>
 <span class="normal">1578</span>
 <span class="normal">1579</span>
 <span class="normal">1580</span>
@@ -8507,7 +8623,25 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">1638</span>
 <span class="normal">1639</span>
 <span class="normal">1640</span>
-<span class="normal">1641</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
+<span class="normal">1641</span>
+<span class="normal">1642</span>
+<span class="normal">1643</span>
+<span class="normal">1644</span>
+<span class="normal">1645</span>
+<span class="normal">1646</span>
+<span class="normal">1647</span>
+<span class="normal">1648</span>
+<span class="normal">1649</span>
+<span class="normal">1650</span>
+<span class="normal">1651</span>
+<span class="normal">1652</span>
+<span class="normal">1653</span>
+<span class="normal">1654</span>
+<span class="normal">1655</span>
+<span class="normal">1656</span>
+<span class="normal">1657</span>
+<span class="normal">1658</span>
+<span class="normal">1659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Exports the given entity/entities as JSON-LD.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">resolve_context</span><span class="p">:</span>
@@ -9833,19 +9967,7 @@ instance of class that does not define a field 'type'</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1189</span>
-<span class="normal">1190</span>
-<span class="normal">1191</span>
-<span class="normal">1192</span>
-<span class="normal">1193</span>
-<span class="normal">1194</span>
-<span class="normal">1195</span>
-<span class="normal">1196</span>
-<span class="normal">1197</span>
-<span class="normal">1198</span>
-<span class="normal">1199</span>
-<span class="normal">1200</span>
-<span class="normal">1201</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1201</span>
 <span class="normal">1202</span>
 <span class="normal">1203</span>
 <span class="normal">1204</span>
@@ -10018,7 +10140,25 @@ instance of class that does not define a field 'type'</p>
 <span class="normal">1371</span>
 <span class="normal">1372</span>
 <span class="normal">1373</span>
-<span class="normal">1374</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">1374</span>
+<span class="normal">1375</span>
+<span class="normal">1376</span>
+<span class="normal">1377</span>
+<span class="normal">1378</span>
+<span class="normal">1379</span>
+<span class="normal">1380</span>
+<span class="normal">1381</span>
+<span class="normal">1382</span>
+<span class="normal">1383</span>
+<span class="normal">1384</span>
+<span class="normal">1385</span>
+<span class="normal">1386</span>
+<span class="normal">1387</span>
+<span class="normal">1388</span>
+<span class="normal">1389</span>
+<span class="normal">1390</span>
+<span class="normal">1391</span>
+<span class="normal">1392</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StoreEntityResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>
@@ -10038,6 +10178,7 @@ instance of class that does not define a field 'type'</p>
     <span class="n">param</span><span class="p">:</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityParam</span> <span class="o">=</span> <span class="n">param</span>
 
     <span class="n">max_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
+    <span class="n">created_pages</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="n">meta_category_templates</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">namespace</span> <span class="o">==</span> <span class="s2">&quot;Category&quot;</span><span class="p">:</span>
@@ -10085,12 +10226,15 @@ instance of class that does not define a field 'type'</p>
         <span class="n">entity_title</span> <span class="o">=</span> <span class="n">namespace_</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="n">title_</span>
         <span class="n">page</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_overwrite_policy</span><span class="p">(</span>
             <span class="n">OSW</span><span class="o">.</span><span class="n">_ApplyOverwriteParam</span><span class="p">(</span>
-                <span class="n">page</span><span class="o">=</span><span class="n">WtPage</span><span class="p">(</span><span class="n">wtSite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">entity_title</span><span class="p">),</span>
+                <span class="n">page</span><span class="o">=</span><span class="n">WtPage</span><span class="p">(</span>
+                    <span class="n">wtSite</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">entity_title</span><span class="p">,</span> <span class="n">do_init</span><span class="o">=</span><span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span>
+                <span class="p">),</span>
                 <span class="n">entity</span><span class="o">=</span><span class="n">entity_</span><span class="p">,</span>
                 <span class="n">namespace</span><span class="o">=</span><span class="n">namespace_</span><span class="p">,</span>
                 <span class="n">policy</span><span class="o">=</span><span class="n">overwrite_class_param</span><span class="p">,</span>
                 <span class="n">remove_empty</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">remove_empty</span><span class="p">,</span>
                 <span class="n">debug</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">debug</span><span class="p">,</span>
+                <span class="n">offline</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">offline</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">meta_category_templates</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -10130,8 +10274,9 @@ instance of class that does not define a field 'type'</p>
                 <span class="p">)</span>
             <span class="p">)</span><span class="o">.</span><span class="n">aggregated_schema</span>
             <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;jsonschema&quot;</span><span class="p">,</span> <span class="n">new_schema</span><span class="p">)</span>
-        <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
-        <span class="k">if</span> <span class="n">page</span><span class="o">.</span><span class="n">changed</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">and</span> <span class="n">page</span><span class="o">.</span><span class="n">changed</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity stored at &#39;</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -10139,6 +10284,7 @@ instance of class that does not define a field 'type'</p>
                     <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">max_index</span><span class="si">}</span><span class="s2">) Entity stored at &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
                 <span class="p">)</span>
+        <span class="n">created_pages</span><span class="p">[</span><span class="n">page</span><span class="o">.</span><span class="n">title</span><span class="p">]</span> <span class="o">=</span> <span class="n">page</span>
 
     <span class="n">sorted_entities</span> <span class="o">=</span> <span class="n">OSW</span><span class="o">.</span><span class="n">sort_list_of_entities_by_class</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span>
@@ -10203,7 +10349,7 @@ instance of class that does not define a field 'type'</p>
             <span class="n">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">upload_object</span> <span class="ow">in</span> <span class="n">upload_object_list</span>
         <span class="p">]</span>
-    <span class="k">return</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span><span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span><span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span> <span class="n">pages</span><span class="o">=</span><span class="n">created_pages</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -10363,7 +10509,7 @@ instance of class that does not define a field 'type'</p>
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.f13b1293.min.js"></script>
+      <script src="../assets/javascripts/bundle.f1b6f286.min.js"></script>
       
     
   </body>

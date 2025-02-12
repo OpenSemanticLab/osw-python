@@ -9,7 +9,7 @@ import re
 import sys
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union, overload
 from uuid import UUID, uuid4
 from warnings import warn
 
@@ -728,6 +728,21 @@ class OSW(BaseModel):
 
         entities: Union[model.Entity, List[model.Entity]]
         """The dataclass instance(s)"""
+
+    # fmt: off
+    @overload
+    def load_entity(self, entity_title: str) -> model.Entity:
+        ...
+
+    @overload
+    def load_entity(self, entity_title: List[str]) -> List[model.Entity]:
+        ...
+
+    @overload
+    def load_entity(self, entity_title: LoadEntityParam) -> LoadEntityResult:
+        ...
+
+    # fmt: on
 
     def load_entity(
         self, entity_title: Union[str, List[str], LoadEntityParam]

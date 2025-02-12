@@ -92,6 +92,10 @@ class OswBaseModel(BaseModel):
         # Additional fields are ignored
         validate_assignment = True
         # Ensures that the assignment of a value to a field is validated
+        smart_union = True
+        # To avoid unexpected coercing of types, the smart_union option is enabled
+        # See: https://docs.pydantic.dev/1.10/usage/model_config/#smart-union
+        # Not required in v2 as this will become the new default
 
     def __init__(self, **data):
         if data.get("label"):

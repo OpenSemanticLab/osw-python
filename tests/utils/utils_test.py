@@ -2,7 +2,7 @@ import uuid
 
 import osw.model.entity as model
 from osw.utils.regex import count_match_groups
-from osw.utils.strings import pascal_case
+from osw.utils.strings import camel_case, pascal_case
 from osw.utils.wiki import (
     get_full_title,
     get_namespace,
@@ -110,6 +110,12 @@ def test_strings_pascalcase():
     assert pascal_case("my string") == "MyString"
     assert pascal_case("my_string") == "MyString"
     assert pascal_case("MyString") == "MyString"
+
+
+def test_strings_camelcase():
+    assert camel_case("my string") == "myString"
+    assert camel_case("my_string") == "myString"
+    assert camel_case("MyString") == "myString"
 
 
 # osw.utils.regex_pattern

@@ -645,39 +645,40 @@ class WtSite:
             param = WtSite.DeletePageParam(page=param)
         if comment:
             param.comment = comment
-        pages = []
-        print("Getting pages to delete ...")
-        for page in param.page:
-            if isinstance(page, str):
-                string_in_pages = True
-                try:
-                    page = self._site.pages[page]
-                    pages.append(page)
-                except Exception as e:
-                    warn(
-                        f"Page '{page}' could not be added to the list of "
-                        f"to-be-deleted pages. The following Exception occurred:\n{e}"
-                    )
-            else:  # page is a WtPage object
-                pages.append(page)
 
-        if string_in_pages:
+        # fetch token in case we need to resolve string titles to page objects
+        # Note: Not sure if this is still necessary
+        if any(isinstance(page, str) for page in param.page):
             self._site.tokens["csrf"] = self._site.get_token("csrf")
 
         def delete_single_page(page_: Union["WtPage", MwPage], comment: str):
-            if isinstance(page_, WtPage):
-                return page_.delete(comment=comment)
-            return page_.delete(reason=comment)
+            if isinstance(page_, str):
+                try:
+                    page_ = self._site.pages[page_]
+                except Exception as e:
+                    warn(
+                        f"Page '{page_}' could not be added to the list of "
+                        f"to-be-deleted pages. The following Exception occurred:\n{e}"
+                    )
+            try:
+                if isinstance(page_, WtPage):
+                    return page_.delete(comment=comment)
+                return page_.delete(reason=comment)
+            except Exception as e:
+                warn(
+                    f"Page '{page_}' could not be deleted. "
+                    f"The following Exception occurred:\n{e}"
+                )
 
         if param.parallel:
             return ut.parallelize(
                 delete_single_page,
-                pages,
+                param.page,
                 comment=param.comment,
                 flush_at_end=param.debug,
             )
         else:
-            return [delete_single_page(page, param.comment) for page in pages]
+            return [delete_single_page(page, param.comment) for page in param.page]
 
     class CreatePagePackageParam(OswBaseModel):
         """Parameter object for create_page_package method."""

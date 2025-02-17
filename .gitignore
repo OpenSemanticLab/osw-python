@@ -61,3 +61,5 @@ site
 # Specific to this project
 src/osw/model/*.json
 playground
+
+.env

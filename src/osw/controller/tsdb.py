@@ -26,12 +26,8 @@ import_with_fallback(
 if TYPE_CHECKING:
     from osw.model.entity import Database  # , WebApi, DataTool
 
-# TODO: to be removed
-JWT = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYXBpX3VzZXIifQ.Sz2QvAGBhvkjrVfnH57rd5BH9R1duFtyDaullxxUDHI"
-
 
 # 1 TODO: Entrypoint definition -> Device which is DataTool
-# 2 TODO:
 
 # class TimescaledbPostgrestController:
 #     """"""

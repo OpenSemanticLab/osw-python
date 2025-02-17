@@ -97,6 +97,17 @@ class OswBaseModel(BaseModel):
         # See: https://docs.pydantic.dev/1.10/usage/model_config/#smart-union
         # Not required in v2 as this will become the new default
 
+    def __hash__(self) -> int:
+        """Implementation of the abstract method __hash__ for the OswBaseModel class.
+        The hash is calculated based on the uuid attribute of the entity. If the uuid
+        attribute is not available, the hash is calculated based on the json"""
+        try:
+            return super().__hash__()
+        except TypeError:
+            if self.get_uuid() is None:
+                return hash(self.json())
+            return hash(self.get_uuid())
+
     def __init__(self, **data):
         if data.get("label"):
             if not isinstance(data["label"], list):

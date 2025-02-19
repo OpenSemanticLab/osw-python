@@ -67,9 +67,7 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
     )
 
     # import ontologies
-    importer = OntologyImporter(
-        osw=osw_obj,
-    )
+    importer = OntologyImporter(osw=osw_obj)
     importer.import_ontology(import_config)
 
     smw_import_page = wtsite.get_page(
@@ -91,10 +89,10 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
 
     property_name = None
     if import_config.property_naming_policy == "label":
-        property_name = "ObjectPropertyA"
+        property_name = "objectPropertyA"
     elif import_config.property_naming_policy == "prefixed_label":
         property_name = (
-            f"example{import_config.property_naming_prefix_delimiter}ObjectPropertyA"
+            f"example{import_config.property_naming_prefix_delimiter}objectPropertyA"
         )
     search_param = SearchParam(
         query=f"[[{property_name}::Category:OSWb1e6910f1e3d567aaed30b83ac887708]]"

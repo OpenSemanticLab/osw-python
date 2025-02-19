@@ -11,7 +11,7 @@ from typing_extensions import deprecated
 
 from osw.core import OSW, model
 from osw.model.static import OswBaseModel
-from osw.utils.strings import pascal_case
+from osw.utils.strings import camel_case, pascal_case
 from osw.utils.wiki import get_namespace
 from osw.wtsite import WtSite
 
@@ -46,6 +46,7 @@ class ParserSettings(OswBaseModel):
         "subclass_of",
         "restrictions",
         "range",
+        "subproperty_of",
     ]
     """List of properties that should be arrays. If the property is not an array, the
     parser will create an array with the value as single element."""
@@ -99,6 +100,8 @@ class ImportConfig(OswBaseModel):
     """Path to the directory where the parsed ontology will be dumped"""
     dry_run: Optional[bool] = False
     """If True, the parsed ontology will not be imported into the wiki"""
+    change_id: Optional[str] = None
+    """The change id to keep track of the import, stored at meta.change_id"""
     property_naming_policy: Optional[Literal["UUID", "label", "prefixed_label"]] = (
         "prefixed_label"
     )
@@ -596,14 +599,52 @@ class OntologyImporter(OswBaseModel):
                 if key in node:
                     if isinstance(node[key], str):
                         node[key] = {"text": node[key], "lang": "en"}
-                    elif "text" in node[key] and "lang" not in node[key]:
-                        node[key]["lang"] = "en"
+                    elif "text" in node[key]:
+                        if "lang" not in node[key]:
+                            node[key]["lang"] = "en"
+                        if "lang" in node[key] and node[key]["lang"] not in [
+                            "en",
+                            "de",
+                        ]:
+                            # ToDo: Support all/more languages
+                            print(
+                                (
+                                    "Warning: remove value with unsupported language: ",
+                                    f"{node[key]['lang']}",
+                                )
+                            )
+                            del node[key]
+                            continue
                     elif isinstance(node[key], list):
                         for i, _val in enumerate(node[key]):
                             if isinstance(node[key][i], str):
                                 node[key][i] = {"text": node[key][i], "lang": "en"}
-                            elif "text" in node[key][i] and "lang" not in node[key][i]:
-                                node[key][i]["lang"] = "en"
+                            elif "text" in node[key][i]:
+                                if "lang" not in node[key][i]:
+                                    node[key][i]["lang"] = "en"
+                                elif "lang" in node[key][i] and node[key][i][
+                                    "lang"
+                                ] not in ["en", "de"]:
+                                    # ToDo: Support all/more languages
+                                    print(
+                                        (
+                                            "Warning: remove value with unsupported language: ",
+                                            f"{node[key][i]['lang']}",
+                                        )
+                                    )
+                                    del node[key][i]
+                                    continue
+                            else:
+                                print(
+                                    (
+                                        "Warning: remove invalide multilang value: "
+                                        f"{node[key][i]}"
+                                    )
+                                )
+                                del node[key][i]
+                    else:
+                        print(f"Warning: remove invalide multilang value: {node[key]}")
+                        del node[key]
             for key in ps.ensure_array:
                 if key in node and not isinstance(node[key], list):
                     node[key] = [node[key]]
@@ -628,6 +669,8 @@ class OntologyImporter(OswBaseModel):
             ):
                 node["uuid"] = str(self._get_uuid_from_iri(node["iri"]))
 
+                namespace = self._get_page_name(node).split(":")[0]
+
                 # name = ""
                 if "prefLabel" in node:
                     # if isinstance(node["prefLabel"], str):
@@ -640,13 +683,18 @@ class OntologyImporter(OswBaseModel):
                     node["name"] = node["label"][0]["text"]
                 else:
                     print("No label: ", node["iri"])
+                    # node["name"] = node["iri"].split("/")[-1].split("#")[-1]
+                    # warning(f"Fallback to name from iri: {node['name']}")
                 if "name" in node:
-                    node["name"] = pascal_case(node["name"])
+                    # camel case for properties, else pascal case
+                    if namespace == "Property":
+                        node["name"] = camel_case(node["name"])
+                    else:
+                        node["name"] = pascal_case(node["name"])
 
                 # update iri dict
                 self._iri_dict[node["iri"]] = node
 
-                namespace = self._get_page_name(node).split(":")[0]
                 title = self._get_page_name(node).replace(namespace + ":", "")
                 node["meta"] = {
                     "wiki_page": {
@@ -683,8 +731,8 @@ class OntologyImporter(OswBaseModel):
                         label = self._iri_dict[key]["label"][0]["text"]
                     self._prop_dict[key] = label
         # print the inverted property_dict
-        for key, value in self._prop_dict.items():
-            print(f'"{value}": "{key}"')
+        # for key, value in self._prop_dict.items():
+        #     print(f'"{value}": "{key}"')
 
     def _map_iris(self, node_array):
         if not isinstance(node_array, list):
@@ -698,14 +746,12 @@ class OntologyImporter(OswBaseModel):
                                 node[key][i] = self._map_iri_to_osw(node[key][i])
                         if isinstance(node[key], str):
                             node[key] = self._map_iri_to_osw(node[key])
-                    if key == "restrictions":
-                        print(key)
                     if isinstance(node[key], dict) or isinstance(node[key], list):
                         self._map_iris(node[key])
 
     def _create_entities(self):
         # create OSW entities
-        limit = 3000  # choose a smaller number for tests
+        limit = 10000  # choose a smaller number for tests
         counter = 0
         self._entities = []
         self._entities_json = []
@@ -716,21 +762,28 @@ class OntologyImporter(OswBaseModel):
 
             if counter < limit:
                 if "rdf_type" in node and "label" in node:
+
                     e = None
-                    if "owl:Class" in node["rdf_type"]:
-                        e = self.import_config.base_class(**node)
+                    try:
+                        if "owl:Class" in node["rdf_type"]:
+                            e = self.import_config.base_class(**node)
 
-                    if "owl:ObjectProperty" in node["rdf_type"]:
-                        e = model.ObjectProperty(**node)
+                        if "owl:ObjectProperty" in node["rdf_type"]:
+                            e = model.ObjectProperty(**node)
 
-                    if "owl:DatatypeProperty" in node["rdf_type"]:
-                        e = model.DataProperty(**node)
+                        if "owl:DatatypeProperty" in node["rdf_type"]:
+                            e = model.DataProperty(**node)
 
-                    if "owl:AnnotationProperty" in node["rdf_type"]:
-                        e = model.AnnotationProperty(**node)
+                        if "owl:AnnotationProperty" in node["rdf_type"]:
+                            e = model.AnnotationProperty(**node)
 
-                    if "owl:NamedIndividual" in node["rdf_type"]:
-                        e = model.OwlIndividual(**node)
+                        if "owl:NamedIndividual" in node["rdf_type"]:
+                            e = model.OwlIndividual(**node)
+
+                    except Exception as ex:
+                        # print the validation error
+                        print("Exception while generating entity with ", node)
+                        print(ex)
 
                     if e:
                         self._entities.append(e)
@@ -756,7 +809,7 @@ class OntologyImporter(OswBaseModel):
             # see https://www.semantic-mediawiki.org/wiki/Help:Import_vocabulary
             if namespace == "Category":
                 smw_import_type = "Category"
-                if not hasattr(e, "subclass_of"):
+                if not hasattr(e, "subclass_of") or e.subclass_of is None:
                     e.subclass_of = []
                 if len(e.subclass_of) == 0:
                     e.subclass_of.append(self.import_config.meta_class_title)
@@ -780,7 +833,13 @@ class OntologyImporter(OswBaseModel):
         import_page.set_slot_content("main", text)
         import_page.edit("import ontology")
 
-        self.osw.store_entity(OSW.StoreEntityParam(entities=param.entities))
+        self.osw.store_entity(
+            OSW.StoreEntityParam(
+                entities=param.entities,
+                overwrite=True,
+                change_id=self.import_config.change_id,
+            )
+        )
 
     @deprecated("use ontology.OntologyImporter.StoreOntologiesParam instead")
     class StoreOntologiesParam(model.OswBaseModel):

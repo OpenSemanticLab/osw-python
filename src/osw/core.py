@@ -1067,7 +1067,7 @@ class OSW(BaseModel):
         if param.remove_empty:
             remove_empty(local_content["jsondata"])
         if param.debug:
-            print(f"'local_content': {str(remote_content)}")
+            print(f"'local_content': {str(local_content)}")
         # Apply the overwrite logic
         # a) If there is a key in the remote content that is not in the local
         #    content, we have to keep it

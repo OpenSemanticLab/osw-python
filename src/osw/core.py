@@ -712,6 +712,9 @@ class OSW(BaseModel):
         autofetch_schema: Optional[bool] = True
         """If true, load the corresponding schemas /
         categories ad-hoc if not already present"""
+        model_to_use: Optional[Type[OswBaseModel]] = None
+        """If provided this model will be used to create an entity (instance of the
+        model), instead of instantiating the autofetched schema."""
         remove_empty: Optional[bool] = True
         """If true, remove key with an empty string, list, dict or set as value
         from the jsondata."""
@@ -770,6 +773,9 @@ class OSW(BaseModel):
         else:
             param = entity_title
 
+        if param.model_to_use:
+            print(f"Using schema {param.model_to_use.__name__} to create entity")
+
         # store original cache state
         cache_state = self.site.get_cache_enabled()
         if param.disable_cache:
@@ -797,23 +803,29 @@ class OSW(BaseModel):
                     schemas.append(schema)
                     # generate model if not already exists
                     cls_name: str = schema["title"]
-                    if not hasattr(model, cls_name):
-                        if param.autofetch_schema:
-                            self.fetch_schema(
-                                OSW.FetchSchemaParam(
-                                    schema_title=category, mode="append"
+                    # If a schema_to_use is provided, we do not need to check if the
+                    #  model exists
+                    if not param.model_to_use:
+                        if not hasattr(model, cls_name):
+                            if param.autofetch_schema:
+                                self.fetch_schema(
+                                    OSW.FetchSchemaParam(
+                                        schema_title=category, mode="append"
+                                    )
                                 )
+                        if not hasattr(model, cls_name):
+                            schemas_fetched = False
+                            print(
+                                f"Error: Model {cls_name} not found. Schema {category} "
+                                f"needs to be fetched first."
                             )
-                    if not hasattr(model, cls_name):
-                        schemas_fetched = False
-                        print(
-                            f"Error: Model {cls_name} not found. Schema {category} "
-                            f"needs to be fetched first."
-                        )
             if not schemas_fetched:
                 continue
 
-            if len(schemas) == 0:
+            if param.model_to_use:
+                entity: model.OswBaseModel = param.model_to_use(**jsondata)
+
+            elif len(schemas) == 0:
                 print("Error: no schema defined")
 
             elif len(schemas) == 1:
@@ -1055,7 +1067,7 @@ class OSW(BaseModel):
         if param.remove_empty:
             remove_empty(local_content["jsondata"])
         if param.debug:
-            print(f"'local_content': {str(remote_content)}")
+            print(f"'local_content': {str(local_content)}")
         # Apply the overwrite logic
         # a) If there is a key in the remote content that is not in the local
         #    content, we have to keep it
@@ -1513,7 +1525,7 @@ class OSW(BaseModel):
             self._titles = [parts["title"] for parts in self._category_string_parts]
 
     def query_instances(
-        self, category: Union[str, OswBaseModel, OSW.QueryInstancesParam]
+        self, category: Union[str, Type[OswBaseModel], OSW.QueryInstancesParam]
     ) -> List[str]:
         if not isinstance(category, OSW.QueryInstancesParam):
             category = OSW.QueryInstancesParam(categories=category)

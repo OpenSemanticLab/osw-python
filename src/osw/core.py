@@ -1525,7 +1525,7 @@ class OSW(BaseModel):
             self._titles = [parts["title"] for parts in self._category_string_parts]
 
     def query_instances(
-        self, category: Union[str, OswBaseModel, OSW.QueryInstancesParam]
+        self, category: Union[str, Type[OswBaseModel], OSW.QueryInstancesParam]
     ) -> List[str]:
         if not isinstance(category, OSW.QueryInstancesParam):
             category = OSW.QueryInstancesParam(categories=category)

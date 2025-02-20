@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.5">
     
     
       
@@ -526,6 +526,15 @@
   <a href="#osw.core.OSW.LoadEntityParam.disable_cache" class="md-nav__link">
     <span class="md-ellipsis">
       disable_cache
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.LoadEntityParam.model_to_use" class="md-nav__link">
+    <span class="md-ellipsis">
+      model_to_use
     </span>
   </a>
   
@@ -1379,6 +1388,15 @@
   <a href="#osw.core.OSW.LoadEntityParam.disable_cache" class="md-nav__link">
     <span class="md-ellipsis">
       disable_cache
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.LoadEntityParam.model_to_use" class="md-nav__link">
+    <span class="md-ellipsis">
+      model_to_use
     </span>
   </a>
   
@@ -3527,7 +3545,19 @@
 <span class="normal">1656</span>
 <span class="normal">1657</span>
 <span class="normal">1658</span>
-<span class="normal">1659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">1659</span>
+<span class="normal">1660</span>
+<span class="normal">1661</span>
+<span class="normal">1662</span>
+<span class="normal">1663</span>
+<span class="normal">1664</span>
+<span class="normal">1665</span>
+<span class="normal">1666</span>
+<span class="normal">1667</span>
+<span class="normal">1668</span>
+<span class="normal">1669</span>
+<span class="normal">1670</span>
+<span class="normal">1671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -4157,6 +4187,9 @@
         <span class="n">autofetch_schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;If true, load the corresponding schemas /</span>
 <span class="sd">        categories ad-hoc if not already present&quot;&quot;&quot;</span>
+        <span class="n">model_to_use</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;If provided this model will be used to create an entity (instance of the</span>
+<span class="sd">        model), instead of instantiating the autofetched schema.&quot;&quot;&quot;</span>
         <span class="n">remove_empty</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;If true, remove key with an empty string, list, dict or set as value</span>
 <span class="sd">        from the jsondata.&quot;&quot;&quot;</span>
@@ -4215,6 +4248,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">param</span> <span class="o">=</span> <span class="n">entity_title</span>
 
+        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using schema </span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> to create entity&quot;</span><span class="p">)</span>
+
         <span class="c1"># store original cache state</span>
         <span class="n">cache_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_cache_enabled</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">disable_cache</span><span class="p">:</span>
@@ -4242,23 +4278,29 @@
                     <span class="n">schemas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
                     <span class="c1"># generate model if not already exists</span>
                     <span class="n">cls_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
-                        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">autofetch_schema</span><span class="p">:</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">fetch_schema</span><span class="p">(</span>
-                                <span class="n">OSW</span><span class="o">.</span><span class="n">FetchSchemaParam</span><span class="p">(</span>
-                                    <span class="n">schema_title</span><span class="o">=</span><span class="n">category</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;append&quot;</span>
+                    <span class="c1"># If a schema_to_use is provided, we do not need to check if the</span>
+                    <span class="c1">#  model exists</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">autofetch_schema</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">fetch_schema</span><span class="p">(</span>
+                                    <span class="n">OSW</span><span class="o">.</span><span class="n">FetchSchemaParam</span><span class="p">(</span>
+                                        <span class="n">schema_title</span><span class="o">=</span><span class="n">category</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;append&quot;</span>
+                                    <span class="p">)</span>
                                 <span class="p">)</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+                            <span class="n">schemas_fetched</span> <span class="o">=</span> <span class="kc">False</span>
+                            <span class="nb">print</span><span class="p">(</span>
+                                <span class="sa">f</span><span class="s2">&quot;Error: Model </span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2"> not found. Schema </span><span class="si">{</span><span class="n">category</span><span class="si">}</span><span class="s2"> &quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;needs to be fetched first.&quot;</span>
                             <span class="p">)</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
-                        <span class="n">schemas_fetched</span> <span class="o">=</span> <span class="kc">False</span>
-                        <span class="nb">print</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Error: Model </span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2"> not found. Schema </span><span class="si">{</span><span class="n">category</span><span class="si">}</span><span class="s2"> &quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot;needs to be fetched first.&quot;</span>
-                        <span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">schemas_fetched</span><span class="p">:</span>
                 <span class="k">continue</span>
 
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">schemas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">:</span>
+                <span class="n">entity</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">OswBaseModel</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">(</span><span class="o">**</span><span class="n">jsondata</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">schemas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: no schema defined&quot;</span><span class="p">)</span>
 
             <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">schemas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -4500,7 +4542,7 @@
         <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">remove_empty</span><span class="p">:</span>
             <span class="n">remove_empty</span><span class="p">(</span><span class="n">local_content</span><span class="p">[</span><span class="s2">&quot;jsondata&quot;</span><span class="p">])</span>
         <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;local_content&#39;: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">remote_content</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;local_content&#39;: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">local_content</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="c1"># Apply the overwrite logic</span>
         <span class="c1"># a) If there is a key in the remote content that is not in the local</span>
         <span class="c1">#    content, we have to keep it</span>
@@ -4958,7 +5000,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_titles</span> <span class="o">=</span> <span class="p">[</span><span class="n">parts</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">parts</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_category_string_parts</span><span class="p">]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">query_instances</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">QueryInstancesParam</span><span class="p">]</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Type</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">],</span> <span class="n">OSW</span><span class="o">.</span><span class="n">QueryInstancesParam</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">category</span><span class="p">,</span> <span class="n">OSW</span><span class="o">.</span><span class="n">QueryInstancesParam</span><span class="p">):</span>
             <span class="n">category</span> <span class="o">=</span> <span class="n">OSW</span><span class="o">.</span><span class="n">QueryInstancesParam</span><span class="p">(</span><span class="n">categories</span><span class="o">=</span><span class="n">category</span><span class="p">)</span>
@@ -5160,19 +5202,7 @@
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1538</span>
-<span class="normal">1539</span>
-<span class="normal">1540</span>
-<span class="normal">1541</span>
-<span class="normal">1542</span>
-<span class="normal">1543</span>
-<span class="normal">1544</span>
-<span class="normal">1545</span>
-<span class="normal">1546</span>
-<span class="normal">1547</span>
-<span class="normal">1548</span>
-<span class="normal">1549</span>
-<span class="normal">1550</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1550</span>
 <span class="normal">1551</span>
 <span class="normal">1552</span>
 <span class="normal">1553</span>
@@ -5186,7 +5216,19 @@
 <span class="normal">1561</span>
 <span class="normal">1562</span>
 <span class="normal">1563</span>
-<span class="normal">1564</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1564</span>
+<span class="normal">1565</span>
+<span class="normal">1566</span>
+<span class="normal">1567</span>
+<span class="normal">1568</span>
+<span class="normal">1569</span>
+<span class="normal">1570</span>
+<span class="normal">1571</span>
+<span class="normal">1572</span>
+<span class="normal">1573</span>
+<span class="normal">1574</span>
+<span class="normal">1575</span>
+<span class="normal">1576</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">context_loader_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WtSite</span><span class="o">.</span><span class="n">JsonLdContextLoaderParams</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The configuration for the JSON-LD context loader.&quot;&quot;&quot;</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -5462,16 +5504,16 @@ level, the full page title is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1566</span>
-<span class="normal">1567</span>
-<span class="normal">1568</span>
-<span class="normal">1569</span>
-<span class="normal">1570</span>
-<span class="normal">1571</span>
-<span class="normal">1572</span>
-<span class="normal">1573</span>
-<span class="normal">1574</span>
-<span class="normal">1575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1578</span>
+<span class="normal">1579</span>
+<span class="normal">1580</span>
+<span class="normal">1581</span>
+<span class="normal">1582</span>
+<span class="normal">1583</span>
+<span class="normal">1584</span>
+<span class="normal">1585</span>
+<span class="normal">1586</span>
+<span class="normal">1587</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">documents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A single JSON-LD document per entity&quot;&quot;&quot;</span>
     <span class="n">graph_document</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -5842,13 +5884,13 @@ level, the full page title is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1530</span>
-<span class="normal">1531</span>
-<span class="normal">1532</span>
-<span class="normal">1533</span>
-<span class="normal">1534</span>
-<span class="normal">1535</span>
-<span class="normal">1536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1542</span>
+<span class="normal">1543</span>
+<span class="normal">1544</span>
+<span class="normal">1545</span>
+<span class="normal">1546</span>
+<span class="normal">1547</span>
+<span class="normal">1548</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;enum for jsonld processing mode&quot;&quot;&quot;</span>
 
     <span class="n">expand</span> <span class="o">=</span> <span class="s2">&quot;expand&quot;</span>
@@ -5921,7 +5963,10 @@ level, the full page title is used.</p>
 <span class="normal">721</span>
 <span class="normal">722</span>
 <span class="normal">723</span>
-<span class="normal">724</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoadEntityParam</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoadEntityParam</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Param for load_entity()&quot;&quot;&quot;</span>
 
     <span class="n">titles</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
@@ -5930,6 +5975,9 @@ level, the full page title is used.</p>
     <span class="n">autofetch_schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;If true, load the corresponding schemas /</span>
 <span class="sd">    categories ad-hoc if not already present&quot;&quot;&quot;</span>
+    <span class="n">model_to_use</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;If provided this model will be used to create an entity (instance of the</span>
+<span class="sd">    model), instead of instantiating the autofetched schema.&quot;&quot;&quot;</span>
     <span class="n">remove_empty</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;If true, remove key with an empty string, list, dict or set as value</span>
 <span class="sd">    from the jsondata.&quot;&quot;&quot;</span>
@@ -5994,6 +6042,29 @@ categories ad-hoc if not already present</p>
     <div class="doc doc-contents ">
 
         <p>If true, disable the cache for the loading process</p>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="osw.core.OSW.LoadEntityParam.model_to_use" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">model_to_use</span> <span class="o">=</span> <span class="kc">None</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>If provided this model will be used to create an entity (instance of the
+model), instead of instantiating the autofetched schema.</p>
     </div>
 
 </div>
@@ -6078,11 +6149,11 @@ entities</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">726</span>
-<span class="normal">727</span>
-<span class="normal">728</span>
-<span class="normal">729</span>
-<span class="normal">730</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoadEntityResult</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LoadEntityResult</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of load_entity()&quot;&quot;&quot;</span>
 
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">]]</span>
@@ -6154,19 +6225,7 @@ entities</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">859</span>
-<span class="normal">860</span>
-<span class="normal">861</span>
-<span class="normal">862</span>
-<span class="normal">863</span>
-<span class="normal">864</span>
-<span class="normal">865</span>
-<span class="normal">866</span>
-<span class="normal">867</span>
-<span class="normal">868</span>
-<span class="normal">869</span>
-<span class="normal">870</span>
-<span class="normal">871</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">871</span>
 <span class="normal">872</span>
 <span class="normal">873</span>
 <span class="normal">874</span>
@@ -6217,7 +6276,19 @@ entities</p>
 <span class="normal">919</span>
 <span class="normal">920</span>
 <span class="normal">921</span>
-<span class="normal">922</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OverwriteClassParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">922</span>
+<span class="normal">923</span>
+<span class="normal">924</span>
+<span class="normal">925</span>
+<span class="normal">926</span>
+<span class="normal">927</span>
+<span class="normal">928</span>
+<span class="normal">929</span>
+<span class="normal">930</span>
+<span class="normal">931</span>
+<span class="normal">932</span>
+<span class="normal">933</span>
+<span class="normal">934</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OverwriteClassParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">model</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]</span>  <span class="c1"># ModelMetaclass</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The model class for which this is the overwrite params object.&quot;&quot;&quot;</span>
     <span class="n">overwrite</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OVERWRITE_CLASS_OPTIONS</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
@@ -6400,17 +6471,17 @@ has not been specified in per_property.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">906</span>
-<span class="normal">907</span>
-<span class="normal">908</span>
-<span class="normal">909</span>
-<span class="normal">910</span>
-<span class="normal">911</span>
-<span class="normal">912</span>
-<span class="normal">913</span>
-<span class="normal">914</span>
-<span class="normal">915</span>
-<span class="normal">916</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">data</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">918</span>
+<span class="normal">919</span>
+<span class="normal">920</span>
+<span class="normal">921</span>
+<span class="normal">922</span>
+<span class="normal">923</span>
+<span class="normal">924</span>
+<span class="normal">925</span>
+<span class="normal">926</span>
+<span class="normal">927</span>
+<span class="normal">928</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">data</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Called after validation. Sets the fallback for every property that</span>
 <span class="sd">    has not been specified in per_property.&quot;&quot;&quot;</span>
     <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">data</span><span class="p">)</span>
@@ -6442,19 +6513,7 @@ has not been specified in per_property.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">883</span>
-<span class="normal">884</span>
-<span class="normal">885</span>
-<span class="normal">886</span>
-<span class="normal">887</span>
-<span class="normal">888</span>
-<span class="normal">889</span>
-<span class="normal">890</span>
-<span class="normal">891</span>
-<span class="normal">892</span>
-<span class="normal">893</span>
-<span class="normal">894</span>
-<span class="normal">895</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">895</span>
 <span class="normal">896</span>
 <span class="normal">897</span>
 <span class="normal">898</span>
@@ -6463,7 +6522,19 @@ has not been specified in per_property.</p>
 <span class="normal">901</span>
 <span class="normal">902</span>
 <span class="normal">903</span>
-<span class="normal">904</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="normal">904</span>
+<span class="normal">905</span>
+<span class="normal">906</span>
+<span class="normal">907</span>
+<span class="normal">908</span>
+<span class="normal">909</span>
+<span class="normal">910</span>
+<span class="normal">911</span>
+<span class="normal">912</span>
+<span class="normal">913</span>
+<span class="normal">914</span>
+<span class="normal">915</span>
+<span class="normal">916</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Called when setting an attribute&quot;&quot;&quot;</span>
     <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;per_property&quot;</span><span class="p">:</span>
@@ -6506,9 +6577,9 @@ has not been specified in per_property.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">920</span>
-<span class="normal">921</span>
-<span class="normal">922</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_overwrite_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OverwriteOptions</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">932</span>
+<span class="normal">933</span>
+<span class="normal">934</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_overwrite_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OverwriteOptions</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns the fallback overwrite option for the given field name&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_per_property</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">overwrite</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -6842,19 +6913,7 @@ has not been specified in per_property.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1121</span>
-<span class="normal">1122</span>
-<span class="normal">1123</span>
-<span class="normal">1124</span>
-<span class="normal">1125</span>
-<span class="normal">1126</span>
-<span class="normal">1127</span>
-<span class="normal">1128</span>
-<span class="normal">1129</span>
-<span class="normal">1130</span>
-<span class="normal">1131</span>
-<span class="normal">1132</span>
-<span class="normal">1133</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1133</span>
 <span class="normal">1134</span>
 <span class="normal">1135</span>
 <span class="normal">1136</span>
@@ -6909,7 +6968,19 @@ has not been specified in per_property.</p>
 <span class="normal">1185</span>
 <span class="normal">1186</span>
 <span class="normal">1187</span>
-<span class="normal">1188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1188</span>
+<span class="normal">1189</span>
+<span class="normal">1190</span>
+<span class="normal">1191</span>
+<span class="normal">1192</span>
+<span class="normal">1193</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span>
+<span class="normal">1197</span>
+<span class="normal">1198</span>
+<span class="normal">1199</span>
+<span class="normal">1200</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>  <span class="c1"># actually model.Entity</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The entities to store. Can be a single entity or a list of entities.&quot;&quot;&quot;</span>
     <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -7231,16 +7302,16 @@ is set, this setting is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1190</span>
-<span class="normal">1191</span>
-<span class="normal">1192</span>
-<span class="normal">1193</span>
-<span class="normal">1194</span>
-<span class="normal">1195</span>
-<span class="normal">1196</span>
-<span class="normal">1197</span>
-<span class="normal">1198</span>
-<span class="normal">1199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1202</span>
+<span class="normal">1203</span>
+<span class="normal">1204</span>
+<span class="normal">1205</span>
+<span class="normal">1206</span>
+<span class="normal">1207</span>
+<span class="normal">1208</span>
+<span class="normal">1209</span>
+<span class="normal">1210</span>
+<span class="normal">1211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of store_entity()&quot;&quot;&quot;</span>
 
     <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
@@ -7338,19 +7409,7 @@ is set, this setting is used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">924</span>
-<span class="normal">925</span>
-<span class="normal">926</span>
-<span class="normal">927</span>
-<span class="normal">928</span>
-<span class="normal">929</span>
-<span class="normal">930</span>
-<span class="normal">931</span>
-<span class="normal">932</span>
-<span class="normal">933</span>
-<span class="normal">934</span>
-<span class="normal">935</span>
-<span class="normal">936</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">936</span>
 <span class="normal">937</span>
 <span class="normal">938</span>
 <span class="normal">939</span>
@@ -7393,7 +7452,19 @@ is set, this setting is used.</p>
 <span class="normal">976</span>
 <span class="normal">977</span>
 <span class="normal">978</span>
-<span class="normal">979</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">_ApplyOverwriteParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">979</span>
+<span class="normal">980</span>
+<span class="normal">981</span>
+<span class="normal">982</span>
+<span class="normal">983</span>
+<span class="normal">984</span>
+<span class="normal">985</span>
+<span class="normal">986</span>
+<span class="normal">987</span>
+<span class="normal">988</span>
+<span class="normal">989</span>
+<span class="normal">990</span>
+<span class="normal">991</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">_ApplyOverwriteParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">page</span><span class="p">:</span> <span class="n">WtPage</span>
     <span class="n">entity</span><span class="p">:</span> <span class="n">OswBaseModel</span>  <span class="c1"># actually model.Entity but this causes the &quot;type&quot; error</span>
     <span class="n">policy</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OSW</span><span class="o">.</span><span class="n">OverwriteClassParam</span><span class="p">,</span> <span class="n">OVERWRITE_CLASS_OPTIONS</span><span class="p">]</span>
@@ -7479,19 +7550,7 @@ is set, this setting is used.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">937</span>
-<span class="normal">938</span>
-<span class="normal">939</span>
-<span class="normal">940</span>
-<span class="normal">941</span>
-<span class="normal">942</span>
-<span class="normal">943</span>
-<span class="normal">944</span>
-<span class="normal">945</span>
-<span class="normal">946</span>
-<span class="normal">947</span>
-<span class="normal">948</span>
-<span class="normal">949</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">949</span>
 <span class="normal">950</span>
 <span class="normal">951</span>
 <span class="normal">952</span>
@@ -7509,7 +7568,19 @@ is set, this setting is used.</p>
 <span class="normal">964</span>
 <span class="normal">965</span>
 <span class="normal">966</span>
-<span class="normal">967</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validator</span><span class="p">(</span><span class="s2">&quot;entity&quot;</span><span class="p">)</span>
+<span class="normal">967</span>
+<span class="normal">968</span>
+<span class="normal">969</span>
+<span class="normal">970</span>
+<span class="normal">971</span>
+<span class="normal">972</span>
+<span class="normal">973</span>
+<span class="normal">974</span>
+<span class="normal">975</span>
+<span class="normal">976</span>
+<span class="normal">977</span>
+<span class="normal">978</span>
+<span class="normal">979</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validator</span><span class="p">(</span><span class="s2">&quot;entity&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">validate_entity</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Make sure that the passed entity has the same uuid as the page&quot;&quot;&quot;</span>
     <span class="n">page</span><span class="p">:</span> <span class="n">WtPage</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;page&quot;</span><span class="p">)</span>
@@ -8353,19 +8424,7 @@ values being the full page name (IRI) of the dependencies.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1409</span>
-<span class="normal">1410</span>
-<span class="normal">1411</span>
-<span class="normal">1412</span>
-<span class="normal">1413</span>
-<span class="normal">1414</span>
-<span class="normal">1415</span>
-<span class="normal">1416</span>
-<span class="normal">1417</span>
-<span class="normal">1418</span>
-<span class="normal">1419</span>
-<span class="normal">1420</span>
-<span class="normal">1421</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1421</span>
 <span class="normal">1422</span>
 <span class="normal">1423</span>
 <span class="normal">1424</span>
@@ -8408,7 +8467,19 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">1461</span>
 <span class="normal">1462</span>
 <span class="normal">1463</span>
-<span class="normal">1464</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
+<span class="normal">1464</span>
+<span class="normal">1465</span>
+<span class="normal">1466</span>
+<span class="normal">1467</span>
+<span class="normal">1468</span>
+<span class="normal">1469</span>
+<span class="normal">1470</span>
+<span class="normal">1471</span>
+<span class="normal">1472</span>
+<span class="normal">1473</span>
+<span class="normal">1474</span>
+<span class="normal">1475</span>
+<span class="normal">1476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">],</span> <span class="n">DeleteEntityParam</span><span class="p">],</span>
     <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8559,19 +8630,7 @@ values being the full page name (IRI) of the dependencies.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1577</span>
-<span class="normal">1578</span>
-<span class="normal">1579</span>
-<span class="normal">1580</span>
-<span class="normal">1581</span>
-<span class="normal">1582</span>
-<span class="normal">1583</span>
-<span class="normal">1584</span>
-<span class="normal">1585</span>
-<span class="normal">1586</span>
-<span class="normal">1587</span>
-<span class="normal">1588</span>
-<span class="normal">1589</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1589</span>
 <span class="normal">1590</span>
 <span class="normal">1591</span>
 <span class="normal">1592</span>
@@ -8641,7 +8700,19 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">1656</span>
 <span class="normal">1657</span>
 <span class="normal">1658</span>
-<span class="normal">1659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
+<span class="normal">1659</span>
+<span class="normal">1660</span>
+<span class="normal">1661</span>
+<span class="normal">1662</span>
+<span class="normal">1663</span>
+<span class="normal">1664</span>
+<span class="normal">1665</span>
+<span class="normal">1666</span>
+<span class="normal">1667</span>
+<span class="normal">1668</span>
+<span class="normal">1669</span>
+<span class="normal">1670</span>
+<span class="normal">1671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Exports the given entity/entities as JSON-LD.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">resolve_context</span><span class="p">:</span>
@@ -9315,10 +9386,7 @@ a LoadEntityResult instance if a LoadEntityParam is given</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">747</span>
-<span class="normal">748</span>
-<span class="normal">749</span>
-<span class="normal">750</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">750</span>
 <span class="normal">751</span>
 <span class="normal">752</span>
 <span class="normal">753</span>
@@ -9425,7 +9493,19 @@ a LoadEntityResult instance if a LoadEntityParam is given</p>
 <span class="normal">854</span>
 <span class="normal">855</span>
 <span class="normal">856</span>
-<span class="normal">857</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_entity</span><span class="p">(</span>
+<span class="normal">857</span>
+<span class="normal">858</span>
+<span class="normal">859</span>
+<span class="normal">860</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
+<span class="normal">865</span>
+<span class="normal">866</span>
+<span class="normal">867</span>
+<span class="normal">868</span>
+<span class="normal">869</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">entity_title</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">LoadEntityParam</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">model</span><span class="o">.</span><span class="n">Entity</span><span class="p">],</span> <span class="n">LoadEntityResult</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads the entity with the given wiki page name from the OSW instance.</span>
@@ -9450,6 +9530,9 @@ a LoadEntityResult instance if a LoadEntityParam is given</p>
         <span class="n">param</span> <span class="o">=</span> <span class="n">OSW</span><span class="o">.</span><span class="n">LoadEntityParam</span><span class="p">(</span><span class="n">titles</span><span class="o">=</span><span class="n">entity_title</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">param</span> <span class="o">=</span> <span class="n">entity_title</span>
+
+    <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using schema </span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> to create entity&quot;</span><span class="p">)</span>
 
     <span class="c1"># store original cache state</span>
     <span class="n">cache_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">site</span><span class="o">.</span><span class="n">get_cache_enabled</span><span class="p">()</span>
@@ -9478,23 +9561,29 @@ a LoadEntityResult instance if a LoadEntityParam is given</p>
                 <span class="n">schemas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
                 <span class="c1"># generate model if not already exists</span>
                 <span class="n">cls_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">autofetch_schema</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">fetch_schema</span><span class="p">(</span>
-                            <span class="n">OSW</span><span class="o">.</span><span class="n">FetchSchemaParam</span><span class="p">(</span>
-                                <span class="n">schema_title</span><span class="o">=</span><span class="n">category</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;append&quot;</span>
+                <span class="c1"># If a schema_to_use is provided, we do not need to check if the</span>
+                <span class="c1">#  model exists</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">autofetch_schema</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">fetch_schema</span><span class="p">(</span>
+                                <span class="n">OSW</span><span class="o">.</span><span class="n">FetchSchemaParam</span><span class="p">(</span>
+                                    <span class="n">schema_title</span><span class="o">=</span><span class="n">category</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;append&quot;</span>
+                                <span class="p">)</span>
                             <span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
+                        <span class="n">schemas_fetched</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="nb">print</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Error: Model </span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2"> not found. Schema </span><span class="si">{</span><span class="n">category</span><span class="si">}</span><span class="s2"> &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;needs to be fetched first.&quot;</span>
                         <span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">cls_name</span><span class="p">):</span>
-                    <span class="n">schemas_fetched</span> <span class="o">=</span> <span class="kc">False</span>
-                    <span class="nb">print</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;Error: Model </span><span class="si">{</span><span class="n">cls_name</span><span class="si">}</span><span class="s2"> not found. Schema </span><span class="si">{</span><span class="n">category</span><span class="si">}</span><span class="s2"> &quot;</span>
-                        <span class="sa">f</span><span class="s2">&quot;needs to be fetched first.&quot;</span>
-                    <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">schemas_fetched</span><span class="p">:</span>
             <span class="k">continue</span>
 
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">schemas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">:</span>
+            <span class="n">entity</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">OswBaseModel</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">model_to_use</span><span class="p">(</span><span class="o">**</span><span class="n">jsondata</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">schemas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error: no schema defined&quot;</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">schemas</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -9967,19 +10056,7 @@ instance of class that does not define a field 'type'</p>
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1201</span>
-<span class="normal">1202</span>
-<span class="normal">1203</span>
-<span class="normal">1204</span>
-<span class="normal">1205</span>
-<span class="normal">1206</span>
-<span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span>
-<span class="normal">1212</span>
-<span class="normal">1213</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1213</span>
 <span class="normal">1214</span>
 <span class="normal">1215</span>
 <span class="normal">1216</span>
@@ -10158,7 +10235,19 @@ instance of class that does not define a field 'type'</p>
 <span class="normal">1389</span>
 <span class="normal">1390</span>
 <span class="normal">1391</span>
-<span class="normal">1392</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">1392</span>
+<span class="normal">1393</span>
+<span class="normal">1394</span>
+<span class="normal">1395</span>
+<span class="normal">1396</span>
+<span class="normal">1397</span>
+<span class="normal">1398</span>
+<span class="normal">1399</span>
+<span class="normal">1400</span>
+<span class="normal">1401</span>
+<span class="normal">1402</span>
+<span class="normal">1403</span>
+<span class="normal">1404</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StoreEntityResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>

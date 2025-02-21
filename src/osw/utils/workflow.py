@@ -6,19 +6,27 @@ import sys
 from datetime import timedelta
 from importlib.metadata import version
 from typing import Iterable, List, Optional
-
 from packaging.specifiers import SpecifierSet
-from prefect import Flow, get_client, serve
+from prefect import Flow, serve
 from prefect.blocks.notifications import MicrosoftTeamsWebhook
 from prefect.client.schemas.objects import FlowRun
 from prefect.settings import PREFECT_API_URL
 from prefect.states import State
 from pydantic import BaseModel, SecretStr
 
-# from prefect.settings import PREFECT_API_URL
+# ------------------------------ TEST ------------------------------
 
 
-# ------------------------------ NOTIFICATIONS ------------------------------
+from prefect import flow
+
+
+@flow
+def example_flow_to_deploy():
+    """Example flow to be deployed"""
+    print(f"Execution of example: {example_flow_to_deploy.__name__}!")
+
+
+# ------------------------------ NOTIFICATIONS ---------------------
 class NotifyTeamsParam(BaseModel):
     """Parameter set for notifying Microsoft Teams using class NotifyTeams"""
 
@@ -74,9 +82,9 @@ class NotifyTeams(NotifyTeamsParam):
         # print(f"Flow run name: {flow_run.name}")
         # print(f"Flow run ID: {flow_run.id}")
 
-        MicrosoftTeamsWebhook(url=self.teams_webhook_url.get_secret_value()).notify(
-            body=(_flow_run + _deployment + _ts + _tags + _message)
-        )
+        MicrosoftTeamsWebhook(
+            url=self.teams_webhook_url.get_secret_value()
+        ).notify(body=(_flow_run + _deployment + _ts + _tags + _message))
 
 
 # ------------------------------- DEPLOYMENTS -------------------------------
@@ -88,10 +96,12 @@ def tagsStrToList(tags: str) -> List[str]:
 class DeployConfig(BaseModel):
     """Prefect deployment configuration"""
 
-    flow: Flow
+    flow: Flow  # to be excluded in `flow.to_deployment()` function
     name: str | None = None
     description: str | None = None
-    interval: Iterable[int | float | timedelta] | int | float | timedelta | None = None
+    interval: (
+        Iterable[int | float | timedelta] | int | float | timedelta | None
+    ) = None
     cron: Iterable[str] | str | None = None
     version: str | None = None
     tags: List[str] | None = None
@@ -138,6 +148,7 @@ async def _deploy(param: DeployParam):
         if deploy_config.name is None or deploy_config.name == "":
             deploy_config.name = flow.name + "-deployment"
         config = await flow.to_deployment(
+            # Entpacken und ungleiche Parameter exkludieren (ggf. ext funktion schreiben mit inspect.signature -> fkt + dict input -> dict mit keys der args output)
             name=deploy_config.name,
             tags=deploy_config.tags,
             cron=deploy_config.cron,
@@ -149,33 +160,42 @@ async def _deploy(param: DeployParam):
 
         deployments.append(config)
 
-        # fetch flow uuid
-        async with get_client() as client:
-            response = await client.read_flow_by_name(flow.name)
-            print(response.json())
-            flow_uuid = response.id
-        print("Flow UUID:", flow_uuid)
-
-        # prefect_domain = (
-        #     environ.get("PREFECT_API_URL").split("//")[-1].split("/")[0]
-        # )  # noqa
-        # print("Prefect domain:", prefect_domain)
-        # start agent to serve deployment
-        # await deploy_config.flow.serve(name=deployment_name)
     if version("prefect") in SpecifierSet(">=3.0"):
-        return deployments
+        print(f"prefect version IF: {version('prefect')}")
+        # return deployments
+        serve(*deployments)
     else:
+        print(f"prefect version ELSE: {version('prefect')}")
         await serve(*deployments)
 
 
 def deploy(param: DeployParam):
     """Function to serve configured flows as deployments by python version."""
     if sys.version_info >= (3, 11):
+        print(f"python version IF: {sys.version_info}")
         # python >= 3.11
         with asyncio.Runner() as runner:
-            deployments = runner.run(_deploy(param))
+            runner.run(_deploy(param))
     else:
         # python < 3.11
-        deployments = asyncio.run(_deploy(param))
-    if version("prefect") in SpecifierSet(">=3.0"):
-        serve(*deployments)
+        print(f"python version ELSE: {sys.version_info}")
+        asyncio.run(_deploy(param))
+
+
+if __name__ == "__main__":
+
+    deploy(
+        DeployParam(
+            deployments=[
+                DeployConfig(
+                    flow=example_flow_to_deploy,
+                    name="osw-python-deploy-example",
+                    description="Deployment of notify_teams.py",
+                    version="0.0.1",
+                    tags=["osw-python", "example-deploy-flow"],
+                    interval=timedelta(seconds=20),
+                )
+            ],
+            # remove_existing_deployments=True,
+        )
+    )

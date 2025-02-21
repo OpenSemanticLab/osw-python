@@ -5,7 +5,7 @@ from os import environ
 from prefect import flow
 from pydantic import SecretStr
 
-from osw.utils.prefect import NotifyTeams, NotifyTeamsParam
+from osw.utils.workflow import NotifyTeams, NotifyTeamsParam
 
 # Prerequisite: Set environment variable TEAMS_WEBHOOK_URL
 # in CLI: export TEAMS_WEBHOOK_URL="https://prod..."

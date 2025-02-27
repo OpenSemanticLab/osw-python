@@ -5,25 +5,17 @@ import re
 import sys
 from datetime import timedelta
 from importlib.metadata import version
-from typing import Iterable, List, Optional
+from inspect import signature
+from typing import Any, Dict, Iterable, List, Optional, Union
+
 from packaging.specifiers import SpecifierSet
 from prefect import Flow, serve
 from prefect.blocks.notifications import MicrosoftTeamsWebhook
 from prefect.client.schemas.objects import FlowRun
 from prefect.settings import PREFECT_API_URL
 from prefect.states import State
-from pydantic import BaseModel, SecretStr
-
-# ------------------------------ TEST ------------------------------
-
-
-from prefect import flow
-
-
-@flow
-def example_flow_to_deploy():
-    """Example flow to be deployed"""
-    print(f"Execution of example: {example_flow_to_deploy.__name__}!")
+from pydantic import SecretStr
+from pydantic.v1 import BaseModel
 
 
 # ------------------------------ NOTIFICATIONS ---------------------
@@ -35,12 +27,17 @@ class NotifyTeamsParam(BaseModel):
     deployment_name: Optional[str] = None
     """Deployment name to be displayed in the notification"""
 
+    # allow arbitrary types for compatibility with pydantic v1
+    class Config:
+        arbitrary_types_allowed = True
+
 
 class NotifyTeams(NotifyTeamsParam):
     """Notify Microsoft Teams channel using a webhook"""
 
     def __init__(self, notify_teams_param: NotifyTeamsParam):
-        super().__init__(**notify_teams_param.model_dump())
+        # super().__init__(**notify_teams_param.model_dump())  # pydantic v2
+        super().__init__(**notify_teams_param.dict())  # pydantic v1
 
     def notify_teams(
         self,
@@ -72,54 +69,62 @@ class NotifyTeams(NotifyTeamsParam):
         else:
             _tags = ""
 
-        _message = f"📜 Message:\n\n_`{state.message}`_"
-
-        # # DEBUG
-        # print(_flow_run + _deployment + _ts + _tags + _message)
-        # print(f"Teams webhook URL: {self.teams_webhook_url}")
-        # print(f"Deployment name: {self.deployment_name}")
-        # print(f"Flow name: {flow.name}")
-        # print(f"Flow run name: {flow_run.name}")
-        # print(f"Flow run ID: {flow_run.id}")
+        if state.message is None:
+            _message = "No message provided."
+        else:
+            _message = f"📜 Message:\n\n_`{state.message}`_"
 
         MicrosoftTeamsWebhook(
-            url=self.teams_webhook_url.get_secret_value()
+            url=str(self.teams_webhook_url.get_secret_value())
         ).notify(body=(_flow_run + _deployment + _ts + _tags + _message))
 
 
 # ------------------------------- DEPLOYMENTS -------------------------------
-def tagsStrToList(tags: str) -> List[str]:
+def tags_str_to_list(tags: str) -> List[str]:
     """Remove tags whitespaces, newlines, tabs, empty strings, split comma"""
     return list(filter(None, re.sub(r"\s+", "", tags).split(",")))
+
+
+# def filter_arguments(func, args_dict):
+#     """Filter arguments for a function based on its signature"""
+#     sig = signature(func)
+#     valid_params = sig.parameters
+#     filtered_args = {k: v for k, v in args_dict.items() if k in valid_params}
+#     return filtered_args
+
+
+def match_func_model_args(func, model: BaseModel) -> dict:
+    """Match function arguments with model attributes"""
+    valid_params = set(signature(func).parameters)
+    # model_attrs = model.model_dump().items() # pydantic v2
+    model_attrs = model.dict().items()  # pydantic v1
+    matched_args = {k: v for k, v in model_attrs if k in valid_params}
+    return matched_args
 
 
 class DeployConfig(BaseModel):
     """Prefect deployment configuration"""
 
     flow: Flow  # to be excluded in `flow.to_deployment()` function
-    name: str | None = None
-    description: str | None = None
-    interval: (
-        Iterable[int | float | timedelta] | int | float | timedelta | None
-    ) = None
-    cron: Iterable[str] | str | None = None
-    version: str | None = None
-    tags: List[str] | None = None
+    # Union instead of | for compatibility with pydantic v1, python < 3.10
+    name: Union[str, None] = None
+    description: Union[str, None] = None
+    interval: Union[
+        Iterable[Union[int, float, timedelta]], int, float, timedelta, None
+    ] = None
+    cron: Union[Iterable[str], str, None] = None
+    version: Union[str, None] = None
+    tags: Union[List[str], None] = None
+    rrule: Union[Iterable[str], str, None] = None
+    paused: Union[bool, None] = None
+    is_schedule_active: Union[bool, None] = None
+    parameters: Union[dict, None] = None
+    enforce_parameter_schema: bool = False
+    work_pool_name: Union[str, None] = None
+    work_queue_name: Union[str, None] = None
+    job_variables: Union[Dict[str, Any], None] = None
+    deployment_id: Union[str, None] = None
 
-    # Parameters that could be added in future, see to_deployment function:
-    # rrule: Iterable[str] | str | None = None
-    # paused: bool | None = None
-    # schedules: List[FlexibleScheduleList] | None = None
-    # schedule: SCHEDULE_TYPES | None = None
-    # is_schedule_active: bool | None = None
-    # parameters: dict | None = None
-    # triggers: List[DeploymentTriggerTypes | TriggerTypes] | None = None
-    # enforce_parameter_schema: bool = False
-    # work_pool_name: str | None = None
-    # work_queue_name: str | None = None
-    # job_variables: Dict[str, Any] | None = None
-    # deployment_id: str | None = None
-    # prefect_api_url: str = PREFECT_API_URL
     class Config:
         arbitrary_types_allowed = True
 
@@ -147,15 +152,11 @@ async def _deploy(param: DeployParam):
         # Set deployment name if not provided
         if deploy_config.name is None or deploy_config.name == "":
             deploy_config.name = flow.name + "-deployment"
-        config = await flow.to_deployment(
-            # Entpacken und ungleiche Parameter exkludieren (ggf. ext funktion schreiben mit inspect.signature -> fkt + dict input -> dict mit keys der args output)
-            name=deploy_config.name,
-            tags=deploy_config.tags,
-            cron=deploy_config.cron,
-            interval=deploy_config.interval,
-            description=deploy_config.description,
-            version=deploy_config.version,
-        )
+
+        # Match valid args of flow.to_deployment and deploy_config
+        kwargs = match_func_model_args(func=flow.to_deployment, model=deploy_config)
+        # Set config via matching flow.to_deployment arguments
+        config = await flow.to_deployment(**kwargs)
         await config.apply()  # returns the deployment_uuid
 
         deployments.append(config)
@@ -163,7 +164,7 @@ async def _deploy(param: DeployParam):
     if version("prefect") in SpecifierSet(">=3.0"):
         print(f"prefect version IF: {version('prefect')}")
         # return deployments
-        serve(*deployments)
+        await serve(*deployments)
     else:
         print(f"prefect version ELSE: {version('prefect')}")
         await serve(*deployments)
@@ -182,20 +183,28 @@ def deploy(param: DeployParam):
         asyncio.run(_deploy(param))
 
 
-if __name__ == "__main__":
+# # ------------------------------- TEST -------------------------------
+# from prefect import flow
 
-    deploy(
-        DeployParam(
-            deployments=[
-                DeployConfig(
-                    flow=example_flow_to_deploy,
-                    name="osw-python-deploy-example",
-                    description="Deployment of notify_teams.py",
-                    version="0.0.1",
-                    tags=["osw-python", "example-deploy-flow"],
-                    interval=timedelta(seconds=20),
-                )
-            ],
-            # remove_existing_deployments=True,
-        )
-    )
+
+# @flow
+# def osw_python_test_flow_to_deploy():
+#     """Example flow to be deployed"""
+#     print(f"Execution of example: {osw_python_test_flow_to_deploy.__name__}!")
+
+
+# if __name__ == "__main__":
+#     deploy(
+#         DeployParam(
+#             deployments=[
+#                 DeployConfig(
+#                     flow=osw_python_test_flow_to_deploy,
+#                     name="osw-python-deployment-test",
+#                     description="Deployment of osw-python test flow",
+#                     version="0.0.1",
+#                     tags=["osw-python", "example-deploy-flow"],
+#                 )
+#             ],
+#             # remove_existing_deployments=True,
+#         )
+#     )

@@ -6,7 +6,7 @@ from os import environ
 from prefect import flow
 from prefect.artifacts import create_table_artifact
 
-from osw.utils.workflow import DeployConfig, DeployParam, deploy, tagsStrToList
+from osw.utils.workflow import DeployConfig, DeployParam, deploy, tags_str_to_list
 
 # Set environment variables
 environ["PREFECT_DEPLOYMENT_NAME"] = "osw-python-deploy-example"
@@ -43,11 +43,9 @@ if __name__ == "__main__":
                     name=environ.get("PREFECT_DEPLOYMENT_NAME"),
                     description=environ.get("PREFECT_DEPLOYMENT_DESCRIPTION"),
                     version=environ.get("PREFECT_DEPLOYMENT_VERSION"),
-                    tags=tagsStrToList(environ.get("PREFECT_DEPLOYMENT_TAGS")),
+                    tags=tags_str_to_list(environ.get("PREFECT_DEPLOYMENT_TAGS")),
                     interval=timedelta(
-                        minutes=int(
-                            environ.get("PREFECT_DEPLOYMENT_INTERVAL_MIN")
-                        )
+                        minutes=int(environ.get("PREFECT_DEPLOYMENT_INTERVAL_MIN"))
                     ),  # either interval or cron
                     # cron=environ.get("PREFECT_DEPLOYMENT_CRON"),
                 )

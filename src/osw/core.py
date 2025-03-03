@@ -531,6 +531,7 @@ class OSW(BaseModel):
                     use_double_quotes=True,
                     collapse_root_models=True,
                     reuse_model=True,
+                    field_include_all_keys=fetchSchemaParam.generate_annotations,
                 )
 
                 # note: we could use OOLDJsonSchemaParser directly (see below),

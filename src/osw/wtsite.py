@@ -481,7 +481,6 @@ class WtSite:
             modify_page(wtpage)
             if log:
                 print(f"\n======= {title} =======")
-                print(wtpage._content)
                 for slot in wtpage._slots:
                     content = wtpage.get_slot_content(slot)
                     # if isinstance(content, dict): content = json.dumps(content)
@@ -1219,7 +1218,6 @@ class WtPage:
         self.title = title
 
         self._original_content = ""
-        self._content = ""
         self.changed: bool = False
         self._dict = []  # todo: named dict but is of type list
         self._slots: Dict[str, Union[str, dict]] = {"main": ""}
@@ -1239,7 +1237,6 @@ class WtPage:
 
         if self.exists:
             self._original_content = self._page.text()
-            self._content = self._original_content
             # multi content revisions
             # second API call - ToDo: combine / replace with first call
             rev = self.wtSite.mw_site.api(
@@ -1283,7 +1280,7 @@ class WtPage:
         Requires wikitext dependencies installed with 'pip install osw[wikitext]'
         """
         self._dict = wt.create_flat_content_structure_from_wikitext(
-            self._content, array_mode="only_multiple"
+            self.get_slot_content("main"), array_mode="only_multiple"
         )
 
     def create_slot(self, slot_key, content_model):
@@ -1314,7 +1311,7 @@ class WtPage:
         -------
             _description_
         """
-        return self._content
+        return self.get_slot_content("main")
 
     def get_slot_content(self, slot_key, clone: bool = True):
         """Get the content of a slot
@@ -1380,8 +1377,7 @@ class WtPage:
         content
             The new content of the page
         """
-        self._content = content
-        self.changed = True
+        self.set_slot_content("main", content)
 
     def set_slot_content(self, slot_key, content):
         """Sets the content of a slot
@@ -1571,8 +1567,9 @@ class WtPage:
         -------
             the WtPage object
         """
-        self._content = wt.get_wikitext_from_flat_content_structure(self._dict)
-        self.changed = self._original_content != self._content
+        self.set_slot_content(
+            "main", wt.get_wikitext_from_flat_content_structure(self._dict)
+        )
         return self
 
     def edit(self, comment: str = None, mode="action-multislot"):
@@ -1602,8 +1599,6 @@ class WtPage:
     def _edit(self, comment: str = None, mode="action-multislot"):
         if not comment:
             comment = "[bot] update of page content"
-        if self.changed:
-            self._page.edit(self._content, comment)  # legacy mode
         if mode == "action-multislot":
             params = {}
             changed = False

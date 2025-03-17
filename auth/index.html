@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.8">
     
     
       
@@ -901,6 +901,7 @@
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/auth.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 21</span>
@@ -1589,6 +1590,7 @@
     <div class="doc doc-contents ">
 
         <p>in memory credential store</p>
+
     </div>
 
 </div>
@@ -1610,6 +1612,7 @@
     <div class="doc doc-contents ">
 
         <p>Filepath to the certificates for osw and connected services</p>
+
     </div>
 
 </div>
@@ -1631,6 +1634,7 @@
     <div class="doc doc-contents ">
 
         <p>Filepath to yaml file with credentials for osw and connected services</p>
+
     </div>
 
 </div>
@@ -1657,6 +1661,7 @@
 
 
         <p>Abstract base class for credentials</p>
+
 
 
 
@@ -1704,6 +1709,7 @@
     <div class="doc doc-contents ">
 
         <p>the iri the credential is valid for</p>
+
     </div>
 
 </div>
@@ -1739,6 +1745,7 @@
 
 
         <p>Reads credentials from a yaml file</p>
+
 
 
 
@@ -1795,6 +1802,7 @@
     <div class="doc doc-contents ">
 
         <p>The fallback strategy if no credential was found for the given origin</p>
+
     </div>
 
 </div>
@@ -1818,6 +1826,7 @@
         <p>internationalized resource identifier / address of the service, may contain
 protocol, domain, port and path matches by "contains" returning the shortest
 match</p>
+
     </div>
 
 </div>
@@ -1883,6 +1892,7 @@ match</p>
           </tr>
       </tbody>
     </table>
+
 
 
 
@@ -1956,11 +1966,17 @@ match</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="BaseCredential (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="BaseCredential
+
+
+  
+      dataclass
+   (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code></p>
 
 
         <p>OAuth1 credentials. See
 https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
+
 
 
 
@@ -2022,6 +2038,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
     <div class="doc doc-contents ">
 
         <p>access secret</p>
+
     </div>
 
 </div>
@@ -2043,6 +2060,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
     <div class="doc doc-contents ">
 
         <p>access token</p>
+
     </div>
 
 </div>
@@ -2064,6 +2082,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
     <div class="doc doc-contents ">
 
         <p>consumer secret</p>
+
     </div>
 
 </div>
@@ -2085,6 +2104,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
     <div class="doc doc-contents ">
 
         <p>consumer token</p>
+
     </div>
 
 </div>
@@ -2116,10 +2136,16 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="BaseCredential (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="BaseCredential
+
+
+  
+      dataclass
+   (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code></p>
 
 
         <p>a username - password credential</p>
+
 
 
 
@@ -2171,6 +2197,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
     <div class="doc doc-contents ">
 
         <p>the users password</p>
+
     </div>
 
 </div>
@@ -2192,6 +2219,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
     <div class="doc doc-contents ">
 
         <p>the user identifier</p>
+
     </div>
 
 </div>
@@ -2237,7 +2265,12 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
                 <code>cred</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="BaseCredential (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code>
+                  <code><a class="autorefs autorefs-internal" title="BaseCredential
+
+
+  
+      dataclass
+   (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2250,6 +2283,7 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
@@ -2306,7 +2340,12 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
                 <code>config</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" title="CredentialConfig (osw.auth.CredentialManager.CredentialConfig)" href="#osw.auth.CredentialManager.CredentialConfig">CredentialConfig</a></code>
+                  <code><a class="autorefs autorefs-internal" title="CredentialConfig
+
+
+  
+      dataclass
+   (osw.auth.CredentialManager.CredentialConfig)" href="#osw.auth.CredentialManager.CredentialConfig">CredentialConfig</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2332,7 +2371,12 @@ https://requests-oauthlib.readthedocs.io/en/latest/oauth1_workflow.html</p>
       <tbody>
           <tr class="doc-section-item">
 <td><code>credential</code></td>            <td>
-                  <code><a class="autorefs autorefs-internal" title="BaseCredential (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code>
+                  <code><a class="autorefs autorefs-internal" title="BaseCredential
+
+
+  
+      dataclass
+   (osw.auth.CredentialManager.BaseCredential)" href="#osw.auth.CredentialManager.BaseCredential">BaseCredential</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2343,6 +2387,7 @@ the matching iri.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
@@ -2590,6 +2635,7 @@ the matching iri.</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">197</span>
@@ -2697,6 +2743,7 @@ the matching iri.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
@@ -2823,6 +2870,7 @@ cred_filepath of the CredentialManager is not changed.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/auth.py</code></summary>
@@ -3097,7 +3145,7 @@ cred_filepath of the CredentialManager is not changed.</p>
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.f1b6f286.min.js"></script>
+      <script src="../assets/javascripts/bundle.c8b220af.min.js"></script>
       
     
   </body>

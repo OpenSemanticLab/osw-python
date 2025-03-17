@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.8">
     
     
       
@@ -778,9 +778,27 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityParam.bot_edit" class="md-nav__link">
+    <span class="md-ellipsis">
+      bot_edit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osw.core.OSW.StoreEntityParam.change_id" class="md-nav__link">
     <span class="md-ellipsis">
       change_id
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityParam.edit_comment" class="md-nav__link">
+    <span class="md-ellipsis">
+      edit_comment
     </span>
   </a>
   
@@ -1640,9 +1658,27 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityParam.bot_edit" class="md-nav__link">
+    <span class="md-ellipsis">
+      bot_edit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osw.core.OSW.StoreEntityParam.change_id" class="md-nav__link">
     <span class="md-ellipsis">
       change_id
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityParam.edit_comment" class="md-nav__link">
+    <span class="md-ellipsis">
+      edit_comment
     </span>
   </a>
   
@@ -1963,6 +1999,7 @@
 
 
         <p>Bundles core functionalities of OpenSemanticWorld (OSW)</p>
+
 
 
 
@@ -3557,7 +3594,14 @@
 <span class="normal">1668</span>
 <span class="normal">1669</span>
 <span class="normal">1670</span>
-<span class="normal">1671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">1671</span>
+<span class="normal">1672</span>
+<span class="normal">1673</span>
+<span class="normal">1674</span>
+<span class="normal">1675</span>
+<span class="normal">1676</span>
+<span class="normal">1677</span>
+<span class="normal">1678</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -4625,6 +4669,11 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;ID to document the change. Entities within the same store_entity() call will</span>
 <span class="sd">        share the same change_id. This parameter can also be used to link multiple</span>
 <span class="sd">        store_entity() calls.&quot;&quot;&quot;</span>
+        <span class="n">bot_edit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark the edit as bot edit,</span>
+<span class="sd">        which hides the edit from the recent changes in the default filer&quot;&quot;&quot;</span>
+        <span class="n">edit_comment</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Additional comment to explain the edit.&quot;&quot;&quot;</span>
         <span class="n">meta_category_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s2">&quot;Category:Category&quot;</span>
         <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">offline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
@@ -4802,7 +4851,9 @@
                 <span class="p">)</span><span class="o">.</span><span class="n">aggregated_schema</span>
                 <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;jsonschema&quot;</span><span class="p">,</span> <span class="n">new_schema</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-                <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
+                <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span>
+                    <span class="n">param</span><span class="o">.</span><span class="n">edit_comment</span><span class="p">,</span> <span class="n">bot_edit</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">bot_edit</span>
+                <span class="p">)</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">and</span> <span class="n">page</span><span class="o">.</span><span class="n">changed</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity stored at &#39;</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
@@ -5174,6 +5225,7 @@
     <div class="doc doc-contents ">
 
         <p>Returns the mwclient Site object of the OSW instance.</p>
+
     </div>
 
 </div>
@@ -5200,16 +5252,10 @@
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1550</span>
-<span class="normal">1551</span>
-<span class="normal">1552</span>
-<span class="normal">1553</span>
-<span class="normal">1554</span>
-<span class="normal">1555</span>
-<span class="normal">1556</span>
-<span class="normal">1557</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1557</span>
 <span class="normal">1558</span>
 <span class="normal">1559</span>
 <span class="normal">1560</span>
@@ -5228,7 +5274,14 @@
 <span class="normal">1573</span>
 <span class="normal">1574</span>
 <span class="normal">1575</span>
-<span class="normal">1576</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1576</span>
+<span class="normal">1577</span>
+<span class="normal">1578</span>
+<span class="normal">1579</span>
+<span class="normal">1580</span>
+<span class="normal">1581</span>
+<span class="normal">1582</span>
+<span class="normal">1583</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">context_loader_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WtSite</span><span class="o">.</span><span class="n">JsonLdContextLoaderParams</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The configuration for the JSON-LD context loader.&quot;&quot;&quot;</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -5286,6 +5339,7 @@
     <div class="doc doc-contents ">
 
         <p>The JSON-LD context to apply on top of the existing context.</p>
+
     </div>
 
 </div>
@@ -5308,6 +5362,7 @@
     <div class="doc doc-contents ">
 
         <p>If True, the output is a graph.</p>
+
     </div>
 
 </div>
@@ -5330,6 +5385,7 @@
     <div class="doc doc-contents ">
 
         <p>The JSON-LD context to apply. Replaces any existing context.</p>
+
     </div>
 
 </div>
@@ -5352,6 +5408,7 @@
     <div class="doc doc-contents ">
 
         <p>The configuration for the JSON-LD context loader.</p>
+
     </div>
 
 </div>
@@ -5374,6 +5431,7 @@
 
         <p>The entities to convert to JSON-LD. Can be a single entity or a list of
 entities.</p>
+
     </div>
 
 </div>
@@ -5396,6 +5454,7 @@ entities.</p>
     <div class="doc doc-contents ">
 
         <p>The JSON-LD frame to use for framed mode. If not set, the existing context is used</p>
+
     </div>
 
 </div>
@@ -5419,6 +5478,7 @@ entities.</p>
 
         <p>The keys to use as @id in the JSON-LD output. If not found in the entity at root
 level, the full page title is used.</p>
+
     </div>
 
 </div>
@@ -5441,6 +5501,7 @@ level, the full page title is used.</p>
     <div class="doc doc-contents ">
 
         <p>The JSON-LD processing mode to apply if resolve_context is True.</p>
+
     </div>
 
 </div>
@@ -5463,6 +5524,7 @@ level, the full page title is used.</p>
     <div class="doc doc-contents ">
 
         <p>If True, remote context URLs are resolved.</p>
+
     </div>
 
 </div>
@@ -5502,18 +5564,19 @@ level, the full page title is used.</p>
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1578</span>
-<span class="normal">1579</span>
-<span class="normal">1580</span>
-<span class="normal">1581</span>
-<span class="normal">1582</span>
-<span class="normal">1583</span>
-<span class="normal">1584</span>
-<span class="normal">1585</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1585</span>
 <span class="normal">1586</span>
-<span class="normal">1587</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1587</span>
+<span class="normal">1588</span>
+<span class="normal">1589</span>
+<span class="normal">1590</span>
+<span class="normal">1591</span>
+<span class="normal">1592</span>
+<span class="normal">1593</span>
+<span class="normal">1594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">documents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A single JSON-LD document per entity&quot;&quot;&quot;</span>
     <span class="n">graph_document</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -5553,6 +5616,7 @@ level, the full page title is used.</p>
     <div class="doc doc-contents ">
 
         <p>A single JSON-LD document per entity</p>
+
     </div>
 
 </div>
@@ -5575,6 +5639,7 @@ level, the full page title is used.</p>
     <div class="doc doc-contents ">
 
         <p>RDF graph containing all entities. Build only if build_rdf_graph is True</p>
+
     </div>
 
 </div>
@@ -5597,6 +5662,7 @@ level, the full page title is used.</p>
     <div class="doc doc-contents ">
 
         <p>A single JSON-LD document with a @graph element containing all entities</p>
+
     </div>
 
 </div>
@@ -5662,6 +5728,7 @@ level, the full page title is used.</p>
           </tr>
       </tbody>
     </table>
+
 
 
 
@@ -5777,6 +5844,7 @@ level, the full page title is used.</p>
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">330</span>
@@ -5845,6 +5913,7 @@ level, the full page title is used.</p>
     <div class="doc doc-contents ">
 
         <p>uses legacy command line for code generation if true</p>
+
     </div>
 
 </div>
@@ -5882,15 +5951,16 @@ level, the full page title is used.</p>
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1542</span>
-<span class="normal">1543</span>
-<span class="normal">1544</span>
-<span class="normal">1545</span>
-<span class="normal">1546</span>
-<span class="normal">1547</span>
-<span class="normal">1548</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1549</span>
+<span class="normal">1550</span>
+<span class="normal">1551</span>
+<span class="normal">1552</span>
+<span class="normal">1553</span>
+<span class="normal">1554</span>
+<span class="normal">1555</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;enum for jsonld processing mode&quot;&quot;&quot;</span>
 
     <span class="n">expand</span> <span class="o">=</span> <span class="s2">&quot;expand&quot;</span>
@@ -5937,6 +6007,7 @@ level, the full page title is used.</p>
 
 
         <p>Param for load_entity()</p>
+
 
 
 
@@ -6020,6 +6091,7 @@ level, the full page title is used.</p>
 
         <p>If true, load the corresponding schemas /
 categories ad-hoc if not already present</p>
+
     </div>
 
 </div>
@@ -6042,6 +6114,7 @@ categories ad-hoc if not already present</p>
     <div class="doc doc-contents ">
 
         <p>If true, disable the cache for the loading process</p>
+
     </div>
 
 </div>
@@ -6065,6 +6138,7 @@ categories ad-hoc if not already present</p>
 
         <p>If provided this model will be used to create an entity (instance of the
 model), instead of instantiating the autofetched schema.</p>
+
     </div>
 
 </div>
@@ -6088,6 +6162,7 @@ model), instead of instantiating the autofetched schema.</p>
 
         <p>If true, remove key with an empty string, list, dict or set as value
 from the jsondata.</p>
+
     </div>
 
 </div>
@@ -6110,6 +6185,7 @@ from the jsondata.</p>
 
         <p>The pages titles to load - one or multiple titles (wiki page name) of
 entities</p>
+
     </div>
 
 </div>
@@ -6141,6 +6217,7 @@ entities</p>
 
 
         <p>Result of load_entity()</p>
+
 
 
 
@@ -6188,6 +6265,7 @@ entities</p>
     <div class="doc doc-contents ">
 
         <p>The dataclass instance(s)</p>
+
     </div>
 
 </div>
@@ -6216,6 +6294,7 @@ entities</p>
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
               Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
+
 
 
 
@@ -6383,6 +6462,7 @@ entities</p>
     <div class="doc doc-contents ">
 
         <p>Private property, for internal use only. Use 'per_property' instead</p>
+
     </div>
 
 </div>
@@ -6404,6 +6484,7 @@ entities</p>
     <div class="doc doc-contents ">
 
         <p>The model class for which this is the overwrite params object.</p>
+
     </div>
 
 </div>
@@ -6427,6 +6508,7 @@ entities</p>
 
         <p>Defines the overall overwriting behavior. Used for any property if the
 property specific setting is not set.</p>
+
     </div>
 
 </div>
@@ -6449,6 +6531,7 @@ property specific setting is not set.</p>
     <div class="doc doc-contents ">
 
         <p>A key (property name) - value (overwrite setting) pair.</p>
+
     </div>
 
 </div>
@@ -6468,6 +6551,7 @@ property specific setting is not set.</p>
 
         <p>Called after validation. Sets the fallback for every property that
 has not been specified in per_property.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -6510,6 +6594,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>Called when setting an attribute</p>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -6575,6 +6660,7 @@ has not been specified in per_property.</p>
 
         <p>Returns the fallback overwrite option for the given field name</p>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">932</span>
@@ -6613,6 +6699,7 @@ has not been specified in per_property.</p>
 
 
         <p>dataclass param of register_schema()</p>
+
 
 
 
@@ -6678,6 +6765,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>The model class</p>
+
     </div>
 
 </div>
@@ -6700,6 +6788,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>A list of base schemas (referenced by allOf)</p>
+
     </div>
 
 </div>
@@ -6721,6 +6810,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>The schema name</p>
+
     </div>
 
 </div>
@@ -6742,6 +6832,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>The schema uuid</p>
+
     </div>
 
 </div>
@@ -6773,6 +6864,7 @@ has not been specified in per_property.</p>
 
 
         <p>dataclass param of register_schema()</p>
+
 
 
 
@@ -6834,6 +6926,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>The comment for the deletion, to be left behind</p>
+
     </div>
 
 </div>
@@ -6855,6 +6948,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>The model class</p>
+
     </div>
 
 </div>
@@ -6876,6 +6970,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
 
         <p>The model uuid</p>
+
     </div>
 
 </div>
@@ -6904,6 +6999,7 @@ has not been specified in per_property.</p>
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
               Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
+
 
 
 
@@ -6980,7 +7076,12 @@ has not been specified in per_property.</p>
 <span class="normal">1197</span>
 <span class="normal">1198</span>
 <span class="normal">1199</span>
-<span class="normal">1200</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1200</span>
+<span class="normal">1201</span>
+<span class="normal">1202</span>
+<span class="normal">1203</span>
+<span class="normal">1204</span>
+<span class="normal">1205</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>  <span class="c1"># actually model.Entity</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The entities to store. Can be a single entity or a list of entities.&quot;&quot;&quot;</span>
     <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -7000,6 +7101,11 @@ has not been specified in per_property.</p>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;ID to document the change. Entities within the same store_entity() call will</span>
 <span class="sd">    share the same change_id. This parameter can also be used to link multiple</span>
 <span class="sd">    store_entity() calls.&quot;&quot;&quot;</span>
+    <span class="n">bot_edit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mark the edit as bot edit,</span>
+<span class="sd">    which hides the edit from the recent changes in the default filer&quot;&quot;&quot;</span>
+    <span class="n">edit_comment</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Additional comment to explain the edit.&quot;&quot;&quot;</span>
     <span class="n">meta_category_title</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="s2">&quot;Category:Category&quot;</span>
     <span class="n">debug</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">offline</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
@@ -7080,6 +7186,31 @@ has not been specified in per_property.</p>
 
         <p>Private attribute, for internal use only. Use 'overwrite_per_class'
 instead.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="osw.core.OSW.StoreEntityParam.bot_edit" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">bot_edit</span> <span class="o">=</span> <span class="kc">True</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Mark the edit as bot edit,
+which hides the edit from the recent changes in the default filer</p>
+
     </div>
 
 </div>
@@ -7104,6 +7235,30 @@ instead.</p>
         <p>ID to document the change. Entities within the same store_entity() call will
 share the same change_id. This parameter can also be used to link multiple
 store_entity() calls.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="osw.core.OSW.StoreEntityParam.edit_comment" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">edit_comment</span> <span class="o">=</span> <span class="kc">None</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Additional comment to explain the edit.</p>
+
     </div>
 
 </div>
@@ -7125,6 +7280,7 @@ store_entity() calls.</p>
     <div class="doc doc-contents ">
 
         <p>The entities to store. Can be a single entity or a list of entities.</p>
+
     </div>
 
 </div>
@@ -7147,6 +7303,7 @@ store_entity() calls.</p>
 
         <p>The namespace of the entities. If not set, the namespace is derived from the
 entity.</p>
+
     </div>
 
 </div>
@@ -7170,6 +7327,7 @@ entity.</p>
 
         <p>If set to True, the processed entities are not upload but only returned as WtPages.
 Can be used to create WtPage objects from entities without uploading them.</p>
+
     </div>
 
 </div>
@@ -7192,6 +7350,7 @@ Can be used to create WtPage objects from entities without uploading them.</p>
     <div class="doc doc-contents ">
 
         <p>If no class specific overwrite setting is set, this setting is used.</p>
+
     </div>
 
 </div>
@@ -7215,6 +7374,7 @@ Can be used to create WtPage objects from entities without uploading them.</p>
 
         <p>A list of OverwriteClassParam objects. If a class specific overwrite setting
 is set, this setting is used.</p>
+
     </div>
 
 </div>
@@ -7237,6 +7397,7 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
 
         <p>If set to True, the entities are stored in parallel.</p>
+
     </div>
 
 </div>
@@ -7259,6 +7420,7 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
 
         <p>If true, remove key with an empty string value from the jsondata.</p>
+
     </div>
 
 </div>
@@ -7300,18 +7462,19 @@ is set, this setting is used.</p>
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1202</span>
-<span class="normal">1203</span>
-<span class="normal">1204</span>
-<span class="normal">1205</span>
-<span class="normal">1206</span>
-<span class="normal">1207</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1207</span>
 <span class="normal">1208</span>
 <span class="normal">1209</span>
 <span class="normal">1210</span>
-<span class="normal">1211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1211</span>
+<span class="normal">1212</span>
+<span class="normal">1213</span>
+<span class="normal">1214</span>
+<span class="normal">1215</span>
+<span class="normal">1216</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of store_entity()&quot;&quot;&quot;</span>
 
     <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
@@ -7351,6 +7514,7 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
 
         <p>The ID of the change</p>
+
     </div>
 
 </div>
@@ -7372,6 +7536,7 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
 
         <p>The pages that have been stored</p>
+
     </div>
 
 </div>
@@ -7400,6 +7565,7 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
               Bases: <code><span title="osw.model.static.OswBaseModel">OswBaseModel</span></code></p>
+
 
 
 
@@ -7547,6 +7713,7 @@ is set, this setting is used.</p>
     <div class="doc doc-contents ">
 
         <p>Make sure that the passed entity has the same uuid as the page</p>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -7696,6 +7863,7 @@ default: True)</p>
 
 
 
+
               <details class="quote">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">374</span>
@@ -7772,6 +7940,7 @@ default: True)</p>
     <div class="doc doc-contents ">
 
         <p>uses legacy command line for code generation if true</p>
+
     </div>
 
 </div>
@@ -7831,6 +8000,7 @@ datasclasses within osw.model.entity from it</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -8354,6 +8524,7 @@ values being the full page name (IRI) of the dependencies.</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">682</span>
@@ -8396,6 +8567,7 @@ values being the full page name (IRI) of the dependencies.</p>
 
         <p>Close the connection to the OSL instance.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">104</span>
@@ -8422,16 +8594,10 @@ values being the full page name (IRI) of the dependencies.</p>
 
         <p>Deletes the given entity/entities from the OSW instance.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1421</span>
-<span class="normal">1422</span>
-<span class="normal">1423</span>
-<span class="normal">1424</span>
-<span class="normal">1425</span>
-<span class="normal">1426</span>
-<span class="normal">1427</span>
-<span class="normal">1428</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1428</span>
 <span class="normal">1429</span>
 <span class="normal">1430</span>
 <span class="normal">1431</span>
@@ -8479,7 +8645,14 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">1473</span>
 <span class="normal">1474</span>
 <span class="normal">1475</span>
-<span class="normal">1476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
+<span class="normal">1476</span>
+<span class="normal">1477</span>
+<span class="normal">1478</span>
+<span class="normal">1479</span>
+<span class="normal">1480</span>
+<span class="normal">1481</span>
+<span class="normal">1482</span>
+<span class="normal">1483</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">],</span> <span class="n">DeleteEntityParam</span><span class="p">],</span>
     <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8586,6 +8759,7 @@ values being the full page name (IRI) of the dependencies.</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">694</span>
@@ -8628,16 +8802,10 @@ values being the full page name (IRI) of the dependencies.</p>
 
         <p>Exports the given entity/entities as JSON-LD.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1589</span>
-<span class="normal">1590</span>
-<span class="normal">1591</span>
-<span class="normal">1592</span>
-<span class="normal">1593</span>
-<span class="normal">1594</span>
-<span class="normal">1595</span>
-<span class="normal">1596</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1596</span>
 <span class="normal">1597</span>
 <span class="normal">1598</span>
 <span class="normal">1599</span>
@@ -8712,7 +8880,14 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">1668</span>
 <span class="normal">1669</span>
 <span class="normal">1670</span>
-<span class="normal">1671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
+<span class="normal">1671</span>
+<span class="normal">1672</span>
+<span class="normal">1673</span>
+<span class="normal">1674</span>
+<span class="normal">1675</span>
+<span class="normal">1676</span>
+<span class="normal">1677</span>
+<span class="normal">1678</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Exports the given entity/entities as JSON-LD.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">resolve_context</span><span class="p">:</span>
@@ -8846,6 +9021,7 @@ datasclasses within osw.model.entity from it</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">349</span>
@@ -8973,6 +9149,7 @@ all '-' from the uuid-string</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">108</span>
@@ -9080,6 +9257,7 @@ all '-' from the uuid-string</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -9200,6 +9378,7 @@ be loaded if they were updated on the server. (not implemented yet)</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -9383,6 +9562,7 @@ a LoadEntityResult instance if a LoadEntityParam is given</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
@@ -9676,6 +9856,7 @@ category page.</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">212</span>
@@ -9897,6 +10078,7 @@ instance of class that does not define a field 'type'</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
@@ -10054,14 +10236,10 @@ instance of class that does not define a field 'type'</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1213</span>
-<span class="normal">1214</span>
-<span class="normal">1215</span>
-<span class="normal">1216</span>
-<span class="normal">1217</span>
-<span class="normal">1218</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1218</span>
 <span class="normal">1219</span>
 <span class="normal">1220</span>
 <span class="normal">1221</span>
@@ -10247,7 +10425,14 @@ instance of class that does not define a field 'type'</p>
 <span class="normal">1401</span>
 <span class="normal">1402</span>
 <span class="normal">1403</span>
-<span class="normal">1404</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">1404</span>
+<span class="normal">1405</span>
+<span class="normal">1406</span>
+<span class="normal">1407</span>
+<span class="normal">1408</span>
+<span class="normal">1409</span>
+<span class="normal">1410</span>
+<span class="normal">1411</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StoreEntityResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>
@@ -10364,7 +10549,9 @@ instance of class that does not define a field 'type'</p>
             <span class="p">)</span><span class="o">.</span><span class="n">aggregated_schema</span>
             <span class="n">page</span><span class="o">.</span><span class="n">set_slot_content</span><span class="p">(</span><span class="s2">&quot;jsonschema&quot;</span><span class="p">,</span> <span class="n">new_schema</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-            <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">()</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
+            <span class="n">page</span><span class="o">.</span><span class="n">edit</span><span class="p">(</span>
+                <span class="n">param</span><span class="o">.</span><span class="n">edit_comment</span><span class="p">,</span> <span class="n">bot_edit</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">bot_edit</span>
+            <span class="p">)</span>  <span class="c1"># will set page.changed if the content of the page has changed</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">param</span><span class="o">.</span><span class="n">offline</span> <span class="ow">and</span> <span class="n">page</span><span class="o">.</span><span class="n">changed</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entity stored at &#39;</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
@@ -10489,6 +10676,7 @@ instance of class that does not define a field 'type'</p>
       </tbody>
     </table>
 
+
             <details class="quote">
               <summary>Source code in <code>src/osw/core.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
@@ -10598,7 +10786,7 @@ instance of class that does not define a field 'type'</p>
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.f1b6f286.min.js"></script>
+      <script src="../assets/javascripts/bundle.c8b220af.min.js"></script>
       
     
   </body>

@@ -1150,6 +1150,11 @@ class OSW(BaseModel):
         """ID to document the change. Entities within the same store_entity() call will
         share the same change_id. This parameter can also be used to link multiple
         store_entity() calls."""
+        bot_edit: Optional[bool] = True
+        """Mark the edit as bot edit,
+        which hides the edit from the recent changes in the default filer"""
+        edit_comment: Optional[str] = None
+        """Additional comment to explain the edit."""
         meta_category_title: Optional[Union[str, List[str]]] = "Category:Category"
         debug: Optional[bool] = False
         offline: Optional[bool] = False
@@ -1327,7 +1332,9 @@ class OSW(BaseModel):
                 ).aggregated_schema
                 page.set_slot_content("jsonschema", new_schema)
             if param.offline is False:
-                page.edit()  # will set page.changed if the content of the page has changed
+                page.edit(
+                    param.edit_comment, bot_edit=param.bot_edit
+                )  # will set page.changed if the content of the page has changed
             if not param.offline and page.changed:
                 if index is None:
                     print(f"Entity stored at '{page.get_url()}'.")

@@ -1572,7 +1572,7 @@ class WtPage:
         )
         return self
 
-    def edit(self, comment: str = None, mode="action-multislot"):
+    def edit(self, comment: str = None, mode="action-multislot", bot_edit: bool = True):
         """Creates / updates the content of all page slots in the wiki site
 
         Parameters
@@ -1587,7 +1587,7 @@ class WtPage:
         max_retry = 5
         while retry < max_retry:
             try:
-                return self._edit(comment, mode)
+                return self._edit(comment, mode, bot_edit)
             except Exception as e:
                 if retry < max_retry:
                     retry += 1
@@ -1596,7 +1596,9 @@ class WtPage:
                     self.wtSite._site.get_token("csrf", force=True)
                     sleep(5)
 
-    def _edit(self, comment: str = None, mode="action-multislot"):
+    def _edit(
+        self, comment: str = None, mode="action-multislot", bot_edit: bool = True
+    ):
         if not comment:
             comment = "[bot] update of page content"
         if mode == "action-multislot":
@@ -1618,6 +1620,7 @@ class WtPage:
                     token=self.wtSite.mw_site.get_token("csrf"),
                     title=self.title,
                     summary=comment,
+                    bot=bot_edit,
                     **params,
                 )
                 self.wtSite._clear_cookies()
@@ -1637,6 +1640,7 @@ class WtPage:
                         slot=slot_key,
                         text=content,
                         summary=comment,
+                        bot=bot_edit,
                     )
                     self._slots_changed[slot_key] = False
             if changed:

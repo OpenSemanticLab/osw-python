@@ -15,7 +15,6 @@ class OfflineWtPage(WtPage):
 
         self.exists = True  # only to fake the existence of the page for testing
         self._original_content = ""
-        self._content = ""
         self.changed: bool = False
         self._dict = []
         self._slots: Dict[str, Union[str, dict]] = {"main": ""}

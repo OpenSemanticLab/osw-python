@@ -84,7 +84,7 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
  RDnVhTMcRkWFpWWnAprFlO0|Category
  RD2X6TQT0bKVpXehgObBb7O|Item"""
 
-    actual = smw_import_page._content  # get_slot_content("main")
+    actual = smw_import_page.get_slot_content("main")
     assert actual == expected
 
     property_name = None

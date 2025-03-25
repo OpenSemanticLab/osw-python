@@ -18,6 +18,6 @@
     "vue": "^3.5.13"
   },
   "scripts": {
-    "build": "vite build --config vite.config.js && vite build --config vite.config.anywidget.mjs"
+    "build": "vite build --config vite.config.js && vite build --config vite.config.anywidget.mjs && vite build --config vite.config.nicegui.js"
   }
 }

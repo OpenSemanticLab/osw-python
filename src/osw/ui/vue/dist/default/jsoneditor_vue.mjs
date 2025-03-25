@@ -37,6 +37,9 @@ const _ = (e, t) => {
       this.$emit("change", t.getValue());
     });
   },
+  /*watch: {
+    data(value) { this.editor.setValue(value) }
+  },*/
   emits: ["onChange"]
 }, u = {
   ref: "jsoneditor",
@@ -54,9 +57,13 @@ function m({ model: e, el: t }) {
   o.setAttribute("id", "jsoneditor-container"), t.append(o), console.log("Create App");
   let s = e.get("options");
   s = s || {
-    theme: "bootstrap5",
-    iconlib: "fontawesome5",
-    schema: { properties: { test: { type: "string" } } }
+    theme: "bootstrap4",
+    iconlib: "spectre",
+    schema: {
+      title: "Editor Test",
+      required: ["test"],
+      properties: { test: { type: "string" } }
+    }
     //   startval: this.data
   }, c(b, {
     options: s,

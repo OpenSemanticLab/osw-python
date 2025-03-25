@@ -18,9 +18,12 @@ export function render({ model, el }) {
   //debugger
   let options = model.get("options");
   options = options || {
-    "theme": 'bootstrap5',
-    "iconlib": 'fontawesome5',
-    schema: {"properties": {"test": {"type": "string"}}},
+    "theme": 'bootstrap4',
+    "iconlib": 'spectre',
+    schema: {
+      "title": "Editor Test",
+      "required": ["test"],
+      "properties": {"test": {"type": "string"}}},
     //   startval: this.data
   }
   const app = createApp(JsonEditorComponent, {

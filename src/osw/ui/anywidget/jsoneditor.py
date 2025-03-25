@@ -19,11 +19,14 @@ class JsonEditorWidget(anywidget.AnyWidget):
         + (bundled_assets_dir / "jsoneditor_vue.mjs").read_text()
     )
     # scoped css does not conflict with vscode styling
-    _css = str(bundled_assets_dir / "jsoneditor_vue.css")  # .read_text()
+    _css = (bundled_assets_dir / "jsoneditor_vue.css").read_text()
 
     value = traitlets.Dict({}).tag(sync=True)
+    options = traitlets.Dict({}).tag(sync=True)
 
     @traitlets.observe("value")
     def _observe_value(self, change):
-        print(change["old"])
-        print(change["new"])
+        pass
+        # changes can be handled here
+        # print(change["old"])
+        # print(change["new"])

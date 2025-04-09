@@ -218,6 +218,7 @@ class OswExpress(OSW):
             target_fn=target_fn,
             target_fp=target_fp,
             osw_express=self,
+            domain=self.domain,
             overwrite=overwrite,
             use_cached=use_cached,
         )

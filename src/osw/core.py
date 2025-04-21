@@ -601,14 +601,14 @@ class OSW(BaseModel):
                     org_content = f.read()
 
                 pattern = re.compile(
-                    r"class\s*([\S]*)\s*\(\s*\S*\s*\)\s*:.*\n"
+                    r"class\s*([\S]*)\s*\(\s*[\S\s]*?\s*\)\s*:.*\n"
                 )  # match class definition [\s\S]*(?:[^\S\n]*\n){2,}
                 for cls in re.findall(pattern, org_content):
                     print(cls)
                     content = re.sub(
                         r"(class\s*"
                         + cls
-                        + r"\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
+                        + r"\s*\(\s*[\S\s]*?\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
                         "",
                         content,
                         count=1,

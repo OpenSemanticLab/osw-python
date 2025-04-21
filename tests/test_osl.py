@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import Any, Dict, Union
 from uuid import UUID
 
@@ -304,3 +305,53 @@ class have in common.  {{Template:Editor/DrawIO
     assert "File:OSW51ad8f9d660641f9880006c40f41cb56.png" in file_list
     assert "File:OSW0bea84d54c074374a4b45dc84d9ba302.drawio.svg" in file_list
     assert "File:OSW58baa09ec00b42ccb0779fe4d58ccf82.drawio.svg" in file_list
+
+
+def check_reproducible_uuid():
+    """Check if the UUID of an entity is reproducible by using the same name
+    and overwriting the _init_uuid method.
+    """
+
+    # Create two entities with the same name
+    entity1 = model.Item(label=[model.Label(text="MyItem")])
+    entity2 = model.Item(label=[model.Label(text="MyItem")])
+    # and one with a different name
+    entity3 = model.Item(label=[model.Label(text="MyItem2")])
+
+    # Check if the UUIDs are random / not the same
+    assert entity1.uuid != entity2.uuid
+    assert entity1.uuid != entity3.uuid
+    assert entity2.uuid != entity3.uuid
+
+    # a (random) UUID namespace in order to generate reproducible UUIDs
+    namespace_uuid = UUID("0dd6c54a-b162-4552-bab9-9942ccaf4f41")
+
+    # monkey patch the _init_uuid method to use the namespace UUID
+    # this will generate the same UUID for the same name
+    model.OswBaseModel._init_uuid = lambda **data: (
+        uuid.uuid5(namespace_uuid, data["name"]) if "name" in data else uuid.uuid4()
+    )
+
+    # Create two entities with the same name
+    entity1 = model.Item(label=[model.Label(text="MyItem")])
+    entity2 = model.Item(label=[model.Label(text="MyItem")])
+    # and one with a different name
+    entity3 = model.Item(label=[model.Label(text="MyItem2")])
+
+    # Check if the UUIDs are the same
+    assert entity1.uuid == entity2.uuid
+    assert entity1.uuid != entity3.uuid
+
+    # restore the original _init_uuid method
+    model.OswBaseModel._init_uuid = lambda **data: uuid.uuid4()
+
+    # Create two entities with the same name
+    entity1 = model.Item(label=[model.Label(text="MyItem")])
+    entity2 = model.Item(label=[model.Label(text="MyItem")])
+    # and one with a different name
+    entity3 = model.Item(label=[model.Label(text="MyItem2")])
+
+    # Check if the UUIDs are random / not the same
+    assert entity1.uuid != entity2.uuid
+    assert entity1.uuid != entity3.uuid
+    assert entity2.uuid != entity3.uuid

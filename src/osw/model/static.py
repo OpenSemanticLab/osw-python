@@ -3,7 +3,7 @@ This module is to be imported in the dynamically created and updated entity.py m
 """
 
 from typing import TYPE_CHECKING, Literal, Optional, Type, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 from warnings import warn
 
 from pydantic.v1 import BaseModel, Field, constr
@@ -120,7 +120,25 @@ class OswBaseModel(BaseModel):
                 )
         if data.get("name") is None and "label" in data:
             data["name"] = pascal_case(data["label"][0].text)
+        if "uuid" not in data:
+            # If no uuid is provided, generate a new one
+            data["uuid"] = OswBaseModel._init_uuid(**data)
         super().__init__(**data)
+
+    @classmethod
+    def _init_uuid(cls, **data) -> UUID:
+        """Generates a random UUID for the entity if not provided during initialization.
+        This method can be overridden to generate a UUID based on the data, e.g.
+        for using a UUIDv5 based on the name:
+        ```python
+        def _get_uuid(**data) -> UUID:
+            namespace_uuid = uuid.UUID("0dd6c54a-b162-4552-bab9-9942ccaf4f41")
+            return uuid.uuid5(namespace_uuid, data["name"])
+        ```
+        """
+
+        # default: random UUID
+        return uuid4()
 
     def full_dict(self, **kwargs):  # extent BaseClass export function
         d = super().dict(**kwargs)

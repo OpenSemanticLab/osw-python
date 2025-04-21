@@ -3981,14 +3981,14 @@
                     <span class="n">org_content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
 
                 <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
-                    <span class="sa">r</span><span class="s2">&quot;class\s*([\S]*)\s*\(\s*\S*\s*\)\s*:.*\n&quot;</span>
+                    <span class="sa">r</span><span class="s2">&quot;class\s*([\S]*)\s*\(\s*[\S\s]*?\s*\)\s*:.*\n&quot;</span>
                 <span class="p">)</span>  <span class="c1"># match class definition [\s\S]*(?:[^\S\n]*\n){2,}</span>
                 <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">org_content</span><span class="p">):</span>
                     <span class="nb">print</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
                     <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
                         <span class="sa">r</span><span class="s2">&quot;(class\s*&quot;</span>
                         <span class="o">+</span> <span class="bp">cls</span>
-                        <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\s*\(\s*\S*\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})&quot;</span><span class="p">,</span>
+                        <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;\s*\(\s*[\S\s]*?\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})&quot;</span><span class="p">,</span>
                         <span class="s2">&quot;&quot;</span><span class="p">,</span>
                         <span class="n">content</span><span class="p">,</span>
                         <span class="n">count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>

@@ -1251,7 +1251,7 @@ class WtPage:
             )
             for page_id in rev["query"]["pages"]:
                 page = rev["query"]["pages"][page_id]
-                if page["title"] == self.title:
+                if page["title"].replace(" ", "_") == self.title.replace(" ", "_"):
                     for revision in page["revisions"]:
                         self._current_revision = revision
                         if "slots" in revision:

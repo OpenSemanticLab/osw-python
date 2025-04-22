@@ -399,6 +399,92 @@ def aggregate_generated_schemas(
     return AggregateGeneratedSchemasResult(aggregated_schema=schema)
 
 
+def merge_generated_definitions(schema: JsonType):
+    """Merges the generated definitions into the schema.
+    Example:
+    {
+        "$defs": {
+            "generated": {
+                "title": "Generated",
+                "description": "Generated schema",
+                "description*": {
+                    "en": "Actual description",
+                }
+            }
+        },
+        "$ref": "#/$defs/generated",
+        "title": "Overwritten"
+    }
+    will be merged into the schema
+    {
+        "title": "Overwritten",
+        "description": "Actual description"
+    }
+    """
+
+    generated_content = schema.get("$defs", {}).get("generated")
+
+    if generated_content:
+        # Check if "$ref": "#/$defs/generated" exists directly in the dictionary
+        if schema.get("$ref") == "#/$defs/generated":
+
+            # if schema has no description use the multi-lang description
+            # (pref: en, else first) in the $defs section
+            if (
+                "description" not in schema
+                or schema["description"] is None
+                or schema["description"] == ""
+            ):
+                if (
+                    "description*" in generated_content
+                    and len(generated_content["description*"]) > 0
+                ):
+                    first_key = list(generated_content["description*"].keys())[0]
+                    schema["description"] = generated_content["description*"].get(
+                        "en", generated_content["description*"][first_key]
+                    )
+                else:
+                    schema["description"] = generated_content.get("description")
+
+            schema = merge_deep(deepcopy(generated_content), schema)
+            schema.pop("$ref", None)  # Remove the reference after merging
+
+        # Check if "$ref": "#/$defs/generated" is contained in "allOf"
+        if "allOf" in schema:
+            for _index, item in enumerate(schema["allOf"]):
+                if item.get("$ref") == "#/$defs/generated":
+                    # Remove the reference after merging
+                    for i, v in enumerate(schema["allOf"]):
+                        if v.get("$ref") == "#/$defs/generated":
+                            del schema["allOf"][i]
+                            break
+                    # if schema has no description use the multi-lang description
+                    # (pref: en, else first) in the $defs section
+                    if (
+                        "description" not in schema
+                        or schema["description"] is None
+                        or schema["description"] == ""
+                    ):
+                        if (
+                            "description*" in generated_content
+                            and len(generated_content["description*"]) > 0
+                        ):
+                            first_key = list(generated_content["description*"].keys())[
+                                0
+                            ]
+                            schema["description"] = generated_content[
+                                "description*"
+                            ].get("en", generated_content["description*"][first_key])
+                        else:
+                            schema["description"] = generated_content.get("description")
+                    schema = merge_deep(deepcopy(generated_content), schema)
+                    break
+
+        # Remove "generated" from "$defs"
+        schema.get("$defs", {}).pop("generated", None)
+    return schema
+
+
 def escape_json_strings(obj: JsonType) -> JsonType:
     """replace double quotes `"` with escaped double quotes `\"` in
     and non-standard escape-squences in strings.

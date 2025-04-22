@@ -203,6 +203,9 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
         uuid="efad8086-4a76-47ca-b278-f5f944e5754b",
         name="TestCharacteristic",
         label=[model.Label(text="Test Characteristic")],
+        description=[
+            model.Description(text="A test characteristic for the osw python package")
+        ],
         properties=[
             model.PrimitiveProperty(
                 uuid="766e7171-a183-4f9c-a9af-28cfd27fb1d9",

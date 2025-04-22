@@ -30,6 +30,7 @@ from osw.utils.oold import (
     AggregateGeneratedSchemasParamMode,
     aggregate_generated_schemas,
     escape_json_strings,
+    merge_generated_definitions,
 )
 from osw.utils.templates import (
     compile_handlebars_template,
@@ -425,7 +426,10 @@ class OSW(BaseModel):
         else:
             schema_str = ""
             if page.get_slot_content("jsonschema"):
-                schema_str = json.dumps(page.get_slot_content("jsonschema"))
+                schema = merge_generated_definitions(
+                    deepcopy(page.get_slot_content("jsonschema"))
+                )
+                schema_str = json.dumps(schema)
         if (schema_str is None) or (schema_str == ""):
             print(f"Error: Schema {schema_title} does not exist")
             schema_str = "{}"  # empty schema to make reference work

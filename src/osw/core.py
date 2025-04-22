@@ -7,6 +7,7 @@ import pathlib
 import platform
 import re
 import sys
+import warnings
 from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Optional, Type, Union, overload
@@ -17,6 +18,7 @@ import datamodel_code_generator
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
+from pydantic import PydanticDeprecatedSince20
 from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
@@ -513,6 +515,9 @@ class OSW(BaseModel):
                 "
                 )
             else:
+                # suppress deprecation warnings from pydantic
+                # see https://github.com/koxudaxi/datamodel-code-generator/issues/2213
+                warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
                 datamodel_code_generator.generate(
                     input_=pathlib.Path(schema_path),
                     input_file_type="jsonschema",
@@ -530,6 +535,7 @@ class OSW(BaseModel):
                     collapse_root_models=True,
                     reuse_model=True,
                 )
+                warnings.filterwarnings("default", category=PydanticDeprecatedSince20)
 
             # see https://koxudaxi.github.io/datamodel-code-generator/
             # --base-class OswBaseModel: use a custom base class

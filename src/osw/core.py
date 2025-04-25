@@ -18,6 +18,14 @@ import datamodel_code_generator
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
+from oold.generator import Generator
+from oold.model.v1 import (
+    ResolveParam,
+    Resolver,
+    ResolveResult,
+    SetResolverParam,
+    set_resolver,
+)
 from pydantic import PydanticDeprecatedSince20
 from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
@@ -98,6 +106,30 @@ class OSW(BaseModel):
         arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
     site: WtSite
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+
+        # implement resolver backend with osw.load_entity
+        class MyResolver(Resolver):
+
+            osw_obj: OSW
+
+            def resolve(self, request: ResolveParam):
+                print("RESOLVE", request)
+                entities = self.osw_obj.load_entity(
+                    OSW.LoadEntityParam(titles=request.iris)
+                ).entities
+                # create a dict with request.iris as keys and the loaded entities as values
+                # by iterating over both lists
+                nodes = {}
+                for iri, entity in zip(request.iris, entities):
+                    nodes[iri] = entity
+                return ResolveResult(nodes=nodes)
+
+        r = MyResolver(osw_obj=self)
+        set_resolver(SetResolverParam(iri="Item", resolver=r))
+        set_resolver(SetResolverParam(iri="Category", resolver=r))
 
     @property
     def mw_site(self) -> Site:
@@ -396,6 +428,8 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        fetched_schema_titles: Optional[List[str]] = []
+        """keep track of fetched schema titles to prevent recursion"""
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python
@@ -411,6 +445,7 @@ class OSW(BaseModel):
         if fetchSchemaParam is None:
             fetchSchemaParam = OSW._FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
+        fetchSchemaParam.fetched_schema_titles.append(schema_title)
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
         page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[0]
@@ -433,6 +468,12 @@ class OSW(BaseModel):
         if (schema_str is None) or (schema_str == ""):
             print(f"Error: Schema {schema_title} does not exist")
             schema_str = "{}"  # empty schema to make reference work
+
+        generator = Generator()
+        schemas_for_preprocessing = [json.loads(schema_str)]
+        generator.preprocess(schemas_for_preprocessing)
+        schema_str = json.dumps(schemas_for_preprocessing[0])
+
         schema = json.loads(
             schema_str.replace("$ref", "dollarref").replace(
                 # '$' is a special char for root object in jsonpath
@@ -461,10 +502,12 @@ class OSW(BaseModel):
             # print(f"replace {match.value} with {value}")
             if (
                 ref_schema_title != schema_title
+                and ref_schema_title not in fetchSchemaParam.fetched_schema_titles
             ):  # prevent recursion in case of self references
-                self._fetch_schema(
-                    OSW._FetchSchemaParam(schema_title=ref_schema_title, root=False)
-                )  # resolve references recursive
+                _param = fetchSchemaParam.copy()
+                _param.root = False
+                _param.schema_title = ref_schema_title
+                self._fetch_schema(_param)  # resolve references recursive
 
         model_dir_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "model"
@@ -530,7 +573,11 @@ class OSW(BaseModel):
                     # use_default=True,
                     apply_default_values_for_required_fields=True,
                     use_unique_items_as_set=True,
-                    enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+                    # enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+                    enum_field_as_literal="all",
+                    # will create MyEnum(str, Enum) instead of MyEnum(Enum)
+                    use_subclass_enum=True,
+                    set_default_enum_member=True,
                     use_title_as_name=True,
                     use_schema_description=True,
                     use_field_description=True,
@@ -538,6 +585,7 @@ class OSW(BaseModel):
                     use_double_quotes=True,
                     collapse_root_models=True,
                     reuse_model=True,
+                    field_include_all_keys=True,
                 )
                 warnings.filterwarnings("default", category=PydanticDeprecatedSince20)
 

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Literal, Optional, Type, TypeVar, Union
 from uuid import UUID, uuid4
 from warnings import warn
 
+from oold.model.v1 import LinkedBaseModel
 from pydantic.v1 import BaseModel, Field, constr
 
 from osw.custom_types import NoneType
@@ -82,7 +83,7 @@ def custom_isinstance(obj: Union[type, T], class_name: str) -> bool:
 
 
 @_basemodel_decorator
-class OswBaseModel(BaseModel):
+class OswBaseModel(LinkedBaseModel):
 
     class Config:
         """Configuration for the OswBaseModel"""

@@ -380,6 +380,14 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        offline_pages: Optional[Dict[str, WtPage]] = None
+        """pages to be used offline instead of fetching them from the OSW instance"""
+        result_model_path: Optional[Union[str, pathlib.Path]] = None
+        """path to the generated model file, if None,
+        the default path ./model/entity.py is used"""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
         """Loads the given schemas from the OSW instance and auto-generates python
@@ -402,6 +410,8 @@ class OSW(BaseModel):
                     schema_title=schema_title,
                     mode=mode,
                     legacy_generator=fetchSchemaParam.legacy_generator,
+                    offline_pages=fetchSchemaParam.offline_pages,
+                    result_model_path=fetchSchemaParam.result_model_path,
                 )
             )
             first = False
@@ -428,8 +438,16 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        offline_pages: Optional[Dict[str, WtPage]] = None
+        """pages to be used offline instead of fetching them from the OSW instance"""
+        result_model_path: Optional[Union[str, pathlib.Path]] = None
+        """path to the generated model file, if None,
+        the default path ./model/entity.py is used"""
         fetched_schema_titles: Optional[List[str]] = []
         """keep track of fetched schema titles to prevent recursion"""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python
@@ -448,10 +466,20 @@ class OSW(BaseModel):
         fetchSchemaParam.fetched_schema_titles.append(schema_title)
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
-        page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[0]
-        if not page.exists:
-            print(f"Error: Page {schema_title} does not exist")
-            return
+        if (
+            fetchSchemaParam.offline_pages is not None
+            and schema_title in fetchSchemaParam.offline_pages
+        ):
+            print(f"Fetch {schema_title} from offline pages")
+            page = fetchSchemaParam.offline_pages[schema_title]
+        else:
+            print(f"Fetch {schema_title} from online pages")
+            page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[
+                0
+            ]
+            if not page.exists:
+                print(f"Error: Page {schema_title} does not exist")
+                return
         # not only in the JsonSchema namespace the schema is located in the main sot
         # in all other namespaces, the json_schema slot is used
         if schema_title.startswith("JsonSchema:"):
@@ -482,7 +510,6 @@ class OSW(BaseModel):
             )
             # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
         )
-        print(f"Fetch {schema_title}")
 
         jsonpath_expr = parse("$..dollarref")
         for match in jsonpath_expr.find(schema):
@@ -523,6 +550,10 @@ class OSW(BaseModel):
 
         # result_model_path = schema_path.replace(".json", ".py")
         result_model_path = os.path.join(model_dir_path, "entity.py")
+        if fetchSchemaParam.result_model_path:
+            result_model_path = fetchSchemaParam.result_model_path
+            if not isinstance(result_model_path, str):
+                result_model_path = str(result_model_path)
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if root:
             if fetchSchemaParam.legacy_generator:

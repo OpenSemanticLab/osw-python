@@ -217,6 +217,25 @@ class WtSite:
         site = wt.create_site_object(_domain, "", _credentials)
         return cls(WtSite.WtSiteLegacyConfig(site=site))
 
+    @staticmethod
+    def try_and_renew_token(func):
+        """ "Tries to execute the method call. If the auth token has expired already,
+        the token is renewed and the method call is retried.
+
+        This decorator should be used closest to to the funciton definition (before
+        any other decorator).
+        """
+
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except mwclient.errors.APIError:
+                # Refresh token for longer taking processes
+                self._site.get_token("csrf", force=True)
+                return func(self, *args, **kwargs)
+
+        return wrapper
+
     class GetPageParam(OswBaseModel):
         titles: Union[str, List[str]]
         """title string or list of title strings of the pages to download"""
@@ -252,6 +271,7 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True  # allows to use WtPage in type hints
 
+    @try_and_renew_token
     def get_page(self, param: GetPageParam) -> GetPageResult:
         """Downloads a page or a list of pages from the site.
 
@@ -319,6 +339,7 @@ class WtSite:
         return self.GetPageResult(pages=pages, errors=exceptions)
 
     @deprecated("Use get_page instead")
+    @try_and_renew_token
     def get_WtPage(self, title: str = None):
         """Creates a new WtPage object for the given title
            and loads the page from the site if the page already exists.
@@ -341,6 +362,7 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+    @try_and_renew_token
     def get_page_content(self, full_page_titles: List[str]) -> GetPageContentResult:
         get_page_res = self.get_page(WtSite.GetPageParam(titles=full_page_titles))
         contents_dict = {}
@@ -395,6 +417,7 @@ class WtSite:
     class SearchParam(wt.SearchParam):
         pass
 
+    @try_and_renew_token
     def prefix_search(self, text: Union[str, SearchParam]):
         """Send a prefix search request to the site.
 
@@ -409,6 +432,7 @@ class WtSite:
         """
         return wt.prefix_search(self._site, text)
 
+    @try_and_renew_token
     def semantic_search(self, query: Union[str, SearchParam]):
         """Send a swm ask query to the site.
 
@@ -437,6 +461,7 @@ class WtSite:
         dryrun: bool = False
         """if True, no actual changes are made"""
 
+    @try_and_renew_token
     def modify_search_results(
         self,
         mode: str,
@@ -512,6 +537,7 @@ class WtSite:
             if self.parallel is None:
                 self.parallel = False
 
+    @try_and_renew_token
     def upload_page(
         self,
         param: Union[UploadPageParam, "WtPage", List["WtPage"]],
@@ -579,6 +605,7 @@ class WtSite:
             if self.parallel is None:
                 self.parallel = False
 
+    @try_and_renew_token
     def copy_pages(self, param: CopyPagesParam):
         """Copies pages from a source site to this (target) site."""
 
@@ -626,6 +653,7 @@ class WtSite:
             if len(self.page) > 5 and self.parallel is None:
                 self.parallel = True
 
+    @try_and_renew_token
     def delete_page(
         self,
         param: Union["WtPage", List["WtPage"], str, List[str], DeletePageParam],
@@ -697,6 +725,7 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+    @try_and_renew_token
     def create_page_package(self, param: CreatePagePackageParam):
         """Create a page package, which is a locally stored collection of wiki pages
         and their slots, based on a configuration object.
@@ -858,6 +887,7 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+    @try_and_renew_token
     def read_page_package(self, param: ReadPagePackageParam) -> ReadPagePackageResult:
         """Read a page package, which is a locally stored collection of wiki pages and
         their slots' content.
@@ -1007,6 +1037,7 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+    @try_and_renew_token
     def upload_page_package(self, param: UploadPagePackageParam):
         """Uploads a page package to the wiki defined by a list of WtPage objects or
         a storage path.
@@ -1031,6 +1062,7 @@ class WtSite:
         for page in pages:
             page.edit()
 
+    @try_and_renew_token
     def get_file_pages(self, limit: int = 1000000) -> List[str]:
         """Get all file pages in the wiki"""
         full_page_titles = wt.prefix_search(
@@ -1039,6 +1071,7 @@ class WtSite:
         )
         return full_page_titles
 
+    @try_and_renew_token
     def get_file_info_and_usage(
         self,
         page_titles: Union[str, List[str], SearchParam],
@@ -1156,6 +1189,7 @@ class WtSite:
                         )
             return context
 
+    @try_and_renew_token
     def get_jsonld_context_loader(self, params: JsonLdContextLoaderParams = None):
         if params is None:
             params = self.JsonLdContextLoaderParams()
@@ -1274,6 +1308,25 @@ class WtPage:
                             # self._slots_sha1["main"] = revision["sha1"]
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots
+
+    @staticmethod
+    def try_and_renew_token(func):
+        """Tries to execute the method call. If the auth token has expired already,
+        the token is renewed and the method call is retried.
+
+        This decorator should be used closest to to the funciton definition (before
+        any other decorator).
+        """
+
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except mwclient.errors.APIError:
+                # Refresh token for longer taking processes
+                self.wtSite._site.get_token("csrf", force=True)
+                return func(self, *args, **kwargs)
+
+        return wrapper
 
     def parse_main_slot(self):
         """Parses the main slot content of the page
@@ -1646,6 +1699,7 @@ class WtPage:
             if changed:
                 self.changed = True
 
+    @try_and_renew_token
     def delete(self, comment: str = None):
         """Deletes the page from the site
 
@@ -1656,6 +1710,7 @@ class WtPage:
         """
         self._page.delete(comment)
 
+    @try_and_renew_token
     def move(self, new_title: str, comment: str = None, redirect: bool = True):
         """Moves (=renames) the page to a new title
 
@@ -1713,6 +1768,7 @@ class WtPage:
         class Config:
             arbitrary_types_allowed = True
 
+    @try_and_renew_token
     def copy(self, config: CopyPageConfig) -> PageCopyResult:
         if config.comment is None:
             config.comment = f"[bot edit] Copied from {config.source_site.mw_site.host}"
@@ -1874,6 +1930,7 @@ class WtPage:
 
         return package_page
 
+    @try_and_renew_token
     def get_file_info_and_usage(
         self, debug: bool = False
     ) -> Dict[str, Union[str, List[str]]]:
@@ -1894,6 +1951,7 @@ class WtPage:
             title=wt.SearchParam(query=self.title, debug=debug),
         )[0]
 
+    @try_and_renew_token
     def find_file_page_refs_in_slots(self, slots: List[str] = None) -> List[str]:
         """Find all file page references in the content of the given slots."""
         if slots is None:
@@ -1939,6 +1997,7 @@ class WtPage:
                     print("Warning: Error while parsing uuid in editor template")
         return list(set(file_page_refs))
 
+    @try_and_renew_token
     def purge(self):
         """Purge the page from the site cache.
         Triggers a rebuild / refresh of the page.
@@ -1962,6 +2021,7 @@ class WtPage:
         success: bool
         """if true, the export was successful, else false"""
 
+    @try_and_renew_token
     def export_xml(self, config: Optional[ExportConfig] = None) -> ExportResult:
         """Exports the page to XML
 
@@ -2035,6 +2095,7 @@ class WtPage:
         imported_revisions: int
         error_msg: Optional[str] = None
 
+    @try_and_renew_token
     def import_xml(self, config: ImportConfig) -> ImportResult:
         """Imports the page from an XML export
 

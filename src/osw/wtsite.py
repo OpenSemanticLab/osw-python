@@ -217,7 +217,6 @@ class WtSite:
         site = wt.create_site_object(_domain, "", _credentials)
         return cls(WtSite.WtSiteLegacyConfig(site=site))
 
-    @staticmethod
     def try_and_renew_token(func):
         """ "Tries to execute the method call. If the auth token has expired already,
         the token is renewed and the method call is retried.
@@ -1309,7 +1308,6 @@ class WtPage:
                     # todo: set content for slots not in revision["slots"] (use
                     #  SLOTS) --> create empty slots
 
-    @staticmethod
     def try_and_renew_token(func):
         """Tries to execute the method call. If the auth token has expired already,
         the token is renewed and the method call is retried.

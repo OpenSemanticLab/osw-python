@@ -26,6 +26,7 @@ from oold.model.v1 import (
     SetResolverParam,
     set_resolver,
 )
+from oold.utils.codegen import OOLDJsonSchemaParser
 from pydantic import PydanticDeprecatedSince20
 from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
@@ -33,7 +34,6 @@ from pyld import jsonld
 import osw.model.entity as model
 from osw.defaults import params as default_params
 from osw.model.static import OswBaseModel
-from osw.utils.codegen import OOLDJsonSchemaParser
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,

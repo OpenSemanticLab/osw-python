@@ -2,7 +2,7 @@ from copy import deepcopy
 from uuid import UUID
 
 # Legacy imports:
-from osw.model.static import get_full_title, get_namespace, get_title  # noqa: F401
+from opensemantic import get_full_title, get_namespace, get_title  # noqa: F401
 
 
 def get_osw_id(uuid: UUID) -> str:

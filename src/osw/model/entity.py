@@ -8,9 +8,8 @@ from enum import Enum
 from typing import Any, List, Optional, Set, Union
 from uuid import UUID
 
+from opensemantic import OswBaseModel
 from pydantic.v1 import Field, constr
-
-from osw.model.static import OswBaseModel
 
 
 class Level(str, Enum):
@@ -22,7 +21,7 @@ class Level(str, Enum):
 from typing import Type, TypeVar
 from uuid import uuid4
 
-from osw.model.static import Ontology, OswBaseModel
+from opensemantic import OswBaseModel
 
 
 class ReadAccess(OswBaseModel):
@@ -677,9 +676,8 @@ from enum import Enum
 from typing import Any, List, Optional, Set, Union
 from uuid import UUID
 
+from opensemantic import OswBaseModel
 from pydantic.v1 import Field, constr
-
-from osw.model.static import OswBaseModel
 
 Entity.update_forward_refs()
 ObjectStatement.update_forward_refs()

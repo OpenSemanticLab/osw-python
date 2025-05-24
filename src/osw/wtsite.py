@@ -22,6 +22,7 @@ import pyld
 import requests
 from jsonpath_ng.ext import parse
 from mwclient.page import Page as MwPage
+from opensemantic import OswBaseModel
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
 
@@ -29,7 +30,6 @@ import osw.model.page_package as package
 import osw.utils.util as ut
 import osw.wiki_tools as wt
 from osw.auth import CredentialManager
-from osw.model.static import OswBaseModel
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.utils.util import parallelize
 from osw.utils.wiki import get_osw_id

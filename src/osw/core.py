@@ -27,13 +27,13 @@ from oold.model.v1 import (
     set_resolver,
 )
 from oold.utils.codegen import OOLDJsonSchemaParser
+from opensemantic import OswBaseModel
 from pydantic import PydanticDeprecatedSince20
 from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
 from osw.defaults import params as default_params
-from osw.model.static import OswBaseModel
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
@@ -587,7 +587,7 @@ class OSW(BaseModel):
                     --input {schema_path} \
                     --input-file-type jsonschema \
                     --output {temp_model_path} \
-                    --base-class osw.model.static.OswBaseModel \
+                    --base-class opensemantic.OswBaseModel \
                     --use-default \
                     --use-unique-items-as-set \
                     --enum-field-as-literal all \
@@ -614,7 +614,7 @@ class OSW(BaseModel):
                     input_=pathlib.Path(schema_path),
                     input_file_type="jsonschema",
                     output=pathlib.Path(temp_model_path),
-                    base_class="osw.model.static.OswBaseModel",
+                    base_class="opensemantic.OswBaseModel",
                     # use_default=True,
                     apply_default_values_for_required_fields=True,
                     use_unique_items_as_set=True,
@@ -647,7 +647,7 @@ class OSW(BaseModel):
                 # parser = OOLDJsonSchemaParserFixedRefs(
                 #     source=pathlib.Path(schema_path),
 
-                #     base_class="osw.model.static.OswBaseModel",
+                #     base_class="opensemantic.OswBaseModel",
                 #     data_model_type=data_model_types.data_model,
                 #     data_model_root_type=data_model_types.root_model,
                 #     data_model_field_type=data_model_types.field_model,
@@ -720,8 +720,8 @@ class OSW(BaseModel):
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import Type, TypeVar\n"
-                    "from osw.model.static import OswBaseModel, Ontology\n"
-                    # "from osw.model.static import *\n"
+                    "from opensemantic import OswBaseModel\n"
+                    # "from opensemantic import *\n"
                     "\n"
                 )
 

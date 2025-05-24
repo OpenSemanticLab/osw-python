@@ -4,9 +4,7 @@ import re
 from pathlib import Path
 from typing import List, Union
 
-from pydantic.v1 import PrivateAttr, validator
-
-from osw.model.static import BaseModel
+from pydantic.v1 import BaseModel, PrivateAttr, validator
 
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 SRC_PATH = PACKAGE_ROOT_PATH / "src"

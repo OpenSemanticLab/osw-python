@@ -4,13 +4,13 @@ import re
 import uuid
 from typing import Dict, List, Literal, Optional, Type
 
+from opensemantic import OswBaseModel
 from pydantic.v1 import PrivateAttr
 from pyld import jsonld
 from rdflib import Graph
 from typing_extensions import deprecated
 
 from osw.core import OSW, model
-from osw.model.static import OswBaseModel
 from osw.utils.strings import camel_case, pascal_case
 from osw.utils.wiki import get_namespace
 from osw.wtsite import WtSite

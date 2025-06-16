@@ -3,9 +3,9 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
 import yaml
+from opensemantic import OswBaseModel
 from pydantic.v1 import FilePath
 
-from osw.model.static import OswBaseModel
 from osw.utils.util import parallelize
 
 # try import functions from wikitext.py (relies on the extra dependency osw[wikitext])

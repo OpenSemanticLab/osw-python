@@ -1,5 +1,6 @@
 from typing import Optional, Union
 
+from opensemantic import OswBaseModel
 from sqlalchemy import URL, create_engine
 from sqlalchemy import text as sql_text
 from sqlalchemy.engine import Engine
@@ -7,7 +8,6 @@ from sqlalchemy.engine import Engine
 import osw.model.entity as model
 from osw.auth import CredentialManager
 from osw.core import OSW
-from osw.model.static import OswBaseModel
 
 
 class DatabaseController(model.Database):

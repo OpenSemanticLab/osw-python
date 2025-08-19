@@ -112,12 +112,12 @@ class OSW(BaseModel):
         super().__init__(**data)
 
         # implement resolver backend with osw.load_entity
-        class MyResolver(Resolver):
+        class OswDefaultResolver(Resolver):
 
             osw_obj: OSW
 
             def resolve(self, request: ResolveParam):
-                print("RESOLVE", request)
+                # print("RESOLVE", request)
                 entities = self.osw_obj.load_entity(
                     OSW.LoadEntityParam(titles=request.iris)
                 ).entities
@@ -128,9 +128,10 @@ class OSW(BaseModel):
                     nodes[iri] = entity
                 return ResolveResult(nodes=nodes)
 
-        r = MyResolver(osw_obj=self)
+        r = OswDefaultResolver(osw_obj=self)
         set_resolver(SetResolverParam(iri="Item", resolver=r))
         set_resolver(SetResolverParam(iri="Category", resolver=r))
+        set_resolver(SetResolverParam(iri="Property", resolver=r))
 
     @property
     def mw_site(self) -> Site:
@@ -507,7 +508,9 @@ class OSW(BaseModel):
 
         generator = Generator()
         schemas_for_preprocessing = [json.loads(schema_str)]
-        generator.preprocess(schemas_for_preprocessing)
+        generator.preprocess(
+            Generator.GenerateParams(json_schemas=schemas_for_preprocessing)
+        )
         schema_str = json.dumps(schemas_for_preprocessing[0])
 
         schema = json.loads(

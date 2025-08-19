@@ -372,6 +372,17 @@ class PagePackageController(model.PagePackageMetaData):
         offline_pages: Optional[Dict[str, WtPage]] = None
         """A dictionary of pages that are already loaded. Pages in this dictionary
         will not be fetched again."""
+        prefer_local_pages: bool = False
+        """Load the pages from the local working directory
+        instead of the server if set to True."""
+        generate_python_code: bool = False
+        """Whether to generate python code for the data models."""
+        python_code_working_dir: Optional[Union[str, Path]] = None
+        """Working directory for python code generation. If set, pydantic v2 data models
+        will be generated in this directory, v1 models in a /v1 subdirectory.
+        """
+        python_code_filename: Optional[str] = "_model_generated.py"
+        """Filename for the generated python code."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -418,6 +429,57 @@ class PagePackageController(model.PagePackageMetaData):
                 )
             },
         )
+
+        offline_pages = creation_config.offline_pages
+        local_pages = {}
+        if creation_config.prefer_local_pages:
+            # Read the local pages from the package
+            result = wtsite.read_page_package(
+                WtSite.ReadPagePackageParam(
+                    package_name=self.name,
+                    storage_path=Path(creation_config.working_dir),
+                )
+            )
+            local_pages = {p.title: p for p in result.pages}
+            if offline_pages is None:
+                offline_pages = local_pages
+            else:
+                # Merge the local pages with the offline pages
+                offline_pages.update(local_pages)
+
+        if (
+            creation_config.generate_python_code
+            and creation_config.python_code_working_dir is not None
+        ):
+            python_code_path = Path(creation_config.python_code_working_dir)
+            python_code_path /= creation_config.python_code_filename
+            schema_titles = self.page_titles
+            # remove duplicates and entries in ignore_titles
+            schema_titles = list(
+                set(schema_titles)
+                - (
+                    set(creation_config.ignore_titles)
+                    if creation_config.ignore_titles
+                    else set()
+                )
+            )
+            # remove all schemas that do not start with "Category:"
+            schema_titles = [
+                title for title in schema_titles if title.startswith("Category:")
+            ]
+            from osw.core import OSW
+
+            osw_obj = OSW(site=wtsite)
+
+            osw_obj.fetch_schema(
+                fetchSchemaParam=OSW.FetchSchemaParam(
+                    schema_title=schema_titles,
+                    offline_pages=offline_pages,
+                    result_model_path=python_code_path,
+                    mode="replace",
+                )
+            )
+
         # Create a PagePackageConfig instance
         config = package.PagePackageConfig(
             name=self.name,
@@ -432,7 +494,7 @@ class PagePackageController(model.PagePackageMetaData):
         wtsite.create_page_package(
             WtSite.CreatePagePackageParam(
                 config=config,
-                offline_pages=creation_config.offline_pages,
+                offline_pages=offline_pages,
             )
         )
 

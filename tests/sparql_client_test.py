@@ -1,6 +1,6 @@
 from osw.sparql_client_smw import SmwSparqlClient
 
-domain = "onterface.open-semantic-lab.org"
+domain = "demo.open-semantic-lab.org"
 
 
 def test_sparql_client():

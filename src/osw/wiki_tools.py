@@ -136,6 +136,7 @@ class SearchParam(OswBaseModel):
     parallel: Optional[bool] = None  # is set to true if query is a list longer than 5
     debug: Optional[bool] = False
     limit: Optional[int] = 1000
+    return_json: Optional[bool] = False
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -208,7 +209,7 @@ def prefix_search(
 
 def semantic_search(
     site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
-) -> List[str]:
+) -> Union[List[str], List[dict]]:
     """Semantic query
 
     Parameters
@@ -240,6 +241,9 @@ def semantic_search(
                         single_query, len(result["query"]["results"])
                     )
                 )
+            if query.return_json:
+                return result
+
             for page in result["query"]["results"].values():
                 title = page["fulltext"]
                 exists = page["exists"]

@@ -64,6 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        id: setup-python
         with:
           python-version: ${{ matrix.python }}
       - name: Retrieve pre-built distribution files
@@ -71,8 +72,8 @@ jobs:
         with: {name: python-distribution-files, path: dist/}
       - name: Run tests
         run: >-
-          pipx run tox -e test
-          --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
+          pipx run --python '${{ steps.setup-python.outputs.python-path }}'
+          tox -e test --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
           -- -rFEx --durations 10 --color yes
           --wiki_domain "${{ secrets.INTEGR_TEST_WIKI_DOMAIN }}"
           --wiki_username "${{ secrets.INTEGR_TEST_WIKI_USERNAME }}"
@@ -103,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - name: Retrieve pre-built distribution files
         uses: actions/download-artifact@v4

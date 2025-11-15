@@ -4,9 +4,7 @@ import re
 from pathlib import Path
 from typing import List, Union
 
-from pydantic.v1 import PrivateAttr, validator
-
-from osw.model.static import OswBaseModel
+from pydantic.v1 import BaseModel, PrivateAttr, validator
 
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 SRC_PATH = PACKAGE_ROOT_PATH / "src"
@@ -18,7 +16,7 @@ CRED_FILEPATH_DEFAULT = OSW_FILES_DIR_DEFAULT / CRED_FILENAME_DEFAULT
 WIKI_DOMAIN_DEFAULT = "wiki-dev.open-semantic-lab.org"
 
 
-class FilePathDefault(OswBaseModel):
+class FilePathDefault(BaseModel):
     """A class to store the default file path. This is a helper class to make the
     default file path, defined within this module, accessible from a calling script."""
 
@@ -53,7 +51,7 @@ class FilePathDefault(OswBaseModel):
         return self._default
 
 
-class Defaults(OswBaseModel):
+class Defaults(BaseModel):
     """Helper class to create an inheriting classes for storing default values."""
 
     _changed: List[str] = PrivateAttr(default_factory=list)

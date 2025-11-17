@@ -69,8 +69,8 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
     end_time = time.time()
     print(f"Time taken to fetch 50 Category pages: {end_time - start_time}")
     assert (
-        end_time - start_time < 15
-    )  # typically takes 3.5 (dask) or 2.7 (asyncio) seconds
+        end_time - start_time < 60
+    )  # typically takes 3.5 (dask) or 2.7 (asyncio) seconds, > 20 s in win CI
 
     assert len(result.pages) == 50
 

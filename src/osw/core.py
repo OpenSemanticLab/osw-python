@@ -18,14 +18,14 @@ import datamodel_code_generator
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
-from oold.generator import Generator
-from oold.model.v1 import (
+from oold.backend.interface import (
     ResolveParam,
     Resolver,
     ResolveResult,
     SetResolverParam,
     set_resolver,
 )
+from oold.generator import Generator
 from oold.utils.codegen import OOLDJsonSchemaParser
 from opensemantic import OswBaseModel
 from pydantic import PydanticDeprecatedSince20
@@ -114,11 +114,17 @@ class OSW(BaseModel):
         # implement resolver backend with osw.load_entity
         class OswDefaultResolver(Resolver):
 
-            osw_obj: OSW
+            # oold.backend.interface is pydantic v2, so we cannot use
+            # our v1 OSW model as attribute directly
+            osw_obj: Any
+
+            def resolve_iris(self, iris: List[str]) -> dict[str, dict]:
+                pass
 
             def resolve(self, request: ResolveParam):
                 # print("RESOLVE", request)
-                entities = self.osw_obj.load_entity(
+                osw_obj: OSW = self.osw_obj
+                entities = osw_obj.load_entity(
                     OSW.LoadEntityParam(titles=request.iris)
                 ).entities
                 # create a dict with request.iris as keys and the loaded entities as values
@@ -621,8 +627,7 @@ class OSW(BaseModel):
                     # use_default=True,
                     apply_default_values_for_required_fields=True,
                     use_unique_items_as_set=True,
-                    # enum_field_as_literal=datamodel_code_generator.LiteralType.All,
-                    enum_field_as_literal="all",
+                    enum_field_as_literal=datamodel_code_generator.LiteralType.Off,
                     # will create MyEnum(str, Enum) instead of MyEnum(Enum)
                     use_subclass_enum=True,
                     set_default_enum_member=True,
@@ -634,6 +639,7 @@ class OSW(BaseModel):
                     collapse_root_models=True,
                     reuse_model=True,
                     field_include_all_keys=True,
+                    allof_class_hierarchy=datamodel_code_generator.AllOfClassHierarchy.Always,
                 )
                 warnings.filterwarnings("default", category=PydanticDeprecatedSince20)
 

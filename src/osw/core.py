@@ -519,14 +519,7 @@ class OSW(BaseModel):
         )
         schema_str = json.dumps(schemas_for_preprocessing[0])
 
-        schema = json.loads(
-            schema_str.replace("$ref", "dollarref").replace(
-                # '$' is a special char for root object in jsonpath
-                '"allOf": [',
-                '"allOf": [{},',
-            )
-            # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
-        )
+        schema = json.loads(schema_str.replace("$ref", "dollarref"))
 
         jsonpath_expr = parse("$..dollarref")
         for match in jsonpath_expr.find(schema):
@@ -724,6 +717,71 @@ class OSW(BaseModel):
             # --output-model-type pydantic_v2.BaseModel fixes that but generated models
             # are not v1 compatible mainly by using update_model()
             content = re.sub(r"(,?\s*unique_items=True\s*)", "", content)
+
+            # Detect empty subclasses, replaces their occurrences with base classes,
+            # and removes the empty class definitions.
+            # Only processes subclasses that follow naming patterns:
+            # - BaseclassModel (e.g., DescriptionModel extends Description)
+            # - Baseclass<number> (e.g., Label1, Label2 extend Label)
+
+            # Pattern to match empty subclasses
+            # Matches: class SubClass(BaseClass):
+            # followed by optional whitespace/docstring and pass
+            pattern = "".join(
+                (
+                    r"class\s+",  # 'class' keyword
+                    r"(\w+)",  # capture subclass name
+                    r"\s*\(\s*",  # opening parenthesis
+                    r"(\w+)",  # capture base class name
+                    r"\s*\)\s*:",  # closing parenthesis and colon
+                    r"\s*",  # optional whitespace
+                    r'(?:\n\s*(?:""".*?"""|\'\'\'.*?\'\'\')'
+                    # optional docstring (triple quotes)
+                    r"\s*)?",  # end optional docstring
+                    r"\n\s*pass\s*",  # pass statement
+                    r"(?:\n|$)",  # newline or end of string
+                )
+            )
+
+            # Find all empty subclasses
+            matches = list(re.finditer(pattern, content, re.MULTILINE | re.DOTALL))
+
+            # Filter matches based on naming patterns
+            valid_matches = []
+            for match in matches:
+                subclass_name = match.group(1)
+                base_class_name = match.group(2)
+
+                # Check if subclass follows the naming patterns
+                if (
+                    subclass_name == base_class_name + "Model"  # BaseclassModel pattern
+                    or re.match(
+                        rf"^{re.escape(base_class_name)}\d+$", subclass_name
+                    )  # Baseclass<number> pattern
+                ):
+                    valid_matches.append(match)
+
+            content = content
+            replacements = []
+
+            # Process matches in reverse order to avoid offset issues when removing
+            for match in reversed(valid_matches):
+                subclass_name = match.group(1)
+                base_class_name = match.group(2)
+                replacements.append((subclass_name, base_class_name))
+
+                # Remove the entire class definition
+                start, end = match.span()
+                # Also remove any trailing newlines to avoid extra blank lines
+                while end < len(content) and content[end] == "\n":
+                    end += 1
+
+                content = content[:start] + content[end:]
+
+            # Replace all occurrences of subclass names with base class names
+            for subclass_name, base_class_name in reversed(replacements):
+                pattern_replace = r"\b" + re.escape(subclass_name) + r"\b"
+                content = re.sub(pattern_replace, base_class_name, content)
 
             if fetchSchemaParam.mode == "replace":
                 header = (

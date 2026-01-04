@@ -251,6 +251,11 @@ class WtSite:
         """Whether to raise an exception if an error occurs"""
         raise_warning: Optional[bool] = True
         """Whether to raise a warning if a page does not exist occurs"""
+        offline_pages: Optional[Dict[str, "WtPage"]] = None
+        """pages to be used offline instead of fetching them from the OSW instance"""
+
+        class Config:
+            arbitrary_types_allowed = True  # allows to use WtPage in type hints
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -292,7 +297,11 @@ class WtSite:
                 if index is not None:
                     msg = f"({index + 1}/{max_index}) "
                 try:
-                    if self._cache_enabled and title in self._page_cache:
+                    if param.offline_pages and title in param.offline_pages:
+                        wtpage = param.offline_pages[title]
+                        wtpage.exists = True
+                        msg += "Page loaded from offline pages. "
+                    elif self._cache_enabled and title in self._page_cache:
                         wtpage = self._page_cache[title]
                         msg += "Page loaded from cache. "
                     else:
@@ -957,9 +966,16 @@ class WtSite:
             search_path=storage_path, recursive=True
         )
         sub_dirs = top_level_content["directories"]
-        if len(top_level_content["directories"]) == 0:
+        if len(sub_dirs) == 0:
             # No subdirectories found, assume that the pages files are located in the
             #  top level
+            sub_dirs = [storage_path]
+
+        # if subdirs are namespaces, skip them as well
+        if any(
+            d.name in ["Category", "Item", "File", "Module"]
+            for d in storage_path_content["directories"]
+        ):
             sub_dirs = [storage_path]
 
         def get_slot_content(
@@ -968,7 +984,7 @@ class WtSite:
             files_in_storage_path: List[Path],
         ) -> Union[str, Dict]:
             for pdir in parent_dir:
-                slot_path = storage_path / pdir / url_path
+                slot_path = pdir / url_path
                 if slot_path in files_in_storage_path:
                     with open(slot_path, "r", encoding="utf-8") as f:
                         file_content = f.read()
@@ -1000,6 +1016,18 @@ class WtSite:
                         for slot_name, slot_dict in page["slots"].items()
                         if slot_name in selected_slots
                     }
+                if "main" in _selected_slots:
+                    # Main slot is special
+                    slot_content = get_slot_content(
+                        parent_dir=sub_dirs,
+                        url_path=page["urlPath"],
+                        files_in_storage_path=storage_path_content["files"],
+                    )
+                    if slot_content is not None:
+                        page_obj.set_slot_content(
+                            slot_key="main",
+                            content=slot_content,
+                        )
                 for slot_name, slot_dict in _selected_slots.items():
                     if slot_name == "main":
                         # Main slot is special
@@ -1131,6 +1159,12 @@ class WtSite:
         prefer_external_vocal: Optional[bool] = True
         """Whether to prefer external vocabularies (e.g. skos, schema, etc.)
         over the local properties (Namespace 'Property:')"""
+        offline_pages: Optional[Dict[str, "WtPage"]] = None
+        """A dictionary of pages that are already loaded. Pages in this dictionary
+        will not be fetched again."""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def _replace_jsonld_context_mapping(
         self, context: Union[str, list, dict], config: JsonLdContextLoaderParams
@@ -1208,7 +1242,11 @@ class WtSite:
             # print("Requesting", url)
             if "/wiki/" in url:
                 title = url.split("/wiki/")[-1].split("?")[0]
-                page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
+                page = self.get_page(
+                    WtSite.GetPageParam(
+                        titles=[title], offline_pages=params.offline_pages
+                    )
+                ).pages[0]
                 if "JsonSchema:" in title:
                     schema = page.get_slot_content("main")
                 else:
@@ -2183,8 +2221,10 @@ class WtPage:
 WtPage.PageCopyResult.update_forward_refs()
 WtSite.CopyPagesParam.update_forward_refs()
 WtSite.UploadPageParam.update_forward_refs()
+WtSite.GetPageParam.update_forward_refs()
 WtSite.GetPageResult.update_forward_refs()
 WtSite.CreatePagePackageParam.update_forward_refs()
 WtSite.UploadPagePackageParam.update_forward_refs()
 WtSite.ReadPagePackageResult.update_forward_refs()
 WtSite.DeletePageParam.update_forward_refs()
+WtSite.JsonLdContextLoaderParams.update_forward_refs()

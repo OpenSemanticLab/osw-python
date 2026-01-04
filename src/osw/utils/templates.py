@@ -65,6 +65,47 @@ def helper_join(this, options, context, separator=None, intro=None, outro=None):
     return intro + separator.join(items) + outro
 
 
+def helper_replace(this, options, find, replace, flags=None):
+    """
+    Replace text in block content with plain string or regex
+
+    Plain string replacement:
+    {{#replace "old" "new"}}text{{/replace}}
+
+    Regex replacement (with flags):
+    {{#replace "(\\d{3})-(\\d{3})-(\\d{4})" "(\\1) \\2-\\3" "g"}}555-123-4567{{/replace}}
+
+    Note: Use \\1, \\2 for capture groups in Python templates
+    (or $1, $2 will be auto-converted from JavaScript style)
+    """
+
+    # Get the block content
+    string = "".join(options["fn"](this))
+
+    # If flags provided, use regex mode
+    if flags:
+        # Convert JavaScript flags to Python re flags
+        re_flags = 0
+        if "i" in flags:
+            re_flags |= re.IGNORECASE
+        if "m" in flags:
+            re_flags |= re.MULTILINE
+        if "s" in flags:
+            re_flags |= re.DOTALL
+        # Note: 'g' flag is implicit in Python's re.sub (replaces all by default)
+
+        # Convert JavaScript-style backreferences ($1, $2) to Python style (\1, \2)
+        replace_python = re.sub(r"\$(\d+)", r"\\\1", replace)
+        replace_python = replace_python.replace("$&", r"\g<0>")  # Full match
+
+        # Use re.sub
+        result = re.sub(find, replace_python, string, flags=re_flags)
+        return result
+
+    # Default: plain string replacement (replace all occurrences)
+    return string.replace(find, replace)
+
+
 def eval_compiled_handlebars_template(
     compiled_template, data, helpers=None, partials=None, add_self_as_partial=True
 ):
@@ -90,6 +131,7 @@ def eval_compiled_handlebars_template(
 
     default_helpers = {
         "join": helper_join,
+        "replace": helper_replace,
     }
     if helpers is None:
         helpers = {}

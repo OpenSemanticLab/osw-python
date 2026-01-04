@@ -1,3 +1,4 @@
+import datetime
 import sys
 from pathlib import Path
 
@@ -263,3 +264,63 @@ def test_characteristic_creation(wiki_domain, wiki_username, wiki_password):
     # )  # namespace detection fails otherwise
     # osw.delete_entity(my_characteristic)
     # pp.delete()
+
+
+def test_metaclass(wiki_domain, wiki_username, wiki_password):
+    cm = CredentialManager()
+    cm.add_credential(
+        CredentialManager.UserPwdCredential(
+            iri=wiki_domain, username=wiki_username, password=wiki_password
+        )
+    )
+    wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
+    osw = OSW(site=wtsite)
+
+    osw.fetch_schema(
+        OSW.FetchSchemaParam(
+            schema_title=[
+                "Category:OSWc11438cd6c814ed1a5a253555ee351b4",  # ProcessType
+            ],
+            mode="replace",
+        )
+    )
+
+    # Create a characteristic as instance of ProcessType
+    my_process = model.ProcessType(
+        uuid="1a78f9b2-ae5f-4769-85ab-78070795939b",
+        name="TestProcess",
+        subclass_of=["Category:OSWe5aa96bffb1c4d95be7fbd46142ad203"],  # Process
+        label=[model.Label(text="Test Process")],
+        description=[
+            model.Description(text="A test process for the osw python package")
+        ],
+        status_default="Item:OSWa2b4567ad4874ea1b9adfed19a3d06d1",  # InWork
+        start_date_time_default=datetime.datetime.fromisoformat("2024-01-01T00:00:00"),
+    )
+
+    # store it as instance, which generates the schema
+    # note: namespace and meta_category should be detected automatically in the future
+    osw.store_entity(
+        OSW.StoreEntityParam(
+            entities=[my_process],
+            namespace="Category",
+            # meta_category_title=model.ProcessType.get_iri(),
+            meta_category_title="Category:OSWc11438cd6c814ed1a5a253555ee351b4",
+            overwrite=OverwriteOptions.true,
+        )
+    )
+
+    # load the characteristic as category
+    osw.fetch_schema(
+        OSW.FetchSchemaParam(
+            schema_title=["Category:" + my_process.get_osw_id()],
+            mode="append",
+        )
+    )
+
+    # create an instance of the characteristic
+    t = model.TestProcess(label=[model.Label(text="Test Instance")])
+    assert t.status == "Item:OSWa2b4567ad4874ea1b9adfed19a3d06d1"
+    # not working yet - would require
+    # start_date_time: Optional[datetime] = datetime.fromisoformat("2024-01-01T00:00:00")
+    # assert t.start_date_time == datetime.datetime.fromisoformat("2024-01-01T00:00:00")

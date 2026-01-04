@@ -365,3 +365,164 @@ def test_raw_block():
     output = json.loads(res)
 
     assert output == json.loads(expected)
+
+
+def test_replace_helper():
+    """
+    # Plain string
+
+    {{#replace "old" "new"}}old text old{{/replace}}
+
+    # Regex with capture groups (Python style)
+
+    {{#replace "(\\d{3})-(\\d{3})-(\\d{4})" "(\\1) \\2-\\3" "g"}}555-123-4567{{/replace}}
+
+    # Regex with capture groups (JavaScript style - auto-converted)
+
+    {{#replace "(\\d{3})-(\\d{3})-(\\d{4})" "($1) $2-$3" "g"}}555-123-4567{{/replace}}
+
+    # Trim whitespace and underscores
+
+    {{#replace "^[\\s_]+|[\\s_]+$" "" "g"}}  __text__  {{/replace}}
+    """
+
+    template = """{{#replace "old" "new"}}old text old{{/replace}}"""
+    expected_plain = "new text new"
+    output_plain = eval_handlebars_template(template, {})
+    assert output_plain == expected_plain
+
+    template = r"""{{#replace "(\d{3})-(\d{3})-(\d{4})" "(\1) \2-\3" "g"}}555-123-4567{{/replace}}"""
+    expected_regex = "(555) 123-4567"
+    output_regex = eval_handlebars_template(template, {})
+    assert output_regex == expected_regex
+
+    template = r"""{{#replace "(\d{3})-(\d{3})-(\d{4})" "($1) $2-$3" "g"}}555-123-4567{{/replace}}"""
+    expected_js_regex = "(555) 123-4567"
+    output_js_regex = eval_handlebars_template(template, {})
+    assert output_js_regex == expected_js_regex
+
+    template = r"""{{#replace "^[\s_]+|[\s_]+$" "" "g"}}  __text__  {{/replace}}"""
+    expected_trim = "text"
+    output_trim = eval_handlebars_template(template, {})
+    assert output_trim == expected_trim
+
+
+def test_metamodel_with_replace_helper():
+    template = """
+    {
+        "title": "{{{name}}}",
+        "defaultProperties": [{{#replace "^[\s]*,+|,+[\s]*$" "" "g"}}{{!-- Trim leading and trailing whitespace + comma --}}{{#if positive_electrode}}
+            "positive_electrode",{{/if}}{{#if negative_electrode}}
+            "negative_electrode",{{/if}}{{#if reference_electrode}}
+            "reference_electrode",{{/if}}{{/replace}}
+        ],
+        "properties": { {{#replace "^[\s]*,+|,+[\s]*$" "" "g"}}{{!-- Trim leading and trailing whitespace + comma --}}{{#if positive_electrode}}
+            "positive_electrode": {
+                "range": "{{{positive_electrode}}}"
+            },{{/if}}{{#if negative_electrode}}
+            "negative_electrode": {
+                "range": "{{{negative_electrode}}}"
+            },{{/if}}{{#if reference_electrode}}
+            "reference_electrode": {
+                "range": "{{{reference_electrode}}}"
+            },{{/if}}{{/replace}}
+        }
+    }
+    """
+
+    data_1 = {
+        "name": "test",
+        "reference_electrode": "a",
+        "positive_electrode": "b",
+        "negative_electrode": "c",
+    }
+
+    expected_1 = {
+        "title": "test",
+        "defaultProperties": [
+            "positive_electrode",
+            "negative_electrode",
+            "reference_electrode",
+        ],
+        "properties": {
+            "positive_electrode": {"range": "b"},
+            "negative_electrode": {"range": "c"},
+            "reference_electrode": {"range": "a"},
+        },
+    }
+
+    output_1 = json.loads(eval_handlebars_template(template, data_1))
+    assert output_1 == expected_1
+
+    data_2 = {
+        "name": "test",
+        "reference_electrode": "",
+        "negative_electrode": "",
+    }
+    expected_2 = {
+        "title": "test",
+        "defaultProperties": [
+            # Empty
+        ],
+        "properties": {
+            # Empty
+        },
+    }
+    output_2 = json.loads(eval_handlebars_template(template, data_2))
+    assert output_2 == expected_2
+
+    data_3 = {
+        "name": "test",
+        "reference_electrode": "a",
+        "positive_electrode": "",
+        "negative_electrode": "c",
+    }
+    expected_3 = {
+        "title": "test",
+        "defaultProperties": ["negative_electrode", "reference_electrode"],
+        "properties": {
+            "negative_electrode": {"range": "c"},
+            "reference_electrode": {"range": "a"},
+        },
+    }
+
+    output_3 = json.loads(eval_handlebars_template(template, data_3))
+    assert output_3 == expected_3
+
+    data_4 = {
+        "name": "test",
+        "reference_electrode": "",
+        "positive_electrode": "b",
+        "negative_electrode": "c",
+    }
+
+    expected_4 = {
+        "title": "test",
+        "defaultProperties": ["positive_electrode", "negative_electrode"],
+        "properties": {
+            "positive_electrode": {"range": "b"},
+            "negative_electrode": {"range": "c"},
+        },
+    }
+
+    output_4 = json.loads(eval_handlebars_template(template, data_4))
+    assert output_4 == expected_4
+
+    data_5 = {
+        "name": "test",
+        "reference_electrode": "a",
+        "positive_electrode": "b",
+        "negative_electrode": "",
+    }
+
+    expected_5 = {
+        "title": "test",
+        "defaultProperties": ["positive_electrode", "reference_electrode"],
+        "properties": {
+            "positive_electrode": {"range": "b"},
+            "reference_electrode": {"range": "a"},
+        },
+    }
+
+    output_5 = json.loads(eval_handlebars_template(template, data_5))
+    assert output_5 == expected_5

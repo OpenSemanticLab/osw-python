@@ -6,5 +6,5 @@
 #
 # from pydantic import validator
 #
-# from osw.model.static import OswBaseModel
+# from opensemantic import OswBaseModel
 # from osw.utils.strings import *

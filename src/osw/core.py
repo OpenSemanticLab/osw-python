@@ -18,13 +18,22 @@ import datamodel_code_generator
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
+from oold.backend.interface import (
+    ResolveParam,
+    Resolver,
+    ResolveResult,
+    SetResolverParam,
+    set_resolver,
+)
+from oold.generator import Generator
+from oold.utils.codegen import OOLDJsonSchemaParser
+from opensemantic import OswBaseModel
 from pydantic import PydanticDeprecatedSince20
 from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
 from osw.defaults import params as default_params
-from osw.model.static import OswBaseModel
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
@@ -98,6 +107,37 @@ class OSW(BaseModel):
         arbitrary_types_allowed = True  # necessary to allow e.g. np.array as type
 
     site: WtSite
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+
+        # implement resolver backend with osw.load_entity
+        class OswDefaultResolver(Resolver):
+
+            # oold.backend.interface is pydantic v2, so we cannot use
+            # our v1 OSW model as attribute directly
+            osw_obj: Any
+
+            def resolve_iris(self, iris: List[str]) -> dict[str, dict]:
+                pass
+
+            def resolve(self, request: ResolveParam):
+                # print("RESOLVE", request)
+                osw_obj: OSW = self.osw_obj
+                entities = osw_obj.load_entity(
+                    OSW.LoadEntityParam(titles=request.iris)
+                ).entities
+                # create a dict with request.iris as keys and the loaded entities as values
+                # by iterating over both lists
+                nodes = {}
+                for iri, entity in zip(request.iris, entities):
+                    nodes[iri] = entity
+                return ResolveResult(nodes=nodes)
+
+        r = OswDefaultResolver(osw_obj=self)
+        set_resolver(SetResolverParam(iri="Item", resolver=r))
+        set_resolver(SetResolverParam(iri="Category", resolver=r))
+        set_resolver(SetResolverParam(iri="Property", resolver=r))
 
     @property
     def mw_site(self) -> Site:
@@ -348,6 +388,17 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        generate_annotations: Optional[bool] = True
+        """generate custom schema keywords in Fields and Classes.
+        Required to update the schema in OSW without information loss"""
+        offline_pages: Optional[Dict[str, WtPage]] = None
+        """pages to be used offline instead of fetching them from the OSW instance"""
+        result_model_path: Optional[Union[str, pathlib.Path]] = None
+        """path to the generated model file, if None,
+        the default path ./model/entity.py is used"""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
         """Loads the given schemas from the OSW instance and auto-generates python
@@ -370,6 +421,9 @@ class OSW(BaseModel):
                     schema_title=schema_title,
                     mode=mode,
                     legacy_generator=fetchSchemaParam.legacy_generator,
+                    generate_annotations=fetchSchemaParam.generate_annotations,
+                    offline_pages=fetchSchemaParam.offline_pages,
+                    result_model_path=fetchSchemaParam.result_model_path,
                 )
             )
             first = False
@@ -396,6 +450,19 @@ class OSW(BaseModel):
         )
         legacy_generator: Optional[bool] = False
         """uses legacy command line for code generation if true"""
+        generate_annotations: Optional[bool] = False
+        """generate custom schema keywords in Fields and Classes.
+        Required to update the schema in OSW without information loss"""
+        offline_pages: Optional[Dict[str, WtPage]] = None
+        """pages to be used offline instead of fetching them from the OSW instance"""
+        result_model_path: Optional[Union[str, pathlib.Path]] = None
+        """path to the generated model file, if None,
+        the default path ./model/entity.py is used"""
+        fetched_schema_titles: Optional[List[str]] = []
+        """keep track of fetched schema titles to prevent recursion"""
+
+        class Config:
+            arbitrary_types_allowed = True
 
     def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
         """Loads the given schema from the OSW instance and autogenerates python
@@ -411,12 +478,23 @@ class OSW(BaseModel):
         if fetchSchemaParam is None:
             fetchSchemaParam = OSW._FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
+        fetchSchemaParam.fetched_schema_titles.append(schema_title)
         root = fetchSchemaParam.root
         schema_name = schema_title.split(":")[-1]
-        page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[0]
-        if not page.exists:
-            print(f"Error: Page {schema_title} does not exist")
-            return
+        if (
+            fetchSchemaParam.offline_pages is not None
+            and schema_title in fetchSchemaParam.offline_pages
+        ):
+            print(f"Fetch {schema_title} from offline pages")
+            page = fetchSchemaParam.offline_pages[schema_title]
+        else:
+            print(f"Fetch {schema_title} from online pages")
+            page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[
+                0
+            ]
+            if not page.exists:
+                print(f"Error: Page {schema_title} does not exist")
+                return
         # not only in the JsonSchema namespace the schema is located in the main sot
         # in all other namespaces, the json_schema slot is used
         if schema_title.startswith("JsonSchema:"):
@@ -433,15 +511,15 @@ class OSW(BaseModel):
         if (schema_str is None) or (schema_str == ""):
             print(f"Error: Schema {schema_title} does not exist")
             schema_str = "{}"  # empty schema to make reference work
-        schema = json.loads(
-            schema_str.replace("$ref", "dollarref").replace(
-                # '$' is a special char for root object in jsonpath
-                '"allOf": [',
-                '"allOf": [{},',
-            )
-            # fix https://github.com/koxudaxi/datamodel-code-generator/issues/1910
+
+        generator = Generator()
+        schemas_for_preprocessing = [json.loads(schema_str)]
+        generator.preprocess(
+            Generator.GenerateParams(json_schemas=schemas_for_preprocessing)
         )
-        print(f"Fetch {schema_title}")
+        schema_str = json.dumps(schemas_for_preprocessing[0])
+
+        schema = json.loads(schema_str.replace("$ref", "dollarref"))
 
         jsonpath_expr = parse("$..dollarref")
         for match in jsonpath_expr.find(schema):
@@ -461,10 +539,12 @@ class OSW(BaseModel):
             # print(f"replace {match.value} with {value}")
             if (
                 ref_schema_title != schema_title
+                and ref_schema_title not in fetchSchemaParam.fetched_schema_titles
             ):  # prevent recursion in case of self references
-                self._fetch_schema(
-                    OSW._FetchSchemaParam(schema_title=ref_schema_title, root=False)
-                )  # resolve references recursive
+                _param = fetchSchemaParam.copy()
+                _param.root = False
+                _param.schema_title = ref_schema_title
+                self._fetch_schema(_param)  # resolve references recursive
 
         model_dir_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "model"
@@ -480,6 +560,10 @@ class OSW(BaseModel):
 
         # result_model_path = schema_path.replace(".json", ".py")
         result_model_path = os.path.join(model_dir_path, "entity.py")
+        if fetchSchemaParam.result_model_path:
+            result_model_path = fetchSchemaParam.result_model_path
+            if not isinstance(result_model_path, str):
+                result_model_path = str(result_model_path)
         temp_model_path = os.path.join(model_dir_path, "temp.py")
         if root:
             if fetchSchemaParam.legacy_generator:
@@ -505,7 +589,7 @@ class OSW(BaseModel):
                     --input {schema_path} \
                     --input-file-type jsonschema \
                     --output {temp_model_path} \
-                    --base-class osw.model.static.OswBaseModel \
+                    --base-class opensemantic.OswBaseModel \
                     --use-default \
                     --use-unique-items-as-set \
                     --enum-field-as-literal all \
@@ -522,15 +606,24 @@ class OSW(BaseModel):
                 # suppress deprecation warnings from pydantic
                 # see https://github.com/koxudaxi/datamodel-code-generator/issues/2213
                 warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
+
+                if fetchSchemaParam.generate_annotations:
+                    # monkey patch class
+                    datamodel_code_generator.parser.jsonschema.JsonSchemaParser = (
+                        OOLDJsonSchemaParser
+                    )
                 datamodel_code_generator.generate(
                     input_=pathlib.Path(schema_path),
                     input_file_type="jsonschema",
                     output=pathlib.Path(temp_model_path),
-                    base_class="osw.model.static.OswBaseModel",
+                    base_class="opensemantic.OswBaseModel",
                     # use_default=True,
                     apply_default_values_for_required_fields=True,
                     use_unique_items_as_set=True,
-                    enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+                    enum_field_as_literal=datamodel_code_generator.LiteralType.Off,
+                    # will create MyEnum(str, Enum) instead of MyEnum(Enum)
+                    use_subclass_enum=True,
+                    set_default_enum_member=True,
                     use_title_as_name=True,
                     use_schema_description=True,
                     use_field_description=True,
@@ -538,8 +631,47 @@ class OSW(BaseModel):
                     use_double_quotes=True,
                     collapse_root_models=True,
                     reuse_model=True,
+                    field_include_all_keys=True,
+                    allof_class_hierarchy=datamodel_code_generator.AllOfClassHierarchy.Always,
                 )
                 warnings.filterwarnings("default", category=PydanticDeprecatedSince20)
+
+                # note: we could use OOLDJsonSchemaParser directly (see below),
+                # but datamodel_code_generator.generate
+                # does some pre- and postprocessing we do not want to duplicate
+
+                # data_model_type = datamodel_code_generator.DataModelType.PydanticBaseModel
+                # #data_model_type = DataModelType.PydanticV2BaseModel
+                # target_python_version = datamodel_code_generator.PythonVersion.PY_38
+                # data_model_types = datamodel_code_generator.model.get_data_model_types(
+                #   data_model_type, target_python_version
+                # )
+                # parser = OOLDJsonSchemaParserFixedRefs(
+                #     source=pathlib.Path(schema_path),
+
+                #     base_class="opensemantic.OswBaseModel",
+                #     data_model_type=data_model_types.data_model,
+                #     data_model_root_type=data_model_types.root_model,
+                #     data_model_field_type=data_model_types.field_model,
+                #     data_type_manager_type=data_model_types.data_type_manager,
+                #     target_python_version=target_python_version,
+
+                #     #use_default=True,
+                #     apply_default_values_for_required_fields=True,
+                #     use_unique_items_as_set=True,
+                #     enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+                #     use_title_as_name=True,
+                #     use_schema_description=True,
+                #     use_field_description=True,
+                #     encoding="utf-8",
+                #     use_double_quotes=True,
+                #     collapse_root_models=True,
+                #     reuse_model=True,
+                #     #field_include_all_keys=True
+                # )
+                # result = parser.parse()
+                # with open(temp_model_path, "w", encoding="utf-8") as f:
+                #     f.write(result)
 
             # see https://koxudaxi.github.io/datamodel-code-generator/
             # --base-class OswBaseModel: use a custom base class
@@ -586,12 +718,77 @@ class OSW(BaseModel):
             # are not v1 compatible mainly by using update_model()
             content = re.sub(r"(,?\s*unique_items=True\s*)", "", content)
 
+            # Detect empty subclasses, replaces their occurrences with base classes,
+            # and removes the empty class definitions.
+            # Only processes subclasses that follow naming patterns:
+            # - BaseclassModel (e.g., DescriptionModel extends Description)
+            # - Baseclass<number> (e.g., Label1, Label2 extend Label)
+
+            # Pattern to match empty subclasses
+            # Matches: class SubClass(BaseClass):
+            # followed by optional whitespace/docstring and pass
+            pattern = "".join(
+                (
+                    r"class\s+",  # 'class' keyword
+                    r"(\w+)",  # capture subclass name
+                    r"\s*\(\s*",  # opening parenthesis
+                    r"(\w+)",  # capture base class name
+                    r"\s*\)\s*:",  # closing parenthesis and colon
+                    r"\s*",  # optional whitespace
+                    r'(?:\n\s*(?:""".*?"""|\'\'\'.*?\'\'\')'
+                    # optional docstring (triple quotes)
+                    r"\s*)?",  # end optional docstring
+                    r"\n\s*pass\s*",  # pass statement
+                    r"(?:\n|$)",  # newline or end of string
+                )
+            )
+
+            # Find all empty subclasses
+            matches = list(re.finditer(pattern, content, re.MULTILINE | re.DOTALL))
+
+            # Filter matches based on naming patterns
+            valid_matches = []
+            for match in matches:
+                subclass_name = match.group(1)
+                base_class_name = match.group(2)
+
+                # Check if subclass follows the naming patterns
+                if (
+                    subclass_name == base_class_name + "Model"  # BaseclassModel pattern
+                    or re.match(
+                        rf"^{re.escape(base_class_name)}\d+$", subclass_name
+                    )  # Baseclass<number> pattern
+                ):
+                    valid_matches.append(match)
+
+            content = content
+            replacements = []
+
+            # Process matches in reverse order to avoid offset issues when removing
+            for match in reversed(valid_matches):
+                subclass_name = match.group(1)
+                base_class_name = match.group(2)
+                replacements.append((subclass_name, base_class_name))
+
+                # Remove the entire class definition
+                start, end = match.span()
+                # Also remove any trailing newlines to avoid extra blank lines
+                while end < len(content) and content[end] == "\n":
+                    end += 1
+
+                content = content[:start] + content[end:]
+
+            # Replace all occurrences of subclass names with base class names
+            for subclass_name, base_class_name in reversed(replacements):
+                pattern_replace = r"\b" + re.escape(subclass_name) + r"\b"
+                content = re.sub(pattern_replace, base_class_name, content)
+
             if fetchSchemaParam.mode == "replace":
                 header = (
                     "from uuid import uuid4\n"
                     "from typing import Type, TypeVar\n"
-                    "from osw.model.static import OswBaseModel, Ontology\n"
-                    # "from osw.model.static import *\n"
+                    "from opensemantic import OswBaseModel\n"
+                    # "from opensemantic import *\n"
                     "\n"
                 )
 
@@ -614,7 +811,6 @@ class OSW(BaseModel):
                     r"class\s*([\S]*)\s*\(\s*[\S\s]*?\s*\)\s*:.*\n"
                 )  # match class definition [\s\S]*(?:[^\S\n]*\n){2,}
                 for cls in re.findall(pattern, org_content):
-                    print(cls)
                     content = re.sub(
                         r"(class\s*"
                         + cls

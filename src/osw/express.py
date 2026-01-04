@@ -12,6 +12,7 @@ from uuid import uuid4
 from warnings import warn
 
 import requests
+from opensemantic import OswBaseModel
 from pydantic.v1 import validator
 from typing_extensions import (
     IO,
@@ -30,7 +31,6 @@ from osw.auth import CredentialManager
 from osw.core import OSW, OVERWRITE_CLASS_OPTIONS, OverwriteOptions
 from osw.defaults import params as default_params
 from osw.defaults import paths as default_paths
-from osw.model.static import OswBaseModel
 from osw.utils.wiki import namespace_from_full_title, title_from_full_title
 from osw.wtsite import WtSite
 

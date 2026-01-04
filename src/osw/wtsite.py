@@ -22,6 +22,7 @@ import pyld
 import requests
 from jsonpath_ng.ext import parse
 from mwclient.page import Page as MwPage
+from opensemantic import OswBaseModel
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
 
@@ -29,7 +30,6 @@ import osw.model.page_package as package
 import osw.utils.util as ut
 import osw.wiki_tools as wt
 from osw.auth import CredentialManager
-from osw.model.static import OswBaseModel
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.utils.util import parallelize
 from osw.utils.wiki import get_osw_id
@@ -876,6 +876,9 @@ class WtSite:
         """A list of slots that should be read. If None, all slots are read."""
         debug: Optional[bool] = False
         """If True, debug information is printed to the console."""
+        offline: Optional[bool] = True
+        """Skip reading the page content from the webserver
+        before reading the local content, if True."""
 
     class ReadPagePackageResult(OswBaseModel):
         """Return type of read_page_package."""
@@ -986,19 +989,9 @@ class WtSite:
                 namespace = page["namespace"].split("_")[-1].capitalize()
                 name = page["name"]
                 # Create the WtPage object
-                page_obj = WtPage(wtSite=self, title=f"{namespace}:{name}")
-                if "main" in selected_slots:
-                    # Main slot is special
-                    slot_content = get_slot_content(
-                        parent_dir=sub_dirs,
-                        url_path=page["urlPath"],
-                        files_in_storage_path=storage_path_content["files"],
-                    )
-                    if slot_content is not None:
-                        page_obj.set_slot_content(
-                            slot_key="main",
-                            content=slot_content,
-                        )
+                page_obj = WtPage(
+                    wtSite=self, title=f"{namespace}:{name}", do_init=not param.offline
+                )
                 if selected_slots is None:
                     _selected_slots = page["slots"]
                 else:
@@ -1008,16 +1001,29 @@ class WtSite:
                         if slot_name in selected_slots
                     }
                 for slot_name, slot_dict in _selected_slots.items():
-                    slot_content = get_slot_content(
-                        parent_dir=sub_dirs,
-                        url_path=slot_dict["urlPath"],
-                        files_in_storage_path=storage_path_content["files"],
-                    )
-                    if slot_content is not None:
-                        page_obj.set_slot_content(
-                            slot_key=slot_name,
-                            content=slot_content,
+                    if slot_name == "main":
+                        # Main slot is special
+                        slot_content = get_slot_content(
+                            parent_dir=sub_dirs,
+                            url_path=page["urlPath"],
+                            files_in_storage_path=storage_path_content["files"],
                         )
+                        if slot_content is not None:
+                            page_obj.set_slot_content(
+                                slot_key="main",
+                                content=slot_content,
+                            )
+                    else:
+                        slot_content = get_slot_content(
+                            parent_dir=sub_dirs,
+                            url_path=slot_dict["urlPath"],
+                            files_in_storage_path=storage_path_content["files"],
+                        )
+                        if slot_content is not None:
+                            page_obj.set_slot_content(
+                                slot_key=slot_name,
+                                content=slot_content,
+                            )
                 pages.append(page_obj)
         return WtSite.ReadPagePackageResult(pages=pages)
 

@@ -495,7 +495,7 @@ class OSW(BaseModel):
             if not page.exists:
                 print(f"Error: Page {schema_title} does not exist")
                 return
-        # not only in the JsonSchema namespace the schema is located in the main sot
+        # not only in the JsonSchema namespace the schema is located in the main slot
         # in all other namespaces, the json_schema slot is used
         if schema_title.startswith("JsonSchema:"):
             schema_str = ""
@@ -926,6 +926,11 @@ class OSW(BaseModel):
         from the jsondata."""
         disable_cache: bool = False
         """If true, disable the cache for the loading process"""
+        offline_pages: Optional[Dict[str, WtPage]] = None
+        """pages to be used offline instead of fetching them from the OSW instance"""
+
+        class Config:
+            arbitrary_types_allowed = True  # allow any class as type
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -991,7 +996,9 @@ class OSW(BaseModel):
             self.site.enable_cache()
 
         entities = []
-        pages = self.site.get_page(WtSite.GetPageParam(titles=param.titles)).pages
+        pages = self.site.get_page(
+            WtSite.GetPageParam(titles=param.titles, offline_pages=param.offline_pages)
+        ).pages
         for page in pages:
             entity = None
             schemas = []
@@ -1002,7 +1009,11 @@ class OSW(BaseModel):
             if jsondata:
                 for category in jsondata["type"]:
                     schema = (
-                        self.site.get_page(WtSite.GetPageParam(titles=[category]))
+                        self.site.get_page(
+                            WtSite.GetPageParam(
+                                titles=[category], offline_pages=param.offline_pages
+                            )
+                        )
                         .pages[0]
                         .get_slot_content("jsonschema")
                     )
@@ -1016,7 +1027,9 @@ class OSW(BaseModel):
                             if param.autofetch_schema:
                                 self.fetch_schema(
                                     OSW.FetchSchemaParam(
-                                        schema_title=category, mode="append"
+                                        schema_title=category,
+                                        mode="append",
+                                        offline_pages=param.offline_pages,
                                     )
                                 )
                         if not hasattr(model, cls_name):
@@ -1782,6 +1795,10 @@ class OSW(BaseModel):
         build_rdf_graph: Optional[bool] = False
         """If True, the output is a graph."""
         debug: Optional[bool] = False
+        """If True, debug information is printed."""
+
+        class Config:
+            arbitrary_types_allowed = True
 
         def __init__(self, **data):
             super().__init__(**data)

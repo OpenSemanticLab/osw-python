@@ -453,6 +453,8 @@ class PagePackageController(model.PagePackageMetaData):
         ):
             python_code_path = Path(creation_config.python_code_working_dir)
             python_code_path /= creation_config.python_code_filename
+            python_code_path_v1 = Path(creation_config.python_code_working_dir) / "v1"
+            python_code_path_v1 /= creation_config.python_code_filename
             schema_titles = self.page_titles
             # remove duplicates and entries in ignore_titles
             schema_titles = list(
@@ -477,6 +479,17 @@ class PagePackageController(model.PagePackageMetaData):
                     offline_pages=offline_pages,
                     result_model_path=python_code_path,
                     mode="replace",
+                    generator_options={"output_model_type": "pydantic_v2.BaseModel"},
+                )
+            )
+
+            osw_obj.fetch_schema(
+                fetchSchemaParam=OSW.FetchSchemaParam(
+                    schema_title=schema_titles,
+                    offline_pages=offline_pages,
+                    result_model_path=python_code_path_v1,
+                    mode="replace",
+                    generator_options={"output_model_type": "pydantic.BaseModel"},
                 )
             )
 

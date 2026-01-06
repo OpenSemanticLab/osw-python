@@ -973,8 +973,10 @@ class WtSite:
 
         # if subdirs are namespaces, skip them as well
         if any(
-            d.name in ["Category", "Item", "File", "Module"]
-            for d in storage_path_content["directories"]
+            d.name in ["Category", "Item", "File", "Module", "JsonSchema"]
+            for d in ut.list_files_and_directories(
+                search_path=storage_path, recursive=False
+            )["directories"]
         ):
             sub_dirs = [storage_path]
 
@@ -1002,7 +1004,9 @@ class WtSite:
         pages = []
         for _package_name, package_dict in packages_json["packages"].items():
             for page in package_dict["pages"]:
-                namespace = page["namespace"].split("_")[-1].capitalize()
+                namespace = package.NAMESPACE_CONST_TO_NAMESPACE_MAPPING[
+                    page["namespace"]
+                ]
                 name = page["name"]
                 # Create the WtPage object
                 page_obj = WtPage(
@@ -1010,24 +1014,15 @@ class WtSite:
                 )
                 if selected_slots is None:
                     _selected_slots = page["slots"]
+                    # default to "main" if no slots are selected
+                    if len(_selected_slots.keys()) == 0:
+                        _selected_slots = {"main": ""}
                 else:
                     _selected_slots = {
                         slot_name: slot_dict
                         for slot_name, slot_dict in page["slots"].items()
                         if slot_name in selected_slots
                     }
-                if "main" in _selected_slots:
-                    # Main slot is special
-                    slot_content = get_slot_content(
-                        parent_dir=sub_dirs,
-                        url_path=page["urlPath"],
-                        files_in_storage_path=storage_path_content["files"],
-                    )
-                    if slot_content is not None:
-                        page_obj.set_slot_content(
-                            slot_key="main",
-                            content=slot_content,
-                        )
                 for slot_name, slot_dict in _selected_slots.items():
                     if slot_name == "main":
                         # Main slot is special

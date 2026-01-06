@@ -4,7 +4,7 @@ import re
 import uuid
 from typing import Dict, List, Literal, Optional, Type
 
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import PrivateAttr
 from pyld import jsonld
 from rdflib import Graph

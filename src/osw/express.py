@@ -12,7 +12,7 @@ from uuid import uuid4
 from warnings import warn
 
 import requests
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import validator
 from typing_extensions import (
     IO,

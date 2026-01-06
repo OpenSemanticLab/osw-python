@@ -22,7 +22,7 @@ import pyld
 import requests
 from jsonpath_ng.ext import parse
 from mwclient.page import Page as MwPage
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import FilePath
 from typing_extensions import deprecated
 

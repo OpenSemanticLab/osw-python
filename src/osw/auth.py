@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, List, Optional, Union
 from warnings import warn
 
 import yaml
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import PrivateAttr
 
 from osw.defaults import paths as default_paths

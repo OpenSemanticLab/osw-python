@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, Union
 from warnings import warn
 
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import FilePath
 from typing_extensions import Dict, List
 

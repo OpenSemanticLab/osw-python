@@ -1,6 +1,6 @@
 # import all classes from opensemantic.core
 
-from opensemantic.core import (  # isort:skip
+from opensemantic.core.v1 import (  # isort:skip
     OswBaseModel,
     Label,
     Entity,
@@ -8,8 +8,6 @@ from opensemantic.core import (  # isort:skip
     DefinedTerm,
     Keyword,
     IntangibleItem,
-    AccessRestrictions,
-    ReadAccess,
     Meta,
     WikiPage,
     LangCode,
@@ -17,7 +15,6 @@ from opensemantic.core import (  # isort:skip
     ObjectStatement,
     DataStatement,
     QuantityStatement,
-    Level,
     File,
     LocalFile,
     RemoteFile,

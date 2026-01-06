@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
 import yaml
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import FilePath
 
 from osw.utils.util import parallelize

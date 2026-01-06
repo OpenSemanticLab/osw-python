@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from sqlalchemy import URL, create_engine
 from sqlalchemy import text as sql_text
 from sqlalchemy.engine import Engine

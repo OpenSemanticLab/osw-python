@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import os
 import pathlib
 import platform
@@ -14,20 +15,26 @@ from typing import Any, Dict, List, Optional, Type, Union, overload
 from uuid import UUID, uuid4
 from warnings import warn
 
+import black
 import datamodel_code_generator
+import isort
 import rdflib
 from jsonpath_ng.ext import parse
 from mwclient.client import Site
 from oold.backend.interface import (
+    Backend,
     ResolveParam,
-    Resolver,
     ResolveResult,
+    SetBackendParam,
     SetResolverParam,
+    StoreParam,
+    StoreResult,
+    set_backend,
     set_resolver,
 )
 from oold.generator import Generator
 from oold.utils.codegen import OOLDJsonSchemaParser
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic import PydanticDeprecatedSince20
 from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
@@ -58,6 +65,8 @@ from osw.utils.wiki import (
 )
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtPage, WtSite
+
+_logger = logging.getLogger(__name__)
 
 
 # Reusable type definitions
@@ -112,7 +121,7 @@ class OSW(BaseModel):
         super().__init__(**data)
 
         # implement resolver backend with osw.load_entity
-        class OswDefaultResolver(Resolver):
+        class OswDefaultBackend(Backend):
 
             # oold.backend.interface is pydantic v2, so we cannot use
             # our v1 OSW model as attribute directly
@@ -134,10 +143,30 @@ class OSW(BaseModel):
                     nodes[iri] = entity
                 return ResolveResult(nodes=nodes)
 
-        r = OswDefaultResolver(osw_obj=self)
+            def store_jsonld_dicts(self, jsonld_dicts):
+                pass
+
+            def store(self, request: StoreParam):
+                osw_obj: OSW = self.osw_obj
+                osw_obj.store_entity(
+                    OSW.StoreEntityParam(
+                        entities=list(request.nodes.values()), overwrite=True
+                    ),
+                )
+                return StoreResult(success=True)
+
+            def query():
+                pass
+
+        r = OswDefaultBackend(osw_obj=self)
         set_resolver(SetResolverParam(iri="Item", resolver=r))
         set_resolver(SetResolverParam(iri="Category", resolver=r))
         set_resolver(SetResolverParam(iri="Property", resolver=r))
+        set_resolver(SetResolverParam(iri="File", resolver=r))
+        set_backend(SetBackendParam(iri="Item", backend=r))
+        set_backend(SetBackendParam(iri="Category", backend=r))
+        set_backend(SetBackendParam(iri="Property", backend=r))
+        set_backend(SetBackendParam(iri="File", backend=r))
 
     @property
     def mw_site(self) -> Site:
@@ -391,6 +420,8 @@ class OSW(BaseModel):
         generate_annotations: Optional[bool] = True
         """generate custom schema keywords in Fields and Classes.
         Required to update the schema in OSW without information loss"""
+        generator_options: Optional[Dict[str, Any]] = None
+        """custom options for the datamodel-code-generator"""
         offline_pages: Optional[Dict[str, WtPage]] = None
         """pages to be used offline instead of fetching them from the OSW instance"""
         result_model_path: Optional[Union[str, pathlib.Path]] = None
@@ -400,7 +431,18 @@ class OSW(BaseModel):
         class Config:
             arbitrary_types_allowed = True
 
-    def fetch_schema(self, fetchSchemaParam: FetchSchemaParam = None) -> None:
+    class FetchSchemaResult(BaseModel):
+        fetched_schema_titles: Optional[List[str]] = None
+        """List of titles of the schemas that were fetched.
+        This includes the requested schemas and their dependencies."""
+        error_messages: Optional[List[str]] = None
+        """List of critical errors that did interrupt the fetch process"""
+        warning_messages: Optional[List[str]] = None
+        """List of warnings that did not interrupt the fetch process"""
+
+    def fetch_schema(
+        self, fetchSchemaParam: FetchSchemaParam = None
+    ) -> FetchSchemaResult:
         """Loads the given schemas from the OSW instance and auto-generates python
         datasclasses within osw.model.entity from it
 
@@ -412,21 +454,49 @@ class OSW(BaseModel):
         if not isinstance(fetchSchemaParam.schema_title, list):
             fetchSchemaParam.schema_title = [fetchSchemaParam.schema_title]
         first = True
+        last = False
+        results = []
         for schema_title in fetchSchemaParam.schema_title:
+            last = schema_title == fetchSchemaParam.schema_title[-1]
             mode = fetchSchemaParam.mode
             if not first:  # 'replace' makes only sense for the first schema
                 mode = "append"
-            self._fetch_schema(
+            res = self._fetch_schema(
                 OSW._FetchSchemaParam(
                     schema_title=schema_title,
                     mode=mode,
+                    final=last,
                     legacy_generator=fetchSchemaParam.legacy_generator,
                     generate_annotations=fetchSchemaParam.generate_annotations,
+                    generator_options=fetchSchemaParam.generator_options,
                     offline_pages=fetchSchemaParam.offline_pages,
                     result_model_path=fetchSchemaParam.result_model_path,
                 )
             )
+            results.append(res)
             first = False
+
+        # merge unique results and return
+        merged_result = OSW.FetchSchemaResult(
+            fetched_schema_titles=[], error_messages=[]
+        )
+        for result in results:
+            if result.fetched_schema_titles:
+                merged_result.fetched_schema_titles.extend(result.fetched_schema_titles)
+            if result.error_messages:
+                merged_result.error_messages.extend(result.error_messages)
+        return OSW.FetchSchemaResult(
+            fetched_schema_titles=(
+                list(set(merged_result.fetched_schema_titles))
+                if len(merged_result.fetched_schema_titles) > 0
+                else None
+            ),
+            error_messages=(
+                list(set(merged_result.error_messages))
+                if len(merged_result.error_messages) > 0
+                else None
+            ),
+        )
 
     class _FetchSchemaParam(BaseModel):
         """Internal param for _fetch_schema()
@@ -444,6 +514,9 @@ class OSW(BaseModel):
 
         schema_title: Optional[str] = "Category:Item"
         root: Optional[bool] = True
+        """marks the root iteration for a recursive fetch (internal param, default: True)"""
+        final: Optional[bool] = True
+        """if multiple schemas are fetched this marks the final run to cleanup the code"""
         mode: Optional[str] = (
             "replace"
             # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
@@ -453,6 +526,8 @@ class OSW(BaseModel):
         generate_annotations: Optional[bool] = False
         """generate custom schema keywords in Fields and Classes.
         Required to update the schema in OSW without information loss"""
+        generator_options: Optional[Dict[str, Any]] = None
+        """custom options for the datamodel-code-generator"""
         offline_pages: Optional[Dict[str, WtPage]] = None
         """pages to be used offline instead of fetching them from the OSW instance"""
         result_model_path: Optional[Union[str, pathlib.Path]] = None
@@ -460,11 +535,14 @@ class OSW(BaseModel):
         the default path ./model/entity.py is used"""
         fetched_schema_titles: Optional[List[str]] = []
         """keep track of fetched schema titles to prevent recursion"""
+        warning_messages: Optional[List[str]] = None
 
         class Config:
             arbitrary_types_allowed = True
 
-    def _fetch_schema(self, fetchSchemaParam: _FetchSchemaParam = None) -> None:
+    def _fetch_schema(
+        self, fetchSchemaParam: _FetchSchemaParam = None
+    ) -> FetchSchemaResult:
         """Loads the given schema from the OSW instance and autogenerates python
         datasclasses within osw.model.entity from it
 
@@ -494,7 +572,11 @@ class OSW(BaseModel):
             ]
             if not page.exists:
                 print(f"Error: Page {schema_title} does not exist")
-                return
+                return OSW.FetchSchemaResult(
+                    fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
+                    warning_messages=fetchSchemaParam.warning_messages,
+                    error_messages=[f"Page {schema_title} does not exist"],
+                )
         # not only in the JsonSchema namespace the schema is located in the main slot
         # in all other namespaces, the json_schema slot is used
         if schema_title.startswith("JsonSchema:"):
@@ -509,8 +591,13 @@ class OSW(BaseModel):
                 )
                 schema_str = json.dumps(schema)
         if (schema_str is None) or (schema_str == ""):
-            print(f"Error: Schema {schema_title} does not exist")
+            print(f"Warning: Schema slot of {schema_title} is empty")
             schema_str = "{}"  # empty schema to make reference work
+            if fetchSchemaParam.warning_messages is None:
+                fetchSchemaParam.warning_messages = []
+            fetchSchemaParam.warning_messages.append(
+                f"Schema slot of {schema_title} is empty"
+            )
 
         generator = Generator()
         schemas_for_preprocessing = [json.loads(schema_str)]
@@ -565,6 +652,11 @@ class OSW(BaseModel):
             if not isinstance(result_model_path, str):
                 result_model_path = str(result_model_path)
         temp_model_path = os.path.join(model_dir_path, "temp.py")
+        data_model_type = "pydantic.BaseModel"
+        if fetchSchemaParam.generator_options is not None:
+            data_model_type = fetchSchemaParam.generator_options.get(
+                "output_model_type", "pydantic.BaseModel"
+            )
         if root:
             if fetchSchemaParam.legacy_generator:
                 exec_name = "datamodel-codegen"
@@ -589,7 +681,7 @@ class OSW(BaseModel):
                     --input {schema_path} \
                     --input-file-type jsonschema \
                     --output {temp_model_path} \
-                    --base-class opensemantic.OswBaseModel \
+                    --base-class opensemantic.v1.OswBaseModel \
                     --use-default \
                     --use-unique-items-as-set \
                     --enum-field-as-literal all \
@@ -616,7 +708,11 @@ class OSW(BaseModel):
                     input_=pathlib.Path(schema_path),
                     input_file_type="jsonschema",
                     output=pathlib.Path(temp_model_path),
-                    base_class="opensemantic.OswBaseModel",
+                    base_class=(
+                        "opensemantic.v1.OswBaseModel"
+                        if data_model_type == "pydantic.BaseModel"
+                        else "opensemantic.OswBaseModel"
+                    ),
                     # use_default=True,
                     apply_default_values_for_required_fields=True,
                     use_unique_items_as_set=True,
@@ -633,8 +729,13 @@ class OSW(BaseModel):
                     reuse_model=True,
                     field_include_all_keys=True,
                     allof_class_hierarchy=datamodel_code_generator.AllOfClassHierarchy.Always,
+                    additional_imports=(
+                        ["pydantic.ConfigDict"]
+                        if data_model_type != "pydantic.BaseModel"
+                        else []
+                    ),
+                    **(fetchSchemaParam.generator_options or {}),
                 )
-                warnings.filterwarnings("default", category=PydanticDeprecatedSince20)
 
                 # note: we could use OOLDJsonSchemaParser directly (see below),
                 # but datamodel_code_generator.generate
@@ -707,9 +808,11 @@ class OSW(BaseModel):
 
             # we are now using pydantic.v1
             # pydantic imports lead to uninitialized fields (FieldInfo still present)
-            content = re.sub(
-                r"(from pydantic import)", "from pydantic.v1 import", content
-            )
+            # only if generator_options["data_model_type"] is not set or "pydantic.BaseModel"
+            if data_model_type == "pydantic.BaseModel":
+                content = re.sub(
+                    r"(from pydantic import)", "from pydantic.v1 import", content
+                )
 
             # remove field param unique_items
             # --use-unique-items-as-set still keeps unique_items=True as Field param
@@ -784,23 +887,44 @@ class OSW(BaseModel):
                 content = re.sub(pattern_replace, base_class_name, content)
 
             if fetchSchemaParam.mode == "replace":
-                header = (
-                    "from uuid import uuid4\n"
-                    "from typing import Type, TypeVar\n"
-                    "from opensemantic import OswBaseModel\n"
-                    # "from opensemantic import *\n"
-                    "\n"
-                )
+
+                header = "from uuid import uuid4\n"
+
+                # if target path is default model/entity.py, we need to add imports
+                if fetchSchemaParam.result_model_path is None:
+                    if data_model_type == "pydantic.BaseModel":
+                        header += "from opensemantic.core.v1 import (\n"
+                    else:
+                        header += "from opensemantic.core import (\n"
+                    header += (
+                        "    Label,\n"
+                        "    Entity,\n"
+                        "    Item,\n"
+                        "    DefinedTerm,\n"
+                        "    Keyword,\n"
+                        "    IntangibleItem,\n"
+                        "    Meta,\n"
+                        "    WikiPage,\n"
+                        "    LangCode,\n"
+                        "    Description,\n"
+                        "    ObjectStatement,\n"
+                        "    DataStatement,\n"
+                        "    QuantityStatement,\n"
+                        "    File,\n"
+                        "    LocalFile,\n"
+                        "    RemoteFile,\n"
+                        "    WikiFile,\n"
+                        ")  # noqa: F401, E402\n"
+                        "\n"
+                    )
 
                 content = re.sub(
-                    pattern=r"(class\s*\S*\s*\(\s*OswBaseModel\s*\)\s*:.*\n)",
+                    pattern=r"(^class\s*\S*\s*\(\s*[\S\s]*?\s*\)\s*:.*\n)",
                     repl=header + r"\n\n\n\1",
                     string=content,
                     count=1,
+                    flags=re.MULTILINE,
                 )  # add header before first class declaration
-
-                with open(result_model_path, "w", encoding="utf-8") as f:
-                    f.write(content)
 
             if fetchSchemaParam.mode == "append":
                 org_content = ""
@@ -808,31 +932,92 @@ class OSW(BaseModel):
                     org_content = f.read()
 
                 pattern = re.compile(
-                    r"class\s*([\S]*)\s*\(\s*[\S\s]*?\s*\)\s*:.*\n"
+                    r"^class\s*([\S]*)\s*\(\s*[\S\s]*?\s*\)\s*:.*\n", re.MULTILINE
                 )  # match class definition [\s\S]*(?:[^\S\n]*\n){2,}
                 for cls in re.findall(pattern, org_content):
                     content = re.sub(
-                        r"(class\s*"
+                        r"^(class\s*"
                         + cls
                         + r"\s*\(\s*[\S\s]*?\s*\)\s*:.*\n[\s\S]*?(?:[^\S\n]*\n){3,})",
                         "",
                         content,
                         count=1,
+                        flags=re.MULTILINE,
                     )  # replace duplicated classes
 
-                content = re.sub(
-                    pattern=r"(from __future__ import annotations)",
-                    repl="",
-                    string=content,
-                    count=1,
-                )  # remove import statement
-                # print(content)
-                with open(result_model_path, "a", encoding="utf-8") as f:
-                    f.write(content)
+                # combine original and new content
+                all_content = org_content + "\n\n\n" + content
+                content = all_content
 
-            importlib.reload(model)  # reload the updated module
-            if not site_cache_state:
-                self.site.disable_cache()  # restore original state
+            if fetchSchemaParam.final:
+                # Cleanup the combined content
+                # find all "<cls>.update_forward_refs()" lines,
+                # remove duplicates and put them to EOF
+                # do the same for "<cls>.model_rebuild()"
+                func_list = []
+                if data_model_type == "pydantic.BaseModel":
+                    func_list.append("update_forward_refs")
+                if data_model_type == "pydantic_v2.BaseModel":
+                    func_list.append("model_rebuild")
+                for func in func_list:
+                    pattern_forward_ref = re.compile(r"(\w+)\." + func + r"\(\s*\)\s*")
+                    forward_refs = pattern_forward_ref.findall(content)
+                    if forward_refs:
+                        # remove all occurrences
+                        content = pattern_forward_ref.sub("", content)
+                    # add unique occurrences to the end of the file
+                    unique_forward_refs = list()
+                    for cls in forward_refs:
+                        if f"{cls}.{func}()\n" not in unique_forward_refs:
+                            unique_forward_refs.append(f"{cls}.{func}()\n")
+                    content += "\n" + "".join(sorted(unique_forward_refs))
+
+                # Moves all single-line import statements to the beginning of the file.
+                import_pattern = (
+                    r"^(?:\s*#\s*[^\n]*\n)?"
+                    r"(?:from\s+(\w+(?:\.\w+)*)\s+)?import\s+(?:\w+(?:\s+as\s+\w+)?(?:\s*,\s*\w+(?:\s+as\s+\w+)?)*)"
+                    r"|^(?:\s*#\s*[^\n]*\n)?(?:from\s+(\w+(?:\.\w+)*)\s+import\s+\((?:[^\n]*\n?)*?\))\s*(?:#\s*[^\n]*)?$"
+                )
+
+                # iterate over the matches
+                # collect full import statements to move them to the top
+                # replace the original location with an empty string
+                imports = []
+                for match in re.finditer(import_pattern, content, re.MULTILINE):
+                    import_stmt = match.group(0)
+                    # # if "from __future__ import annotations" insert at index 0
+                    # if import_stmt.strip() == "from __future__ import annotations":
+                    #     imports.insert(0, import_stmt)
+                    # else:
+                    imports.append(import_stmt)
+                    # replace all occurrences with empty string
+                    content = content.replace(import_stmt, "")
+                    # remove duplicate imports (done by isort later)
+                    imports = list(set(imports))
+                # add imports to the beginning of the file
+                content = "\n".join(sorted(imports)) + "\n\n" + content
+
+                # run formatting tool black on the combined content
+                # consolidate imports as well
+                try:
+                    content = black.format_str(content, mode=black.Mode())
+                    # run isort to sort imports using Vertical Hanging Indent style
+                    content = isort.code(content, profile="black")
+                except Exception:
+                    pass  # black is optional, continue without formatting
+
+            with open(result_model_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            if fetchSchemaParam.final:
+                importlib.reload(model)  # reload the updated module
+                if not site_cache_state:
+                    self.site.disable_cache()  # restore original state
+
+        return OSW.FetchSchemaResult(
+            fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
+            warning_messages=fetchSchemaParam.warning_messages,
+        )
 
     def install_dependencies(
         self,
@@ -1041,22 +1226,26 @@ class OSW(BaseModel):
             if not schemas_fetched:
                 continue
 
-            if param.model_to_use:
-                entity: model.OswBaseModel = param.model_to_use(**jsondata)
+            try:
+                if param.model_to_use:
+                    entity: model.OswBaseModel = param.model_to_use(**jsondata)
 
-            elif len(schemas) == 0:
-                print("Error: no schema defined")
+                elif len(schemas) == 0:
+                    _logger.error("Error: no schema defined")
 
-            elif len(schemas) == 1:
-                cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
-                entity: model.Entity = cls(**jsondata)
+                elif len(schemas) == 1:
+                    cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
+                    entity: model.Entity = cls(**jsondata)
 
-            else:
-                bases = []
-                for schema in schemas:
-                    bases.append(getattr(model, schema["title"]))
-                cls = create_model("Test", __base__=tuple(bases))
-                entity: model.Entity = cls(**jsondata)
+                else:
+                    bases = []
+                    for schema in schemas:
+                        bases.append(getattr(model, schema["title"]))
+                    cls = create_model("Test", __base__=tuple(bases))
+                    entity: model.Entity = cls(**jsondata)
+            except Exception as e:
+                _logger.error(f"Error creating entity from page {page.title}: {e}")
+                entity = None
 
             if entity is not None:
                 # make sure we do not override existing metadata
@@ -1070,7 +1259,7 @@ class OSW(BaseModel):
                 entity.meta.wiki_page.namespace = namespace_from_full_title(page.title)
                 entity.meta.wiki_page.title = title_from_full_title(page.title)
 
-            entities.append(entity)
+                entities.append(entity)
         # restore original cache state
         if cache_state:
             self.site.enable_cache()

@@ -1,7 +1,7 @@
 import re
 from typing import Dict, List, Optional, Union
 
-from opensemantic import OswBaseModel
+from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import validator
 
 

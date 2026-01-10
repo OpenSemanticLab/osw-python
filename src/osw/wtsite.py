@@ -892,6 +892,7 @@ class WtSite:
     class ReadPagePackageResult(OswBaseModel):
         """Return type of read_page_package."""
 
+        package_bundle: package.PagePackageBundle
         pages: List["WtPage"]
         """A list of WtPage objects."""
 
@@ -1048,7 +1049,9 @@ class WtSite:
                                 content=slot_content,
                             )
                 pages.append(page_obj)
-        return WtSite.ReadPagePackageResult(pages=pages)
+        return WtSite.ReadPagePackageResult(
+            package_bundle=package.PagePackageBundle(**packages_json), pages=pages
+        )
 
     class UploadPagePackageParam(OswBaseModel):
         """Parameter class for upload_page_package method."""

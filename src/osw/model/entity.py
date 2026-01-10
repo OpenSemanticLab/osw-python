@@ -19,4 +19,5 @@ from opensemantic.core.v1 import (  # isort:skip
     LocalFile,
     RemoteFile,
     WikiFile,
+    PagePackage,
 )  # noqa: F401, E402

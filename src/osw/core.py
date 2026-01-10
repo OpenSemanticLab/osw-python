@@ -730,9 +730,9 @@ class OSW(BaseModel):
                     field_include_all_keys=True,
                     allof_class_hierarchy=datamodel_code_generator.AllOfClassHierarchy.Always,
                     additional_imports=(
-                        ["pydantic.ConfigDict"]
+                        ["uuid.uuid4", "pydantic.ConfigDict"]
                         if data_model_type != "pydantic.BaseModel"
-                        else []
+                        else ["uuid.uuid4"]
                     ),
                     **(fetchSchemaParam.generator_options or {}),
                 )
@@ -914,6 +914,7 @@ class OSW(BaseModel):
                         "    LocalFile,\n"
                         "    RemoteFile,\n"
                         "    WikiFile,\n"
+                        "    PagePackage,\n"
                         ")  # noqa: F401, E402\n"
                         "\n"
                     )

@@ -375,6 +375,9 @@ class PagePackageController(model.PagePackageMetaData):
         prefer_local_pages: bool = False
         """Load the pages from the local working directory
         instead of the server if set to True."""
+        generate_package_documentation_page: bool = True
+        """Automatically generate a documentation page for the package
+        in the target instance and include it in the package."""
         generate_python_code: bool = False
         """Whether to generate python code for the data models."""
         python_code_working_dir: Optional[Union[str, Path]] = None
@@ -407,6 +410,15 @@ class PagePackageController(model.PagePackageMetaData):
                 ),
             )
         )
+
+        if (
+            creation_config.generate_package_documentation_page
+            or creation_config.generate_python_code
+        ):
+            from osw.core import OSW
+
+            osw_obj = OSW(site=wtsite)
+
         # Create a PagePackageBundle instance
         bundle = package.PagePackageBundle(
             publisher=self.publisher,
@@ -469,9 +481,6 @@ class PagePackageController(model.PagePackageMetaData):
             schema_titles = [
                 title for title in schema_titles if title.startswith("Category:")
             ]
-            from osw.core import OSW
-
-            osw_obj = OSW(site=wtsite)
 
             osw_obj.fetch_schema(
                 fetchSchemaParam=OSW.FetchSchemaParam(
@@ -492,6 +501,35 @@ class PagePackageController(model.PagePackageMetaData):
                     generator_options={"output_model_type": "pydantic.BaseModel"},
                 )
             )
+
+        if creation_config.generate_package_documentation_page:
+            # update or create PagePackage site
+            from opensemantic.core.v1 import Description, Label, PagePackage
+
+            for p in bundle.packages.values():
+                res = wtsite.semantic_search(
+                    "[[" + PagePackage.get_cls_iri() + "]][[HasId::" + p.globalID + "]]"
+                )
+                pp: PagePackage = None
+                if len(res) == 0:
+                    # generate new entity
+                    pp = PagePackage(
+                        label=[Label(text=p.globalID)],
+                    )
+                else:
+                    # load entity
+                    pp = PagePackage[res[0]]
+
+                if pp.get_iri() not in self.page_titles:
+                    # prepend
+                    self.page_titles.insert(0, pp.get_iri())
+
+                pp.description = [Description(text=p.description)]
+                pp.global_id = p.globalID
+                pp.version = p.version
+                pp.url = [bundle.publisherURL]
+                pp.parts = self.page_titles
+                pp.store_jsonld()
 
         # Create a PagePackageConfig instance
         config = package.PagePackageConfig(

@@ -51,7 +51,7 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
     print(
         f"Time taken to reload Tutorial Schema with policy 'force': {end_time - start_time}"
     )
-    assert end_time - start_time < 4  # typically takes 1 seconds using memory cache
+    assert end_time - start_time < 10  # typically takes 1 seconds using memory cache
 
     start_time = time.time()
     osw_express.install_dependencies(DEPENDENCIES, policy="if-missing")

@@ -5,9 +5,7 @@ import json
 import logging
 import os
 import pathlib
-import platform
 import re
-import sys
 import warnings
 from copy import deepcopy
 from enum import Enum
@@ -415,8 +413,6 @@ class OSW(BaseModel):
             "replace"
             # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
-        legacy_generator: Optional[bool] = False
-        """uses legacy command line for code generation if true"""
         generate_annotations: Optional[bool] = True
         """generate custom schema keywords in Fields and Classes.
         Required to update the schema in OSW without information loss"""
@@ -466,7 +462,6 @@ class OSW(BaseModel):
                     schema_title=schema_title,
                     mode=mode,
                     final=last,
-                    legacy_generator=fetchSchemaParam.legacy_generator,
                     generate_annotations=fetchSchemaParam.generate_annotations,
                     generator_options=fetchSchemaParam.generator_options,
                     offline_pages=fetchSchemaParam.offline_pages,
@@ -521,8 +516,6 @@ class OSW(BaseModel):
             "replace"
             # type 'FetchSchemaMode' requires: 'from __future__ import annotations'
         )
-        legacy_generator: Optional[bool] = False
-        """uses legacy command line for code generation if true"""
         generate_annotations: Optional[bool] = False
         """generate custom schema keywords in Fields and Classes.
         Required to update the schema in OSW without information loss"""
@@ -658,121 +651,84 @@ class OSW(BaseModel):
                 "output_model_type", "pydantic.BaseModel"
             )
         if root:
-            if fetchSchemaParam.legacy_generator:
-                exec_name = "datamodel-codegen"
-                # default: assume datamodel-codegen is in PATH
-                exec_path = exec_name
-                if platform.system() == "Windows":
-                    exec_name += ".exe"
-                    exec_path = os.path.join(
-                        os.path.dirname(os.path.abspath(sys.executable)), exec_name
-                    )
-                    if not os.path.isfile(exec_path):
-                        exec_path = os.path.join(
-                            os.path.dirname(os.path.abspath(sys.executable)),
-                            "Scripts",
-                            exec_name,
-                        )
-                    if not os.path.isfile(exec_path):
-                        print("Error: datamodel-codegen not found")
-                        return
-                os.system(
-                    f"{exec_path}  \
-                    --input {schema_path} \
-                    --input-file-type jsonschema \
-                    --output {temp_model_path} \
-                    --base-class opensemantic.v1.OswBaseModel \
-                    --use-default \
-                    --use-unique-items-as-set \
-                    --enum-field-as-literal all \
-                    --use-title-as-name \
-                    --use-schema-description \
-                    --use-field-description \
-                    --encoding utf-8 \
-                    --use-double-quotes \
-                    --collapse-root-models \
-                    --reuse-model \
-                "
+            # suppress deprecation warnings from pydantic
+            # see https://github.com/koxudaxi/datamodel-code-generator/issues/2213
+            warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
+
+            if fetchSchemaParam.generate_annotations:
+                # monkey patch class
+                datamodel_code_generator.parser.jsonschema.JsonSchemaParser = (
+                    OOLDJsonSchemaParser
                 )
-            else:
-                # suppress deprecation warnings from pydantic
-                # see https://github.com/koxudaxi/datamodel-code-generator/issues/2213
-                warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
+            datamodel_code_generator.generate(
+                input_=pathlib.Path(schema_path),
+                input_file_type="jsonschema",
+                output=pathlib.Path(temp_model_path),
+                base_class=(
+                    "opensemantic.v1.OswBaseModel"
+                    if data_model_type == "pydantic.BaseModel"
+                    else "opensemantic.OswBaseModel"
+                ),
+                # use_default=True,
+                apply_default_values_for_required_fields=True,
+                use_unique_items_as_set=True,
+                enum_field_as_literal=datamodel_code_generator.LiteralType.Off,
+                # will create MyEnum(str, Enum) instead of MyEnum(Enum)
+                use_subclass_enum=True,
+                set_default_enum_member=True,
+                use_title_as_name=True,
+                use_schema_description=True,
+                use_field_description=True,
+                encoding="utf-8",
+                use_double_quotes=True,
+                collapse_root_models=True,
+                reuse_model=True,
+                field_include_all_keys=True,
+                allof_class_hierarchy=datamodel_code_generator.AllOfClassHierarchy.Always,
+                additional_imports=(
+                    ["uuid.uuid4", "pydantic.ConfigDict"]
+                    if data_model_type != "pydantic.BaseModel"
+                    else ["uuid.uuid4"]
+                ),
+                **(fetchSchemaParam.generator_options or {}),
+            )
 
-                if fetchSchemaParam.generate_annotations:
-                    # monkey patch class
-                    datamodel_code_generator.parser.jsonschema.JsonSchemaParser = (
-                        OOLDJsonSchemaParser
-                    )
-                datamodel_code_generator.generate(
-                    input_=pathlib.Path(schema_path),
-                    input_file_type="jsonschema",
-                    output=pathlib.Path(temp_model_path),
-                    base_class=(
-                        "opensemantic.v1.OswBaseModel"
-                        if data_model_type == "pydantic.BaseModel"
-                        else "opensemantic.OswBaseModel"
-                    ),
-                    # use_default=True,
-                    apply_default_values_for_required_fields=True,
-                    use_unique_items_as_set=True,
-                    enum_field_as_literal=datamodel_code_generator.LiteralType.Off,
-                    # will create MyEnum(str, Enum) instead of MyEnum(Enum)
-                    use_subclass_enum=True,
-                    set_default_enum_member=True,
-                    use_title_as_name=True,
-                    use_schema_description=True,
-                    use_field_description=True,
-                    encoding="utf-8",
-                    use_double_quotes=True,
-                    collapse_root_models=True,
-                    reuse_model=True,
-                    field_include_all_keys=True,
-                    allof_class_hierarchy=datamodel_code_generator.AllOfClassHierarchy.Always,
-                    additional_imports=(
-                        ["uuid.uuid4", "pydantic.ConfigDict"]
-                        if data_model_type != "pydantic.BaseModel"
-                        else ["uuid.uuid4"]
-                    ),
-                    **(fetchSchemaParam.generator_options or {}),
-                )
+            # note: we could use OOLDJsonSchemaParser directly (see below),
+            # but datamodel_code_generator.generate
+            # does some pre- and postprocessing we do not want to duplicate
 
-                # note: we could use OOLDJsonSchemaParser directly (see below),
-                # but datamodel_code_generator.generate
-                # does some pre- and postprocessing we do not want to duplicate
+            # data_model_type = datamodel_code_generator.DataModelType.PydanticBaseModel
+            # #data_model_type = DataModelType.PydanticV2BaseModel
+            # target_python_version = datamodel_code_generator.PythonVersion.PY_38
+            # data_model_types = datamodel_code_generator.model.get_data_model_types(
+            #   data_model_type, target_python_version
+            # )
+            # parser = OOLDJsonSchemaParserFixedRefs(
+            #     source=pathlib.Path(schema_path),
 
-                # data_model_type = datamodel_code_generator.DataModelType.PydanticBaseModel
-                # #data_model_type = DataModelType.PydanticV2BaseModel
-                # target_python_version = datamodel_code_generator.PythonVersion.PY_38
-                # data_model_types = datamodel_code_generator.model.get_data_model_types(
-                #   data_model_type, target_python_version
-                # )
-                # parser = OOLDJsonSchemaParserFixedRefs(
-                #     source=pathlib.Path(schema_path),
+            #     base_class="opensemantic.OswBaseModel",
+            #     data_model_type=data_model_types.data_model,
+            #     data_model_root_type=data_model_types.root_model,
+            #     data_model_field_type=data_model_types.field_model,
+            #     data_type_manager_type=data_model_types.data_type_manager,
+            #     target_python_version=target_python_version,
 
-                #     base_class="opensemantic.OswBaseModel",
-                #     data_model_type=data_model_types.data_model,
-                #     data_model_root_type=data_model_types.root_model,
-                #     data_model_field_type=data_model_types.field_model,
-                #     data_type_manager_type=data_model_types.data_type_manager,
-                #     target_python_version=target_python_version,
-
-                #     #use_default=True,
-                #     apply_default_values_for_required_fields=True,
-                #     use_unique_items_as_set=True,
-                #     enum_field_as_literal=datamodel_code_generator.LiteralType.All,
-                #     use_title_as_name=True,
-                #     use_schema_description=True,
-                #     use_field_description=True,
-                #     encoding="utf-8",
-                #     use_double_quotes=True,
-                #     collapse_root_models=True,
-                #     reuse_model=True,
-                #     #field_include_all_keys=True
-                # )
-                # result = parser.parse()
-                # with open(temp_model_path, "w", encoding="utf-8") as f:
-                #     f.write(result)
+            #     #use_default=True,
+            #     apply_default_values_for_required_fields=True,
+            #     use_unique_items_as_set=True,
+            #     enum_field_as_literal=datamodel_code_generator.LiteralType.All,
+            #     use_title_as_name=True,
+            #     use_schema_description=True,
+            #     use_field_description=True,
+            #     encoding="utf-8",
+            #     use_double_quotes=True,
+            #     collapse_root_models=True,
+            #     reuse_model=True,
+            #     #field_include_all_keys=True
+            # )
+            # result = parser.parse()
+            # with open(temp_model_path, "w", encoding="utf-8") as f:
+            #     f.write(result)
 
             # see https://koxudaxi.github.io/datamodel-code-generator/
             # --base-class OswBaseModel: use a custom base class

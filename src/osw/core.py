@@ -948,7 +948,17 @@ class OSW(BaseModel):
                     # else:
                     imports.append(import_stmt)
                     # replace all occurrences with empty string
-                    content = content.replace(import_stmt, "")
+                    # make sure to use match line start and end since import pattern
+                    # may overlap partially, e.g.
+                    # from datetime import date
+                    # from datetime import date, datetime
+                    print("Replace import statement:", import_stmt)
+                    content = re.sub(
+                        r"^" + re.escape(import_stmt) + r"$",
+                        "",
+                        content,
+                        flags=re.MULTILINE,
+                    )
                     # remove duplicate imports (done by isort later)
                     imports = list(set(imports))
                 # add imports to the beginning of the file

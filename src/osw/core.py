@@ -39,6 +39,7 @@ from pyld import jsonld
 
 import osw.model.entity as model
 from osw.defaults import params as default_params
+from osw.utils.code_postprocessing import remove_constraints_from_forward_refs
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
@@ -963,6 +964,9 @@ class OSW(BaseModel):
                     imports = list(set(imports))
                 # add imports to the beginning of the file
                 content = "\n".join(sorted(imports)) + "\n\n" + content
+
+                # remove contrains from ForwardRefs
+                content = remove_constraints_from_forward_refs(content)
 
                 # run formatting tool black on the combined content
                 # consolidate imports as well

@@ -26,7 +26,7 @@ if force_schema_reload or not hasattr(
     model, "Corporation"
 ):  # only load if not already loaded. note: does not detect updated schemas yet
     DEPENDENCIES = {
-        "MetaDeviceCategory": "Category:OSWd845b96813a344458f140e48c4d063fd",
+        "DeviceType": "Category:OSWd845b96813a344458f140e48c4d063fd",
         "Device(SubclassWithMetaModel)": "Category:OSW5bf1542d9cf847db83cbc73d579ba9d6",
         "Corporation": "Category:OSW5f4a3751d23e482d80fb0b72dcd6bc31",  #
     }
@@ -47,7 +47,7 @@ new_manufacturer = model.Corporation(
 )
 
 # Create a new device type with the new manufacturer as manufacturer
-new_category = model.MetaDeviceCategory(  # here used as a device type
+new_category = model.DeviceType(  # here used as a device type
     uuid=uuid.uuid5(
         uuid_namespace, "MyNewDeviceCategory"
     ),  # use a stable id from the source dataset / file
@@ -70,7 +70,7 @@ osw_obj.store_entity(
         namespace="Category",
         # meta_category_title= (
         # "Category:OSWd845b96813a344458f140e48c4d063fd")
-        # usage of MetaDeviceCategory not yet supported
+        # usage of DeviceType not yet supported
     )
 )
 

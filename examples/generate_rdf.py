@@ -19,6 +19,7 @@ osw_obj = OswExpress(
 # load dependencies
 DEPENDENCIES = {
     "Tool": "Category:OSWe427aafafbac4262955b9f690a83405d",
+    "Device": "Category:OSWf0fe562f422d49c6877490b3dfee2f3f",
 }
 osw_obj.install_dependencies(DEPENDENCIES, mode="append", policy="if-missing")
 

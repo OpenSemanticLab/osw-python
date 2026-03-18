@@ -3,11 +3,11 @@ OSW instance."""
 
 from pathlib import Path
 
+from opensemantic.v1 import OswBaseModel
 from typing_extensions import List, Optional, Union
 
 from osw.auth import CredentialManager
 from osw.core import OSW
-from osw.model.static import OswBaseModel
 from osw.utils import util
 from osw.wtsite import SLOTS, WtPage, WtSite
 

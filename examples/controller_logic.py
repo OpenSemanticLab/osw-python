@@ -2,7 +2,7 @@ import os
 
 from typing_extensions import override
 
-from osw.controller.entity import Entity, Hardware
+from osw.controller.entity import Entity
 from osw.express import OswExpress
 
 # Create/update the password file under examples/accounts.pwd.yaml
@@ -18,7 +18,7 @@ osw_obj = OswExpress(
 osw_obj.fetch_schema(
     fetchSchemaParam=OswExpress.FetchSchemaParam(schema_title="Category:Hardware")
 )
-
+from osw.model.entity import Hardware  # noqa: E402
 
 title = "Item:OSW7d7193567ea14e4e89b74de88983b718"
 # title = "Item:OSWe02213b6c4664d04834355dc8eb08b99"

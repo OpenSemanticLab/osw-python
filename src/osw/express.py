@@ -1,6 +1,14 @@
 # flake8: noqa: E402
 """
 This module provides convenience functions for osw-python.
+
+This module expects environment variables to be set and available, e.g. through
+dotenv.load_dotenv()
+- OSW_WIKI_DOMAIN: domain of the OSL instance to connect to
+- OSW_CRED_FILEPATH: filepath to the credential file, if not specified the default
+file path based on current working directory will be used
+- OSW_DOWNLOAD_DIR: directory to download files, if not specified the default
+directory based on the current working directory will be used
 """
 
 import importlib.util
@@ -101,25 +109,26 @@ class OswExpress(OSW):
                     "\nIf no domain was set as environmental variable, 'domain' is a "
                     "required argument."
                 )
+        if cred_mngr is not None and cred_mngr.cred_filepath is not None:
+            # If a credential manager is explicitly defined, that should have priority
+            cred_filepath = cred_mngr.cred_filepath[0]
         if cred_filepath is None:
+            # If no credential file path is given, try to take it from environment vars
             if os.getenv("OSW_CRED_FILEPATH") is not None:
                 cred_filepath = os.getenv("OSW_CRED_FILEPATH")
             elif os.getenv("OSL_CRED_FILEPATH") is not None:
                 cred_filepath = os.getenv("OSL_CRED_FILEPATH")
             else:
-                # prompt user to set cred_filepath
+                # Otherwise, prompt user to set cred_filepath
                 cred_filepath = input(
                     "No credential file path was provided. Please specify, where to "
                     "save the credential file: "
                 )
                 print(
-                    f"Credential file path changed to '{cred_filepath}'. Please set "
-                    f"environment variable 'OSW_CRED_FILEPATH' accordingly."
+                    f"Credential file path changed to '{cred_filepath}'."
+                    "\nPlease set environment variable 'OSW_CRED_FILEPATH' accordingly."
+                    "\nIf adequate, make sure to load the .env file."
                 )
-            if cred_mngr is not None:
-                if cred_mngr.cred_filepath is not None:
-                    # But overwrite if the cred_mngr has a cred_filepath
-                    cred_filepath = cred_mngr.cred_filepath[0]
         if not isinstance(cred_filepath, Path):
             cred_filepath = Path(cred_filepath)
         if not cred_filepath.is_file():
@@ -323,7 +332,8 @@ class FileResult(OswBaseModel):
     the credentials_manager or domain and cred_filepath."""
     domain: Optional[str] = None
     """The domain of the OSL instance to download the file from. Required if
-    urL_or_title is a full page title. If None the domain is parsed from the URL."""
+    urL_or_title is a full page title and the domain is not set in the environment
+    variable 'OSW_WIKI_DOMAIN'. If None the domain is parsed from the URL."""
     cred_filepath: Optional[Union[str, Path]] = None
     """The filepath to the credentials file. Will only be used if cred_mngr is
     None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml' is
@@ -478,11 +488,17 @@ class DownloadFileResult(FileResult, LocalFileController):
                 string=url_or_title,
             )
             if match is None:
-                raise ValueError(
-                    f"Could not parse domain from URL: {url_or_title}. "
-                    f"Either specify URL or domain and full page title."
-                )
-            data["domain"] = match.group(1)
+                if os.getenv("OSW_WIKI_DOMAIN") is not None:
+                    data["domain"] = os.getenv("OSW_WIKI_DOMAIN")
+                elif os.getenv("OSL_WIKI_DOMAIN") is not None:
+                    data["domain"] = os.getenv("OSL_WIKI_DOMAIN")
+                else:
+                    raise ValueError(
+                        f"Could not parse domain from URL: {url_or_title}. "
+                        f"Either specify URL or domain and full page title."
+                    )
+            else:
+                data["domain"] = match.group(1)
         if data.get("use_cached") and data.get("target_fp").exists():
             # Here, no file needs to be downloaded, but self need to be initialized
             #  with the path to the file
@@ -554,7 +570,8 @@ def osw_download_file(
         the credentials_manager or domain and cred_filepath.
     domain
         The domain of the OSL instance to download the file from. Required if
-        urL_or_title is a full page title. If None the domain is parsed from the URL.
+        urL_or_title is a full page title and the domain is not set in the environment
+        variable 'OSW_WIKI_DOMAIN'. If None the domain is parsed from the URL.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
          None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
@@ -674,6 +691,10 @@ class UploadFileResult(FileResult, WikiFileController):
             if data.get("domain") is None:
                 if match is not None:
                     data["domain"] = match.group(1)
+                else:
+                    data["domain"] = os.getenv("OSW_WIKI_DOMAIN") or os.getenv(
+                        "OSL_WIKI_DOMAIN"
+                    )
             else:
                 if match is not None:
                     if not data.get("domain") == match.group(1):

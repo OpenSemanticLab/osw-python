@@ -1,25 +1,29 @@
+import os
 from pathlib import Path
 
-from osw.defaults import params as default_params
-from osw.defaults import paths as default_paths
-
-# The domain, osw.express will be initialized with
-default_params.wiki_domain = "wiki-dev.open-semantic-lab.org"
+import dotenv
 
 from osw.express import OswExpress, osw_download_file, osw_upload_file  # noqa: E402
 
+# Best practise load environment variables from .env file
+dotenv.load_dotenv()  # will look for a .env file in CWD and above
+
+# (Alternative) Setting the domain of the wiki to connect to
+os.environ["OSW_WIKI_DOMAIN"] = "wiki-dev.open-semantic-lab.org"
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
 #  it will use the default location (current working directory)
-# cred_filepath_default.set_default(r"C:\Users\gold\ownCloud\Personal\accounts.pwd.yaml")
-
-# Check setting
-print(f"Credentials loaded from '{str(default_paths.cred_filepath)}'")
+os.environ["OSW_CRED_FILEPATH"] = str(
+    Path(__file__).parent / "osw_files" / "accounts.pwd.yaml"
+)
 
 # The domain to connect to
 domain = "wiki-dev.open-semantic-lab.org"
 # domain = "demo.open-semantic-lab.org"
 # Create an OswExpress object
 osw_obj = OswExpress(domain=domain)
+
+# (Alternative, here equivalent to) loading domain from the environment variable
+osw_obj = OswExpress()
 
 # Create a file
 fp = Path("example.txt")

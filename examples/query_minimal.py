@@ -1,4 +1,8 @@
+import dotenv
+
 from osw.express import OswExpress
+
+dotenv.load_dotenv()
 
 # Create an OswExpress object
 domain = "wiki-dev.open-semantic-lab.org"

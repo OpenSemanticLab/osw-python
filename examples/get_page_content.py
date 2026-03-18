@@ -4,8 +4,12 @@ prerequisite: valid bot password in the used OSW instance (Log in, then
 go to special pages -> Bot passwords ; follow the instructions)
 """
 
+import dotenv
+
 from osw.express import OswExpress
 from osw.params import GetPageParam
+
+dotenv.load_dotenv()
 
 osw = OswExpress(domain="demo.open-semantic-lab.org")
 

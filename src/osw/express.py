@@ -307,6 +307,9 @@ class OswExpress(OSW):
         """
         # Preparing all args, kwargs & properties to set for the uploaded file
         data = {**locals(), **properties}
+        # Remove 'self', 'source', and 'properties' to avoid duplicate keyword args
+        for key in ("self", "source", "properties"):
+            data.pop(key, None)
         # Clean data dict to avoid passing None values
         data = {key: value for key, value in data.items() if value is not None}
         # Make sure self is passed as osw_express

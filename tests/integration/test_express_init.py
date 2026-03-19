@@ -29,6 +29,8 @@ import yaml
 
 import osw.express
 from osw.auth import CredentialManager
+from osw.controller.file.local import LocalFileController
+from osw.controller.file.wiki import WikiFileController
 from osw.express import (
     DataModel,
     DownloadFileResult,
@@ -809,3 +811,436 @@ class TestDataModel:
     def test_data_model_defaults(self):
         dm = DataModel(module="osw.model.entity", class_name="Item")
         assert dm.osw_fpt is None
+
+
+# -- Upload/Download instance method tests (mocked) ------------------------
+
+
+class TestUploadInstanceMethod:
+    """Test OswExpress.upload_file() instance method."""
+
+    def test_upload_file_via_instance(self, tmp_path, mocker):
+        """The instance method should delegate to UploadFileResult."""
+        with clean_env_vars(*ENV_VARS):
+            domain = "upload.example.com"
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            create_credentials_file(cred_fp, domain, "user", "pass")
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mocker.patch("osw.express.requests.get", return_value=mock_response)
+            mock_wtsite(mocker)
+
+            osw_obj = osw.express.OswExpress(domain=domain, cred_filepath=cred_fp)
+
+            # Create source file
+            source_file = tmp_path / "test_upload.txt"
+            source_file.write_text("upload content")
+
+            # Mock the upload pipeline - dict() must include 'osw' for
+            # WikiFileController parent validation
+            mock_wfc = MagicMock()
+            mock_wfc.dict.return_value = {"osw": osw_obj}
+            mock_wfc.url = f"https://{domain}/wiki/File:test_upload.txt"
+            mock_wfc.meta = None
+            mocker.patch(
+                "osw.express.WikiFileController.from_other",
+                return_value=mock_wfc,
+            )
+            mock_wfc.put_from = MagicMock()
+
+            result = osw_obj.upload_file(source=source_file)
+            assert result is not None
+            assert isinstance(result, UploadFileResult)
+
+
+class TestDownloadInstanceMethod:
+    """Test OswExpress.download_file() instance method."""
+
+    def test_download_file_via_instance(self, tmp_path, mocker):
+        """The instance method should delegate to DownloadFileResult."""
+        with clean_env_vars(*ENV_VARS):
+            domain = "download.example.com"
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            create_credentials_file(cred_fp, domain, "user", "pass")
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mocker.patch("osw.express.requests.get", return_value=mock_response)
+            mock_wtsite(mocker)
+
+            osw_obj = osw.express.OswExpress(domain=domain, cred_filepath=cred_fp)
+
+            # Mock the download pipeline - patch load_entity on the class
+            mock_entity = MagicMock()
+            mock_wf = MagicMock()
+            mock_lf = MagicMock()
+            mock_lf.dict.return_value = {}
+            mocker.patch.object(
+                osw.express.OswExpress,
+                "load_entity",
+                return_value=mock_entity,
+            )
+            mock_entity.cast.return_value = mock_wf
+            mocker.patch(
+                "osw.express.LocalFileController.from_other",
+                return_value=mock_lf,
+            )
+            mocker.patch.object(DownloadFileResult, "put_from")
+
+            target_fp = tmp_path / "downloaded.txt"
+            result = osw_obj.download_file(
+                url_or_title="File:test.txt",
+                target_fp=target_fp,
+            )
+            assert result is not None
+            assert isinstance(result, DownloadFileResult)
+            assert result.domain == domain
+
+
+# -- UploadFileResult branch coverage tests (mocked) -----------------------
+
+
+class TestUploadLocalFileControllerSource:
+    """Test UploadFileResult when source is a LocalFileController."""
+
+    def test_source_is_local_file_controller(self, tmp_path, mocker):
+        with clean_env_vars(*ENV_VARS):
+            # Create tmp file and LFC
+            source_file = tmp_path / "lfc_source.txt"
+            source_file.write_text("lfc content")
+            lfc = LocalFileController(path=source_file)
+
+            # Mock osw_express
+            mock_osw = MagicMock(spec=osw.express.OswExpress)
+            mock_osw.domain = "lfc.example.com"
+
+            # Mock WikiFileController.from_other and put_from
+            mock_wfc = MagicMock()
+            mock_wfc.dict.return_value = {"osw": mock_osw}
+            mock_wfc.url = "https://lfc.example.com/wiki/File:lfc_source.txt"
+            mock_wfc.meta = None
+            mocker.patch(
+                "osw.express.WikiFileController.from_other",
+                return_value=mock_wfc,
+            )
+            mock_wfc.put_from = MagicMock()
+
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            cred_fp.write_text("")
+
+            result = UploadFileResult(
+                source=lfc,
+                osw_express=mock_osw,
+                domain="lfc.example.com",
+                cred_filepath=cred_fp,
+            )
+            # Pydantic may copy the object, so check equality not identity
+            assert result.source_file_controller == lfc
+
+
+class TestUploadUrlDomainExtraction:
+    """Test that domain is parsed from url_or_title in UploadFileResult."""
+
+    def test_domain_parsed_from_url_in_upload(self, tmp_path, mocker):
+        with clean_env_vars(*ENV_VARS):
+            source_file = tmp_path / "domain_test.txt"
+            source_file.write_text("data")
+
+            mock_osw = MagicMock(spec=osw.express.OswExpress)
+            mock_osw.domain = "wiki.example.com"
+
+            mock_wfc = MagicMock()
+            mock_wfc.dict.return_value = {"osw": mock_osw}
+            mock_wfc.url = "https://wiki.example.com/wiki/File:domain_test.txt"
+            mock_wfc.meta = None
+            mocker.patch(
+                "osw.express.WikiFileController.from_other",
+                return_value=mock_wfc,
+            )
+            mock_wfc.put_from = MagicMock()
+
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            cred_fp.write_text("")
+
+            result = UploadFileResult(
+                source=source_file,
+                url_or_title="https://wiki.example.com/wiki/File:domain_test.txt",
+                osw_express=mock_osw,
+                cred_filepath=cred_fp,
+            )
+            assert result.domain == "wiki.example.com"
+
+
+class TestUploadDomainFromEnv:
+    """Test that domain is taken from env var when title-only is passed."""
+
+    def test_domain_from_env_when_title_only(self, tmp_path, mocker):
+        with clean_env_vars(*ENV_VARS):
+            os.environ["OSW_WIKI_DOMAIN"] = "env-upload.example.com"
+
+            source_file = tmp_path / "env_domain.txt"
+            source_file.write_text("data")
+
+            mock_osw = MagicMock(spec=osw.express.OswExpress)
+            mock_osw.domain = "env-upload.example.com"
+
+            mock_wfc = MagicMock()
+            mock_wfc.dict.return_value = {"osw": mock_osw}
+            mock_wfc.url = "https://env-upload.example.com/wiki/File:env_domain.txt"
+            mock_wfc.meta = None
+            mocker.patch(
+                "osw.express.WikiFileController.from_other",
+                return_value=mock_wfc,
+            )
+            mock_wfc.put_from = MagicMock()
+
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            cred_fp.write_text("")
+
+            result = UploadFileResult(
+                source=source_file,
+                url_or_title="File:env_domain.txt",
+                osw_express=mock_osw,
+                cred_filepath=cred_fp,
+            )
+            assert result.domain == "env-upload.example.com"
+
+
+class TestUploadTargetFptMeta:
+    """Test that target_fpt creates meta and change_id."""
+
+    def test_target_fpt_creates_meta_and_change_id(self, tmp_path, mocker):
+        with clean_env_vars(*ENV_VARS):
+            source_file = tmp_path / "target_fpt.txt"
+            source_file.write_text("data")
+
+            mock_osw = MagicMock(spec=osw.express.OswExpress)
+            mock_osw.domain = "fpt.example.com"
+
+            mock_wfc = MagicMock()
+            mock_wfc.dict.return_value = {"osw": mock_osw}
+            mock_wfc.url = "https://fpt.example.com/wiki/File:TargetFile.txt"
+            mock_wfc.meta = None
+            mocker.patch(
+                "osw.express.WikiFileController.from_other",
+                return_value=mock_wfc,
+            )
+            mock_wfc.put_from = MagicMock()
+
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            cred_fp.write_text("")
+
+            result = UploadFileResult(
+                source=source_file,
+                target_fpt="File:TargetFile.txt",
+                url_or_title="File:TargetFile.txt",
+                osw_express=mock_osw,
+                domain="fpt.example.com",
+                cred_filepath=cred_fp,
+            )
+            assert result.change_id is not None
+            assert len(result.change_id) > 0  # UUID string
+
+
+class TestUploadOswExpressFromSourceController:
+    """Test that osw_express is taken from source controller when not provided."""
+
+    def test_osw_express_from_source_controller(self, tmp_path, mocker):
+        with clean_env_vars(*ENV_VARS):
+            source_file = tmp_path / "src_ctrl.txt"
+            source_file.write_text("data")
+
+            # Use a MagicMock as WikiFileController source with osw_express
+            mock_osw = MagicMock(spec=osw.express.OswExpress)
+            mock_osw.domain = "src-ctrl.example.com"
+            mock_source_wfc = MagicMock(spec=WikiFileController)
+            mock_source_wfc.osw_express = mock_osw
+            mock_source_wfc.meta = None
+
+            mock_wfc = MagicMock()
+            mock_wfc.dict.return_value = {"osw": mock_osw}
+            mock_wfc.url = "https://src-ctrl.example.com/wiki/File:src_ctrl.txt"
+            mock_wfc.meta = None
+            mocker.patch(
+                "osw.express.WikiFileController.from_other",
+                return_value=mock_wfc,
+            )
+            mock_wfc.put_from = MagicMock()
+
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            cred_fp.write_text("")
+
+            # Spy on OswExpress constructor to verify it's NOT called
+            # (osw_express should come from source controller)
+            osw_init_spy = mocker.patch(
+                "osw.express.OswExpress.__init__", return_value=None
+            )
+
+            result = UploadFileResult(
+                source=mock_source_wfc,
+                domain="src-ctrl.example.com",
+                cred_filepath=cred_fp,
+            )
+            # osw_express should have been taken from source, not created new
+            osw_init_spy.assert_not_called()
+            assert result.osw_express is not None
+
+
+class TestUploadInvalidSourceType:
+    """Test that invalid source type raises ValueError."""
+
+    def test_invalid_source_type_raises(self, tmp_path):
+        with clean_env_vars(*ENV_VARS):
+            cred_fp = tmp_path / "cred.pwd.yaml"
+            cred_fp.write_text("")
+            with pytest.raises(ValueError, match="must be a"):
+                UploadFileResult(
+                    source=12345,
+                    cred_filepath=cred_fp,
+                )
+
+
+# -- Live integration tests (upload/download via instance methods) ----------
+
+
+@contextmanager
+def preserve_entity_py_state():
+    """Preserve and restore entity.py to avoid test side effects."""
+    path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
+    with open(path, "r") as file:
+        original_entity = file.read()
+    try:
+        yield None
+    finally:
+        with open(path, "w") as file:
+            file.write(original_entity)
+
+
+class TestLiveUploadDownloadInstanceMethods:
+    """Test upload_file/download_file instance methods with live wiki."""
+
+    def test_live_upload_download_via_instance(
+        self, wiki_domain, wiki_username, wiki_password
+    ):
+        cred_filepath = Path.cwd() / "test_inst_upload_accounts.pwd.yaml"
+        create_credentials_file(
+            cred_filepath, wiki_domain, wiki_username, wiki_password
+        )
+        try:
+            osw_obj = osw.express.OswExpress(
+                domain=wiki_domain, cred_filepath=cred_filepath
+            )
+            # Create dummy file
+            source_file = Path.cwd() / "test_instance_upload.txt"
+            source_file.write_text("Instance upload test content")
+
+            try:
+                # Upload via instance method
+                wiki_file = osw_obj.upload_file(source=source_file)
+                assert wiki_file is not None
+                assert wiki_file.url_or_title is not None
+
+                # Download via instance method
+                local_file = osw_obj.download_file(
+                    url_or_title=wiki_file.url_or_title,
+                    overwrite=True,
+                )
+                assert local_file.path.exists()
+                assert local_file.path.read_text() == "Instance upload test content"
+
+                # Cleanup
+                local_file.close()
+                local_file.delete()
+                wiki_file.delete()
+            finally:
+                if source_file.exists():
+                    source_file.unlink()
+            osw_obj.shut_down()
+        finally:
+            if cred_filepath.exists():
+                cred_filepath.unlink()
+
+
+class TestLiveUploadWithTargetFpt:
+    """Test upload with explicit target_fpt on live wiki."""
+
+    def test_live_upload_with_target_fpt(
+        self, wiki_domain, wiki_username, wiki_password
+    ):
+        cred_filepath = Path.cwd() / "test_fpt_upload_accounts.pwd.yaml"
+        create_credentials_file(
+            cred_filepath, wiki_domain, wiki_username, wiki_password
+        )
+        try:
+            osw_obj = osw.express.OswExpress(
+                domain=wiki_domain, cred_filepath=cred_filepath
+            )
+            source_file = Path.cwd() / "test_target_fpt_upload.txt"
+            source_file.write_text("Target FPT test content")
+
+            try:
+                wiki_file = osw_obj.upload_file(
+                    source=source_file,
+                    url_or_title="File:TestTargetFptUpload.txt",
+                    target_fpt="File:TestTargetFptUpload.txt",
+                )
+                assert wiki_file is not None
+                assert wiki_file.change_id is not None
+                assert len(wiki_file.change_id) > 0
+
+                # Download and verify
+                local_file = osw_obj.download_file(
+                    url_or_title=wiki_file.url_or_title,
+                    overwrite=True,
+                )
+                assert local_file.path.read_text() == "Target FPT test content"
+
+                # Cleanup
+                local_file.close()
+                local_file.delete()
+                wiki_file.delete()
+            finally:
+                if source_file.exists():
+                    source_file.unlink()
+            osw_obj.shut_down()
+        finally:
+            if cred_filepath.exists():
+                cred_filepath.unlink()
+
+
+class TestLiveImportWithFallback:
+    """Test import_with_fallback fallback path with live wiki."""
+
+    def test_live_fallback_fetches_from_wiki(
+        self, wiki_domain, wiki_username, wiki_password
+    ):
+        """Test that import_with_fallback can fetch a schema from the wiki
+        when the class doesn't exist locally yet."""
+        cred_filepath = Path.cwd() / "test_fallback_accounts.pwd.yaml"
+        create_credentials_file(
+            cred_filepath, wiki_domain, wiki_username, wiki_password
+        )
+        try:
+            with clean_env_vars(*ENV_VARS):
+                os.environ["OSW_WIKI_DOMAIN"] = wiki_domain
+                os.environ["OSW_CRED_FILEPATH"] = str(cred_filepath)
+
+                with preserve_entity_py_state():
+                    # "User" doesn't exist in entity.py by default,
+                    # so this forces the fallback path to fetch from wiki
+                    caller_globals = {}
+                    import_with_fallback(
+                        [
+                            DataModel(
+                                module="osw.model.entity",
+                                class_name="User",
+                                osw_fpt="Category:OSWd9aa0bca9b0040d8af6f5c091bf9eec7",
+                            )
+                        ],
+                        caller_globals,
+                    )
+                    assert "User" in caller_globals
+        finally:
+            if cred_filepath.exists():
+                cred_filepath.unlink()

@@ -186,7 +186,7 @@ class OswExpress(OSW):
         """Return self when entering the context manager."""
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type=None, exc_value=None, traceback=None):
         """Close the connection to the OSL instance when exiting the context manager."""
         self.close_connection()
 

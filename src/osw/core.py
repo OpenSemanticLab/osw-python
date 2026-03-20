@@ -1096,7 +1096,7 @@ class OSW(BaseModel):
     class LoadEntityResult(BaseModel):
         """Result of load_entity()"""
 
-        entities: Union[model.Entity, List[model.Entity]]
+        entities: Union[model.OswBaseModel, List[model.OswBaseModel]]
         """The dataclass instance(s)"""
 
     # fmt: off

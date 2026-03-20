@@ -1651,11 +1651,25 @@ class OSW(BaseModel):
             index: int = None,
             overwrite_class_param: OSW.OverwriteClassParam = None,
         ) -> None:
-            title_ = get_title(entity_)
+            try:
+                title_ = get_title(entity_)
+            except Exception as e:
+                entity_name = getattr(entity_, "name", None) or getattr(
+                    entity_, "uuid", "unknown"
+                )
+                _logger.error(f"Error getting title for entity '{entity_name}': {e}")
+                return
             if namespace_ is None:
                 namespace_ = get_namespace(entity_)
             if namespace_ is None or title_ is None:
-                print("Error: Unsupported entity type")
+                entity_name = getattr(entity_, "name", None) or getattr(
+                    entity_, "uuid", "unknown"
+                )
+                _logger.error(
+                    f"Unsupported entity type: namespace={namespace_}, "
+                    f"title={title_}, entity name='{entity_name}', "
+                    f"type={type(entity_).__name__}"
+                )
                 return
             if overwrite_class_param is None:
                 raise TypeError("'overwrite_class_param' must not be None!")
@@ -1771,12 +1785,16 @@ class OSW(BaseModel):
                 upload_index += 1
 
         def handle_upload_object_(upload_object: UploadObject) -> None:
-            store_entity_(
-                upload_object.entity,
-                upload_object.namespace,
-                upload_object.index,
-                upload_object.overwrite_class_param,
-            )
+            try:
+                store_entity_(
+                    upload_object.entity,
+                    upload_object.namespace,
+                    upload_object.index,
+                    upload_object.overwrite_class_param,
+                )
+            except Exception as e:
+                entity_name = getattr(upload_object.entity, "name", None) or "unknown"
+                _logger.error(f"Error storing entity '{entity_name}': {e}")
 
         if param.parallel:
             _ = parallelize(

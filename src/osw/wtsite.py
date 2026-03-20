@@ -866,6 +866,8 @@ class WtSite:
                             file_dumps[file_title]
                         )
 
+        # bundle.packages[config.name].pages.sort(key=lambda x: x.urlPath)
+
         content = bundle.json(exclude_none=True, indent=4, ensure_ascii=False)
         # This will create the JSON (e.g., package.json) with the PagePackageConfig,
         #  which contains the PagePackageBundle
@@ -1927,8 +1929,19 @@ class WtPage:
             with open(os.path.join(file_path__), "w", encoding="utf-8") as f__:
                 f__.write(content__)
 
+        def _sort_json_arrays(obj):
+            """Recursively sort list-of-strings for deterministic serialization."""
+            if isinstance(obj, dict):
+                return {k: _sort_json_arrays(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                if all(isinstance(v, str) for v in obj):
+                    return sorted(obj)
+                return [_sort_json_arrays(v) for v in obj]
+            return obj
+
         def dump_slot_content(slot_key_, content_type_, content_):
             if isinstance(content_, dict):
+                content_ = _sort_json_arrays(content_)
                 content_ = json.dumps(content_, indent=4, ensure_ascii=False)
             if content_type_ == "Scribunto":
                 content_type_ = "lua"
@@ -1960,6 +1973,7 @@ class WtPage:
                 dump_slot_content(slot_key, content_type, content)
 
         if self.is_file_page():
+            print("download " + self.title)
             file = self.wtSite.mw_site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
             file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages

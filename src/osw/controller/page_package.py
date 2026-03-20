@@ -529,6 +529,9 @@ class PagePackageController(model.PagePackageMetaData):
                 pp.version = p.version
                 pp.url = [bundle.publisherURL]
                 pp.parts = self.page_titles
+                # this will prevent the meta from being updated with the change-id
+                # which would lead to unnecessary updates of the documentation page
+                pp.meta = None
                 pp.store_jsonld()
 
         # Create a PagePackageConfig instance

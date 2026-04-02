@@ -3,6 +3,7 @@ import uuid as uuid_module
 from pathlib import Path
 
 import mwclient
+import pytest
 
 import osw.wiki_tools as wt
 from osw.data.import_utility import uuid_to_full_page_title
@@ -21,6 +22,7 @@ sys.path.append(str(migration_import_dir))
 # sys.path.append(str(integration_import_dir))
 
 
+@pytest.mark.skip(reason="no longer relevant")
 def test_dependencies(wiki_domain: str, wiki_username: str, wiki_password: str):
     """This test makes sure that all dependencies are available. First the dependencies
     are fetched from the wiki if necessary, then the dependencies are checked."""
@@ -30,6 +32,7 @@ def test_dependencies(wiki_domain: str, wiki_username: str, wiki_password: str):
     assert fpmd.check_dependencies()
 
 
+@pytest.mark.skip(reason="no longer relevant")
 def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password: str):
     from file_page_migration import (
         PWD_FILE_PATH,

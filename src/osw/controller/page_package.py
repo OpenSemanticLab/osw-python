@@ -512,9 +512,14 @@ class PagePackageController(model.PagePackageMetaData):
                 )
                 pp: PagePackage = None
                 if len(res) == 0:
-                    # generate new entity
+                    # generate deterministic entity from globalID
+                    import uuid as uuid_module
+
                     pp = PagePackage(
                         label=[Label(text=p.globalID)],
+                        uuid=str(
+                            uuid_module.uuid5(uuid_module.NAMESPACE_URL, p.globalID)
+                        ),
                     )
                 else:
                     # load entity

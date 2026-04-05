@@ -39,7 +39,10 @@ from pyld import jsonld
 
 import osw.model.entity as model
 from osw.defaults import params as default_params
-from osw.utils.code_postprocessing import remove_constraints_from_forward_refs
+from osw.utils.code_postprocessing import (
+    remove_constraints_from_forward_refs,
+    resolve_osw_id_type_hints,
+)
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
@@ -908,6 +911,11 @@ class OSW(BaseModel):
                 content = all_content
 
             if fetchSchemaParam.final:
+                # Resolve bare OSW ID type hints (e.g. OSW3886...)
+                # with actual class names (e.g. RiskAssessmentProcess)
+                # using UUID annotations from generated class definitions
+                content = resolve_osw_id_type_hints(content)
+
                 # Cleanup the combined content
                 # find all "<cls>.update_forward_refs()" lines,
                 # remove duplicates and put them to EOF

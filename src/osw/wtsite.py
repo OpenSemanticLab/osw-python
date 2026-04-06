@@ -866,6 +866,8 @@ class WtSite:
                             file_dumps[file_title]
                         )
 
+        # bundle.packages[config.name].pages.sort(key=lambda x: x.urlPath)
+
         content = bundle.json(exclude_none=True, indent=4, ensure_ascii=False)
         # This will create the JSON (e.g., package.json) with the PagePackageConfig,
         #  which contains the PagePackageBundle
@@ -1960,6 +1962,7 @@ class WtPage:
                 dump_slot_content(slot_key, content_type, content)
 
         if self.is_file_page():
+            print("download " + self.title)
             file = self.wtSite.mw_site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
             file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages

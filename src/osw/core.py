@@ -39,7 +39,10 @@ from pyld import jsonld
 
 import osw.model.entity as model
 from osw.defaults import params as default_params
-from osw.utils.code_postprocessing import remove_constraints_from_forward_refs
+from osw.utils.code_postprocessing import (
+    remove_constraints_from_forward_refs,
+    resolve_osw_id_type_hints,
+)
 from osw.utils.oold import (
     AggregateGeneratedSchemasParam,
     AggregateGeneratedSchemasParamMode,
@@ -908,6 +911,11 @@ class OSW(BaseModel):
                 content = all_content
 
             if fetchSchemaParam.final:
+                # Resolve bare OSW ID type hints (e.g. OSW3886...)
+                # with actual class names (e.g. RiskAssessmentProcess)
+                # using UUID annotations from generated class definitions
+                content = resolve_osw_id_type_hints(content)
+
                 # Cleanup the combined content
                 # find all "<cls>.update_forward_refs()" lines,
                 # remove duplicates and put them to EOF
@@ -1096,7 +1104,7 @@ class OSW(BaseModel):
     class LoadEntityResult(BaseModel):
         """Result of load_entity()"""
 
-        entities: Union[model.Entity, List[model.Entity]]
+        entities: Union[model.OswBaseModel, List[model.OswBaseModel]]
         """The dataclass instance(s)"""
 
     # fmt: off
@@ -1651,11 +1659,25 @@ class OSW(BaseModel):
             index: int = None,
             overwrite_class_param: OSW.OverwriteClassParam = None,
         ) -> None:
-            title_ = get_title(entity_)
+            try:
+                title_ = get_title(entity_)
+            except Exception as e:
+                entity_name = getattr(entity_, "name", None) or getattr(
+                    entity_, "uuid", "unknown"
+                )
+                _logger.error(f"Error getting title for entity '{entity_name}': {e}")
+                return
             if namespace_ is None:
                 namespace_ = get_namespace(entity_)
             if namespace_ is None or title_ is None:
-                print("Error: Unsupported entity type")
+                entity_name = getattr(entity_, "name", None) or getattr(
+                    entity_, "uuid", "unknown"
+                )
+                _logger.error(
+                    f"Unsupported entity type: namespace={namespace_}, "
+                    f"title={title_}, entity name='{entity_name}', "
+                    f"type={type(entity_).__name__}"
+                )
                 return
             if overwrite_class_param is None:
                 raise TypeError("'overwrite_class_param' must not be None!")
@@ -1771,12 +1793,16 @@ class OSW(BaseModel):
                 upload_index += 1
 
         def handle_upload_object_(upload_object: UploadObject) -> None:
-            store_entity_(
-                upload_object.entity,
-                upload_object.namespace,
-                upload_object.index,
-                upload_object.overwrite_class_param,
-            )
+            try:
+                store_entity_(
+                    upload_object.entity,
+                    upload_object.namespace,
+                    upload_object.index,
+                    upload_object.overwrite_class_param,
+                )
+            except Exception as e:
+                entity_name = getattr(upload_object.entity, "name", None) or "unknown"
+                _logger.error(f"Error storing entity '{entity_name}': {e}")
 
         if param.parallel:
             _ = parallelize(

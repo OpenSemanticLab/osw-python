@@ -512,9 +512,14 @@ class PagePackageController(model.PagePackageMetaData):
                 )
                 pp: PagePackage = None
                 if len(res) == 0:
-                    # generate new entity
+                    # generate deterministic entity from globalID
+                    import uuid as uuid_module
+
                     pp = PagePackage(
                         label=[Label(text=p.globalID)],
+                        uuid=str(
+                            uuid_module.uuid5(uuid_module.NAMESPACE_URL, p.globalID)
+                        ),
                     )
                 else:
                     # load entity
@@ -529,6 +534,9 @@ class PagePackageController(model.PagePackageMetaData):
                 pp.version = p.version
                 pp.url = [bundle.publisherURL]
                 pp.parts = self.page_titles
+                # this will prevent the meta from being updated with the change-id
+                # which would lead to unnecessary updates of the documentation page
+                pp.meta = None
                 pp.store_jsonld()
 
         # Create a PagePackageConfig instance

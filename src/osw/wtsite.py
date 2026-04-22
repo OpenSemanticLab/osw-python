@@ -171,6 +171,11 @@ class WtSite:
             )
         )
         if isinstance(cred, CredentialManager.UserPwdCredential):
+            # Stale session cookies cause MediaWiki to abort the login flow with
+            # "Unable to continue login. Your session most likely timed out."
+            # Clear client-side session state so login starts from a clean slate.
+            self._site.connection.cookies.clear()
+            self._site.tokens.clear()
             self._site.login(username=cred.username, password=cred.password)
         else:
             raise RuntimeError(

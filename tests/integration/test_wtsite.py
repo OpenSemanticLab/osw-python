@@ -329,6 +329,98 @@ class TestReloginCallsSiteLogin:
         )
 
 
+class TestReloginClearsStaleSessionState:
+    """Regression test: _relogin() must clear stale cookies and cached tokens
+    before calling login().
+
+    Without this, MediaWiki's API returns result='Aborted' with reason
+    "Unable to continue login. Your session most likely timed out." when the
+    server-side session has expired but the cookie jar still holds the old
+    session cookie.
+    """
+
+    def test_relogin_clears_cookies_and_tokens_before_login(self, mocker):
+        mock_mw_site = MagicMock()
+        mock_cred_mngr = MagicMock(spec=CredentialManager)
+        mock_cred = MagicMock(spec=CredentialManager.UserPwdCredential)
+        mock_cred.username = "TestUser"
+        mock_cred.password = "TestPass"
+        mock_cred_mngr.get_credential.return_value = mock_cred
+
+        wt_site = WtSite.__new__(WtSite)
+        wt_site._cred_mngr = mock_cred_mngr
+        wt_site._iri = "stale-session.example.com"
+        wt_site._site = mock_mw_site
+        wt_site._page_cache = {}
+        wt_site._cache_enabled = False
+
+        call_order = []
+        mock_mw_site.connection.cookies.clear.side_effect = lambda: call_order.append(
+            "cookies.clear"
+        )
+        mock_mw_site.tokens.clear.side_effect = lambda: call_order.append(
+            "tokens.clear"
+        )
+        mock_mw_site.login.side_effect = lambda **_: call_order.append("login")
+
+        wt_site._relogin()
+
+        mock_mw_site.connection.cookies.clear.assert_called_once_with()
+        mock_mw_site.tokens.clear.assert_called_once_with()
+        mock_mw_site.login.assert_called_once_with(
+            username="TestUser", password="TestPass"
+        )
+        # Cookies and tokens must be cleared BEFORE login is attempted.
+        assert call_order.index("cookies.clear") < call_order.index("login")
+        assert call_order.index("tokens.clear") < call_order.index("login")
+
+    def test_relogin_recovers_when_server_aborts_login_with_stale_cookies(self, mocker):
+        """Reproduces the production failure: server returns 'Aborted' on the
+        first login call because stale cookies are still present, but succeeds
+        once client-side state has been cleared.
+        """
+        mock_mw_site = MagicMock()
+        mock_cred_mngr = MagicMock(spec=CredentialManager)
+        mock_cred = MagicMock(spec=CredentialManager.UserPwdCredential)
+        mock_cred.username = "TestUser"
+        mock_cred.password = "TestPass"
+        mock_cred_mngr.get_credential.return_value = mock_cred
+
+        # Simulate a cookie jar that still holds a stale session cookie.
+        fake_cookies = {"osl_session": "stale-id"}
+
+        def fake_clear():
+            fake_cookies.clear()
+
+        mock_mw_site.connection.cookies.clear.side_effect = fake_clear
+
+        # login() fails with the exact MediaWiki LoginError seen in production
+        # if cookies are still present when called; succeeds otherwise.
+        def fake_login(**_):
+            if fake_cookies:
+                raise mwclient.errors.LoginError(
+                    mock_mw_site,
+                    "Aborted",
+                    "Unable to continue login. Your session most likely " "timed out.",
+                )
+
+        mock_mw_site.login.side_effect = fake_login
+
+        wt_site = WtSite.__new__(WtSite)
+        wt_site._cred_mngr = mock_cred_mngr
+        wt_site._iri = "stale-session.example.com"
+        wt_site._site = mock_mw_site
+        wt_site._page_cache = {}
+        wt_site._cache_enabled = False
+
+        # Should not raise: _relogin clears the stale cookie before calling login
+        wt_site._relogin()
+
+        mock_mw_site.login.assert_called_once_with(
+            username="TestUser", password="TestPass"
+        )
+
+
 # -- Live integration tests (require wiki credentials) --------------------
 
 

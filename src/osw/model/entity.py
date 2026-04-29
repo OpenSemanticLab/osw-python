@@ -21,3 +21,8 @@ from opensemantic.core.v1 import (  # isort:skip
     WikiFile,
     PagePackage,
 )  # noqa: F401, E402
+
+from opensemantic.base.v1 import (  # isort:skip
+    Software,
+    PrefectFlow,
+)  # noqa: F401, E402

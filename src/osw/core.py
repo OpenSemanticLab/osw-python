@@ -683,6 +683,8 @@ class OSW(BaseModel):
                 use_title_as_name=True,
                 use_schema_description=True,
                 use_field_description=True,
+                # https://github.com/koxudaxi/datamodel-code-generator/issues/2447
+                # use_standard_collections=data_model_type != "pydantic.BaseModel",
                 encoding="utf-8",
                 use_double_quotes=True,
                 collapse_root_models=True,
@@ -878,6 +880,16 @@ class OSW(BaseModel):
                         ")  # noqa: F401, E402\n"
                         "\n"
                     )
+
+                    # import Software, PrefectWorkflow from base
+                    if data_model_type == "pydantic.BaseModel":
+                        header += (
+                            "from opensemantic.base.v1 import Software, PrefectFlow\n"
+                        )
+                    else:
+                        header += (
+                            "from opensemantic.base import Software, PrefectFlow\n"
+                        )
 
                 content = re.sub(
                     pattern=r"(^class\s*\S*\s*\(\s*[\S\s]*?\s*\)\s*:.*\n)",

@@ -1,86 +1,53 @@
-import asyncio
-import uuid
-from os import environ
 from typing import Optional
 from uuid import UUID, uuid4
 
-from prefect import flow, get_client, task
-from prefect.blocks.system import Secret
-from pydantic.v1 import Field
+from opensemantic.base.v1 import Article
+from prefect import flow, task
+from pydantic.v1 import BaseModel, Field
 
 import osw.model.entity as model
-from osw.auth import CredentialManager
 from osw.core import OSW
-from osw.utils.wiki import get_full_title
+from osw.utils.workflow import (
+    ConnectionSettings,
+    DeployConfig,
+    DeployParam,
+    WorkflowRequest,
+    connect,
+    deploy,
+)
 from osw.wtsite import WtSite
 
-
-class ConnectionSettings(model.OswBaseModel):
-    """Connection data for OSW"""
-
-    osw_user_name: Optional[str]
-    """The login username.
-    Note: value of envar OSW_USER used of not given
-    Note: value of envar OSW_PASSWORD used for login"""
-    osw_domain: Optional[str]
-    """The domain of the instance
-    Note: value of envar OSW_SERVER used of not given"""
+# Module-level OSW instance, set by the connect_osw task
+osw: Optional[OSW] = None
 
 
 @task
-def connect(settings: Optional[ConnectionSettings] = None):
-    """Initiates the connection to the OSW instance
-
-    Parameters
-    ----------
-    settings
-        see ConnectionSetttings dataclass
-    """
-    if settings is None:
-        settings = ConnectionSettings()
-    global wtsite
-    # define username
-    if environ.get("OSW_USER") is not None and environ.get("OSW_USER") != "":
-        settings.osw_user_name = environ.get("OSW_USER")
-    if environ.get("OSW_SERVER") is not None and environ.get("OSW_SERVER") != "":
-        settings.osw_domain = environ.get("OSW_SERVER")
-    password = ""
-    if environ.get("OSW_PASSWORD") is not None and environ.get("OSW_PASSWORD") != "":
-        password = environ.get("OSW_PASSWORD")
-    else:
-        # fetch secret stored in prefect server from calculated name
-        password = Secret.load(
-            settings.osw_user_name.lower() + "-" + settings.osw_domain.replace(".", "-")
-        ).get()  # e. g. mybot-wiki-dev-open-semantic-lab-org
-    cm = CredentialManager()
-    cm.add_credential(
-        CredentialManager.UserPwdCredential(
-            iri=settings.osw_domain, username=settings.osw_user_name, password=password
-        )
-    )
-    wtsite = WtSite(WtSite.WtSiteConfig(iri=settings.osw_domain, cred_mngr=cm))
+def connect_osw(settings: Optional[ConnectionSettings] = None):
+    """Initiates the connection to the OSW instance"""
     global osw
-    osw = OSW(site=wtsite)
+    osw = connect(settings)
 
 
 @task
 def fetch_schema():
-    """this will load the current entity schema from the OSW instance."""
-    # Load Article Schema on demand
-    if not hasattr(model, "Article"):
-        osw.fetch_schema(
-            OSW.FetchSchemaParam(
-                schema_title=[
-                    "Category:OSW77e749fc598341ac8b6d2fff21574058",  # Software
-                    "Category:OSW72eae3c8f41f4a22a94dbc01974ed404",  # PrefectFlow
-                    "Category:OSW92cc6b1a2e6b4bb7bad470dfdcfdaf26",  # Article
-                ],
-                mode="replace",
-            )
-        )
+    """Fetch custom schemas not yet available in packages.
+
+    Software, PrefectFlow, and Article are already provided by
+    opensemantic.base, so no fetch is needed for this example.
+    Uncomment and adapt the code below if your workflow uses
+    schemas that are only available on the OSW instance.
+    """
+    # osw.fetch_schema(
+    #     OSW.FetchSchemaParam(
+    #         schema_title=[
+    #             "Category:OSW...",  # your custom category
+    #         ],
+    #         mode="replace",
+    #     )
+    # )
 
 
-class Result(model.OswBaseModel):
+class Result(BaseModel):
     """The result dataclass"""
 
     uuid: Optional[UUID] = Field(default_factory=uuid4, title="UUID")
@@ -106,15 +73,21 @@ def store_and_document_result(result: Result):
         title = result.target_title
     else:
         title = "Item:" + osw.get_osw_id(result.uuid)
-    entity = osw.load_entity(title)
+    entity = osw.load_entity(
+        OSW.LoadEntityParam(
+            titles=[title],
+            autofetch_schema=False,
+            model_to_use=Article,
+        )
+    ).entities[0]
     if entity is None:
         # does not exist yet - create a new one
-        entity = model.Article(
+        entity = Article(
             uuid=result.uuid, label=[model.Label(text="Article for dummy workflow")]
         )
 
     # edit structured data
-    entity = entity.cast(model.Article)
+    entity = entity.cast(Article)
     entity.description = [model.Description(text="some descriptive text")]
     osw.store_entity(entity)
 
@@ -127,13 +100,9 @@ def store_and_document_result(result: Result):
     print("FINISHED")
 
 
-class Request(model.OswBaseModel):
-    uuid: UUID = Field(default_factory=uuid4, title="UUID")
-    """UUIDv4 of the request."""
-    osw_domain: Optional[str] = "wiki-dev.open-semantic-lab.org"
-    """To domain of the OSW instance"""
-    subject: Optional[str] = "Item:OSW56f9439d43244fe7a83163bab9414ee1"
-    """Where to store the results. For testing, we use a static default value"""
+class Request(WorkflowRequest):
+    """Request for the dummy workflow."""
+
     msg: Optional[str] = "test message"
     """The message you want to leave on the target page"""
 
@@ -150,56 +119,24 @@ def dummy_workflow(request: Request):
     request
         see Request dataclass
     """
-    connect(ConnectionSettings(osw_domain=request.osw_domain))
+    connect_osw(ConnectionSettings(osw_domain=request.osw_domain))
     fetch_schema()
     store_and_document_result(Result(msg=request.msg, target_title=request.subject))
 
 
-async def deploy():
-    """programmatic deployment supported in newer prefect versions"""
-    flow = dummy_workflow
-    # flow_name = flow.name
-    deployment_name = flow.name + " Deployment"
-
-    # create a deployment and apply it
-    config = await flow.to_deployment(name=deployment_name)
-    await config.apply()  # returns the deployment_uuid
-
-    # fetch flow uuid
-    async with get_client() as client:
-        response = await client.read_flow_by_name(flow.name)
-        print(response.json())
-        flow_uuid = response.id
-
-    await connect()
-    await fetch_schema()
-    # static UUIDv5 namespace for a stable UUID
-    namespace_uuid = uuid.UUID("0dd6c54a-b162-4552-bab9-9942ccaf4f41")
-
-    # self-documentation / registration
-    this_tool = model.Software(
-        uuid=uuid.uuid5(namespace_uuid, flow.name),
-        label=[model.Label(text=flow.name)],
-        description=[model.Description(text=flow.description)],
-    )
-
-    prefect_domain = environ.get("PREFECT_API_URL").split("//")[-1].split("/")[0]
-    this_flow = model.PrefectFlow(
-        uuid=flow_uuid,
-        label=[model.Label(text=flow.name + " Prefect Flow")],
-        description=[model.Description(text=flow.description)],
-        flow_id=str(flow_uuid),
-        hosted_software=[get_full_title(this_tool)],
-        domain=prefect_domain,
-    )
-
-    osw.store_entity(osw.StoreEntityParam(entities=[this_tool, this_flow]))
-
-    # start agent to serve deployment
-    await dummy_workflow.serve(name=deployment_name)
-
-
 if __name__ == "__main__":
-    # dummy_workflow(Request(msg="Test"))
-    with asyncio.Runner() as runner:
-        runner.run(deploy())
+    # Direct run: dummy_workflow(Request(msg="Test"))
+
+    # Deploy and serve with OSW registration
+    osw_instance = connect()
+    deploy(
+        DeployParam(
+            deployments=[
+                DeployConfig(
+                    flow=dummy_workflow,
+                    name="Dummy Workflow Deployment",
+                )
+            ],
+            osw=osw_instance,
+        )
+    )

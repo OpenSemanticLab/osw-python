@@ -128,6 +128,8 @@ if __name__ == "__main__":
     # Direct run: dummy_workflow(Request(msg="Test"))
 
     # Deploy and serve with OSW registration
+    from os import environ
+
     osw_instance = connect()
     deploy(
         DeployParam(
@@ -138,5 +140,6 @@ if __name__ == "__main__":
                 )
             ],
             osw=osw_instance,
+            public_url=environ.get("PREFECT_PUBLIC_URL"),
         )
     )

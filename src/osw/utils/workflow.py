@@ -227,6 +227,12 @@ class DeployParam(BaseModel):
     namespace_uuid: Optional[UUID] = None
     """Static UUIDv5 namespace for stable Software entity UUIDs.
     If None, a default namespace is used."""
+    public_url: Optional[str] = None
+    """Public Prefect API URL stored in the PrefectFlow entity.
+    Use this when the PREFECT_API_URL used by the worker differs from the
+    URL clients (e.g. prefect.js) should use to reach the API.
+    Example: PREFECT_API_URL='http://localhost:4200/api' but clients need
+    'https://example.com/w/rest.php/apigateway'."""
 
     class Config:
         arbitrary_types_allowed = True
@@ -240,6 +246,7 @@ async def register_flow(
     osw_instance: OSW,
     flow: Flow,
     namespace_uuid: Optional[UUID] = None,
+    public_url: Optional[str] = None,
 ) -> None:
     """Register a Prefect flow as Software + PrefectFlow entities on OSW.
 
@@ -256,6 +263,9 @@ async def register_flow(
     namespace_uuid
         UUIDv5 namespace for generating the Software entity UUID.
         If None, uses a default namespace.
+    public_url
+        Public Prefect API URL to store in the PrefectFlow entity.
+        If None, PREFECT_API_URL env var is used.
     """
     if namespace_uuid is None:
         namespace_uuid = _DEFAULT_NAMESPACE_UUID
@@ -285,8 +295,25 @@ async def register_flow(
     )
 
     # create PrefectFlow entity
-    prefect_api_url = environ.get("PREFECT_API_URL", "")
-    prefect_domain = prefect_api_url.split("//")[-1].split("/")[0]
+    # use public_url if provided, otherwise fall back to PREFECT_API_URL
+    from urllib.parse import urlparse
+
+    entity_url = public_url or environ.get("PREFECT_API_URL", "")
+    parsed = urlparse(entity_url)
+    prefect_domain = parsed.hostname or ""
+    prefect_schema = parsed.scheme or "https"
+    prefect_port = [parsed.port] if parsed.port else None
+    prefect_path = parsed.path or None
+    # reconstruct full URL preserving query params and fragment
+    prefect_url = (
+        f"{prefect_schema}://{prefect_domain}"
+        + (f":{parsed.port}" if parsed.port else "")
+        + (prefect_path or "")
+    )
+    if parsed.query:
+        prefect_url += f"?{parsed.query}"
+    if parsed.fragment:
+        prefect_url += f"#{parsed.fragment}"
     this_flow = model.PrefectFlow(
         uuid=flow_uuid,
         label=[model.Label(text=flow.name + " Prefect Flow")],
@@ -294,6 +321,10 @@ async def register_flow(
         flow_id=str(flow_uuid),
         hosted_software=[get_full_title(this_tool)],
         domain=prefect_domain,
+        schema_=prefect_schema,
+        network_port=prefect_port,
+        url_path=prefect_path,
+        url=prefect_url,
     )
 
     # delete stale PrefectFlow entities that reference the same Software
@@ -318,7 +349,9 @@ async def register_flow(
             comment="Replaced by updated PrefectFlow deployment",
         )
 
-    osw_instance.store_entity(OSW.StoreEntityParam(entities=[this_tool, this_flow]))
+    osw_instance.store_entity(
+        OSW.StoreEntityParam(entities=[this_tool, this_flow], overwrite=True)
+    )
 
     # build parameters template from flow function signature
     # includes all fields so users can see and customize them
@@ -414,6 +447,7 @@ async def _deploy(param: DeployParam):
                 osw_instance=param.osw,
                 flow=flow,
                 namespace_uuid=param.namespace_uuid,
+                public_url=param.public_url,
             )
 
     if version("prefect") in SpecifierSet(">=3.0"):

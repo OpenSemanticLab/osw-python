@@ -1,3 +1,32 @@
+"""Dummy Prefect workflow that prints a message on an OSW page.
+
+Usage (PowerShell):
+    $env:PREFECT_API_URL="https://osw.example.com:4200/api"
+    $env:PREFECT_PUBLIC_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
+    $env:OSW_USER="Bot@name"
+    $env:OSW_SERVER="osw.example.com"
+    $env:OSW_PASSWORD="bot-password"
+    python examples/prefect/hello_world.py
+
+Usage (Bash):
+    export PREFECT_API_URL="https://osw.example.com:4200/api"
+    export PREFECT_PUBLIC_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
+    export OSW_USER="Bot@name"
+    export OSW_SERVER="osw.example.com"
+    export OSW_PASSWORD="bot-password"
+    python examples/prefect/hello_world.py
+
+Environment variables:
+    PREFECT_API_URL      Prefect server API URL (used by the worker)
+    PREFECT_PUBLIC_URL   (optional) Public URL stored in PrefectFlow entity,
+                         for use by browser clients (e.g. prefect.js).
+                         Falls back to PREFECT_API_URL if not set.
+    OSW_USER             OSW bot username
+    OSW_SERVER           OSW instance domain
+    OSW_PASSWORD         OSW bot password. If not set, falls back to a
+                         Prefect Secret named <user>-<domain-with-dashes>.
+"""
+
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -128,6 +157,8 @@ if __name__ == "__main__":
     # Direct run: dummy_workflow(Request(msg="Test"))
 
     # Deploy and serve with OSW registration
+    from os import environ
+
     osw_instance = connect()
     deploy(
         DeployParam(
@@ -138,5 +169,6 @@ if __name__ == "__main__":
                 )
             ],
             osw=osw_instance,
+            public_url=environ.get("PREFECT_PUBLIC_URL"),
         )
     )

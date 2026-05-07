@@ -1,26 +1,44 @@
 """Dummy Prefect workflow that prints a message on an OSW page.
 
-Usage (PowerShell):
-    $env:PREFECT_API_URL="https://osw.example.com:4200/api"
-    $env:PREFECT_PUBLIC_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
-    $env:OSW_USER="Bot@name"
-    $env:OSW_SERVER="osw.example.com"
-    $env:OSW_PASSWORD="bot-password"
-    python examples/prefect/hello_world.py
+Option A — Direct Prefect access (worker can reach Prefect server directly):
 
-Usage (Bash):
-    export PREFECT_API_URL="https://osw.example.com:4200/api"
-    export PREFECT_PUBLIC_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
-    export OSW_USER="Bot@name"
-    export OSW_SERVER="osw.example.com"
-    export OSW_PASSWORD="bot-password"
-    python examples/prefect/hello_world.py
+    PowerShell:
+        $env:PREFECT_API_URL="https://osw.example.com:4200/api"
+        $env:PREFECT_PUBLIC_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
+        $env:OSW_USER="Bot@name"; $env:OSW_SERVER="osw.example.com"
+        $env:OSW_PASSWORD="bot-password"
+        python examples/prefect/hello_world.py
+
+    Bash:
+        export PREFECT_API_URL="https://osw.example.com:4200/api"
+        export PREFECT_PUBLIC_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
+        export OSW_USER="Bot@name" OSW_SERVER="osw.example.com"
+        export OSW_PASSWORD="bot-password"
+        python examples/prefect/hello_world.py
+
+Option B — ApiGateway only (Prefect server behind firewall, only reachable
+           through MediaWiki ApiGateway extension):
+
+    PowerShell:
+        $env:PREFECT_API_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
+        $env:OSW_USER="Bot@name"; $env:OSW_SERVER="osw.example.com"
+        $env:OSW_PASSWORD="bot-password"
+        python examples/prefect/hello_world.py
+
+    Bash:
+        export PREFECT_API_URL="https://osw.example.com/w/rest.php/apigateway/v1/prefect"
+        export OSW_USER="Bot@name" OSW_SERVER="osw.example.com"
+        export OSW_PASSWORD="bot-password"
+        python examples/prefect/hello_world.py
 
 Environment variables:
-    PREFECT_API_URL      Prefect server API URL (used by the worker)
+    PREFECT_API_URL      Prefect server API URL (used by the worker).
+                         Can be a direct URL or an ApiGateway URL.
     PREFECT_PUBLIC_URL   (optional) Public URL stored in PrefectFlow entity,
-                         for use by browser clients (e.g. prefect.js).
+                         for browser clients (e.g. prefect.js).
                          Falls back to PREFECT_API_URL if not set.
+                         Only needed when PREFECT_API_URL differs from the
+                         public gateway URL (Option A).
     OSW_USER             OSW bot username
     OSW_SERVER           OSW instance domain
     OSW_PASSWORD         OSW bot password. If not set, falls back to a

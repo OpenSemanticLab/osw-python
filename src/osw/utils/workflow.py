@@ -24,8 +24,14 @@ from pydantic.v1 import BaseModel
 import osw.model.entity as model
 from osw.auth import CredentialManager
 from osw.core import OSW
+from osw.utils._httpx_gateway import _install as _install_gateway_hook
 from osw.utils.wiki import get_full_title
 from osw.wtsite import WtSite
+
+# Auto-patch httpx at import time if PREFECT_API_URL is an ApiGateway URL.
+# This ensures the transport is active for ALL Prefect API calls, not just
+# those inside deploy(). The patch is lazy — no MW login until first request.
+_install_gateway_hook()
 
 
 # ------------------------------ CONNECTION ---------------------

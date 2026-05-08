@@ -37,9 +37,18 @@ def _install():
             from osw.utils.workflow import ApiGatewayTransport, connect
 
             osw_instance = connect()
+            mw_site = osw_instance.site.mw_site
+
+            def _relogin():
+                cred = osw_instance.site._cred_mngr.get_credential(
+                    osw_instance.site._iri
+                )
+                mw_site.login(username=cred.username, password=cred.password)
+
             self._inner = ApiGatewayTransport(
                 gateway_url=self._gateway_url,
-                mw_site=osw_instance.site.mw_site,
+                mw_site=mw_site,
+                relogin_cb=_relogin,
             )
 
         async def handle_async_request(self, request):

@@ -3,8 +3,6 @@ from pprint import pprint
 from typing import ClassVar
 from uuid import uuid4
 
-from pydantic.v1 import BaseModel
-
 import osw.model.entity as model
 from osw.core import OSW
 from osw.express import OswExpress
@@ -20,7 +18,7 @@ osw_obj = OswExpress(
 
 # todo: does dataclass export only most specific class jsonschema
 class MyPythonClass(
-    BaseModel
+    model.OswBaseModel
 ):  # We don't inherit from model.Item here because this will trigger a full schema
     #  export
     __uuid__: ClassVar[uuid4] = "23e4356e-b726-4c5b-b63f-620b301eb836"

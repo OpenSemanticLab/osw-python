@@ -14,7 +14,8 @@ osw_obj = OswExpress(
 )
 
 my_entity = model.Item(
-    label=[model.Label(text="MyItem")], statements=[model.Statement(predicate="IsA")]
+    label=[model.Label(text="MyItem")],
+    statements=[model.DataStatement(property="IsA", value="Category:Item")],
 )
 pprint(my_entity)
 

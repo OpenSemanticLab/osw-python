@@ -90,9 +90,15 @@ class WtSite:
 
         scheme = "https"
 
+        # Store credentials for potential re-login on session timeout
+        self._cred_mngr = None
+        self._iri = None
+
         if isinstance(config, WtSite.WtSiteLegacyConfig):
             self._site: mwclient.Site = config.site
         else:
+            self._cred_mngr = config.cred_mngr
+            self._iri = config.iri
             cred = config.cred_mngr.get_credential(
                 CredentialManager.CredentialConfig(
                     iri=config.iri, fallback=CredentialManager.CredentialFallback.ask
@@ -101,6 +107,7 @@ class WtSite:
             if "//" in config.iri:
                 scheme = config.iri.split("://")[0]
                 config.iri = config.iri.split("://")[1]
+                self._iri = config.iri
             site_args = [config.iri]
             # increase pool_maxsize to improve performance with many requests to the same server
             # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading # noqa
@@ -145,6 +152,36 @@ class WtSite:
         #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
+
+    def _relogin(self):
+        """Re-login to the wiki site using stored credentials.
+
+        This is used when the session has expired and a CSRF token refresh
+        alone is not sufficient to restore the connection.
+        """
+        if self._cred_mngr is None or self._iri is None:
+            raise RuntimeError(
+                "Cannot re-login: no credentials stored. "
+                "This WtSite was created from a legacy config."
+            )
+        cred = self._cred_mngr.get_credential(
+            CredentialManager.CredentialConfig(
+                iri=self._iri,
+                fallback=CredentialManager.CredentialFallback.none,
+            )
+        )
+        if isinstance(cred, CredentialManager.UserPwdCredential):
+            # Stale session cookies cause MediaWiki to abort the login flow with
+            # "Unable to continue login. Your session most likely timed out."
+            # Clear client-side session state so login starts from a clean slate.
+            self._site.connection.cookies.clear()
+            self._site.tokens.clear()
+            self._site.login(username=cred.username, password=cred.password)
+        else:
+            raise RuntimeError(
+                "Re-login is only supported for username/password credentials."
+            )
+        del cred
 
     @property
     def mw_site(self) -> mwclient.client.Site:
@@ -218,10 +255,11 @@ class WtSite:
         return cls(WtSite.WtSiteLegacyConfig(site=site))
 
     def try_and_renew_token(func):
-        """ "Tries to execute the method call. If the auth token has expired already,
-        the token is renewed and the method call is retried.
+        """Tries to execute the method call. If the auth token has expired already,
+        the token is renewed and the method call is retried. If that also fails
+        (e.g. because the session itself has expired), a full re-login is attempted.
 
-        This decorator should be used closest to to the funciton definition (before
+        This decorator should be used closest to the function definition (before
         any other decorator).
         """
 
@@ -229,9 +267,14 @@ class WtSite:
             try:
                 return func(self, *args, **kwargs)
             except mwclient.errors.APIError:
-                # Refresh token for longer taking processes
-                self._site.get_token("csrf", force=True)
-                return func(self, *args, **kwargs)
+                try:
+                    # First try: refresh the CSRF token
+                    self._site.get_token("csrf", force=True)
+                    return func(self, *args, **kwargs)
+                except mwclient.errors.APIError:
+                    # Second try: full re-login (session may have expired)
+                    self._relogin()
+                    return func(self, *args, **kwargs)
 
         return wrapper
 
@@ -1354,9 +1397,10 @@ class WtPage:
 
     def try_and_renew_token(func):
         """Tries to execute the method call. If the auth token has expired already,
-        the token is renewed and the method call is retried.
+        the token is renewed and the method call is retried. If that also fails
+        (e.g. because the session itself has expired), a full re-login is attempted.
 
-        This decorator should be used closest to to the funciton definition (before
+        This decorator should be used closest to the function definition (before
         any other decorator).
         """
 
@@ -1364,9 +1408,14 @@ class WtPage:
             try:
                 return func(self, *args, **kwargs)
             except mwclient.errors.APIError:
-                # Refresh token for longer taking processes
-                self.wtSite._site.get_token("csrf", force=True)
-                return func(self, *args, **kwargs)
+                try:
+                    # First try: refresh the CSRF token
+                    self.wtSite._site.get_token("csrf", force=True)
+                    return func(self, *args, **kwargs)
+                except mwclient.errors.APIError:
+                    # Second try: full re-login (session may have expired)
+                    self.wtSite._relogin()
+                    return func(self, *args, **kwargs)
 
         return wrapper
 
@@ -1687,8 +1736,15 @@ class WtPage:
                 if retry < max_retry:
                     retry += 1
                     print(f"Page edit failed: {e}. Retry ({retry}/{max_retry})")
-                    # refresh token for longer running processes
-                    self.wtSite._site.get_token("csrf", force=True)
+                    try:
+                        # refresh token for longer running processes
+                        self.wtSite._site.get_token("csrf", force=True)
+                    except Exception:
+                        # token refresh failed, attempt full re-login
+                        try:
+                            self.wtSite._relogin()
+                        except Exception:
+                            pass  # re-login failed, will retry anyway
                     sleep(5)
 
     def _edit(

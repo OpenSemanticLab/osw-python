@@ -22,10 +22,14 @@ Tests to be written for express.py:
 * test_upload_file
 """
 
+import os
 from contextlib import contextmanager
 from pathlib import Path
 
 import yaml
+
+import osw.express
+from osw.defaults import paths as default_paths
 
 # requires pytest_mock fixture --> pip install pytest-mock
 
@@ -33,9 +37,9 @@ import yaml
 def create_credentials_file(
     cred_filepath: Path, wiki_domain: str, wiki_username: str, wiki_password: str
 ):
-    with open(cred_filepath, "w") as f:
+    with open(cred_filepath, "w") as file:
         yaml.dump(
-            {wiki_domain: {"username": wiki_username, "password": wiki_password}}, f
+            {wiki_domain: {"username": wiki_username, "password": wiki_password}}, file
         )
 
 
@@ -47,13 +51,13 @@ def create_dummy_file(file_path: Path):
 @contextmanager
 def preserve_entity_py_state():
     path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
-    with open(path, "r") as f:
-        original_entity = f.read()
+    with open(path, "r") as file:
+        original_entity = file.read()
     try:
         yield None
     finally:
-        with open(path, "w") as f:
-            f.write(original_entity)
+        with open(path, "w") as file:
+            file.write(original_entity)
 
 
 def osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password):
@@ -74,43 +78,24 @@ def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     """Test OswExpress initialization with defined domain, but no cred_filepath nor
     cred_mngr. As this is the first test to load the osw.express module,
     the installation of the dependencies should be triggered here."""
-    # Here the initial connection to the wiki is mocked (passing domain, username and
-    # password)
+    # A connection is opened with domain already set, so mocking is required for the
+    #  username and password only
     mocked_input = mocker.patch("builtins.input")
     mocked_getpass = mocker.patch("getpass.getpass")
-    mocked_input.side_effect = [wiki_domain, wiki_username]
+    mocked_input.side_effect = [str(Path(default_paths.cred_filepath)), wiki_username]
     mocked_getpass.return_value = wiki_password
-
-    # Before making changes to osw.model.entity save the original state
-    with preserve_entity_py_state():
-        # This import will trigger the install_dependencies method call on the first run
-        import osw.express
-
-        # A second connection is then opened with domain already set, so mocking is
-        # required for the username and password only
-        mocked_input.side_effect = [wiki_username]
-        mocked_getpass.return_value = wiki_password
-        osw_express = osw.express.OswExpress(domain=wiki_domain)
-        osw_express_and_credentials(
-            osw_express, wiki_domain, wiki_username, wiki_password
-        )
-        assert osw_express.cred_filepath == Path(
-            osw.express.default_paths.cred_filepath
-        )
-        osw_express.shut_down()
-        osw_express.cred_filepath.unlink()
+    osw_express = osw.express.OswExpress(domain=wiki_domain)
+    osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
+    assert osw_express.cred_filepath == Path(osw.express.default_paths.cred_filepath)
+    osw_express.shut_down()
+    osw_express.cred_filepath.unlink()
 
 
-def test_init_with_defaults_set(wiki_domain, wiki_username, wiki_password):
-    from osw.defaults import params as default_params
-    from osw.defaults import paths as default_paths
-
+def test_init_from_env_vars(wiki_domain, wiki_username, wiki_password):
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
+    os.environ["OSW_CRED_FILEPATH"] = str(cred_filepath)
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
-    default_paths.cred_filepath = cred_filepath
-    default_params.wiki_domain = wiki_domain
-    # This import will trigger the install_dependencies method call on the first run
-    import osw.express
+    os.environ["OSW_WIKI_DOMAIN"] = wiki_domain
 
     osw_express = osw.express.OswExpress()
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
@@ -123,7 +108,6 @@ def test_init_with_cred_filepath(wiki_domain, wiki_username, wiki_password):
     """Test OswExpress initialization with defined domain and cred_filepath."""
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
-    import osw.express
 
     osw_express = osw.express.OswExpress(
         domain=wiki_domain, cred_filepath=cred_filepath
@@ -148,9 +132,8 @@ def test_init_with_cred_filepath_but_missing_credentials(
     cred_filepath = Path.cwd() / "osw_files" / "accounts.pwd.yaml"
     if not cred_filepath.parent.exists():
         cred_filepath.parent.mkdir(parents=True)
-    with open(cred_filepath, "w") as f:
-        yaml.dump({"dummy.domain": {"username": "dummy", "password": "password"}}, f)
-    import osw.express
+    with open(cred_filepath, "w") as file:
+        yaml.dump({"dummy.domain": {"username": "dummy", "password": "password"}}, file)
 
     osw_express = osw.express.OswExpress(
         domain=wiki_domain, cred_filepath=cred_filepath
@@ -170,7 +153,6 @@ def test_init_with_cred_mngr(wiki_domain, wiki_username, wiki_password):
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
     cred_mngr = CredentialManager(cred_filepath=cred_filepath)
-    import osw.express
 
     osw_express = osw.express.OswExpress(domain=wiki_domain, cred_mngr=cred_mngr)
     assert osw_express_and_credentials(
@@ -184,7 +166,6 @@ def test_init_with_cred_mngr(wiki_domain, wiki_username, wiki_password):
 def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
-    import osw.express
 
     osw_express = osw.express.OswExpress(
         domain=wiki_domain, cred_filepath=cred_filepath
@@ -216,8 +197,8 @@ def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
 
 if __name__ == "__main__":
     cred_filepath_ = Path("accounts.pwd.yaml")
-    with open(cred_filepath_, "r") as f:
-        accounts = yaml.safe_load(f)
+    with open(cred_filepath_, "r") as file:
+        accounts = yaml.safe_load(file)
     wiki_domain_ = "wiki-dev.open-semantic-lab.org"
     wiki_username_ = accounts[wiki_domain_]["username"]
     wiki_password_ = accounts[wiki_domain_]["password"]

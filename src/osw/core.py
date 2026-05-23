@@ -1624,10 +1624,11 @@ class OSW(BaseModel):
         param:
             StoreEntityParam, the dataclass instance or a list of instances
         """
-        if isinstance(param, model.Entity):
-            param = OSW.StoreEntityParam(entities=[param])
         if isinstance(param, list):
             param = OSW.StoreEntityParam(entities=param)
+        elif not isinstance(param, OSW.StoreEntityParam):
+            # Accept any OswBaseModel / Entity / Controller instance
+            param = OSW.StoreEntityParam(entities=[param])
         if not isinstance(param.entities, list):
             param.entities = [param.entities]
 

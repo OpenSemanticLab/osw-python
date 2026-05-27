@@ -92,7 +92,11 @@ class WtSite:
 
         if isinstance(config, WtSite.WtSiteLegacyConfig):
             self._site: mwclient.Site = config.site
+            self._cred_mngr = None
+            self._iri = None
         else:
+            self._cred_mngr = config.cred_mngr
+            self._iri = config.iri
             cred = config.cred_mngr.get_credential(
                 CredentialManager.CredentialConfig(
                     iri=config.iri, fallback=CredentialManager.CredentialFallback.ask

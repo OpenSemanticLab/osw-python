@@ -245,7 +245,14 @@ class ApiGatewayTransport(httpx.AsyncBaseTransport):
             rewritten = self._rewrite_request(request)
             response = await httpx.AsyncHTTPTransport().handle_async_request(rewritten)
             if response.status_code == 403 and self._relogin_cb:
-                log.warning("ApiGateway session expired, re-authenticating")
+                try:
+                    body = response.read().decode(errors="replace")
+                except Exception:
+                    body = "<unreadable>"
+                log.warning(
+                    "ApiGateway returned 403, re-authenticating. " "Response: %s",
+                    body,
+                )
                 self._relogin_cb()
                 self._csrf_token = None
                 rewritten = self._rewrite_request(request)

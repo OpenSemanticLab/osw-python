@@ -181,7 +181,15 @@ def count_match_groups(pattern: Union[str, re.Pattern]):
             group_count += 1
             unmatched_brackets -= 1
 
-    corrected_group_count = group_count - pattern.count("(?:")
+    # Subtract non-capturing groups and zero-width assertions
+    non_capturing = (
+        pattern.count("(?:")
+        + pattern.count("(?=")
+        + pattern.count("(?!")
+        + pattern.count("(?<=")
+        + pattern.count("(?<!")
+    )
+    corrected_group_count = group_count - non_capturing
     return corrected_group_count
 
 

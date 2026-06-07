@@ -71,8 +71,8 @@ PATTERNS = {
         group_keys=["file"],
     ),
     "Item strings": RegExPatternExtended(
-        description="Match: Item:OSW<uuid>",
-        pattern=r"(Item:OSW[a-f0-9]{32})",
+        description="Match: Item:OSW<uuid> but not subobject refs after #",
+        pattern=r"(?<!#)(Item:OSW[a-f0-9]{32})",
         group_keys=["item"],
     ),
 }

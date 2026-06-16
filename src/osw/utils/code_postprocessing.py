@@ -89,16 +89,18 @@ def resolve_osw_id_type_hints(content: str) -> str:
     if not osw_id_to_class:
         return content
 
-    # Find bare OSW IDs used as identifiers (not inside "Category:OSW..." strings)
+    # Replace bare OSW IDs used as identifiers with the resolved class name.
+    # Skip comment lines: the datamodel-codegen header
+    # "#   filename:  OSW....json" contains an OSW ID that is NOT a type hint
+    # and must stay intact (the lookbehind/lookahead alone do not exclude it,
+    # since it is preceded by a space and followed by ".json").
     bare_osw_pattern = re.compile(r"(?<![:\w])OSW[0-9a-f]{32}(?!\w)")
-    unresolved = set(bare_osw_pattern.findall(content))
 
-    for osw_id in unresolved:
-        if osw_id in osw_id_to_class:
-            content = re.sub(
-                r"(?<![:\w])" + re.escape(osw_id) + r"(?!\w)",
-                osw_id_to_class[osw_id],
-                content,
-            )
+    def _resolve_line(line: str) -> str:
+        if line.lstrip().startswith("#"):
+            return line  # never rewrite comments
+        return bare_osw_pattern.sub(
+            lambda m: osw_id_to_class.get(m.group(0), m.group(0)), line
+        )
 
-    return content
+    return "".join(_resolve_line(line) for line in content.splitlines(keepends=True))

@@ -40,6 +40,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         # use web api
         full_title = f"{self.namespace}:{self.title}"
         web_api_failed = False
+        file_not_found = False
         response = None
         try:
             url = (
@@ -54,7 +55,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             if api_error is not None:
                 if api_error == "download-notfound":
                     # File does not exist
-                    raise Exception("File does not exist: " + full_title)
+                    file_not_found = True
                 elif api_error == "badvalue":
                     # Extension FileApi not installed on the server
                     web_api_failed = True
@@ -64,6 +65,8 @@ class WikiFileController(model.WikiFile, RemoteFileController):
 
         except Exception:
             web_api_failed = True
+        if file_not_found:
+            raise Exception("File does not exist: " + full_title)
         if web_api_failed:
             # fallback: use direct download
             url = file.imageinfo["url"]

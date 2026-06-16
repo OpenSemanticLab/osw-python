@@ -34,7 +34,6 @@ from osw.utils.workflow import (
     ],
     log_prints=True,
 )
-@flow
 def osw_python_teams_notify_test_flow():
     """Notify Microsoft Teams channel using a webhook"""
     return 42

@@ -9,13 +9,9 @@
 
 import pytest
 
-
-def pytest_addoption(parser):
-    parser.addoption("--wiki_domain", action="store")
-    parser.addoption("--wiki_username", action="store")
-    parser.addoption("--wiki_password", action="store")
-    parser.addoption("--db_username", action="store")
-    parser.addoption("--db_password", action="store")
+# Note: pytest_addoption lives in the repo-root conftest.py - since pytest 9.0
+# it is not loaded from this subdirectory conftest via testpaths. The
+# option-backed fixtures below stay here.
 
 
 @pytest.fixture(scope="session")

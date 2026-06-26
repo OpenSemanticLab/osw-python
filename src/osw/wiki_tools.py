@@ -150,7 +150,7 @@ class SearchParam(OswBaseModel):
 
 def prefix_search(
     site: mwclient.client.Site, text: Union[str, SearchParam]
-) -> List[str]:
+) -> Union[List[str], List[dict]]:
     """Standard query. Equivalent to the following mediawiki API call
     api.php?action=query&list=prefixsearch&pssearch=Star Wars.
 
@@ -165,15 +165,17 @@ def prefix_search(
 
     Returns
     -------
-    page_list :
-        List of page titles
+    result:
+        With ``return_json=False`` (default): a flat list of page titles. With
+        ``return_json=True``: a list of raw MediaWiki ``prefixsearch`` API response
+        dicts, one per query (always a list, even for a single query).
     """
     if not isinstance(text, SearchParam):
         query = SearchParam(query=text)
     else:
         query = text
 
-    def prefix_search_(single_text):
+    def prefix_search_(single_text) -> Union[List[str], dict]:
         page_list = list()
         result = site.api(
             "query",
@@ -182,15 +184,16 @@ def prefix_search(
             pslimit=query.limit,
             format="json",
         )
-        if len(result["query"]["prefixsearch"]) == 0:
+        if query.debug and len(result["query"]["prefixsearch"]) == 0:
+            print("No results")
+        if query.return_json:
+            return result
+
+        for page in result["query"]["prefixsearch"]:
+            title = page["title"]
             if query.debug:
-                print("No results")
-        else:
-            for page in result["query"]["prefixsearch"]:
-                title = page["title"]
-                if query.debug:
-                    print(title)
-                page_list.append(title)
+                print(title)
+            page_list.append(title)
         return page_list
 
     if query.parallel:
@@ -200,11 +203,17 @@ def prefix_search(
     else:
         query_results = [prefix_search_(single_text=sq) for sq in query.query]
 
+    if query.return_json:
+        # Each entry of query_results is the raw API response dict for one query.
+        # Do not flatten dicts; always return the list of responses (one per query),
+        # even when only a single query was passed.
+        return query_results
+
     return [item for sublist in query_results for item in sublist]
     # todo: @Simon: a list of lists of strings (sublist for each query in query list)
     #  or a list of strings (results of all queries combined)?
     #  The last option would not change the behavior of the function, but would
-    # return page_list  # original return
+    #  return page_list  # original return
 
 
 def semantic_search(

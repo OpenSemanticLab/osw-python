@@ -1,12 +1,16 @@
 import os
 from pathlib import Path
 
+import dotenv
+
 from osw import wiki_tools
 from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.model.page_package import PagePackage, PagePackageBundle, PagePackageConfig
 from osw.params import CreatePagePackageParam, PageDumpConfig
 from osw.wtsite import WtSite
+
+dotenv.load_dotenv()
 
 # Create/update the password file under examples/accounts.pwd.yaml
 pwd_file_path = os.path.join(

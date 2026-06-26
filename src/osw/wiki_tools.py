@@ -221,8 +221,10 @@ def semantic_search(
 
     Returns
     -------
-    page_list:
-        List of page titles
+    result:
+        With ``return_json=False`` (default): a flat list of page-title fulltext
+        strings. With ``return_json=True``: a list of raw SMW ``ask`` result dicts,
+        one per query (always a list, even for a single query).
     """
     if not isinstance(query, SearchParam):
         query = SearchParam(query=query)
@@ -231,27 +233,26 @@ def semantic_search(
         page_list = list()
         single_query += f"|limit={query.limit}"
         result = site.api("ask", query=single_query, format="json")
-        if len(result["query"]["results"]) == 0:
-            if query.debug:
+        if query.debug:
+            if len(result["query"]["results"]) == 0:
                 print("Query '{}' returned no results".format(single_query))
-        else:
-            if query.debug:
+            else:
                 print(
                     "Query '{}' returned {} results".format(
                         single_query, len(result["query"]["results"])
                     )
                 )
-            if query.return_json:
-                return result
+        if query.return_json:
+            return result
 
-            for page in result["query"]["results"].values():
-                title = page["fulltext"]
-                exists = page["exists"]
-                if "#" not in title and query.debug:
-                    print(title)
-                    # original position of "page_list.append(title)" line
-                if exists == "1":
-                    page_list.append(title)
+        for page in result["query"]["results"].values():
+            title = page["fulltext"]
+            exists = page["exists"]
+            if "#" not in title and query.debug:
+                print(title)
+                # original position of "page_list.append(title)" line
+            if exists == "1":
+                page_list.append(title)
         return page_list
 
     if query.parallel:
@@ -260,6 +261,12 @@ def semantic_search(
         )
     else:
         query_results = [semantic_search_(single_query=sq) for sq in query.query]
+
+    if query.return_json:
+        # Each entry of query_results is the raw SMW result dict for one query.
+        # Do not flatten dicts; always return the list of result dicts (one per
+        # query), even when only a single query was passed.
+        return query_results
 
     return [item for sublist in query_results for item in sublist]
     # todo: @Simon: a list of lists of strings (sublist for each query in query list)

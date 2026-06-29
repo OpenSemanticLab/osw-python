@@ -1,9 +1,18 @@
 # flake8: noqa: E402
 """
 This module provides convenience functions for osw-python.
+
+This module expects environment variables to be set and available, e.g. through
+dotenv.load_dotenv()
+- OSW_WIKI_DOMAIN: domain of the OSL instance to connect to
+- OSW_CRED_FILEPATH: filepath to the credential file, if not specified the default
+file path based on current working directory will be used
+- OSW_DOWNLOAD_DIR: directory to download files, if not specified the default
+directory based on the current working directory will be used
 """
 
 import importlib.util
+import os
 import re
 from io import TextIOWrapper
 from pathlib import Path
@@ -28,33 +37,19 @@ from typing_extensions import (
 
 import osw.model.entity as model
 from osw.auth import CredentialManager
+from osw.controller.file.base import FileController  # depends on File
+from osw.controller.file.local import LocalFileController  # depends on LocalFile
+from osw.controller.file.memory import InMemoryController  # depends on LocalFile
+from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
 from osw.core import OSW, OVERWRITE_CLASS_OPTIONS, OverwriteOptions
 from osw.defaults import params as default_params
 from osw.defaults import paths as default_paths
 from osw.utils.wiki import namespace_from_full_title, title_from_full_title
 from osw.wtsite import WtSite
 
-# Definition of constants
-DEPENDENCIES = {
-    # "Entity": "Category:Entity",  # depends on nothing#
-    "Category": "Category:Category",  # depends on Entity
-    "Property": "Category:Property",  # depends on Entity
-    # "Item": "Category:Item",  # depends on Entity
-    "Characteristics": "Category:OSW93ccae36243542ceac6c951450a81d47",  # depends on Item
-    # "Data": "Category:OSW2ac4493f8635481eaf1db961b63c8325", # depends on Item
-    # "File": "Category:OSWff333fd349af4f65a69100405a9e60c7",  # depends on Data
-    "LocalFile": "Category:OSW3e3f5dd4f71842fbb8f270e511af8031",  # depends on File
-    # "RemoteFile": "Category:OSW05b244d0a669436e96fe4e1631d5a171",  # depends on File
-    "WikiFile": "Category:OSW11a53cdfbdc24524bf8ac435cbf65d9d",  # depends on RemoteFile
-}
-# Setting dependencies as default
-default_params.dependencies = DEPENDENCIES
-
 
 class OswExpress(OSW):
-    """
-    This class provides convenience functions for osw-python.
-    """
+    """This class provides convenience functions for osw-python."""
 
     domain: str
     """The domain of the OSL instance to connect to."""
@@ -77,10 +72,24 @@ class OswExpress(OSW):
     @overload
     def __init__(
         self,
+        domain: str = None,
+        cred_filepath: Union[str, Path] = None,
+        cred_mngr: CredentialManager = None,
+    ) -> None: ...
+
+    # case: nothing specified, all parameters to be loaded from .env file or
+    #  environment parameters
+
+    @overload
+    def __init__(
+        self,
         domain: str,
         cred_filepath: Union[str, Path] = None,
         cred_mngr: CredentialManager = None,
     ) -> None: ...
+
+    # case: domain is specified, rest is to be loaded from .env file or environment
+    #  parameters
 
     def __init__(
         self,
@@ -89,24 +98,45 @@ class OswExpress(OSW):
         cred_mngr: CredentialManager = None,
     ):
         if domain is None:
-            if default_params.has_changed("wiki_domain"):
-                domain = default_params.wiki_domain
+            if os.getenv("OSW_WIKI_DOMAIN") is not None:
+                domain = os.getenv("OSW_WIKI_DOMAIN")
+            elif os.getenv("OSL_WIKI_DOMAIN") is not None:
+                domain = os.getenv("OSL_WIKI_DOMAIN")
             else:
                 raise TypeError(
-                    "The constructor of OswExpress is missing 1 required positional argument: 'domain'."  # noqa: E501
-                    "\nIf no domain was set via "
-                    "osw.defaults.params.wiki_domain = <domain>, "
-                    "'domain' is a required argument."
+                    "The constructor of OswExpress is missing 1 required positional "
+                    "argument: 'domain'."
+                    "\nIf no domain was set as environmental variable, 'domain' is a "
+                    "required argument."
                 )
+        if cred_mngr is not None and cred_mngr.cred_filepath is not None:
+            # If a credential manager is explicitly defined, that should have priority
+            cred_filepath = cred_mngr.cred_filepath[0]
         if cred_filepath is None:
-            # Set default
-            cred_filepath = default_paths.cred_filepath
-            if cred_mngr is not None:
-                if cred_mngr.cred_filepath is not None:
-                    # But overwrite if the cred_mngr has a cred_filepath
-                    cred_filepath = cred_mngr.cred_filepath[0]
+            # If no credential file path is given, try to take it from environment vars
+            if os.getenv("OSW_CRED_FILEPATH") is not None:
+                cred_filepath = os.getenv("OSW_CRED_FILEPATH")
+            elif os.getenv("OSL_CRED_FILEPATH") is not None:
+                cred_filepath = os.getenv("OSL_CRED_FILEPATH")
+            else:
+                # Otherwise, prompt user to set cred_filepath
+                cred_filepath = input(
+                    "No credential file path was provided. Please specify, where to "
+                    "save the credential file: "
+                )
+                print(
+                    f"Credential file path changed to '{cred_filepath}'."
+                    "\nPlease set environment variable 'OSW_CRED_FILEPATH' accordingly."
+                    "\nIf adequate, make sure to load the .env file."
+                )
         if not isinstance(cred_filepath, Path):
             cred_filepath = Path(cred_filepath)
+        if not cred_filepath.is_file():
+            print(f"Credential file '{cred_filepath}' is not a file. ")
+        if not cred_filepath.exists():
+            print(
+                f"Credential file '{cred_filepath}' does not exist and will be created."
+            )
         if cred_mngr is None:
             # Create a credentials manager
             if cred_filepath is None:
@@ -156,7 +186,7 @@ class OswExpress(OSW):
         """Return self when entering the context manager."""
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type=None, exc_value=None, traceback=None):
         """Close the connection to the OSL instance when exiting the context manager."""
         self.close_connection()
 
@@ -277,52 +307,15 @@ class OswExpress(OSW):
         """
         # Preparing all args, kwargs & properties to set for the uploaded file
         data = {**locals(), **properties}
+        # Remove 'self', 'source', and 'properties' to avoid duplicate keyword args
+        for key in ("self", "source", "properties"):
+            data.pop(key, None)
         # Clean data dict to avoid passing None values
         data = {key: value for key, value in data.items() if value is not None}
         # Make sure self is passed as osw_express
         data["osw_express"] = self
         # Initialize the UploadFileResult object
         return UploadFileResult(source=source, **data)
-
-
-try:
-    # To load the dependencies that are not part of the osw.model.entity module as
-    # uploaded to the repository
-    from osw.controller.file.base import FileController  # depends on File
-    from osw.controller.file.local import LocalFileController  # depends on LocalFile
-    from osw.controller.file.memory import InMemoryController  # depends on LocalFile
-    from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
-except AttributeError as e:
-    warn(
-        f"An exception occurred while loading the module dependencies: \n"
-        f'"{e}"\n'
-        "A connection to an OSW instance, to fetch the dependencies from, has to be "
-        "established!"
-    )
-    # If the default was not changed, make sure the user is prompted to enter the domain
-    if default_params.has_changed("wiki_domain"):
-        domain_ = default_params.wiki_domain
-    else:
-        domain_ = input("Please enter the domain of the OSW instance to connect to:")
-        if domain_ == "":
-            domain_ = default_params.wiki_domain
-    if default_paths.has_changed("cred_filepath"):
-        osw_express_ = OswExpress(
-            domain=domain_, cred_filepath=default_paths.cred_filepath
-        )
-    else:
-        osw_express_ = OswExpress(domain=domain_)
-    osw_express_.install_dependencies(DEPENDENCIES)
-    osw_express_.shut_down()  # Avoiding connection error
-    print(
-        "Dependencies specified in the module 'osw.express' have been fetched from "
-        "OSW."
-    )
-    # Try again
-    from osw.controller.file.base import FileController  # depends on File
-    from osw.controller.file.local import LocalFileController  # depends on LocalFile
-    from osw.controller.file.memory import InMemoryController  # depends on LocalFile
-    from osw.controller.file.wiki import WikiFileController  # depends on WikiFile
 
 
 class FileResult(OswBaseModel):
@@ -342,7 +335,8 @@ class FileResult(OswBaseModel):
     the credentials_manager or domain and cred_filepath."""
     domain: Optional[str] = None
     """The domain of the OSL instance to download the file from. Required if
-    urL_or_title is a full page title. If None the domain is parsed from the URL."""
+    urL_or_title is a full page title and the domain is not set in the environment
+    variable 'OSW_WIKI_DOMAIN'. If None the domain is parsed from the URL."""
     cred_filepath: Optional[Union[str, Path]] = None
     """The filepath to the credentials file. Will only be used if cred_mngr is
     None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml' is
@@ -419,7 +413,16 @@ class FileResult(OswBaseModel):
             # set by the source file controller
             del data["label"]
         if data.get("cred_filepath") is None:
-            data["cred_filepath"] = default_paths.cred_filepath
+            # Take cred_filepath from environment variables
+            if os.getenv("OSW_CRED_FILEPATH") is not None:
+                data["cred_filepath"] = os.getenv("OSW_CRED_FILEPATH")
+            elif os.getenv("OSL_CRED_FILEPATH") is not None:
+                data["cred_filepath"] = os.getenv("OSL_CRED_FILEPATH")
+            # Fallback to the package default (based on CWD)
+            else:
+                data["cred_filepath"] = default_paths.cred_filepath
+        if not isinstance(data.get("cred_filepath"), Path):
+            data["cred_filepath"] = Path(data.get("cred_filepath"))
         if not data.get("cred_filepath").parent.exists():
             data["cred_filepath"].parent.mkdir(parents=True)
         if data.get("cred_mngr") is None:
@@ -468,7 +471,14 @@ class DownloadFileResult(FileResult, LocalFileController):
         if data.get("target_fn") is None:
             data["target_fn"] = url_or_title.split("File:")[-1]
         if data.get("target_dir") is None:
-            data["target_dir"] = default_paths.download_dir
+            # Take target_dir from environment variables
+            if os.getenv("OSW_DOWNLOAD_DIR") is not None:
+                data["target_dir"] = os.getenv("OSW_DOWNLOAD_DIR")
+            elif os.getenv("OSL_DOWNLOAD_DIR") is not None:
+                data["target_dir"] = os.getenv("OSL_DOWNLOAD_DIR")
+            # Fallback to the package default (based on CWD)
+            else:
+                data["target_dir"] = default_paths.download_dir
         if isinstance(data.get("target_dir"), str):
             data["target_dir"] = Path(data.get("target_dir"))
         if data.get("target_fp") is None:
@@ -481,11 +491,17 @@ class DownloadFileResult(FileResult, LocalFileController):
                 string=url_or_title,
             )
             if match is None:
-                raise ValueError(
-                    f"Could not parse domain from URL: {url_or_title}. "
-                    f"Either specify URL or domain and full page title."
-                )
-            data["domain"] = match.group(1)
+                if os.getenv("OSW_WIKI_DOMAIN") is not None:
+                    data["domain"] = os.getenv("OSW_WIKI_DOMAIN")
+                elif os.getenv("OSL_WIKI_DOMAIN") is not None:
+                    data["domain"] = os.getenv("OSL_WIKI_DOMAIN")
+                else:
+                    raise ValueError(
+                        f"Could not parse domain from URL: {url_or_title}. "
+                        f"Either specify URL or domain and full page title."
+                    )
+            else:
+                data["domain"] = match.group(1)
         if data.get("use_cached") and data.get("target_fp").exists():
             # Here, no file needs to be downloaded, but self need to be initialized
             #  with the path to the file
@@ -557,7 +573,8 @@ def osw_download_file(
         the credentials_manager or domain and cred_filepath.
     domain
         The domain of the OSL instance to download the file from. Required if
-        urL_or_title is a full page title. If None the domain is parsed from the URL.
+        urL_or_title is a full page title and the domain is not set in the environment
+        variable 'OSW_WIKI_DOMAIN'. If None the domain is parsed from the URL.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
          None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
@@ -677,6 +694,10 @@ class UploadFileResult(FileResult, WikiFileController):
             if data.get("domain") is None:
                 if match is not None:
                     data["domain"] = match.group(1)
+                else:
+                    data["domain"] = os.getenv("OSW_WIKI_DOMAIN") or os.getenv(
+                        "OSL_WIKI_DOMAIN"
+                    )
             else:
                 if match is not None:
                     if not data.get("domain") == match.group(1):
@@ -837,6 +858,7 @@ def import_with_fallback(
     cred_filepath: Union[str, Path] = None,
     osw_express: OswExpress = None,
 ):
+    # todo: rework this function to work as OswExpress -
     """Imports data models with a fallback to fetch the dependencies from an OSL
     instance if the data models are not available in the local osw.model.entity module.
 
@@ -942,7 +964,11 @@ def import_with_fallback(
         # todo: should  this be taken from globals?
         # If the user has set the default domain, use it
         if domain is None:
-            if default_params.has_changed("wiki_domain"):
+            if os.getenv("OSW_WIKI_DOMAIN") is not None:
+                domain = os.getenv("OSW_WIKI_DOMAIN")
+            elif os.getenv("OSL_WIKI_DOMAIN") is not None:
+                domain = os.getenv("OSL_WIKI_DOMAIN")
+            elif default_params.has_changed("wiki_domain"):
                 domain = default_params.wiki_domain
             else:
                 domain = input(
@@ -951,7 +977,12 @@ def import_with_fallback(
                 if domain == "":
                     domain = default_params.wiki_domain
         if cred_filepath is None:
-            cred_filepath = default_paths.cred_filepath
+            if os.getenv("OSW_CRED_FILEPATH") is not None:
+                cred_filepath = os.getenv("OSW_CRED_FILEPATH")
+            elif os.getenv("OSL_CRED_FILEPATH") is not None:
+                cred_filepath = os.getenv("OSL_CRED_FILEPATH")
+            else:
+                cred_filepath = default_paths.cred_filepath
         if osw_express is None:
             osw_express = OswExpress(domain=domain, cred_filepath=cred_filepath)
 

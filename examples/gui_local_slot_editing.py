@@ -47,7 +47,7 @@ NAMESPACE_AS_FOLDER = False
 # Definition of functions
 def str_or_none(value):
     if str(value) == "" or value is None:
-        return str("None")
+        return "None"
     else:
         return str(value)
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # Predefining some variables before execution
     settings_file_path = SETTINGS_FILE_PATH_DEFAULT
     if os.path.exists(settings_file_path):
-        with open(settings_file_path, "r") as f:
+        with open(settings_file_path) as f:
             settings = json.load(f)
         settings_read_from_file = True
     else:
@@ -182,54 +182,48 @@ if __name__ == "__main__":
     settings_layout = [
         [psg.Text("Settings", font=("Helvetica", 20))],
         [
-            psg.Column(
+            psg.Column([
                 [
-                    [
-                        psg.Text("Settings file"),
-                    ],
-                    [
-                        psg.Text("Credentials file"),
-                    ],
-                    [
-                        psg.Text("Local working directory"),
-                    ],
-                ]
-            ),
-            psg.Column(
+                    psg.Text("Settings file"),
+                ],
                 [
-                    [
-                        psg.In(
-                            size=(50, 1),
-                            enable_events=True,
-                            key="-SETTINGS-",
-                            default_text=settings["settings_file_path"],
-                        ),
-                        psg.FileBrowse(button_text="Browse", key="-BROWSE_SETTINGS-"),
-                        psg.Button("Load", key="-LOAD_SETTINGS-"),
-                        psg.Button("Save", key="-SAVE_SETTINGS-"),
-                    ],
-                    [
-                        psg.In(
-                            size=(50, 1),
-                            enable_events=True,
-                            key="-CREDENTIALS-",
-                            default_text=settings["cred_filepath"],
-                        ),
-                        psg.FileBrowse(
-                            button_text="Browse", key="-BROWSE_CREDENTIALS-"
-                        ),
-                    ],
-                    [
-                        psg.In(
-                            size=(50, 1),
-                            enable_events=True,
-                            key="-LWD-",
-                            default_text=settings["local_working_directory"],
-                        ),
-                        psg.FolderBrowse(button_text="Browse", key="-BROWSE_LWD-"),
-                    ],
-                ]
-            ),
+                    psg.Text("Credentials file"),
+                ],
+                [
+                    psg.Text("Local working directory"),
+                ],
+            ]),
+            psg.Column([
+                [
+                    psg.In(
+                        size=(50, 1),
+                        enable_events=True,
+                        key="-SETTINGS-",
+                        default_text=settings["settings_file_path"],
+                    ),
+                    psg.FileBrowse(button_text="Browse", key="-BROWSE_SETTINGS-"),
+                    psg.Button("Load", key="-LOAD_SETTINGS-"),
+                    psg.Button("Save", key="-SAVE_SETTINGS-"),
+                ],
+                [
+                    psg.In(
+                        size=(50, 1),
+                        enable_events=True,
+                        key="-CREDENTIALS-",
+                        default_text=settings["cred_filepath"],
+                    ),
+                    psg.FileBrowse(button_text="Browse", key="-BROWSE_CREDENTIALS-"),
+                ],
+                [
+                    psg.In(
+                        size=(50, 1),
+                        enable_events=True,
+                        key="-LWD-",
+                        default_text=settings["local_working_directory"],
+                    ),
+                    psg.FolderBrowse(button_text="Browse", key="-BROWSE_LWD-"),
+                ],
+            ]),
         ],
         [psg.HSeparator()],
     ]
@@ -244,28 +238,24 @@ if __name__ == "__main__":
         # Target page
         [psg.Text("Target page", font=("Helvetica", 16))],
         [
-            psg.Column(
+            psg.Column([
+                [psg.Text("Address, within selected OSW instance")],
+                [psg.Text("First label of the OSW page:")],
+            ]),
+            psg.Column([
                 [
-                    [psg.Text("Address, within selected OSW instance")],
-                    [psg.Text("First label of the OSW page:")],
-                ]
-            ),
-            psg.Column(
+                    psg.InputText(
+                        size=(50, 1),
+                        default_text=settings["target_page"],
+                        key="-ADDRESS-",
+                    ),
+                    psg.Button("Load page"),
+                ],
                 [
-                    [
-                        psg.InputText(
-                            size=(50, 1),
-                            default_text=settings["target_page"],
-                            key="-ADDRESS-",
-                        ),
-                        psg.Button("Load page"),
-                    ],
-                    [
-                        # A display element that will show the label of the OSW page
-                        psg.Multiline(size=(50, 1), key="-LABEL-", no_scrollbar=True)
-                    ],
-                ]
-            ),
+                    # A display element that will show the label of the OSW page
+                    psg.Multiline(size=(50, 1), key="-LABEL-", no_scrollbar=True)
+                ],
+            ]),
         ],
         # [
         #     psg.HSeparator()
@@ -273,30 +263,28 @@ if __name__ == "__main__":
         # Slots to download
         [psg.Text("Slots to download", font=("Helvetica", 16))],
         [
-            psg.Column(
+            psg.Column([
                 [
-                    [
-                        psg.Radio(
-                            "Include empty slots",
-                            group_id="-RADIO1-",
-                            default=settings["dump_empty_slots"],
-                            key="-INC_EMPTY-",
-                            enable_events=True,
-                        )
-                    ],
-                    [
-                        psg.Radio(
-                            "Exclude empty slots",
-                            group_id="-RADIO1-",
-                            default=(not settings["dump_empty_slots"]),
-                            key="-EXC_EMPTY-",
-                            enable_events=True,
-                        )
-                    ],
-                    [psg.Button("Download selected", key="-DL-")],
-                    [psg.Multiline(size=(20, 1), key="-DL_RES-", no_scrollbar=True)],
-                ]
-            ),
+                    psg.Radio(
+                        "Include empty slots",
+                        group_id="-RADIO1-",
+                        default=settings["dump_empty_slots"],
+                        key="-INC_EMPTY-",
+                        enable_events=True,
+                    )
+                ],
+                [
+                    psg.Radio(
+                        "Exclude empty slots",
+                        group_id="-RADIO1-",
+                        default=(not settings["dump_empty_slots"]),
+                        key="-EXC_EMPTY-",
+                        enable_events=True,
+                    )
+                ],
+                [psg.Button("Download selected", key="-DL-")],
+                [psg.Multiline(size=(20, 1), key="-DL_RES-", no_scrollbar=True)],
+            ]),
         ],
         # [
         #     psg.HSeparator()
@@ -304,24 +292,22 @@ if __name__ == "__main__":
         # Slots to upload
         [psg.Text("Slots to upload", font=("Helvetica", 16))],
         [
-            psg.Column(
+            psg.Column([
+                [psg.Button("(De)Select all", key="-UL_SEL-")],
                 [
-                    [psg.Button("(De)Select all", key="-UL_SEL-")],
-                    [
-                        psg.Listbox(
-                            values=SLOTS.keys(),
-                            default_values=settings["slots_to_upload"],
-                            size=(20, 10),
-                            key="-UL_LIST-",
-                            select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
-                            enable_events=True,
-                            no_scrollbar=True,
-                        )
-                    ],
-                    [psg.Button("Upload selected", key="-UL-")],
-                    [psg.Multiline(size=(20, 1), key="-UL_RES-", no_scrollbar=True)],
-                ]
-            )
+                    psg.Listbox(
+                        values=SLOTS.keys(),
+                        default_values=settings["slots_to_upload"],
+                        size=(20, 10),
+                        key="-UL_LIST-",
+                        select_mode=psg.LISTBOX_SELECT_MODE_MULTIPLE,
+                        enable_events=True,
+                        no_scrollbar=True,
+                    )
+                ],
+                [psg.Button("Upload selected", key="-UL-")],
+                [psg.Multiline(size=(20, 1), key="-UL_RES-", no_scrollbar=True)],
+            ])
         ],
     ]
     output_layout = [
@@ -347,7 +333,7 @@ if __name__ == "__main__":
             settings["settings_file_path"] = values["-SETTINGS-"]
         elif event == "-LOAD_SETTINGS-":
             # update settings
-            with open(settings["settings_file_path"], "r") as f:
+            with open(settings["settings_file_path"]) as f:
                 settings = json.load(f)
             # update GUI
             window["-CREDENTIALS-"].update(settings["cred_filepath"])
@@ -474,13 +460,11 @@ if __name__ == "__main__":
 
         # Some debugging output functionality
         if DEBUG:
-            values_str = "\n".join(
-                [
-                    f"{key}: {str_or_none(value)}"
-                    for key, value in values.items()
-                    if key != "-OUTPUT-"
-                ]
-            )
+            values_str = "\n".join([
+                f"{key}: {str_or_none(value)}"
+                for key, value in values.items()
+                if key != "-OUTPUT-"
+            ])
             listbox_selected_items_str = "\n".join(settings["slots_to_upload"])
 
             window["-OUTPUT-"].update(

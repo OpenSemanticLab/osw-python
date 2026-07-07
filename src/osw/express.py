@@ -1,4 +1,3 @@
-# flake8: noqa: E402
 """
 This module provides convenience functions for osw-python.
 
@@ -66,7 +65,7 @@ class OswExpress(OSW):
     @validator("domain")
     def validate_domain(cls, v):
         pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
-        assert re.match(pattern, v), "The domain is not valid."
+        assert re.match(pattern, v), "The domain is not valid."  # noqa: S101 pydantic validator idiom
         return v
 
     @overload
@@ -165,14 +164,13 @@ class OswExpress(OSW):
         # Test if domain is reachable
         try:
             url = f"https://{domain}/wiki/Main_Page"
-            response = requests.get(url)
+            response = requests.get(url)  # noqa: S113 reachability probe, TODO add timeout
             if response.status_code == 200:
                 # Domain is reachable
                 print(f"Connecting to '{domain}'...")
             else:
                 raise ConnectionError(
-                    f"Could not connect to '{domain}'. "
-                    f"Response: {response.status_code}"
+                    f"Could not connect to '{domain}'. Response: {response.status_code}"
                 )
         except Exception as e:
             raise ConnectionError(f"Could not connect to '{domain}'. Error: {e}")
@@ -356,7 +354,7 @@ class FileResult(OswBaseModel):
             mode = self.mode
         kwargs["mode"] = mode
         if self.file_io is None or self.file_io.closed:
-            self.file_io = open(self.path, **kwargs)
+            self.file_io = open(self.path, **kwargs)  # noqa: SIM115 handle kept as instance state
         return self.file_io
 
     def close(self) -> None:
@@ -736,7 +734,7 @@ class UploadFileResult(FileResult, WikiFileController):
             data["meta"] = model.Meta(wiki_page=wiki_page)
             data["title"] = title
         # Set change_id to existing meta
-        for meta in [data.get("meta"), getattr(data["source_file_controller"], "meta")]:
+        for meta in [data.get("meta"), data["source_file_controller"].meta]:
             if meta is not None:
                 if getattr(meta, "change_id", None) is None:
                     meta.change_id = [data["change_id"]]

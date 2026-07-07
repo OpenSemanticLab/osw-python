@@ -51,7 +51,7 @@ def create_dummy_file(file_path: Path):
 @contextmanager
 def preserve_entity_py_state():
     path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
-    with open(path, "r") as file:
+    with open(path) as file:
         original_entity = file.read()
     try:
         yield None
@@ -197,7 +197,7 @@ def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
 
 if __name__ == "__main__":
     cred_filepath_ = Path("accounts.pwd.yaml")
-    with open(cred_filepath_, "r") as file:
+    with open(cred_filepath_) as file:
         accounts = yaml.safe_load(file)
     wiki_domain_ = "wiki-dev.open-semantic-lab.org"
     wiki_username_ = accounts[wiki_domain_]["username"]
@@ -208,17 +208,15 @@ if __name__ == "__main__":
         import pytest
 
         # Runs all tests
-        pytest.main(
-            [
-                __file__,
-                "--wiki_domain",
-                wiki_domain_,
-                "--wiki_username",
-                wiki_username_,
-                "--wiki_password",
-                wiki_password_,
-            ]
-        )
+        pytest.main([
+            __file__,
+            "--wiki_domain",
+            wiki_domain_,
+            "--wiki_username",
+            wiki_username_,
+            "--wiki_password",
+            wiki_password_,
+        ])
     else:
         # Runs tests that can be run directly:
         test_init_with_cred_filepath(wiki_domain_, wiki_username_, wiki_password_)

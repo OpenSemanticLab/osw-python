@@ -401,7 +401,7 @@ class TestReloginClearsStaleSessionState:
                 raise mwclient.errors.LoginError(
                     mock_mw_site,
                     "Aborted",
-                    "Unable to continue login. Your session most likely " "timed out.",
+                    "Unable to continue login. Your session most likely timed out.",
                 )
 
         mock_mw_site.login.side_effect = fake_login

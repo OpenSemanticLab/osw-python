@@ -7,7 +7,7 @@ import osw.model.entity as model
 
 class ControllerTestController(model.Entity):
     def testfunction(self):
-        print(f"Entity with label '{str(self.label.text)}'")
+        print(f"Entity with label '{self.label.text!s}'")
 
 
 def controller_mixin(cls) -> Type:
@@ -23,7 +23,7 @@ def controller_mixin(cls) -> Type:
         # the controller class
         ctrl_cls = eval(f"{prefix}{cls.__name__}{postfix}")
         # the patched class inheriting both from the data and the controller class
-        mixin_cls = create_model(cls.__name__, __base__=tuple([ctrl_cls, cls]))
+        mixin_cls = create_model(cls.__name__, __base__=(ctrl_cls, cls))
         return mixin_cls
 
 

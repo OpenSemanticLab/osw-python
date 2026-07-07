@@ -67,7 +67,7 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
     file_page = wtsite.get_page(WtSite.GetPageParam(titles=[file_page_name])).pages[0]
     if file_page.exists:
         file_page.delete()
-    with open(path_to_test_file, "r") as file:
+    with open(path_to_test_file) as file:
         _ = wtsite.mw_site.upload(
             file=file,
             filename=file_page_name,
@@ -116,7 +116,7 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
         jsondata = new_file_page.get_slot_content("jsondata")
         if jsondata is None:
             raise ValueError(
-                "jsondata is None - meta data was not written to the file " "page!"
+                "jsondata is None - meta data was not written to the file page!"
             )
         assert jsondata["type"] == WikiFile.__fields__["type"].get_default()
         modified_using_page = wtsite.get_page(
@@ -128,7 +128,7 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
         )
         content_dict = parsed_content[0]
         assert bare_file_name in content_dict["Template:Editor/SvgEdit"]["file_name"]
-        assert "uuid" in list(content_dict.values())[0].keys()
+        assert "uuid" in next(iter(content_dict.values())).keys()
     except AssertionError as e:
         # Assertion Error for now
         exception = e

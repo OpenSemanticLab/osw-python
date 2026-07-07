@@ -156,7 +156,7 @@ class Params(Defaults):
     @validator("wiki_domain")
     def validate_wiki_domain(cls, v):
         pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
-        assert re.match(pattern, v), "The wiki domain is not valid."
+        assert re.match(pattern, v), "The wiki domain is not valid."  # noqa: S101 pydantic validator idiom
         return v
 
 

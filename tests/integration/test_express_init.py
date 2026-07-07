@@ -518,7 +518,7 @@ class TestFileResult:
 class TestDownloadFileResultValidation:
     """Test DownloadFileResult __init__ validation paths without live wiki."""
 
-    DOWNLOAD_ENV_VARS = ENV_VARS + ["OSW_DOWNLOAD_DIR", "OSL_DOWNLOAD_DIR"]
+    DOWNLOAD_ENV_VARS = [*ENV_VARS, "OSW_DOWNLOAD_DIR", "OSL_DOWNLOAD_DIR"]
 
     def test_title_without_domain_raises(self):
         """When url_or_title is a plain title (no URL) and no domain env var
@@ -1107,7 +1107,7 @@ class TestUploadInvalidSourceType:
 def preserve_entity_py_state():
     """Preserve and restore entity.py to avoid test side effects."""
     path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
-    with open(path, "r") as file:
+    with open(path) as file:
         original_entity = file.read()
     try:
         yield None

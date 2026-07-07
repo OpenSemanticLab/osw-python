@@ -202,10 +202,7 @@ class CredentialManager(OswBaseModel):
         bool
             True if a credential exists for the given iri
         """
-        for cred in self._credentials:
-            if cred.iri == iri:
-                return True
-        return False
+        return any(cred.iri == iri for cred in self._credentials)
 
     def iri_in_file(self, iri: str) -> bool:
         """checks if a credential for a given iri exists in the file
@@ -224,7 +221,7 @@ class CredentialManager(OswBaseModel):
             for fp in self.cred_filepath:
                 if fp != "":
                     if Path(fp).exists():
-                        with open(fp, "r", encoding="utf-8") as stream:
+                        with open(fp, encoding="utf-8") as stream:
                             try:
                                 accounts = yaml.safe_load(stream)
                                 if accounts is None:
@@ -297,7 +294,7 @@ class CredentialManager(OswBaseModel):
                 gitignore_fp.parent.mkdir(parents=True)
             gitignore_fp.touch()
         # Reads the .gitignore file
-        with open(gitignore_fp, "r") as stream:
+        with open(gitignore_fp) as stream:
             content = stream.read()
         comment_set = False
         osw_dir_added = False
@@ -314,7 +311,7 @@ class CredentialManager(OswBaseModel):
                     # containing the .gitignore file, add the relative path to the
                     # .gitignore file
                     rel = default_paths.osw_files_dir.relative_to(containing_gitignore)
-                    to_add = f"\n*/{str(rel.as_posix())}/*"
+                    to_add = f"\n*/{rel.as_posix()!s}/*"
                 else:
                     # Test if the default_path.osw_files_dir is a subdirectory of the
                     # directory containing the .gitignore file

@@ -112,7 +112,7 @@ class WtSite:
                 self._iri = config.iri
             site_args = [config.iri]
             # increase pool_maxsize to improve performance with many requests to the same server
-            # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading # noqa
+            # see: https://stackoverflow.com/questions/18466079/change-the-connection-pool-size-for-pythons-requests-module-when-in-threading
             session = requests.Session()
             adapter = requests.adapters.HTTPAdapter(pool_maxsize=50)
             session.mount(scheme + "://", adapter)
@@ -137,14 +137,12 @@ class WtSite:
                 self._site = mwclient.Site(*site_args, **site_kwargs)
                 self._site.login(username=cred.username, password=cred.password)
             elif isinstance(cred, CredentialManager.OAuth1Credential):
-                site_kwargs.update(
-                    **{
-                        "consumer_token": cred.consumer_token,
-                        "consumer_secret": cred.consumer_secret,
-                        "access_token": cred.access_token,
-                        "access_secret": cred.access_secret,
-                    }
-                )
+                site_kwargs.update(**{
+                    "consumer_token": cred.consumer_token,
+                    "consumer_secret": cred.consumer_secret,
+                    "access_token": cred.access_token,
+                    "access_secret": cred.access_secret,
+                })
                 self._site = mwclient.Site(*site_args, **site_kwargs)
             else:
                 raise ValueError("Unsupported credential type: " + str(type(cred)))
@@ -243,7 +241,7 @@ class WtSite:
         """
 
         if isinstance(credentials, str) or isinstance(credentials, Path):
-            domains, accounts = wt.read_domains_from_credentials_file(credentials)
+            _domains, accounts = wt.read_domains_from_credentials_file(credentials)
         else:
             accounts = credentials
         if isinstance(key, int):
@@ -358,9 +356,7 @@ class WtSite:
                     if not wtpage.exists:
                         if param.raise_warning:
                             warnings.warn(
-                                "WARNING: Page with title '{}' does not exist.".format(
-                                    title
-                                ),
+                                f"WARNING: Page with title '{title}' does not exist.",
                                 RuntimeWarning,
                                 3,
                             )
@@ -379,7 +375,7 @@ class WtSite:
                     else:  # last entry -> throw exception
                         retry = param.retries
                         if param.raise_exception:
-                            raise e
+                            raise
                 print(msg)
             self._clear_cookies()
             return wtpage
@@ -621,9 +617,7 @@ class WtSite:
             if index is None:
                 print(f"Uploaded page to {page.get_url()}.")
             else:
-                print(
-                    f"({index + 1}/{max_index}): Uploaded page to " f"{page.get_url()}."
-                )
+                print(f"({index + 1}/{max_index}): Uploaded page to {page.get_url()}.")
 
         if param.parallel:
             _ = parallelize(upload_page_, param.pages, flush_at_end=param.debug)
@@ -663,7 +657,7 @@ class WtSite:
         """Copies pages from a source site to this (target) site."""
 
         def copy_single_page(content_dict: dict):
-            title = list(content_dict.keys())[0]
+            title = next(iter(content_dict.keys()))
             wtpage = WtPage(wtSite=self, title=title)
             return wtpage.copy(
                 config=WtPage.CopyPageConfig(
@@ -800,7 +794,7 @@ class WtSite:
                 shutil.rmtree(config.content_path)
         except OSError as e:
             if debug:
-                print("Error: %s - %s." % (e.filename, e.strerror))
+                print(f"Error: {e.filename} - {e.strerror}.")
         # Create a dump config
         if dump_config is None:
             dump_config = WtPage.PageDumpConfig(
@@ -826,11 +820,9 @@ class WtSite:
         pages = []
         if param.offline_pages is not None:
             pages.extend(
-                (
-                    param.offline_pages[title]
-                    for title in added_titles
-                    if title in param.offline_pages
-                )
+                param.offline_pages[title]
+                for title in added_titles
+                if title in param.offline_pages
             )
             titles_to_fetch = list(
                 set(titles_to_fetch) - set(param.offline_pages.keys())
@@ -879,11 +871,9 @@ class WtSite:
             file_pages = []
             if param.offline_pages is not None:
                 file_pages.extend(
-                    (
-                        param.offline_pages[title]
-                        for title in added_file_titles
-                        if title in param.offline_pages
-                    )
+                    param.offline_pages[title]
+                    for title in added_file_titles
+                    if title in param.offline_pages
                 )
                 file_titles_to_fetch = list(
                     set(added_file_titles) - set(param.offline_pages.keys())
@@ -1007,7 +997,7 @@ class WtSite:
                     f"Error: No JSON files found in '{storage_path}'."
                 )
         # Read packages info file
-        with open(pi_fp, "r", encoding="utf-8") as f:
+        with open(pi_fp, encoding="utf-8") as f:
             packages_json = json.load(f)
         # Assume that the pages files are located in the subdir
         storage_path_content = ut.list_files_and_directories(
@@ -1036,12 +1026,12 @@ class WtSite:
             for pdir in parent_dir:
                 slot_path = pdir / url_path
                 if slot_path in files_in_storage_path:
-                    with open(slot_path, "r", encoding="utf-8") as f:
+                    with open(slot_path, encoding="utf-8") as f:
                         file_content = f.read()
                     # Makes sure not to open an empty file with json
                     if len(file_content) > 0:
                         if url_path.endswith(".json"):
-                            with open(slot_path, "r", encoding="utf-8") as f:
+                            with open(slot_path, encoding="utf-8") as f:
                                 slot_data = json.load(f)
                             return slot_data
                         elif url_path.endswith(".wikitext"):
@@ -1541,7 +1531,7 @@ class WtPage:
             if the slot_key is not defined in SLOTS
         """
         if slot_key not in self._slots:
-            slot_dict = SLOTS.get(slot_key, None)
+            slot_dict = SLOTS.get(slot_key)
             if slot_dict is None:
                 raise ValueError(
                     f"Error: Slot '{slot_key}' not defined in 'SLOTS'."
@@ -1902,8 +1892,7 @@ class WtPage:
                 self.set_slot_content(slot_key=slot, content=slot_contents[slot])
             self.edit(comment=config.comment)
             s2p = (
-                f"Page {verb}: "
-                f"'https://{self.wtSite.mw_site.host}/wiki/{self.title}'."
+                f"Page {verb}: 'https://{self.wtSite.mw_site.host}/wiki/{self.title}'."
             )
             if verb == "updated":
                 s2p = (
@@ -2216,7 +2205,7 @@ class WtPage:
             'xmlns="http://www.mediawiki.org', '_xmlns="http://www.mediawiki.org'
         )
         print(config.xml)
-        tree = et.fromstring(config.xml)
+        tree = et.fromstring(config.xml)  # noqa: S314 parses our own exported XML
 
         # Replace title and namespace with the requested ones
         tree.find(".//title").text = self.title.split(":")[1]

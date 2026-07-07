@@ -1,15 +1,13 @@
 import sys
 from pathlib import Path
+from types import NoneType  # noqa: F401
 
 from pydantic.v1.types import FilePath as PydanticFilePath
 from pydantic.v1.validators import path_validator  # , path_exists_validator
 
-if sys.version_info < (3, 10):
-    NoneType = type(None)
-else:
-    from types import NoneType  # noqa: F401
 if sys.version_info < (3, 11):
-    from backports.strenum import StrEnum  # noqa: F401
+    # not installed in envs >=3.11, hence unresolvable for ty there
+    from backports.strenum import StrEnum  # ty: ignore[unresolved-import]
 else:
     from enum import StrEnum  # noqa: F401
 

@@ -1,39 +1,45 @@
 # osw
 
-Python toolset for data processing, queries, wikicode generation and page manipulation
+Python toolset for data processing, queries, wikicode generation and page
+manipulation within [OpenSemanticLab](https://github.com/OpenSemanticLab).
 
+General features for object-oriented interaction with knowledge graphs are
+provided by the standalone package
+[oold-python](https://github.com/OO-LD/oold-python).
 
-## Note
+## Installation
 
-> This is the main page of your project's [Sphinx] documentation. It is
-> formatted in [Markdown]. Add additional pages by creating md-files in
-> `docs` or rst-files (formatted in [reStructuredText]) and adding links to
-> them in the `Contents` section below.
->
-> Please check [Sphinx] and [MyST] for more information
-> about how to document your project and how to configure your preferences.
-
-
-## Contents
-
-```{toctree}
-:maxdepth: 2
-
-Overview <readme>
-Contributions & Help <contributing>
-License <license>
-Authors <authors>
-Changelog <changelog>
-Module Reference <api/modules>
+```bash
+pip install osw
 ```
 
-## Indices and tables
+### Variants
 
-* {ref}`genindex`
-* {ref}`modindex`
-* {ref}`search`
+| Variant | Description |
+| ------- | ----------- |
+| `osw[wikitext]` | Additional functions in `wiki_tools` to transform mediawiki markup / templates |
+| `osw[DB]` | Interact with SQL databases per DatabaseController |
+| `osw[S3]` | Interact with S3 stores per S3FileController |
+| `osw[dataimport]` | Additional tools to import data |
+| `osw[UI]` | To use a helper UI to work with entity slots |
 
-[Sphinx]: http://www.sphinx-doc.org/
-[Markdown]: https://daringfireball.net/projects/markdown/
-[reStructuredText]: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
-[MyST]: https://myst-parser.readthedocs.io/en/latest/
+To install multiple optional/extra dependencies run
+
+```bash
+pip install osw[opt1,opt2]
+```
+
+To install all optional/extra dependencies run
+
+```bash
+pip install osw[all]
+```
+
+## Documentation
+
+- [Tools](tools.md): collection of helper functions
+- [Authentication](auth.md): credential handling
+- [OSW](osw.md): the central `OSW` class
+- [Model](model.md): the generated data model
+- [Controller](controller.md): controller classes
+- [Development](dev.md): development environment setup

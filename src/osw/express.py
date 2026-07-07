@@ -4,11 +4,11 @@ This module provides convenience functions for osw-python.
 
 This module expects environment variables to be set and available, e.g. through
 dotenv.load_dotenv()
-- OSW_WIKI_DOMAIN: domain of the OSL instance to connect to
-- OSW_CRED_FILEPATH: filepath to the credential file, if not specified the default
-file path based on current working directory will be used
-- OSW_DOWNLOAD_DIR: directory to download files, if not specified the default
-directory based on the current working directory will be used
+- OSW_DOMAIN: domain of the OSL instance to connect to
+- OSW_CRED_FILEPATH: filepath to the credential file, otherwise falls back to the
+default file path, which is based on current working directory
+- OSW_DOWNLOAD_DIR: directory to download files, otherwise falls back to the default
+directory, which is based on the current working directory
 """
 
 import importlib.util
@@ -98,10 +98,10 @@ class OswExpress(OSW):
         cred_mngr: CredentialManager = None,
     ):
         if domain is None:
-            if os.getenv("OSW_WIKI_DOMAIN") is not None:
-                domain = os.getenv("OSW_WIKI_DOMAIN")
-            elif os.getenv("OSL_WIKI_DOMAIN") is not None:
-                domain = os.getenv("OSL_WIKI_DOMAIN")
+            if os.getenv("OSW_DOMAIN") is not None:
+                domain = os.getenv("OSW_DOMAIN")
+            elif os.getenv("OSL_DOMAIN") is not None:
+                domain = os.getenv("OSL_DOMAIN")
             else:
                 raise TypeError(
                     "The constructor of OswExpress is missing 1 required positional "
@@ -336,7 +336,7 @@ class FileResult(OswBaseModel):
     domain: Optional[str] = None
     """The domain of the OSL instance to download the file from. Required if
     urL_or_title is a full page title and the domain is not set in the environment
-    variable 'OSW_WIKI_DOMAIN'. If None the domain is parsed from the URL."""
+    variable 'OSW_DOMAIN'. If None the domain is parsed from the URL."""
     cred_filepath: Optional[Union[str, Path]] = None
     """The filepath to the credentials file. Will only be used if cred_mngr is
     None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml' is
@@ -491,10 +491,10 @@ class DownloadFileResult(FileResult, LocalFileController):
                 string=url_or_title,
             )
             if match is None:
-                if os.getenv("OSW_WIKI_DOMAIN") is not None:
-                    data["domain"] = os.getenv("OSW_WIKI_DOMAIN")
-                elif os.getenv("OSL_WIKI_DOMAIN") is not None:
-                    data["domain"] = os.getenv("OSL_WIKI_DOMAIN")
+                if os.getenv("OSW_DOMAIN") is not None:
+                    data["domain"] = os.getenv("OSW_DOMAIN")
+                elif os.getenv("OSL_DOMAIN") is not None:
+                    data["domain"] = os.getenv("OSL_DOMAIN")
                 else:
                     raise ValueError(
                         f"Could not parse domain from URL: {url_or_title}. "
@@ -574,7 +574,7 @@ def osw_download_file(
     domain
         The domain of the OSL instance to download the file from. Required if
         urL_or_title is a full page title and the domain is not set in the environment
-        variable 'OSW_WIKI_DOMAIN'. If None the domain is parsed from the URL.
+        variable 'OSW_DOMAIN'. If None the domain is parsed from the URL.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
          None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
@@ -695,9 +695,7 @@ class UploadFileResult(FileResult, WikiFileController):
                 if match is not None:
                     data["domain"] = match.group(1)
                 else:
-                    data["domain"] = os.getenv("OSW_WIKI_DOMAIN") or os.getenv(
-                        "OSL_WIKI_DOMAIN"
-                    )
+                    data["domain"] = os.getenv("OSW_DOMAIN") or os.getenv("OSL_DOMAIN")
             else:
                 if match is not None:
                     if not data.get("domain") == match.group(1):
@@ -964,10 +962,10 @@ def import_with_fallback(
         # todo: should  this be taken from globals?
         # If the user has set the default domain, use it
         if domain is None:
-            if os.getenv("OSW_WIKI_DOMAIN") is not None:
-                domain = os.getenv("OSW_WIKI_DOMAIN")
-            elif os.getenv("OSL_WIKI_DOMAIN") is not None:
-                domain = os.getenv("OSL_WIKI_DOMAIN")
+            if os.getenv("OSW_DOMAIN") is not None:
+                domain = os.getenv("OSW_DOMAIN")
+            elif os.getenv("OSL_DOMAIN") is not None:
+                domain = os.getenv("OSL_DOMAIN")
             elif default_params.has_changed("wiki_domain"):
                 domain = default_params.wiki_domain
             else:

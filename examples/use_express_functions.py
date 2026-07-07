@@ -9,7 +9,7 @@ from osw.express import OswExpress, osw_download_file, osw_upload_file  # noqa: 
 dotenv.load_dotenv()  # will look for a .env file in CWD and above
 
 # (Alternative) Setting the domain of the wiki to connect to
-os.environ["OSW_WIKI_DOMAIN"] = "wiki-dev.open-semantic-lab.org"
+os.environ["OSW_DOMAIN"] = "wiki-dev.open-semantic-lab.org"
 # (Optional) Set the default credentials filepath to desired location. Otherwise,
 #  it will use the default location (current working directory)
 os.environ["OSW_CRED_FILEPATH"] = str(

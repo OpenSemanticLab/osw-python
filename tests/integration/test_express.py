@@ -95,7 +95,7 @@ def test_init_from_env_vars(wiki_domain, wiki_username, wiki_password):
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
     os.environ["OSW_CRED_FILEPATH"] = str(cred_filepath)
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
-    os.environ["OSW_WIKI_DOMAIN"] = wiki_domain
+    os.environ["OSW_DOMAIN"] = wiki_domain
 
     osw_express = osw.express.OswExpress()
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)

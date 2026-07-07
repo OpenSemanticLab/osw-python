@@ -70,8 +70,8 @@ def clean_env_vars(*var_names):
 
 
 ENV_VARS = [
-    "OSW_WIKI_DOMAIN",
-    "OSL_WIKI_DOMAIN",
+    "OSW_DOMAIN",
+    "OSL_DOMAIN",
     "OSW_CRED_FILEPATH",
     "OSL_CRED_FILEPATH",
 ]
@@ -186,13 +186,12 @@ class TestInitEnvVarPriority:
     """Test that OSW_* env vars take priority over OSL_* env vars."""
 
     def test_osw_domain_takes_priority_over_osl(self, mocker):
-        """When both OSW_WIKI_DOMAIN and OSL_WIKI_DOMAIN are set,
-        OSW_WIKI_DOMAIN should be used."""
+        """When both OSW_DOMAIN and OSL_DOMAIN are set, OSW_DOMAIN should be used."""
         with clean_env_vars(*ENV_VARS):
             osw_domain = "osw.example.com"
             osl_domain = "osl.example.com"
-            os.environ["OSW_WIKI_DOMAIN"] = osw_domain
-            os.environ["OSL_WIKI_DOMAIN"] = osl_domain
+            os.environ["OSW_DOMAIN"] = osw_domain
+            os.environ["OSL_DOMAIN"] = osl_domain
 
             cred_filepath = Path.cwd() / "test_priority_accounts.pwd.yaml"
             create_credentials_file(cred_filepath, osw_domain, "user", "pass")
@@ -213,10 +212,10 @@ class TestInitEnvVarPriority:
                     cred_filepath.unlink()
 
     def test_osl_domain_used_when_osw_absent(self, mocker):
-        """When only OSL_WIKI_DOMAIN is set, it should be used."""
+        """When only OSL_DOMAIN is set, it should be used."""
         with clean_env_vars(*ENV_VARS):
             osl_domain = "osl.example.com"
-            os.environ["OSL_WIKI_DOMAIN"] = osl_domain
+            os.environ["OSL_DOMAIN"] = osl_domain
 
             cred_filepath = Path.cwd() / "test_osl_accounts.pwd.yaml"
             create_credentials_file(cred_filepath, osl_domain, "user", "pass")
@@ -239,7 +238,7 @@ class TestInitEnvVarPriority:
         OSW_CRED_FILEPATH should be used."""
         with clean_env_vars(*ENV_VARS):
             domain = "priority.example.com"
-            os.environ["OSW_WIKI_DOMAIN"] = domain
+            os.environ["OSW_DOMAIN"] = domain
 
             osw_cred_fp = Path.cwd() / "test_osw_cred.pwd.yaml"
             osl_cred_fp = Path.cwd() / "test_osl_cred.pwd.yaml"
@@ -336,7 +335,7 @@ class TestLiveInitFromEnvVarsOSL:
             create_credentials_file(
                 cred_filepath, wiki_domain, wiki_username, wiki_password
             )
-            os.environ["OSL_WIKI_DOMAIN"] = wiki_domain
+            os.environ["OSL_DOMAIN"] = wiki_domain
             os.environ["OSL_CRED_FILEPATH"] = str(cred_filepath)
 
             try:
@@ -566,9 +565,9 @@ class TestDownloadFileResultValidation:
             assert result.domain == "wiki.example.com"
 
     def test_domain_from_osw_env_var(self, tmp_path, mocker):
-        """When url_or_title is a title and OSW_WIKI_DOMAIN is set."""
+        """When url_or_title is a title and OSW_DOMAIN is set."""
         with clean_env_vars(*self.DOWNLOAD_ENV_VARS):
-            os.environ["OSW_WIKI_DOMAIN"] = "env.example.com"
+            os.environ["OSW_DOMAIN"] = "env.example.com"
             mock_osw, cred_fp = self._make_download_mocks(mocker, tmp_path)
             target_fp = tmp_path / "SomeFile.txt"
             result = DownloadFileResult(
@@ -580,9 +579,9 @@ class TestDownloadFileResultValidation:
             assert result.domain == "env.example.com"
 
     def test_domain_from_osl_env_var(self, tmp_path, mocker):
-        """When url_or_title is a title and only OSL_WIKI_DOMAIN is set."""
+        """When url_or_title is a title and only OSL_DOMAIN is set."""
         with clean_env_vars(*self.DOWNLOAD_ENV_VARS):
-            os.environ["OSL_WIKI_DOMAIN"] = "osl-env.example.com"
+            os.environ["OSL_DOMAIN"] = "osl-env.example.com"
             mock_osw, cred_fp = self._make_download_mocks(mocker, tmp_path)
             target_fp = tmp_path / "SomeFile.txt"
             result = DownloadFileResult(
@@ -596,7 +595,7 @@ class TestDownloadFileResultValidation:
     def test_target_dir_from_osw_env_var(self, tmp_path, mocker):
         """When OSW_DOWNLOAD_DIR is set, it should be used as target_dir."""
         with clean_env_vars(*self.DOWNLOAD_ENV_VARS):
-            os.environ["OSW_WIKI_DOMAIN"] = "env.example.com"
+            os.environ["OSW_DOMAIN"] = "env.example.com"
             download_dir = str(tmp_path / "downloads")
             os.environ["OSW_DOWNLOAD_DIR"] = download_dir
             mock_osw, cred_fp = self._make_download_mocks(mocker, tmp_path)
@@ -610,7 +609,7 @@ class TestDownloadFileResultValidation:
     def test_target_dir_from_osl_env_var(self, tmp_path, mocker):
         """When only OSL_DOWNLOAD_DIR is set, it should be used."""
         with clean_env_vars(*self.DOWNLOAD_ENV_VARS):
-            os.environ["OSW_WIKI_DOMAIN"] = "env.example.com"
+            os.environ["OSW_DOMAIN"] = "env.example.com"
             download_dir = str(tmp_path / "osl_downloads")
             os.environ["OSL_DOWNLOAD_DIR"] = download_dir
             mock_osw, cred_fp = self._make_download_mocks(mocker, tmp_path)
@@ -642,7 +641,7 @@ class TestDownloadFileResultValidation:
     def test_target_fn_derived_from_title(self, tmp_path, mocker):
         """The target filename should be derived from the title after 'File:'."""
         with clean_env_vars(*self.DOWNLOAD_ENV_VARS):
-            os.environ["OSW_WIKI_DOMAIN"] = "env.example.com"
+            os.environ["OSW_DOMAIN"] = "env.example.com"
             mock_osw, cred_fp = self._make_download_mocks(mocker, tmp_path)
             result = DownloadFileResult(
                 url_or_title="File:MyDocument.pdf",
@@ -977,7 +976,7 @@ class TestUploadDomainFromEnv:
 
     def test_domain_from_env_when_title_only(self, tmp_path, mocker):
         with clean_env_vars(*ENV_VARS):
-            os.environ["OSW_WIKI_DOMAIN"] = "env-upload.example.com"
+            os.environ["OSW_DOMAIN"] = "env-upload.example.com"
 
             source_file = tmp_path / "env_domain.txt"
             source_file.write_text("data")
@@ -1223,7 +1222,7 @@ class TestLiveImportWithFallback:
         )
         try:
             with clean_env_vars(*ENV_VARS):
-                os.environ["OSW_WIKI_DOMAIN"] = wiki_domain
+                os.environ["OSW_DOMAIN"] = wiki_domain
                 os.environ["OSW_CRED_FILEPATH"] = str(cred_filepath)
 
                 with preserve_entity_py_state():

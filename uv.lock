@@ -1990,6 +1990,7 @@ workflow = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "backports-strenum" },
     { name = "boto3" },
     { name = "deepl" },
     { name = "deptry" },
@@ -2061,6 +2062,7 @@ provides-extras = ["all", "dataimport", "db", "s3", "tutorial", "ui", "wikitext"
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "backports-strenum" },
     { name = "boto3" },
     { name = "deepl" },
     { name = "deptry", specifier = ">=0.25.1" },

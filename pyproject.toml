@@ -114,6 +114,9 @@ dev = [
     "deptry>=0.25.1",
     # optional-extra backends installed in dev so their modules type-check
     "boto3",
+    # installed unconditionally (runtime dep is <3.11 only) so ty resolves
+    # the version-guarded import in custom_types.py on every python version
+    "backports.strenum",
     # docs
     "zensical>=0.0.46",
     "mkdocstrings-python>=1.0.3",

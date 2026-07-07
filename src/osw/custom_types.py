@@ -6,8 +6,7 @@ from pydantic.v1.types import FilePath as PydanticFilePath
 from pydantic.v1.validators import path_validator  # , path_exists_validator
 
 if sys.version_info < (3, 11):
-    # not installed in envs >=3.11, hence unresolvable for ty there
-    from backports.strenum import StrEnum  # ty: ignore[unresolved-import]
+    from backports.strenum import StrEnum
 else:
     from enum import StrEnum  # noqa: F401
 

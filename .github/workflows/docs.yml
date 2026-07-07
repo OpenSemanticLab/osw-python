@@ -1,7 +1,8 @@
-# Deploys the documentation to GitHub Pages via the Pages artifact method
-# (repo setting: Pages source = "GitHub Actions").
-# NOTE: the docs-versioning phase of the migration replaces this with a
-# mike-based deploy to the gh-pages branch.
+# Deploys the documentation with mike (versioned docs on the gh-pages
+# branch; repo setting: Pages source = "Deploy from a branch: gh-pages").
+#
+# push to main        -> version "dev"
+# tag vX.Y.Z          -> version "X.Y.Z" + "latest" alias (on-release-main.yml)
 
 name: Docs
 
@@ -11,9 +12,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  # mike commits the built site to the gh-pages branch
+  contents: write
 
 concurrency:
   group: pages
@@ -21,28 +21,21 @@ concurrency:
 
 jobs:
   deploy-docs:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out
         uses: actions/checkout@v4
         with:
-          # deep clone incl. tags so hatch-vcs can derive the version
+          # deep clone incl. tags: hatch-vcs needs them and mike needs gh-pages
           fetch-depth: 0
 
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
-      - name: Build documentation
-        run: uv run zensical build --clean
+      - name: Configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy dev documentation
+        run: uv run mike deploy --push dev

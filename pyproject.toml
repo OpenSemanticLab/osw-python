@@ -133,6 +133,8 @@ dev = [
     # docs
     "zensical>=0.0.46",
     "mkdocstrings-python>=1.0.3",
+    # docs versioning: zensical-compatible mike fork (same pin as OO-LD/oold-schema)
+    "mike @ git+https://github.com/squidfunk/mike.git@2.2.0+zensical-0.1.0",
 ]
 
 [tool.hatch.build.targets.wheel]

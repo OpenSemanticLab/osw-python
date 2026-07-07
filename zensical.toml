@@ -69,6 +69,11 @@ accent = "deep orange"
 toggle.icon = "material/brightness-4"
 toggle.name = "Switch to system preference"
 
+# Docs versioning: version selector fed by mike (versions.json on the
+# gh-pages branch). main -> dev, tag vX.Y.Z -> X.Y.Z + latest alias.
+[project.extra.version]
+provider = "mike"
+
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
 link = "https://github.com/OpenSemanticLab/osw-python"

@@ -4,8 +4,8 @@
 # configured on PyPI references workflow "on-release-main.yml" and
 # environment "pypi" (no token/secret involved).
 #
-# Docs are deployed from main by docs.yml; the docs-versioning phase of
-# the migration adds the per-release docs deploy (mike) to this workflow.
+# Docs: dev builds are deployed from main by docs.yml; deploy-docs below
+# publishes the versioned per-release docs (mike -> gh-pages branch).
 
 name: release-main
 
@@ -39,3 +39,36 @@ jobs:
 
       - name: Publish package
         run: uv publish --trusted-publishing always
+
+  deploy-docs:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      # mike commits the built site to the gh-pages branch
+      contents: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # deep clone incl. tags: hatch-vcs needs them and mike needs gh-pages
+          fetch-depth: 0
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Deploy versioned documentation
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          ver="${TAG#v}"
+          # --alias-type=copy keeps /latest/ a real directory instead of a
+          # redirect, so machine-readable files stay fetchable there
+          uv run mike deploy --push --alias-type=copy --update-aliases "$ver" latest
+          uv run mike set-default --push latest

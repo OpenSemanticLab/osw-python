@@ -8,7 +8,7 @@ from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
 # Run with:
-# tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 
 
 def test_ontology_import(wiki_domain, wiki_username, wiki_password):

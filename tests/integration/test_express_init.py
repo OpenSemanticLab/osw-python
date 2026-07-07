@@ -11,7 +11,7 @@ Tests that require a live wiki connection use the wiki_domain, wiki_username,
 and wiki_password fixtures (passed via CLI args).
 
 Run with:
-    tox -e test -- tests/integration/test_express_init.py
+    uv run pytest tests/integration -o addopts="" tests/integration/test_express_init.py
         --wiki_domain <domain> --wiki_username <user> --wiki_password <pass>
 
 Or for unit-style tests only (no live wiki needed):

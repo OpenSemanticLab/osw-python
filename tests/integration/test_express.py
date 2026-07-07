@@ -2,7 +2,7 @@
 This test can't be run directly (anymore) since calling fixtures directly has been
 deprecated in pytest 4.0.0. Instead, the test can be run with the following command,
 which requires pytest-mock to be installed:
-tox -e test -- path/to/test_express.py --wiki_domain domain --wiki_username user
+uv run pytest tests/integration -o addopts="" tests/integration/test_express.py --wiki_domain domain --wiki_username user
 --wiki_password pass
 
 

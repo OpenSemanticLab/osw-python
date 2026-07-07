@@ -36,7 +36,7 @@ def check_dependencies():
 def main(wiki_domain: str, wiki_username: str, wiki_password: str):
     dependencies_met = check_dependencies()
     if not dependencies_met:
-        # For local testing without tox
+        # For local testing without CLI options
         if wiki_domain is None or wiki_domain == "None":
             # Make sure that the password file is available
             cwd = Path(__file__).parent.absolute()
@@ -45,7 +45,7 @@ def main(wiki_domain: str, wiki_username: str, wiki_password: str):
                 domain="wiki-dev.open-semantic-lab.org",
                 password_file=str(pw_fp),
             )
-        # For testing with tox
+        # For testing with CLI options
         else:
             site = mwclient.Site(host=wiki_domain)
             site.login(username=wiki_username, password=wiki_password)

@@ -2,7 +2,7 @@ from osw.auth import CredentialManager
 from osw.core import OSW, model
 from osw.wtsite import WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 
 
 def test_file_controller(wiki_domain, wiki_username, wiki_password):

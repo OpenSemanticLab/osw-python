@@ -9,8 +9,8 @@ import osw.wiki_tools as wt
 from osw.data.import_utility import uuid_to_full_page_title
 from osw.wtsite import WtPage, WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
-# run locally with: tox -e test -- --wiki_domain None --wiki_username None --wiki_password None
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
+# run locally with: uv run pytest tests/integration -o addopts="" --wiki_domain None --wiki_username None --wiki_password None
 # This will trigger the fallback option (and not the skip condition)
 
 
@@ -40,13 +40,13 @@ def test_file_page_migration(wiki_domain: str, wiki_username: str, wiki_password
         move_file_pages_and_redirect_references,
     )
 
-    # For local testing without tox
+    # For local testing without CLI options
     if wiki_domain is None or wiki_domain == "None":
         wtsite = WtSite.from_domain(
             domain="wiki-dev.open-semantic-lab.org",
             password_file=str(PWD_FILE_PATH),
         )
-    # For testing with tox
+    # For testing with CLI options
     else:
         site = mwclient.Site(host=wiki_domain)
         site.login(username=wiki_username, password=wiki_password)

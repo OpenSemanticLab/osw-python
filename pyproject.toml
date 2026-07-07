@@ -27,7 +27,6 @@ dependencies = [
     "datamodel-code-generator==0.51.0",
     "black",
     "isort",
-    "ruamel.yaml<0.19.0",
     "mwclient>=0.11.0",
     # imported directly in src but previously only available transitively,
     # surfaced by deptry during the migration
@@ -39,18 +38,11 @@ dependencies = [
     "jsonpath-ng",
     "numpy",
     "pyyaml",
-    "pandas",
     "typing_extensions",
     # used in custom_types.py on py3.10; was missing before (latent
     # ImportError on 3.10), surfaced by ty/deptry during the migration
     'backports.strenum; python_version < "3.11"',
-    "pathlib",
-    "sphinx",
-    "chardet",
-    "matplotlib",
-    "scipy",
     "dask",
-    "asyncio",
     "tqdm",
     "pybars3-wheel",
 ]
@@ -87,25 +79,6 @@ workflow = [
 tutorial = ["osw[dataimport]"]
 all = ["osw[dataimport,DB,UI,S3,wikitext]"]
 
-# Test requirements. Kept as an extra so tox (extras = testing) keeps
-# working; revisited in the cleanup phase.
-testing = [
-    "pytest-asyncio",
-    # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
-    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
-    "osw[workflow]",
-    "setuptools",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "geopy",
-    "deepl",
-    "sqlalchemy",
-    "psycopg2-binary", # see: https://www.psycopg.org/docs/install.html#psycopg-vs-psycopg-binary
-    "mwparserfromhell",
-    "jsondiff",
-]
-
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
@@ -118,9 +91,20 @@ raw-options = { version_scheme = "no-guess-dev" }
 
 [dependency-groups]
 dev = [
-    # test stack (mirrors the published `testing` extra so `uv sync` alone
-    # yields a test-ready env; the extra stays for tox until the cleanup phase)
-    "osw[testing]",
+    # test stack
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-asyncio",
+    # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
+    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
+    "osw[workflow]",
+    "geopy",
+    "deepl",
+    "sqlalchemy",
+    "psycopg2-binary", # see: https://www.psycopg.org/docs/install.html#psycopg-vs-psycopg-binary
+    "mwparserfromhell",
+    "jsondiff",
     # tooling
     # (tox-uv omitted: it needs packaging>=26, conflicting with the
     # prefect-2.x test stack; tox is revisited in the cleanup phase)
@@ -305,32 +289,12 @@ pybars3-wheel = "pybars"
 "backports.strenum" = "backports"
 
 [tool.deptry.per_rule_ignores]
-# DEP002: declared but not imported anywhere in src.
+# DEP002: declared but not imported anywhere in src
+# (extras packages are not imported by the package itself)
 DEP002 = [
-    # legacy runtime declarations, candidates for removal in the cleanup
-    # phase (imported neither in src nor in examples/scripts)
-    "sphinx",
-    "pathlib",
-    "asyncio",
-    "ruamel.yaml",
-    "pandas",
-    "chardet",
-    "matplotlib",
-    "scipy",
-    # extras and test-stack packages are not imported by the package itself
     "psycopg2",
-    "psycopg2-binary",
     "openpyxl",
     "pysimplegui",
     "anyio",
     "osw",
-    "setuptools",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-asyncio",
-    "jsondiff",
 ]
-# DEP005: pathlib/asyncio shadow the standard library; kept until the
-# cleanup phase removes them with reviewer sign-off.
-DEP005 = ["pathlib", "asyncio"]

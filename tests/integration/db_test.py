@@ -5,7 +5,7 @@ from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.wtsite import WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user
 # --wiki_password pass --db_username user --db_password pass
 
 

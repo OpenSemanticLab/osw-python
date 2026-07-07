@@ -1,24 +1,45 @@
-# Setup
-1. create a virtual environment
+# Development
+
+## Setup
+
+1. Install [uv](https://docs.astral.sh/uv/)
+
+2. Install the environment and the pre-commit hooks
+
+    ```bash
+    make install
+    ```
+
+## Quality checks
+
+Run the code quality tools (lock consistency, pre-commit incl. ruff,
+ty type checking, deptry):
+
 ```bash
-python -m venv .venv
+make check
 ```
 
-1. install requirements + extras
+## Testing
+
+1. Create a new test (file name `test_*.py`) under `/tests`
+
+2. Run pytest in the project root dir (integration tests are excluded
+   by default)
+
+    ```bash
+    make test
+    ```
+
+3. To run the integration tests with credentials, run
+
+    ```bash
+    uv run pytest tests/integration -o addopts="" --wiki_domain "<domain>" --wiki_username "<login>" --wiki_password "<password>"
+    ```
+
+## Documentation
+
+Serve the docs locally with live reload:
+
 ```bash
-pip install -e .[dev,testing]
-```
-
-
-# Testing
-
-1. Create new test (file name test_*.py) under /tests
-
-1. Run pytest in the project root dir
-```bash
-tox -e test
-```
-1. To run integration test with credentials, run
-```bash
-tox -e test -- --wiki_domain "<domain>" --wiki_username "<login>" --wiki_password "<password>"
+make docs
 ```

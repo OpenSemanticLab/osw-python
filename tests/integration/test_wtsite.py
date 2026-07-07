@@ -12,7 +12,7 @@ Run unit tests only (no live wiki):
     pytest tests/integration/test_wtsite.py -k "not Live" -v
 
 Run all tests with live wiki:
-    tox -e test -- tests/integration/test_wtsite.py
+    uv run pytest tests/integration -o addopts="" tests/integration/test_wtsite.py
         --wiki_domain <domain> --wiki_username <user> --wiki_password <pass>
 """
 

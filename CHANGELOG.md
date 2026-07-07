@@ -1,5 +1,11 @@
 # Changelog
 
+> **Note:** This file is no longer updated manually. Changes since
+> v0.12.0 are tracked in the
+> [GitHub Releases](https://github.com/OpenSemanticLab/osw-python/releases).
+> Automated changelog generation (python-semantic-release) is planned;
+> the historical entries below are preserved for reference.
+
 ## Version v0.12.0
  - rework ontology import (BREAKING, see examples/ontology_import.py)
  - add in-memory credentials in CredentialManager

@@ -1,45 +1,30 @@
-# osw
+---
+title: OpenSemanticWorld Python
+hide:
+  - navigation
+  - toc
+---
 
-Python toolset for data processing, queries, wikicode generation and page
-manipulation within [OpenSemanticLab](https://github.com/OpenSemanticLab).
+<!-- markdownlint-disable MD033 -- the landing hero is built from inline HTML -->
 
-General features for object-oriented interaction with knowledge graphs are
-provided by the standalone package
-[oold-python](https://github.com/OO-LD/oold-python).
+<div class="osw-hero" markdown>
 
-## Installation
+<img class="osw-hero__logo" alt="OpenSemanticLab logo" src="https://github.com/OpenSemanticLab.png">
 
-```bash
-pip install osw
-```
+<h1 class="osw-hero__title">osw-python</h1>
 
-### Variants
+<p class="osw-hero__tagline">Typed Python access to OpenSemanticLab knowledge graphs.</p>
 
-| Variant | Description |
-| ------- | ----------- |
-| `osw[wikitext]` | Additional functions in `wiki_tools` to transform mediawiki markup / templates |
-| `osw[DB]` | Interact with SQL databases per DatabaseController |
-| `osw[S3]` | Interact with S3 stores per S3FileController |
-| `osw[dataimport]` | Additional tools to import data |
-| `osw[UI]` | To use a helper UI to work with entity slots |
+<p class="osw-hero__text">
+Work with OpenSemanticLab instances the way you work with Python objects:
+load pages as typed pydantic entities, query with semantic search, generate
+models from the schemas stored in the wiki, and write changes back - files,
+wikitext and structured data included.
+</p>
 
-To install multiple optional/extra dependencies run
+<p class="osw-hero__actions" markdown>
+[Get started](get-started.md){ .md-button .md-button--primary }
+[Learn more](about.md){ .md-button }
+</p>
 
-```bash
-pip install osw[opt1,opt2]
-```
-
-To install all optional/extra dependencies run
-
-```bash
-pip install osw[all]
-```
-
-## Documentation
-
-- [Tools](tools.md): collection of helper functions
-- [Authentication](auth.md): credential handling
-- [OSW](osw.md): the central `OSW` class
-- [Model](model.md): the generated data model
-- [Controller](controller.md): controller classes
-- [Development](dev.md): development environment setup
+</div>

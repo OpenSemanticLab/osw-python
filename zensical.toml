@@ -8,13 +8,20 @@ edit_uri = "edit/main/docs/"
 repo_name = "OpenSemanticLab/osw-python"
 copyright = 'Maintained by <a href="https://github.com/OpenSemanticWorld">OpenSemanticWorld</a>.'
 
+extra_css = ["stylesheets/extra.css"]
+
 nav = [
     { "Home" = "index.md" },
-    { "Tools" = "tools.md" },
-    { "Authentication" = "auth.md" },
-    { "OSW" = "osw.md" },
-    { "Model" = "model.md" },
-    { "Controller" = "controller.md" },
+    { "About" = "about.md" },
+    { "Get Started" = "get-started.md" },
+    { "API Reference" = [
+        { "Overview" = "api/index.md" },
+        { "OSW" = "api/core.md" },
+        { "Wiki Tools" = "api/wiki-tools.md" },
+        { "Authentication" = "api/auth.md" },
+        { "Controllers" = "api/controller.md" },
+        { "Model" = "api/model.md" },
+    ]},
     { "Development" = "dev.md" },
 ]
 
@@ -26,6 +33,9 @@ docstring_style = "numpy"
 
 [project.theme]
 language = "en"
+# GitHub org avatar as logo/favicon (no vendored copy to maintain)
+logo = "https://github.com/OpenSemanticLab.png"
+favicon = "https://github.com/OpenSemanticLab.png"
 features = [
     "announce.dismiss",
     "content.code.annotate",

@@ -290,6 +290,11 @@ opensemantic-core = "opensemantic"
 opensemantic-base = "opensemantic"
 pybars3-wheel = "pybars"
 "backports.strenum" = "backports"
+# extras packages not installed in the dev env, mapped explicitly so
+# deptry does not have to guess ("Assuming ..." warnings)
+psycopg2 = "psycopg2"
+openpyxl = "openpyxl"
+pysimplegui = "PySimpleGUI"
 
 [tool.deptry.per_rule_ignores]
 # DEP002: declared but not imported anywhere in src

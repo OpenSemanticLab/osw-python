@@ -1,39 +1,41 @@
-# Release workflow. Filename and environment name are load-bearing:
-# the PyPI trusted publisher (OIDC) configuration references
-# workflow "on-release-main.yml" and environment "pypi".
+# Release workflow: publishes to PyPI via OIDC trusted publishing.
 #
-# INTERIM STATE during the repo migration: publishing still uses the
-# PYPI_TOKEN secret via twine. The release phase of the migration
-# replaces it with `uv publish --trusted-publishing always` (OIDC)
-# and adds the docs deployment job.
+# Filename and environment name are load-bearing: the trusted publisher
+# configured on PyPI references workflow "on-release-main.yml" and
+# environment "pypi" (no token/secret involved).
+#
+# Docs are deployed from main by docs.yml; the docs-versioning phase of
+# the migration adds the per-release docs deploy (mike) to this workflow.
 
 name: release-main
 
 on:
   push:
     tags: ['v[0-9]*']
-  workflow_dispatch:  # Allow manually triggering the workflow
 
 jobs:
   publish:
-    if: ${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     environment:
       name: pypi
+    permissions:
+      contents: read
+      # required for PyPI trusted publishing (OIDC)
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
-          # deep clone incl. tags so hatch-vcs can derive the version
+          # deep clone incl. tags so hatch-vcs derives the version from the tag
           fetch-depth: 0
+
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
+
       - name: Build package distribution files
         run: uv build
-      - name: Publish Package
-        env:
-          TWINE_REPOSITORY: pypi
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          uvx twine check dist/*
-          uvx twine upload dist/*
+
+      - name: Check package metadata
+        run: uvx twine check dist/*
+
+      - name: Publish package
+        run: uv publish --trusted-publishing always

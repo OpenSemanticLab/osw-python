@@ -1,0 +1,39 @@
+# Release workflow. Filename and environment name are load-bearing:
+# the PyPI trusted publisher (OIDC) configuration references
+# workflow "on-release-main.yml" and environment "pypi".
+#
+# INTERIM STATE during the repo migration: publishing still uses the
+# PYPI_TOKEN secret via twine. The release phase of the migration
+# replaces it with `uv publish --trusted-publishing always` (OIDC)
+# and adds the docs deployment job.
+
+name: release-main
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:  # Allow manually triggering the workflow
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # deep clone incl. tags so hatch-vcs can derive the version
+          fetch-depth: 0
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+      - name: Build package distribution files
+        run: uv build
+      - name: Publish Package
+        env:
+          TWINE_REPOSITORY: pypi
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          uvx twine check dist/*
+          uvx twine upload dist/*

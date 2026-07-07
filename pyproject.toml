@@ -1,9 +1,117 @@
-[build-system]
-# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
-requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=5"]
-build-backend = "setuptools.build_meta"
+[project]
+name = "osw"
+description = "Python toolset for data processing, queries, wikicode generation and page manipulation"
+authors = [{ name = "OpenSemanticWorld", email = "team@opensemantic.world" }]
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.10,<3.14"
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "oold>=0.15.0",
+    "opensemantic",
+    "opensemantic.core>=0.57.4",
+    "opensemantic.base>=0.42.7",
+    "pydantic[email]>=1.10.17",
+    "datamodel-code-generator==0.51.0",
+    "black",
+    "isort",
+    "ruamel.yaml<0.19.0",
+    "mwclient>=0.11.0",
+    "rdflib",
+    "PyLD",
+    "SPARQLWrapper",
+    "jsonpath-ng",
+    "numpy",
+    "pyyaml",
+    "pandas",
+    "typing_extensions",
+    "pathlib",
+    "sphinx",
+    "chardet",
+    "matplotlib",
+    "scipy",
+    "dask",
+    "asyncio",
+    "tqdm",
+    "pybars3-wheel",
+]
 
-[tool.setuptools_scm]
-# For smarter version schemes and other configuration options,
-# check out https://github.com/pypa/setuptools_scm
-version_scheme = "no-guess-dev"
+[project.urls]
+Homepage = "https://github.com/OpenSemanticLab/osw-python"
+Documentation = "https://opensemanticlab.github.io/osw-python/"
+Source = "https://github.com/OpenSemanticLab/osw-python"
+Changelog = "https://github.com/OpenSemanticLab/osw-python/blob/main/CHANGELOG.md"
+Download = "https://pypi.org/project/osw/#files"
+
+[project.optional-dependencies]
+wikitext = ["mwparserfromhell"]
+DB = [
+    "psycopg2",
+    "sqlalchemy",
+]
+S3 = ["boto3"]
+dataimport = [
+    "geopy",
+    "deepl",
+    "openpyxl",
+]
+UI = ["pysimplegui"]
+workflow = [
+    "prefect>=2.20.25,<3.0",
+    # prefect 2.20.25 is the final 2.x release (no backports). Its
+    # GatherTaskGroup subclasses anyio's TaskGroup but doesn't implement
+    # create_task, which newer anyio 4.x made abstract (broken on 4.14,
+    # verified good on 4.6.2); hold anyio to the last verified-good 4.6 line
+    # so the prefect-2.x flow engine can still instantiate task groups.
+    "anyio>=4.4.0,<4.7",
+]
+tutorial = ["osw[dataimport]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext]"]
+
+# Dev requirements. Kept as extras in this phase so tox (extras = testing)
+# keeps working; migrated to a dependency-group in the dev-tooling phase.
+dev = [
+    "pre-commit>=3.2.0",
+    "tox",
+]
+testing = [
+    "pytest-asyncio",
+    # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
+    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
+    "osw[workflow]",
+    "setuptools",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "geopy",
+    "deepl",
+    "sqlalchemy",
+    "psycopg2-binary", # see: https://www.psycopg.org/docs/install.html#psycopg-vs-psycopg-binary
+    "mwparserfromhell",
+    "jsondiff",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+# Preserve the setuptools-scm scheme the project used previously so tag-derived
+# versions are identical (e.g. 1.1.2.post1.dev25+g<sha>).
+raw-options = { version_scheme = "no-guess-dev" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/osw"]

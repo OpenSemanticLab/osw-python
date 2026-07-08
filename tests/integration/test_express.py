@@ -23,6 +23,7 @@ Tests to be written for express.py:
 """
 
 import os
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -173,8 +174,9 @@ def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
     assert osw_express_and_credentials(
         osw_express, wiki_domain, wiki_username, wiki_password
     )
-    # Test file upload
-    file_path = Path.cwd() / "test_file.txt"
+    # Test file upload; unique name per run so leftovers on the shared
+    # test wiki never collide with a re-upload (fileexists-no-change)
+    file_path = Path.cwd() / f"test_file_{uuid.uuid4().hex[:8]}.txt"
     create_dummy_file(file_path)
     # Upload a file to an OSW instance
     wiki_file = osw.express.osw_upload_file(file_path, osw_express=osw_express)

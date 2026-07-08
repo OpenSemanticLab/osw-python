@@ -19,6 +19,7 @@ Or for unit-style tests only (no live wiki needed):
 """
 
 import os
+import uuid
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
@@ -1130,9 +1131,11 @@ class TestLiveUploadDownloadInstanceMethods:
             osw_obj = osw.express.OswExpress(
                 domain=wiki_domain, cred_filepath=cred_filepath
             )
-            # Create dummy file
-            source_file = Path.cwd() / "test_instance_upload.txt"
-            source_file.write_text("Instance upload test content")
+            # Create dummy file; unique name/content per run so leftovers
+            # on the shared test wiki never collide with a re-upload
+            uid = uuid.uuid4().hex[:8]
+            source_file = Path.cwd() / f"test_instance_upload_{uid}.txt"
+            source_file.write_text(f"Instance upload test content {uid}")
 
             try:
                 # Upload via instance method
@@ -1146,7 +1149,9 @@ class TestLiveUploadDownloadInstanceMethods:
                     overwrite=True,
                 )
                 assert local_file.path.exists()
-                assert local_file.path.read_text() == "Instance upload test content"
+                assert local_file.path.read_text() == (
+                    f"Instance upload test content {uid}"
+                )
 
                 # Cleanup
                 local_file.close()
@@ -1175,14 +1180,22 @@ class TestLiveUploadWithTargetFpt:
             osw_obj = osw.express.OswExpress(
                 domain=wiki_domain, cred_filepath=cred_filepath
             )
-            source_file = Path.cwd() / "test_target_fpt_upload.txt"
-            source_file.write_text("Target FPT test content")
+            # Unique name and content per run: the shared test wiki keeps
+            # pages between runs, and re-uploading identical content raises
+            # a fileexists-no-change API error.
+            uid = uuid.uuid4().hex[:8]
+            content = f"Target FPT test content {uid}"
+            source_file = Path.cwd() / f"test_target_fpt_upload_{uid}.txt"
+            source_file.write_text(content)
+            title = f"File:TestTargetFptUpload{uid}.txt"
 
+            wiki_file = None
+            local_file = None
             try:
                 wiki_file = osw_obj.upload_file(
                     source=source_file,
-                    url_or_title="File:TestTargetFptUpload.txt",
-                    target_fpt="File:TestTargetFptUpload.txt",
+                    url_or_title=title,
+                    target_fpt=title,
                 )
                 assert wiki_file is not None
                 assert wiki_file.change_id is not None
@@ -1193,13 +1206,14 @@ class TestLiveUploadWithTargetFpt:
                     url_or_title=wiki_file.url_or_title,
                     overwrite=True,
                 )
-                assert local_file.path.read_text() == "Target FPT test content"
-
-                # Cleanup
-                local_file.close()
-                local_file.delete()
-                wiki_file.delete()
+                assert local_file.path.read_text() == content
             finally:
+                # best-effort cleanup so no state leaks onto the shared wiki
+                if local_file is not None:
+                    local_file.close()
+                    local_file.delete()
+                if wiki_file is not None:
+                    wiki_file.delete()
                 if source_file.exists():
                     source_file.unlink()
             osw_obj.shut_down()

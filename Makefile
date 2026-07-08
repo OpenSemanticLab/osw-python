@@ -22,6 +22,16 @@ test: ## Test the code with pytest (integration tests excluded, see pyproject.to
 	@echo ">> Testing code: Running pytest"
 	@uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml
 
+.PHONY: test-integration
+test-integration: ## Run integration tests (set WIKI_DOMAIN, WIKI_USERNAME, WIKI_PASSWORD [, DB_USERNAME, DB_PASSWORD]; tests skip where credentials are missing)
+	@echo ">> Testing code: Running pytest on tests/integration"
+	@uv run python -m pytest tests/integration -o addopts="" \
+		$(if $(WIKI_DOMAIN),--wiki_domain "$(WIKI_DOMAIN)") \
+		$(if $(WIKI_USERNAME),--wiki_username "$(WIKI_USERNAME)") \
+		$(if $(WIKI_PASSWORD),--wiki_password "$(WIKI_PASSWORD)") \
+		$(if $(DB_USERNAME),--db_username "$(DB_USERNAME)") \
+		$(if $(DB_PASSWORD),--db_password "$(DB_PASSWORD)")
+
 .PHONY: build
 build: clean-build ## Build wheel and sdist
 	@echo ">> Creating wheel and sdist files"

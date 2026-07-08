@@ -1,0 +1,35 @@
+# Integration tests against a live test wiki. Credentials come from the
+# INTEGR_TEST_* secrets; where they are unavailable (e.g. forks), the
+# credential fixtures make the tests skip instead of fail.
+
+name: Integration
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # runs mutate the shared test wiki, so never run two in parallel
+  group: integration
+  cancel-in-progress: false
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # deep clone incl. tags so hatch-vcs can derive the version
+          fetch-depth: 0
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Run integration tests
+        env:
+          WIKI_DOMAIN: ${{ secrets.INTEGR_TEST_WIKI_DOMAIN }}
+          WIKI_USERNAME: ${{ secrets.INTEGR_TEST_WIKI_USERNAME }}
+          WIKI_PASSWORD: ${{ secrets.INTEGR_TEST_WIKI_PASSWORD }}
+        run: make test-integration

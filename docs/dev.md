@@ -61,14 +61,25 @@ excluded by default:
 
 ### Integration tests
 
-Integration tests run against a live wiki and need credentials:
+Integration tests run against a live wiki and need credentials; tests
+whose credentials are missing skip instead of fail. CI runs them on
+every push to `main` (workflow `integration.yml`).
 
-```bash
-uv run pytest tests/integration -o addopts="" \
-    --wiki_domain "<domain>" \
-    --wiki_username "<login>" \
-    --wiki_password "<password>"
-```
+=== "make"
+
+    ```bash
+    WIKI_DOMAIN="<domain>" WIKI_USERNAME="<login>" WIKI_PASSWORD="<password>" \
+        make test-integration
+    ```
+
+=== "manual"
+
+    ```bash
+    uv run pytest tests/integration -o addopts="" \
+        --wiki_domain "<domain>" \
+        --wiki_username "<login>" \
+        --wiki_password "<password>"
+    ```
 
 ## Documentation
 

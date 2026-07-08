@@ -440,17 +440,19 @@ class TestFileResult:
         fr.close()
         assert fio.closed
 
-    def test_close_already_closed_warns(self, tmp_path):
-        """Test that closing an already-closed file emits a warning."""
+    def test_close_already_closed_is_noop(self, tmp_path):
+        """Closing an already-closed (or never opened) file is a silent
+        no-op, matching io stream semantics."""
         fp = tmp_path / "test.txt"
         fp.write_text("data")
         fr = FileResult(path=fp)
-        # Not opened yet - should warn
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
+            fr.close()  # never opened
+            fr.open()
             fr.close()
-            assert len(w) == 1
-            assert "already closed" in str(w[0].message).lower()
+            fr.close()  # already closed
+            assert len(w) == 0
 
     def test_read_auto_opens(self, tmp_path):
         """Test that read() auto-opens the file if not opened."""
@@ -779,6 +781,7 @@ class TestImportWithFallback:
         with pytest.raises(ValueError, match="to_import"):
             import_with_fallback(None, {})
 
+    @pytest.mark.filterwarnings("ignore:No 'dependencies' were passed:UserWarning")
     def test_nonexistent_class_no_deps_raises(self):
         """When the class doesn't exist and no dependencies or osw_fpt
         are given, should raise AttributeError."""
@@ -1225,6 +1228,10 @@ class TestLiveUploadWithTargetFpt:
 class TestLiveImportWithFallback:
     """Test import_with_fallback fallback path with live wiki."""
 
+    @pytest.mark.filterwarnings("ignore:No 'dependencies' were passed:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:An exception occurred while loading the module dependencies:UserWarning"
+    )
     def test_live_fallback_fetches_from_wiki(
         self, wiki_domain, wiki_username, wiki_password
     ):

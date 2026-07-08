@@ -135,6 +135,28 @@ testpaths = ["tests"]
 addopts = "--cov --cov-config=pyproject.toml --cov-report=term-missing --ignore=tests/integration"
 norecursedirs = ["dist", "build", ".tox"]
 asyncio_default_fixture_loop_scope = "function"
+# Third-party warnings that are not actionable in this repo. Everything
+# emitted by our own code is either fixed or explicitly expected via
+# per-test filterwarnings markers.
+# KNOWN RESIDUAL: a handful of pydantic class-based-config deprecations
+# from oold/prefect are emitted at import time under state that no pytest
+# or interpreter filter reaches; they still show up in the summary.
+filterwarnings = [
+    # oold still uses pydantic-v1-style class-based Config (pydantic v2 deprecation)
+    "ignore:Support for class-based `config` is deprecated:DeprecationWarning",
+    # prefect 2.x internals: pydantic v2 deprecations and vendored starlette
+    "ignore:The `__fields__` attribute is deprecated:DeprecationWarning",
+    "ignore:The `__fields_set__` attribute is deprecated:DeprecationWarning",
+    "ignore:The private method `_iter` will be removed:DeprecationWarning",
+    "ignore:Please use `import python_multipart` instead:PendingDeprecationWarning",
+    # sqlalchemy reflection notes from the prefect test harness
+    "ignore:Skipped unsupported reflection",
+    # datamodel-code-generator does not know OSW's custom JSON-schema formats
+    "ignore:format of '.*' not understood:UserWarning",
+    # rdflib internals
+    "ignore:Dataset.default_context is deprecated:DeprecationWarning",
+    "ignore:ConjunctiveGraph is deprecated:DeprecationWarning",
+]
 
 [tool.coverage.run]
 branch = true

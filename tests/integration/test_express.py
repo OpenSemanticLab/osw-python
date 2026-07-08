@@ -62,34 +62,44 @@ def preserve_entity_py_state():
 
 
 def osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password):
+    from osw.auth import CredentialManager
+
     assert osw_express.domain == wiki_domain
     # An error would occur if the connection attempt to the wiki would have failed
     assert osw_express.site is not None
-    assert osw_express.cred_filepath is not None
-    assert osw_express.cred_filepath.exists()
-    assert osw_express.cred_filepath.is_file()
-    credentials = yaml.safe_load(osw_express.cred_filepath.open("r"))
-    assert wiki_domain in credentials
-    assert credentials[wiki_domain]["username"] == wiki_username
-    assert credentials[wiki_domain]["password"] == wiki_password
+    # Credentials are resolvable (in memory or from a caller-provided file);
+    # the library never writes a credential file on its own.
+    cred = osw_express.cred_mngr.get_credential(
+        CredentialManager.CredentialConfig(
+            iri=wiki_domain,
+            fallback=CredentialManager.CredentialFallback.none,
+        )
+    )
+    assert cred is not None
+    assert cred.username == wiki_username
+    assert cred.password == wiki_password
+    # a credential file is only ever one the caller provided themselves
+    if osw_express.cred_filepath is not None:
+        assert osw_express.cred_filepath.exists()
     return True
 
 
 def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     """Test OswExpress initialization with defined domain, but no cred_filepath nor
-    cred_mngr. As this is the first test to load the osw.express module,
-    the installation of the dependencies should be triggered here."""
+    cred_mngr. Credentials are prompted for interactively and are kept in
+    memory only; no credential file is created."""
     # A connection is opened with domain already set, so mocking is required for the
     #  username and password only
     mocked_input = mocker.patch("builtins.input")
     mocked_getpass = mocker.patch("getpass.getpass")
-    mocked_input.side_effect = [str(Path(default_paths.cred_filepath)), wiki_username]
+    mocked_input.side_effect = [wiki_username]
     mocked_getpass.return_value = wiki_password
     osw_express = osw.express.OswExpress(domain=wiki_domain)
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
-    assert osw_express.cred_filepath == Path(osw.express.default_paths.cred_filepath)
+    # in-memory only: no credential file path is set and none is created
+    assert osw_express.cred_filepath is None
+    assert not Path(default_paths.cred_filepath).exists()
     osw_express.shut_down()
-    osw_express.cred_filepath.unlink()
 
 
 def test_init_from_env_vars(wiki_domain, wiki_username, wiki_password):

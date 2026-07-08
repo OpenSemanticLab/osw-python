@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import getpass
+import os
+import warnings
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Union
@@ -160,6 +162,17 @@ class CredentialManager(OswBaseModel):
                 return match
             return self._oold_to_osw(match)
 
+        # Environment variables (e.g. loaded from a .env file) come before
+        # any interactive fallback; credentials are kept in memory only.
+        username = os.getenv("OSW_USERNAME") or os.getenv("OSL_USERNAME")
+        password = os.getenv("OSW_PASSWORD") or os.getenv("OSL_PASSWORD")
+        if username is not None and password is not None:
+            cred = CredentialManager.UserPwdCredential(
+                username=username, password=password, iri=config.iri
+            )
+            self.add_credential(cred)
+            return cred
+
         if config.fallback is CredentialManager.CredentialFallback.ask:
             if self.cred_filepath:
                 filepath_str = "', '".join([str(fp) for fp in self.cred_filepath])
@@ -172,9 +185,9 @@ class CredentialManager(OswBaseModel):
             cred = CredentialManager.UserPwdCredential(
                 username=username, password=password, iri=config.iri
             )
+            # kept in memory only; persisting credentials to a file happens
+            # exclusively through an explicit save_credentials_to_file() call
             self.add_credential(cred)
-            if self.cred_filepath:
-                self.save_credentials_to_file()
             return cred
 
         return None
@@ -250,6 +263,13 @@ class CredentialManager(OswBaseModel):
             If True, the cred_filepath is set to the given filepath. If False, the
             cred_filepath of the CredentialManager is not changed.
         """
+        warnings.warn(
+            "save_credentials_to_file() writes credentials to disk in clear "
+            "text and is deprecated. Prefer environment variables (e.g. via "
+            "a .env file) or in-memory credentials.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         cred_filepaths = [filepath]
         if filepath is None:
             cred_filepaths = self.cred_filepath
@@ -275,66 +295,6 @@ class CredentialManager(OswBaseModel):
                 print(f"Credentials file updated at '{fp.resolve()}'.")
             else:
                 print(f"Credentials file created at '{fp.resolve()}'.")
-
-        # Creating or updating .gitignore file in the working directory
-        cwd = Path.cwd()
-        potential_fp = [
-            cwd / ".gitignore",
-            cwd.parent / ".gitignore",
-        ]
-        gitignore_fp = potential_fp[0]
-        # Stops if a .gitignore file is found
-        for fp in potential_fp:
-            if fp.exists():
-                gitignore_fp = fp
-                break
-        # Creates a .gitignore file if none is found
-        if not gitignore_fp.exists():
-            if not gitignore_fp.parent.exists():
-                gitignore_fp.parent.mkdir(parents=True)
-            gitignore_fp.touch()
-        # Reads the .gitignore file
-        with open(gitignore_fp) as stream:
-            content = stream.read()
-        comment_set = False
-        osw_dir_added = False
-        # For every file path in the list of credentials file paths
-        for _ii, fp in enumerate(cred_filepaths):
-            if default_paths.osw_files_dir in fp.parents and not osw_dir_added:
-                msg = (
-                    f"Adding '{default_paths.osw_files_dir}' to gitignore file "
-                    f"'{gitignore_fp}'."
-                )
-                containing_gitignore = gitignore_fp.parent.absolute()
-                if containing_gitignore in default_paths.osw_files_dir.parents:
-                    # If the default_path.osw_files_dir is a subdirectory of the directory
-                    # containing the .gitignore file, add the relative path to the
-                    # .gitignore file
-                    rel = default_paths.osw_files_dir.relative_to(containing_gitignore)
-                    to_add = f"\n*/{rel.as_posix()!s}/*"
-                else:
-                    # Test if the default_path.osw_files_dir is a subdirectory of the
-                    # directory containing the .gitignore file
-                    to_add = (
-                        f"\n*/{default_paths.osw_files_dir.absolute().as_posix()}/*"
-                    )
-                osw_dir_added = True
-            else:
-                msg = f"Adding '{fp.name}' to gitignore file '{gitignore_fp}'."
-                to_add = f"\n*/{fp.name}"
-            if not to_add or to_add in content:
-                continue
-            print(msg)
-            with open(gitignore_fp, "a") as stream:
-                # Only add comment if not already set
-                comment = (
-                    "\n# Automatically added by osw.auth.CredentialManager."
-                    "save_credentials_to_file:"
-                )
-                if not comment_set and comment not in content:
-                    stream.write(comment)
-                    comment_set = True
-                stream.write(to_add)
 
 
 CredentialManager.CredentialConfig.update_forward_refs()

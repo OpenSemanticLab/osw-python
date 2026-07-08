@@ -59,8 +59,10 @@ instances = osw.site.semantic_search("[[Category:Item]]")
 print(instances)
 ```
 
-Credentials are prompted for interactively or read from a credentials file;
-see [Authentication](api/auth.md).
+Credentials are resolved from the environment variables `OSW_USERNAME` /
+`OSW_PASSWORD` (e.g. loaded from a `.env` file), from an existing
+credentials file, or via an interactive prompt - and are held in memory
+only, never written to disk; see [Authentication](api/auth.md).
 
 ## Examples and tutorials
 

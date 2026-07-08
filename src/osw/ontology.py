@@ -8,7 +8,6 @@ from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import PrivateAttr
 from pyld import jsonld
 from rdflib import Graph
-from typing_extensions import deprecated
 
 from osw.core import OSW, model
 from osw.utils.strings import camel_case, pascal_case
@@ -832,7 +831,6 @@ class OntologyImporter(OswBaseModel):
             )
         )
 
-    @deprecated("use ontology.OntologyImporter.StoreOntologiesParam instead")
     class StoreOntologiesParam(model.OswBaseModel):
         entities: Optional[List[model.OswBaseModel]]
         """If we use model.Entity here, all instances are casted to model.Entity

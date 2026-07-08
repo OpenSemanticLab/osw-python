@@ -153,8 +153,7 @@ def test_apply_overwrite_policy():
         )
         original_page = OfflineWtPage(
             # wtSite=OSW.wt_site,  # todo: missing
-            title="Item:"
-            + OSW.get_osw_id(original_item_local.uuid)
+            title="Item:" + OSW.get_osw_id(original_item_local.uuid)
         )
         jsondata = json.loads(original_item_local.json(exclude_none=True))
         # Emulate the default setting for StoreEntityParam.remove_empty,

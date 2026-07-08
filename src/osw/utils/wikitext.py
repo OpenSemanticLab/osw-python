@@ -78,9 +78,9 @@ def update_template_within_wikitext(
     # this will cleanup empty lines within the template code (wanted), but also within
     # the wiki text around it (unwanted)
     if remove_empty_lines:
-        new_text = "\n".join(
-            [ll.rstrip() for ll in str(new_text).splitlines() if ll.strip()]
-        )
+        new_text = "\n".join([
+            ll.rstrip() for ll in str(new_text).splitlines() if ll.strip()
+        ])
     return new_text
 
 
@@ -151,9 +151,9 @@ def merge_wiki_page_text(
             r1string += "\r\n   " + str(rel1)
         t1.add(subtemplate_param, r1string)
     # print("Tmerged: " + str(t1))
-    non_empty_lines = "\n".join(
-        [ll.rstrip() for ll in str(t1).splitlines() if ll.strip()]
-    )
+    non_empty_lines = "\n".join([
+        ll.rstrip() for ll in str(t1).splitlines() if ll.strip()
+    ])
     return non_empty_lines
 
 
@@ -214,11 +214,11 @@ def create_flat_content_structure_from_wikitext(
     if t_count == 0:
         res = text
         values = str(text).strip().split(";")
-        if array_mode == "force":
-            res = values
-        elif array_mode == "only_multiple" and len(values) > 1:
-            res = values
-        elif array_mode == "separator_present" and ";" in text:
+        if (
+            array_mode == "force"
+            or (array_mode == "only_multiple" and len(values) > 1)
+            or (array_mode == "separator_present" and ";" in text)
+        ):
             res = values
     return res
 
@@ -241,10 +241,10 @@ def find_dependencies(wikitext, debug=False):
     for template in code.filter_templates(recursive=True):
         if template.name.split(":")[0].isupper():
             if debug:
-                print("MagicWord: {}".format(template.name))
+                print(f"MagicWord: {template.name}")
         elif template.name[0] == "#":
             if debug:
-                print("ParserFunction: {}".format(template.name))
+                print(f"ParserFunction: {template.name}")
             if "#set:" in template.name or "#declare:" in template.name:
                 if (
                     "=" in template.name.split(":")[1]
@@ -252,41 +252,41 @@ def find_dependencies(wikitext, debug=False):
                     property_ = "Property:" + template.name.split(":")[1].split("=")[0]
                     dependencies.append(property_)
                     if debug:
-                        print("=> {}".format(property_))
+                        print(f"=> {property_}")
                 for param in template.params:
                     property_ = "Property:" + param.split("=")[0]
                     dependencies.append(property_)
                     if debug:
-                        print("=> {}".format(property_))
+                        print(f"=> {property_}")
         else:
             if debug:
-                print("Template: {}".format(template.name))
+                print(f"Template: {template.name}")
             template_name = str(template.name)
             if ":" not in template.name:
                 template_name = "Template:" + template_name
             dependencies.append(template_name)
             if debug:
-                print("=> {}".format(template_name))
+                print(f"=> {template_name}")
     # for tag in code.filter_tags(recursive=True):
     #    if (debug): print("Tag: {}".format(tag))
     for link in code.filter_wikilinks(recursive=True):
         if "::" in link:
             if debug:
-                print("Annotation: {}".format(link))
+                print(f"Annotation: {link}")
             property_ = "Property:" + link.split("::")[0].split("[[")[-1]
             dependencies.append(property_)
             if debug:
-                print("=> {}".format(property_))
+                print(f"=> {property_}")
         if "Category:" in link:
             if debug:
-                print("Category: {}".format(link))
+                print(f"Category: {link}")
             category = link.replace("[[", "").replace("]]", "")
             dependencies.append(str(category))
             if debug:
-                print("=> {}".format(category))
+                print(f"=> {category}")
         else:
             if debug:
-                print("Link: {}".format(link))
+                print(f"Link: {link}")
     dependencies = np.unique(dependencies).tolist()  # remove duplicates
     filtered_dependencies = []  # do not manipulate the iterated object
     for dependency in dependencies:
@@ -297,9 +297,7 @@ def find_dependencies(wikitext, debug=False):
         # see https://www.semantic-mediawiki.org/wiki/Help:Special_properties
         if "Property:" in dependency and (" " in dependency or "_" in dependency):
             if debug:
-                print(
-                    "Info: Remove presumptive built-in property {}".format(dependency)
-                )
+                print(f"Info: Remove presumptive built-in property {dependency}")
         else:
             filtered_dependencies.append(dependency)
     return filtered_dependencies
@@ -333,7 +331,7 @@ def find_dependencies_recursively(title, site, dependencies=None, debug=False):
         if dependency not in dependencies:  # for circular dependencies
             dependencies.append(dependency)
             if debug:
-                print("Scan nested {}".format(dependency))
+                print(f"Scan nested {dependency}")
             find_dependencies_recursively(
                 dependency, site, dependencies=dependencies, debug=debug
             )
@@ -390,7 +388,7 @@ def get_wikitext_from_flat_content_dict(d: dict) -> str:
             wt += "\n}}"
         elif isinstance(value, list):
             # print("list")
-            wt += "\n|{}=".format(key)
+            wt += f"\n|{key}="
             string_index = 0
             for index, element in enumerate(value):
                 if isinstance(element, dict):
@@ -410,7 +408,7 @@ def get_wikitext_from_flat_content_dict(d: dict) -> str:
                     string_index += 1
         else:
             # print("literal")
-            wt += "\n|{}={}".format(key, value)
+            wt += f"\n|{key}={value}"
     return wt
 
 
@@ -437,11 +435,7 @@ def get_wikitext_from_flat_content_structure(content):
         elif isinstance(content_element, str):
             wt += content_element  # "\n" + content_element
         else:
-            print(
-                "Error: content element is not dict or string: {}".format(
-                    content_element
-                )
-            )
+            print(f"Error: content element is not dict or string: {content_element}")
     return wt
 
 
@@ -548,7 +542,8 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
                 "osl_template" in value
                 and "osl_template" in schemaJson
                 and value["osl_template"]["default"] == schemaJson["osl_template"]
-                or "osl_schema" in value
+            ) or (
+                "osl_schema" in value
                 and "osl_schema" in schemaJson
                 and value["osl_schema"]["default"] == schemaJson["osl_schema"]
             ):
@@ -560,16 +555,18 @@ def wikiJson2SchemaJsonRecursion(schema: dict, wikiJson: dict, footerWikiJson=No
                 if "type" in schema_def[key]:  # use schema to resolve types
                     if schema_def[key]["type"] == "integer":
                         schemaJson[key] = int(schemaJson[key])
-                    elif schema_def[key]["type"] == "float":
-                        schemaJson[key] = float(schemaJson[key])
-                    elif schema_def[key]["type"] == "number":
+                    elif (
+                        schema_def[key]["type"] == "float"
+                        or schema_def[key]["type"] == "number"
+                    ):
                         schemaJson[key] = float(schemaJson[key])
                     elif schema_def[key]["type"] == "string":
                         schemaJson[key] = str(schemaJson[key])
                     elif schema_def[key]["type"] == "array":
-                        if not isinstance(schemaJson[key], list):
-                            del schemaJson[key]
-                        elif len(schemaJson[key]) == 0:
+                        if (
+                            not isinstance(schemaJson[key], list)
+                            or len(schemaJson[key]) == 0
+                        ):
                             del schemaJson[key]
                 else:  # assume type==object
                     if isinstance(schemaJson[key], list) and len(schemaJson[key]) == 1:

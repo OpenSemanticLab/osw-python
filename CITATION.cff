@@ -7,4 +7,7 @@ authors:
   - family-names: Gold
     given-names: Lukas
     orcid: https://orcid.org/0000-0001-7444-2969
+  - family-names: Räder
+    given-names: Andreas
+    orcid: https://orcid.org/0000-0002-2673-0832
 title: OpenSemanticWorld Python Package (osw-python)

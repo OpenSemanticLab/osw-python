@@ -1,0 +1,116 @@
+# Automated release: python-semantic-release analyzes the conventional
+# commits on main, and when a release is due it updates CHANGELOG.md,
+# commits, tags vX.Y.Z, pushes and creates the GitHub release. hatch-vcs
+# derives the package version from that tag, so no version file is bumped.
+# Publishing happens in this same run: pushes made with GITHUB_TOKEN do
+# not retrigger workflows, so a tag-triggered publish would never fire.
+#
+# Filename and environment name are load-bearing: the PyPI trusted
+# publisher (OIDC) references workflow "on-release-main.yml" and
+# environment "pypi".
+
+name: release-main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release run at a time: python-semantic-release pushes commits/tags
+# to main, so overlapping runs would race each other.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      # required for PyPI trusted publishing (OIDC)
+      id-token: write
+      # push the release commit/tag and create the GitHub release (PSR)
+      contents: write
+    outputs:
+      released: ${{ steps.psr.outputs.released }}
+      version: ${{ steps.psr.outputs.version }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # full history: PSR analyzes commits, hatch-vcs needs the tags
+          fetch-depth: 0
+          # latest main, not the triggering SHA: runs queued behind the
+          # concurrency group must include release commits pushed by the
+          # previous run, or their own push is rejected
+          ref: main
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Version, tag and changelog with python-semantic-release
+        id: psr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          before=$(git rev-parse HEAD)
+          uv run semantic-release version
+          after=$(git rev-parse HEAD)
+          if [ "$before" != "$after" ]; then
+            ver=$(git tag --points-at HEAD | grep -E '^v[0-9]' | head -1)
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=${ver#v}" >> "$GITHUB_OUTPUT"
+            echo "released $ver"
+          else
+            echo "released=" >> "$GITHUB_OUTPUT"
+            echo "no release necessary"
+          fi
+
+      - name: Build package distribution files
+        if: steps.psr.outputs.released != ''
+        run: uv build
+
+      - name: Check package metadata
+        if: steps.psr.outputs.released != ''
+        run: uvx twine check dist/*
+
+      - name: Publish package
+        if: steps.psr.outputs.released != ''
+        run: uv publish --trusted-publishing always
+
+  deploy-docs:
+    needs: release
+    if: needs.release.outputs.released != ''
+    runs-on: ubuntu-latest
+    permissions:
+      # mike commits the built site to the gh-pages branch
+      contents: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # deep clone incl. the release commit and tags pushed by PSR
+          fetch-depth: 0
+          ref: main
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Deploy versioned documentation
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          # --alias-type=copy keeps /latest/ a real directory instead of a
+          # redirect, so machine-readable files stay fetchable there
+          uv run mike deploy --push --alias-type=copy --update-aliases "$VERSION" latest
+          uv run mike set-default --push latest

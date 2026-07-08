@@ -23,7 +23,7 @@ DEPENDENCIES = {
 osw_obj.install_dependencies(DEPENDENCIES, mode="append")
 
 # Make sure to import controllers after updating the model (ignore linter warning)
-import osw.controller as controller  # noqa: E402
+import osw.controller as controller
 
 # Load database definition
 db = osw_obj.load_entity("Item:OSWb8cc7705e17c47b19331fdb045bfbca8")  # postgres

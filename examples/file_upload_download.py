@@ -30,11 +30,11 @@ if not hasattr(model, "S3File"):
 # Import the controller modules
 # Note: since they depend on the data classes, they must be imported after the schemas
 #  are loaded
-from osw.controller.file.local import (  # noqa (ignore flake8 warning)
+from osw.controller.file.local import (
     LocalFileController,
 )
-from osw.controller.file.s3 import S3FileController  # noqa (ignore flake8 warning)
-from osw.controller.file.wiki import WikiFileController  # noqa (ignore flake8 warning)
+from osw.controller.file.s3 import S3FileController
+from osw.controller.file.wiki import WikiFileController
 
 
 def video_file():

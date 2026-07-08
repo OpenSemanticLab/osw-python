@@ -124,12 +124,12 @@ class OSW(BaseModel):
 
         # implement resolver backend with osw.load_entity
         class OswDefaultBackend(Backend):
-
             # oold.backend.interface is pydantic v2, so we cannot use
             # our v1 OSW model as attribute directly
             osw_obj: Any
 
-            def resolve_iris(self, iris: List[str]) -> dict[str, dict]:
+            # stub satisfying the oold Backend interface; resolve() does the work
+            def resolve_iris(self, iris: List[str]) -> dict[str, dict]:  # ty: ignore[empty-body]
                 pass
 
             def resolve(self, request: ResolveParam):
@@ -338,9 +338,9 @@ class OSW(BaseModel):
             if "allOf" not in schema:
                 schema["allOf"] = []
             for base in schema_registration.schema_bases:
-                schema["allOf"].append(
-                    {"$ref": f"/wiki/{base}?action=raw&slot=jsonschema"}
-                )
+                schema["allOf"].append({
+                    "$ref": f"/wiki/{base}?action=raw&slot=jsonschema"
+                })
 
             page.set_slot_content("jsonschema", schema)
         else:
@@ -758,7 +758,7 @@ class OSW(BaseModel):
             #  with the same content
 
             content = ""
-            with open(temp_model_path, "r", encoding="utf-8") as f:
+            with open(temp_model_path, encoding="utf-8") as f:
                 content = f.read()
             os.remove(temp_model_path)
 
@@ -792,21 +792,19 @@ class OSW(BaseModel):
             # Pattern to match empty subclasses
             # Matches: class SubClass(BaseClass):
             # followed by optional whitespace/docstring and pass
-            pattern = "".join(
-                (
-                    r"class\s+",  # 'class' keyword
-                    r"(\w+)",  # capture subclass name
-                    r"\s*\(\s*",  # opening parenthesis
-                    r"(\w+)",  # capture base class name
-                    r"\s*\)\s*:",  # closing parenthesis and colon
-                    r"\s*",  # optional whitespace
-                    r'(?:\n\s*(?:""".*?"""|\'\'\'.*?\'\'\')'
-                    # optional docstring (triple quotes)
-                    r"\s*)?",  # end optional docstring
-                    r"\n\s*pass\s*",  # pass statement
-                    r"(?:\n|$)",  # newline or end of string
-                )
-            )
+            pattern = "".join((
+                r"class\s+",  # 'class' keyword
+                r"(\w+)",  # capture subclass name
+                r"\s*\(\s*",  # opening parenthesis
+                r"(\w+)",  # capture base class name
+                r"\s*\)\s*:",  # closing parenthesis and colon
+                r"\s*",  # optional whitespace
+                r'(?:\n\s*(?:""".*?"""|\'\'\'.*?\'\'\')'
+                # optional docstring (triple quotes)
+                r"\s*)?",  # end optional docstring
+                r"\n\s*pass\s*",  # pass statement
+                r"(?:\n|$)",  # newline or end of string
+            ))
 
             # Find all empty subclasses
             matches = list(re.finditer(pattern, content, re.MULTILINE | re.DOTALL))
@@ -849,7 +847,6 @@ class OSW(BaseModel):
                 content = re.sub(pattern_replace, base_class_name, content)
 
             if fetchSchemaParam.mode == "replace":
-
                 header = "from uuid import uuid4\n"
 
                 # if target path is default model/entity.py, we need to add imports
@@ -901,7 +898,7 @@ class OSW(BaseModel):
 
             if fetchSchemaParam.mode == "append":
                 org_content = ""
-                with open(result_model_path, "r", encoding="utf-8") as f:
+                with open(result_model_path, encoding="utf-8") as f:
                     org_content = f.read()
 
                 pattern = re.compile(
@@ -1185,7 +1182,8 @@ class OSW(BaseModel):
             if jsondata:
                 for category in jsondata["type"]:
                     schema = (
-                        self.site.get_page(
+                        self.site
+                        .get_page(
                             WtSite.GetPageParam(
                                 titles=[category], offline_pages=param.offline_pages
                             )
@@ -1236,7 +1234,8 @@ class OSW(BaseModel):
                     entity: model.Entity = cls(**jsondata)
             except Exception as e:
                 _logger.error(f"Error creating entity from page {page.title}: {e}")
-                entity = None
+                # legacy: `entity` is annotated as OswBaseModel and Entity above
+                entity = None  # ty: ignore[conflicting-declarations]
 
             if entity is not None:
                 # make sure we do not override existing metadata
@@ -1301,13 +1300,7 @@ class OSW(BaseModel):
                         field_name: value.get(field_name, self.overwrite)
                         for field_name in self.model.__fields__.keys()
                     }
-            elif key == "overwrite":
-                if self.per_property is not None:
-                    self._per_property = {
-                        field_name: self.per_property.get(field_name, self.overwrite)
-                        for field_name in self.model.__fields__.keys()
-                    }
-            elif key == "model":
+            elif key == "overwrite" or key == "model":
                 if self.per_property is not None:
                     self._per_property = {
                         field_name: self.per_property.get(field_name, self.overwrite)
@@ -1399,7 +1392,7 @@ class OSW(BaseModel):
 
         def set_content(content_to_set: dict) -> None:
             if param.debug:
-                print(f"content_to_set: {str(content_to_set)}")
+                print(f"content_to_set: {content_to_set!s}")
             for slot_ in content_to_set.keys():
                 page.set_slot_content(slot_, content_to_set[slot_])
 
@@ -1458,7 +1451,7 @@ class OSW(BaseModel):
         if remote_content["footer"]:
             new_content["footer"] = remote_content["footer"]
         if param.debug:
-            print(f"'remote_content': {str(remote_content)}")
+            print(f"'remote_content': {remote_content!s}")
         # Get the local content
         # Properties that are not set in the local content will be set to None
         # We want those not to be listed as keys
@@ -1466,7 +1459,7 @@ class OSW(BaseModel):
         if param.remove_empty:
             remove_empty(local_content["jsondata"])
         if param.debug:
-            print(f"'local_content': {str(local_content)}")
+            print(f"'local_content': {local_content!s}")
         # Apply the overwrite logic
         # a) If there is a key in the remote content that is not in the local
         #    content, we have to keep it
@@ -1479,53 +1472,44 @@ class OSW(BaseModel):
         #     if key not in local_content["jsondata"].keys()
         # }
         if param.debug:
-            print(f"'New content' after 'remote' update: {str(new_content)}")
+            print(f"'New content' after 'remote' update: {new_content!s}")
         # b) If there is a key in the local content that is not in the remote
         #    content, we have to keep it
-        new_content["jsondata"].update(
-            {
-                key: value
-                for (key, value) in local_content["jsondata"].items()
-                if key not in remote_content["jsondata"].keys()
-            }
-        )
+        new_content["jsondata"].update({
+            key: value
+            for (key, value) in local_content["jsondata"].items()
+            if key not in remote_content["jsondata"].keys()
+        })
         if param.debug:
-            print(f"'New content' after 'local' update: {str(new_content)}")
+            print(f"'New content' after 'local' update: {new_content!s}")
         # c) If there is a key in both contents, we have to apply the overwrite
         #    logic
         # todo: include logic for hidden and read_only properties!
-        new_content["jsondata"].update(
-            {
-                key: value
-                for (key, value) in local_content["jsondata"].items()
-                if param.policy.get_overwrite_setting(key) == OverwriteOptions.true
-            }
-        )
+        new_content["jsondata"].update({
+            key: value
+            for (key, value) in local_content["jsondata"].items()
+            if param.policy.get_overwrite_setting(key) == OverwriteOptions.true
+        })
         if param.debug:
-            print(f"'New content' after 'True' update: {str(new_content)}")
-        new_content["jsondata"].update(
-            {
-                key: value
-                for (key, value) in remote_content["jsondata"].items()
-                if param.policy.get_overwrite_setting(key) == OverwriteOptions.false
-            }
-        )
+            print(f"'New content' after 'True' update: {new_content!s}")
+        new_content["jsondata"].update({
+            key: value
+            for (key, value) in remote_content["jsondata"].items()
+            if param.policy.get_overwrite_setting(key) == OverwriteOptions.false
+        })
         if param.debug:
-            print(f"'New content' after 'False' update: {str(new_content)}")
-        new_content["jsondata"].update(
-            {
-                key: value
-                for (key, value) in local_content["jsondata"].items()
-                if (
-                    param.policy.get_overwrite_setting(key)
-                    == OverwriteOptions.only_empty
-                    and is_empty(remote_content["jsondata"].get(key))
-                )
-            }
-        )
+            print(f"'New content' after 'False' update: {new_content!s}")
+        new_content["jsondata"].update({
+            key: value
+            for (key, value) in local_content["jsondata"].items()
+            if (
+                param.policy.get_overwrite_setting(key) == OverwriteOptions.only_empty
+                and is_empty(remote_content["jsondata"].get(key))
+            )
+        })
         if param.debug:
-            print(f"'New content' after 'only empty' update: {str(new_content)}")
-            print(f"'New content' to be stored: {str(new_content)}")
+            print(f"'New content' after 'only empty' update: {new_content!s}")
+            print(f"'New content' to be stored: {new_content!s}")
         set_content(new_content)
         return page  # Guard clause --> exit function
 
@@ -1912,12 +1896,12 @@ class OSW(BaseModel):
 
         @staticmethod
         def get_full_page_name_parts(
-            category_: Union[str, Type[OswBaseModel]]
+            category_: Union[str, Type[OswBaseModel]],
         ) -> Dict[str, str]:
             error_msg = (
                 f"Category must be a string like 'Category:<category name>' or a "
                 f"dataclass subclass with a 'type' attribute. This error occurred on "
-                f"'{str(category_)}'"
+                f"'{category_!s}'"
             )
             if isinstance(category_, str):
                 string_to_split = category_

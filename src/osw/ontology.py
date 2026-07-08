@@ -8,7 +8,6 @@ from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import PrivateAttr
 from pyld import jsonld
 from rdflib import Graph
-from typing_extensions import deprecated
 
 from osw.core import OSW, model
 from osw.utils.strings import camel_case, pascal_case
@@ -607,12 +606,10 @@ class OntologyImporter(OswBaseModel):
                             "de",
                         ]:
                             # ToDo: Support all/more languages
-                            print(
-                                (
-                                    "Warning: remove value with unsupported language: ",
-                                    f"{node[key]['lang']}",
-                                )
-                            )
+                            print((
+                                "Warning: remove value with unsupported language: ",
+                                f"{node[key]['lang']}",
+                            ))
                             del node[key]
                             continue
                     elif isinstance(node[key], list):
@@ -626,20 +623,16 @@ class OntologyImporter(OswBaseModel):
                                     "lang"
                                 ] not in ["en", "de"]:
                                     # ToDo: Support all/more languages
-                                    print(
-                                        (
-                                            "Warning: remove value with unsupported language: ",
-                                            f"{node[key][i]['lang']}",
-                                        )
-                                    )
+                                    print((
+                                        "Warning: remove value with unsupported language: ",
+                                        f"{node[key][i]['lang']}",
+                                    ))
                                     del node[key][i]
                                     continue
                             else:
                                 print(
-                                    (
-                                        "Warning: remove invalide multilang value: "
-                                        f"{node[key][i]}"
-                                    )
+                                    "Warning: remove invalide multilang value: "
+                                    f"{node[key][i]}"
                                 )
                                 del node[key][i]
                     else:
@@ -762,7 +755,6 @@ class OntologyImporter(OswBaseModel):
 
             if counter < limit:
                 if "rdf_type" in node and "label" in node:
-
                     e = None
                     try:
                         if "owl:Class" in node["rdf_type"]:
@@ -839,7 +831,6 @@ class OntologyImporter(OswBaseModel):
             )
         )
 
-    @deprecated("use ontology.OntologyImporter.StoreOntologiesParam instead")
     class StoreOntologiesParam(model.OswBaseModel):
         entities: Optional[List[model.OswBaseModel]]
         """If we use model.Entity here, all instances are casted to model.Entity

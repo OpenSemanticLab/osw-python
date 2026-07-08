@@ -1,11 +1,13 @@
+from pathlib import Path
+
 from osw.auth import CredentialManager
 from osw.core import OSW, model
 from osw.wtsite import WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 
 
-def test_file_controller(wiki_domain, wiki_username, wiki_password):
+def test_file_controller(wiki_domain, wiki_username, wiki_password, tmp_path):
     cm = CredentialManager()
     cm.add_credential(
         CredentialManager.UserPwdCredential(
@@ -28,8 +30,10 @@ def test_file_controller(wiki_domain, wiki_username, wiki_password):
             mode = "replace"
         osw_obj.fetch_schema(OSW.FetchSchemaParam(schema_title=cat, mode=mode))
 
-    run_test(osw_obj, "tests/integration/test.svg", "tests/integration/test2.svg")
-    run_test(osw_obj, "tests/integration/test.png", "tests/integration/test2.png")
+    # source assets live next to this module; outputs go to the tmp dir
+    here = Path(__file__).parent
+    run_test(osw_obj, here / "test.svg", tmp_path / "test2.svg")
+    run_test(osw_obj, here / "test.png", tmp_path / "test2.png")
 
 
 def run_test(osw_obj, file_path_1, file_path_2):

@@ -17,7 +17,7 @@ def test_offline_package_from_git(wiki_domain, wiki_username, wiki_password):
     )
     wtsite = WtSite(WtSite.WtSiteConfig(iri=wiki_domain, cred_mngr=cm))
     # create OSW instance which auto-registers as a oold backend
-    osw_obj = OSW(site=wtsite)  # noqa: F841
+    osw_obj = OSW(site=wtsite)
     package = "world.opensemantic.core@v0.53.1"
 
     package_name, package_version = package.split("@")

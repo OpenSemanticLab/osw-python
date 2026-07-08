@@ -120,9 +120,10 @@ class Paths(Defaults):
                     old_rel_path = getattr(self, attr_name).relative_to(old_val)
                     new_rel_path = new_val / old_rel_path
                     setattr(self, attr_name, new_rel_path)
+                    cls_name = type(self).__name__
                     print(
-                        f"Following the setting of {self.__name__}.{set_attr}, "
-                        f"{self.__name__}.{attr_name} was updated to {new_rel_path}."
+                        f"Following the setting of {cls_name}.{set_attr}, "
+                        f"{cls_name}.{attr_name} was updated to {new_rel_path}."
                     )
 
         if attr_name == "base":
@@ -156,7 +157,7 @@ class Params(Defaults):
     @validator("wiki_domain")
     def validate_wiki_domain(cls, v):
         pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
-        assert re.match(pattern, v), "The wiki domain is not valid."
+        assert re.match(pattern, v), "The wiki domain is not valid."  # noqa: S101 pydantic validator idiom
         return v
 
 

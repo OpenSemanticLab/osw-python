@@ -89,11 +89,12 @@ def mass_page_edit():
     wtsite.modify_search_results(
         "semantic",
         "[[Category:labNote]]",
-        lambda wtpage:
-        # print("Lambda")#wtpage.title)
-        wtpage.set_value(
-            "*.'OslTemplate:ELN/Entry/Header'", {"id": [wtpage.title.split(":")[1]]}
-        ).update_content(),
+        lambda wtpage: (
+            # print("Lambda")#wtpage.title)
+            wtpage.set_value(
+                "*.'OslTemplate:ELN/Entry/Header'", {"id": [wtpage.title.split(":")[1]]}
+            ).update_content()
+        ),
         limit=1,
         comment="[bot] set id from title",
         log=True,

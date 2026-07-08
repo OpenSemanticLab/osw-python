@@ -1,9 +1,354 @@
-[build-system]
-# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
-requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=5"]
-build-backend = "setuptools.build_meta"
+[project]
+name = "osw"
+description = "Python toolset for data processing, queries, wikicode generation and page manipulation"
+authors = [{ name = "OpenSemanticWorld", email = "team@opensemantic.world" }]
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.10,<3.14"
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "oold>=0.15.0",
+    "opensemantic",
+    "opensemantic.core>=0.57.4",
+    "opensemantic.base>=0.42.7",
+    "pydantic[email]>=1.10.17",
+    "datamodel-code-generator==0.51.0",
+    "black",
+    "isort",
+    "mwclient>=0.11.0",
+    # imported directly in src but previously only available transitively,
+    # surfaced by deptry during the migration
+    "requests",
+    "httpx",
+    "rdflib",
+    "PyLD",
+    "SPARQLWrapper",
+    "jsonpath-ng",
+    "numpy",
+    "pyyaml",
+    "typing_extensions",
+    # used in custom_types.py on py3.10; was missing before (latent
+    # ImportError on 3.10), surfaced by ty/deptry during the migration
+    'backports.strenum; python_version < "3.11"',
+    "dask",
+    "tqdm",
+    "pybars3-wheel",
+]
 
-[tool.setuptools_scm]
-# For smarter version schemes and other configuration options,
-# check out https://github.com/pypa/setuptools_scm
-version_scheme = "no-guess-dev"
+[project.urls]
+Homepage = "https://github.com/OpenSemanticLab/osw-python"
+Documentation = "https://opensemanticlab.github.io/osw-python/"
+Source = "https://github.com/OpenSemanticLab/osw-python"
+Changelog = "https://github.com/OpenSemanticLab/osw-python/blob/main/CHANGELOG.md"
+Download = "https://pypi.org/project/osw/#files"
+
+[project.optional-dependencies]
+wikitext = ["mwparserfromhell"]
+DB = [
+    "psycopg2",
+    "sqlalchemy",
+]
+S3 = ["boto3"]
+dataimport = [
+    "geopy",
+    "deepl",
+    "openpyxl",
+]
+UI = ["pysimplegui"]
+workflow = [
+    "prefect>=2.20.25,<3.0",
+    # prefect 2.20.25 is the final 2.x release (no backports). Its
+    # GatherTaskGroup subclasses anyio's TaskGroup but doesn't implement
+    # create_task, which newer anyio 4.x made abstract (broken on 4.14,
+    # verified good on 4.6.2); hold anyio to the last verified-good 4.6 line
+    # so the prefect-2.x flow engine can still instantiate task groups.
+    "anyio>=4.4.0,<4.7",
+]
+tutorial = ["osw[dataimport]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext]"]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+# Preserve the setuptools-scm scheme the project used previously so tag-derived
+# versions are identical (e.g. 1.1.2.post1.dev25+g<sha>).
+raw-options = { version_scheme = "no-guess-dev" }
+
+[dependency-groups]
+dev = [
+    # test stack
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-asyncio",
+    # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
+    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
+    "osw[workflow]",
+    "geopy",
+    "deepl",
+    "sqlalchemy",
+    "psycopg2-binary", # see: https://www.psycopg.org/docs/install.html#psycopg-vs-psycopg-binary
+    "mwparserfromhell",
+    "jsondiff",
+    # tooling
+    # (tox-uv omitted: it needs packaging>=26, conflicting with the
+    # prefect-2.x test stack; tox is revisited in the cleanup phase)
+    "pre-commit>=4.0.0",
+    "ruff>=0.15.7",
+    "ty>=0.0.24",
+    "deptry>=0.25.1",
+    # optional-extra backends installed in dev so their modules type-check
+    "boto3",
+    # installed unconditionally (runtime dep is <3.11 only) so ty resolves
+    # the version-guarded import in custom_types.py on every python version
+    "backports.strenum",
+    # docs
+    "zensical>=0.0.46",
+    "mkdocstrings-python>=1.0.3",
+    # docs versioning: zensical-compatible mike fork (same pin as OO-LD/oold-schema)
+    "mike @ git+https://github.com/squidfunk/mike.git@2.2.0+zensical-0.1.0",
+    # automated releases + changelog from conventional commits
+    "python-semantic-release>=10.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/osw"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Integration tests need wiki/db credentials (see conftest.py pytest_addoption)
+# and are excluded by default. Run them explicitly with:
+#   uv run pytest tests/integration -o addopts="" --wiki_domain=... --wiki_username=... --wiki_password=...
+addopts = "--cov --cov-config=pyproject.toml --cov-report=term-missing --ignore=tests/integration"
+norecursedirs = ["dist", "build", ".tox"]
+asyncio_default_fixture_loop_scope = "function"
+# Third-party warnings that are not actionable in this repo. Everything
+# emitted by our own code is either fixed or explicitly expected via
+# per-test filterwarnings markers.
+# KNOWN RESIDUAL: a handful of pydantic class-based-config deprecations
+# from oold/prefect are emitted at import time under state that no pytest
+# or interpreter filter reaches; they still show up in the summary.
+filterwarnings = [
+    # oold still uses pydantic-v1-style class-based Config (pydantic v2 deprecation)
+    "ignore:Support for class-based `config` is deprecated:DeprecationWarning",
+    # prefect 2.x internals: pydantic v2 deprecations and vendored starlette
+    "ignore:The `__fields__` attribute is deprecated:DeprecationWarning",
+    "ignore:The `__fields_set__` attribute is deprecated:DeprecationWarning",
+    "ignore:The private method `_iter` will be removed:DeprecationWarning",
+    "ignore:Please use `import python_multipart` instead:PendingDeprecationWarning",
+    # sqlalchemy reflection notes from the prefect test harness
+    "ignore:Skipped unsupported reflection",
+    # datamodel-code-generator does not know OSW's custom JSON-schema formats
+    "ignore:format of '.*' not understood:UserWarning",
+    # rdflib internals
+    "ignore:Dataset.default_context is deprecated:DeprecationWarning",
+    "ignore:ConjunctiveGraph is deprecated:DeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["osw"]
+
+[tool.coverage.paths]
+source = ["src/", "*/site-packages/"]
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self\\.debug",
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88 # kept from the previous black configuration
+fix = true
+extend-exclude = [
+    "src/osw/model/entity.py", # autogenerated
+    "*.ipynb",                 # tutorial notebooks were never lint targets
+]
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E", "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # -- aligned with oold-python ------------------------------------------
+    # LineTooLong (formatter handles wrapping)
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+    # complex-structure (was effectively off in the old flake8 setup too)
+    "C901",
+    # raise-vanilla-args
+    "TRY003",
+    # mutable-class-default (pydantic-style class attributes)
+    "RUF012",
+    # builtin shadowing in APIs kept for backwards compatibility
+    "A001", "A002",
+    # -- legacy debt: pre-existing findings, to be removed incrementally ----
+    # pre-PEP-585/604 annotations (Optional[X], List[...]); mass-rewriting
+    # annotations in this pydantic-heavy codebase deserves its own PR
+    "UP006", "UP007", "UP035", "UP045",
+    # implicit Optional in defaults
+    "RUF013",
+    # style simplifications with many pre-existing hits
+    "SIM101", "SIM102", "SIM105", "SIM108", "SIM118",
+    "C408", "C416",
+    # warnings without stacklevel / zip without strict
+    "B028", "B905",
+    # exception-handling style (changes semantics/tracebacks; own PR)
+    "B904", "TRY002", "TRY004", "TRY300", "TRY301", "TRY400",
+    # blanket noqa directives from the flake8 era
+    "PGH004",
+    # try-except-pass
+    "S110",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # re-exports (kept from the old flake8 config)
+"tests/**" = ["S", "SIM117"] # bandit rules and nested with-statements in tests
+"examples/**" = ["S", "E402", "F401", "SIM115"] # illustrative scripts
+"scripts/**" = ["S"]
+
+[tool.ruff.format]
+preview = true
+
+[tool.semantic_release]
+# No version_toml/version_variables: the package version is derived from
+# the git tag by hatch-vcs, so semantic-release only computes the next
+# version from the conventional commits, updates the changelog, commits,
+# tags (vX.Y.Z) and creates the GitHub release. Publishing to PyPI happens
+# in the same workflow run (on-release-main.yml).
+commit_parser = "conventional"
+tag_format = "v{version}"
+commit_message = "chore(release): v{version} [skip ci]"
+# our history starts at v0.x; without this, PSR would jump a 0.x baseline
+# straight to 1.0.0 (moot at >=1.0.0, kept for copy-paste safety)
+allow_zero_version = true
+exclude_commit_patterns = ['''chore\(release\):.*''']
+
+[tool.semantic_release.changelog]
+# prepend new versions at the insertion flag, keep the manual history below
+mode = "update"
+insertion_flag = "<!-- version list -->"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+
+[tool.ty.environment]
+python = "./.venv"
+python-version = "3.10"
+
+[tool.ty.src]
+# Excluded from type checking:
+#  - src/osw/model/entity.py: generated (datamodel-code-generator) models
+#  - examples, scripts: illustrative/maintenance code, not part of the package
+#  - tests: not yet type-clean, tightened in a follow-up
+exclude = [
+    "src/osw/model/entity.py",
+    "examples",
+    "scripts",
+    "tests",
+    "docs",
+]
+
+[tool.ty.rules]
+# First-time ty adoption on a codebase with heavy pydantic-v1-style
+# metaprogramming: the rules below have hundreds of pre-existing findings
+# and are downgraded to "ignore" for now. Tighten incrementally by
+# removing entries from this list and fixing what surfaces.
+unresolved-attribute = "ignore"
+invalid-argument-type = "ignore"
+invalid-parameter-default = "ignore"
+invalid-assignment = "ignore"
+unsupported-operator = "ignore"
+not-subscriptable = "ignore"
+invalid-return-type = "ignore"
+not-iterable = "ignore"
+no-matching-overload = "ignore"
+missing-argument = "ignore"
+deprecated = "ignore"
+call-non-callable = "ignore"
+possibly-missing-submodule = "ignore"
+invalid-method-override = "ignore"
+unused-awaitable = "ignore"
+unknown-argument = "ignore"
+
+[tool.deptry]
+extend_exclude = ["examples", "scripts", "docs"]
+
+[tool.deptry.package_module_name_map]
+opensemantic-core = "opensemantic"
+opensemantic-base = "opensemantic"
+pybars3-wheel = "pybars"
+"backports.strenum" = "backports"
+# extras packages not installed in the dev env, mapped explicitly so
+# deptry does not have to guess ("Assuming ..." warnings)
+psycopg2 = "psycopg2"
+openpyxl = "openpyxl"
+pysimplegui = "PySimpleGUI"
+
+[tool.deptry.per_rule_ignores]
+# DEP002: declared but not imported anywhere in src
+# (extras packages are not imported by the package itself)
+DEP002 = [
+    "psycopg2",
+    "openpyxl",
+    "pysimplegui",
+    "anyio",
+    "osw",
+]

@@ -222,7 +222,7 @@ def read_package_info_file(
         )
     else:
         package_info_fp = matching_files_in_dir[0]
-        with open(package_info_fp, "r") as package_info_fp:
+        with open(package_info_fp) as package_info_fp:
             package_info = json.load(package_info_fp)
         return package_info
 
@@ -301,7 +301,7 @@ def get_required_pages_from_file(fp: Union[str, Path]) -> List[str]:
         pre_suffix = ".slot_main"
 
     slot_name = pre_suffix.split(".slot_")[-1]
-    with open(fp, "r", encoding="utf-8") as f:
+    with open(fp, encoding="utf-8") as f:
         content = f.read()
     if not PATTERNS_PER_SLOT.get(slot_name):
         return required_pages
@@ -321,32 +321,28 @@ def get_required_pages_from_file(fp: Union[str, Path]) -> List[str]:
                         intermediate = []
                         if "-" in res:
                             intermediate.append(res.split("-")[-1])
-                        elif "." or ":" in res:
+                        elif True:
                             intermediate.extend(res.split("."))
                             # intermediate.extend(res.split(":"))
                         else:
                             intermediate.append(res)
-                        required_pages.extend(
-                            [
-                                "Property:" + s
-                                for s in intermediate
-                                if not s.startswith("Property:")
-                                and not check_for_exceptions(s)
-                                # only here to catch exceptions early
-                            ]
-                        )
-            elif "template" in pattern.group_keys:
+                        required_pages.extend([
+                            "Property:" + s
+                            for s in intermediate
+                            if not s.startswith("Property:")
+                            and not check_for_exceptions(s)
+                            # only here to catch exceptions early
+                        ])
+            elif (
+                "template" in pattern.group_keys
+                or "item" in pattern.group_keys
+                or "file" in pattern.group_keys
+            ):
                 for match in match_res:
                     required_pages.append(match)
-            elif "item" in pattern.group_keys:
-                for match in match_res:
-                    required_pages.append(match)
-            elif "file" in pattern.group_keys:
-                for match in match_res:
-                    required_pages.append(match)
-    return_obj = list(
-        set(entry for entry in required_pages if not check_for_exceptions(entry))
-    )
+    return_obj = list({
+        entry for entry in required_pages if not check_for_exceptions(entry)
+    })
     return_obj.sort()
     return return_obj
 
@@ -572,7 +568,7 @@ class PagePackageController(model.PagePackageMetaData):
         )
         required_pages_dict = {}
         if required_pages_path.exists() and not params.direct_call:
-            with open(required_pages_path, "r") as f:
+            with open(required_pages_path) as f:
                 self.requiredPages = json.load(f)["list"]
         else:
             self.requiredPages = []
@@ -791,18 +787,18 @@ class PagePackageController(model.PagePackageMetaData):
             )
             prev_missing_page_labels = {}
             if missing_pages_labeled_fp.exists():
-                with open(missing_pages_labeled_fp, "r", encoding="utf-8") as f:
+                with open(missing_pages_labeled_fp, encoding="utf-8") as f:
                     prev_missing_page_labels = json.load(f)
             # Create a new dict for the labels of missing pages to avoid unwanted
             # migration of "old" keys
             missing_pages_labeled = {}
             # Only query pages that are not yet labeled
             pages_to_query = list(
-                set(missing_pages) - set(list(prev_missing_page_labels.keys()))
+                set(missing_pages) - set(prev_missing_page_labels.keys())
             )  # pages that are not yet labeled
 
             found_pages = {}
-            if not len(pages_to_query) == 0:
+            if len(pages_to_query) != 0:
                 # Get the labels of the missing pages from the OSW
                 wtsite_obj = WtSite(
                     WtSite.WtSiteConfig(

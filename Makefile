@@ -45,7 +45,8 @@ clean-build: ## Remove build artifacts
 .PHONY: publish
 publish: ## Publish a release to PyPI (CI-only via OIDC trusted publishing)
 	@echo "Publishing happens in CI via OIDC trusted publishing (on-release-main.yml)."
-	@echo "Push a version tag (v*) to trigger a release."
+	@echo "Releases are cut automatically by python-semantic-release from the"
+	@echo "conventional commits on main; no manual tagging."
 
 .PHONY: docs
 docs: ## Build and serve the documentation locally

@@ -116,11 +116,16 @@ strict build that fails on any warning:
 
 ## Releasing
 
-Maintainers release by pushing a version tag; CI builds the package,
-publishes it to PyPI via trusted publishing and deploys the versioned
-docs. The version is derived from the tag by `hatch-vcs`, no manual
-bumping needed:
+Releases are fully automated
+([python-semantic-release](https://python-semantic-release.readthedocs.io/)):
+conventional commits on `main` decide the version bump (`fix:` patch,
+`feat:` minor, `BREAKING CHANGE:`/`!` major), CI updates the changelog,
+tags `vX.Y.Z`, builds, publishes to PyPI via trusted publishing and
+deploys the versioned docs. The package version is derived from the tag
+by `hatch-vcs`; nothing is bumped manually.
+
+To preview what the next release would be:
 
 ```bash
-git tag v1.2.0 && git push origin v1.2.0
+uv run semantic-release --noop version
 ```

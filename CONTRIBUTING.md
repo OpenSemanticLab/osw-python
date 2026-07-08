@@ -25,12 +25,15 @@ locally.
 
 ## Releasing
 
-Maintainers release by pushing a version tag; CI does the rest (build,
-publish to PyPI via trusted publishing, deploy versioned docs):
-
-```bash
-git tag v1.2.0 && git push origin v1.2.0
-```
+Releases are fully automated with
+[python-semantic-release](https://python-semantic-release.readthedocs.io/):
+every push to `main` is analyzed, and conventional commits decide the
+outcome. `fix:` commits trigger a patch release, `feat:` a minor release
+and a `BREAKING CHANGE:` footer (or `!` after the type) a major release;
+other types (`chore:`, `docs:`, `ci:`, ...) release nothing. CI then
+updates the changelog, tags, builds, publishes to PyPI via trusted
+publishing and deploys the versioned docs. No manual version bumping or
+tagging.
 
 ## AI Guidelines
 

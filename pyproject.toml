@@ -122,6 +122,8 @@ dev = [
     "mkdocstrings-python>=1.0.3",
     # docs versioning: zensical-compatible mike fork (same pin as OO-LD/oold-schema)
     "mike @ git+https://github.com/squidfunk/mike.git@2.2.0+zensical-0.1.0",
+    # automated releases + changelog from conventional commits
+    "python-semantic-release>=10.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -264,6 +266,28 @@ ignore = [
 
 [tool.ruff.format]
 preview = true
+
+[tool.semantic_release]
+# No version_toml/version_variables: the package version is derived from
+# the git tag by hatch-vcs, so semantic-release only computes the next
+# version from the conventional commits, updates the changelog, commits,
+# tags (vX.Y.Z) and creates the GitHub release. Publishing to PyPI happens
+# in the same workflow run (on-release-main.yml).
+commit_parser = "conventional"
+tag_format = "v{version}"
+commit_message = "chore(release): v{version} [skip ci]"
+# our history starts at v0.x; without this, PSR would jump a 0.x baseline
+# straight to 1.0.0 (moot at >=1.0.0, kept for copy-paste safety)
+allow_zero_version = true
+exclude_commit_patterns = ['''chore\(release\):.*''']
+
+[tool.semantic_release.changelog]
+# prepend new versions at the insertion flag, keep the manual history below
+mode = "update"
+insertion_flag = "<!-- version list -->"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
 
 [tool.ty.environment]
 python = "./.venv"

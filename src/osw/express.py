@@ -315,8 +315,8 @@ class FileResult(OswBaseModel):
     variable 'OSW_DOMAIN'. If None the domain is parsed from the URL."""
     cred_filepath: Optional[Union[str, Path]] = None
     """The filepath to the credentials file. Will only be used if cred_mngr is
-    None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml' is
-    expected to be found in the current working directory.
+    None. If cred_filepath is None, the default credentials file 'accounts.pwd.yaml'
+    in the current working directory (project root) is read if present.
     """
     cred_mngr: Optional[CredentialManager] = None
     """A credential manager object. If None, a new credential manager will be created
@@ -552,8 +552,9 @@ def osw_download_file(
         variable 'OSW_DOMAIN'. If None the domain is parsed from the URL.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
-         None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
-         is expected to be found in the current working directory.
+         None. If cred_filepath is None, the default credentials file
+         'accounts.pwd.yaml' in the current working directory (project root) is read
+         if present.
     cred_mngr
         A credential manager object. If None, a new credential manager will be created
         using the cred_filepath.
@@ -774,8 +775,9 @@ def osw_upload_file(
         the URL. If fpt_or_url is no URL user must specify the domain.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
-         None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
-         is expected to be found in the current working directory.
+         None. If cred_filepath is None, the default credentials file
+         'accounts.pwd.yaml' in the current working directory (project root) is read
+         if present.
     cred_mngr
         A credential manager object. If None, a new credential manager will be created
         using the cred_filepath.

@@ -12,7 +12,11 @@ BASE_PATH = Path.cwd()
 OSW_FILES_DIR_DEFAULT = BASE_PATH / "osw_files"
 DOWNLOAD_DIR_DEFAULT = OSW_FILES_DIR_DEFAULT / "downloads"
 CRED_FILENAME_DEFAULT = "accounts.pwd.yaml"
-CRED_FILEPATH_DEFAULT = OSW_FILES_DIR_DEFAULT / CRED_FILENAME_DEFAULT
+# Default credential file lives at the project root (current working directory),
+# matching the documented location and enabling a hand-maintained multi-instance
+# transfer file. It is only ever read; credentials are never written here
+# automatically. See osw.auth.CredentialManager.
+CRED_FILEPATH_DEFAULT = BASE_PATH / CRED_FILENAME_DEFAULT
 WIKI_DOMAIN_DEFAULT = "wiki-dev.open-semantic-lab.org"
 
 

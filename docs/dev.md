@@ -81,6 +81,28 @@ every push to `main` (workflow `integration.yml`).
         --wiki_password "<password>"
     ```
 
+### Credentials
+
+Credentials are never written to disk automatically. For a single instance,
+set `OSW_USERNAME` / `OSW_PASSWORD` (e.g. via a `.env` file) or answer the
+interactive prompt; both are kept in memory only.
+
+For transfers between several OpenSemanticLab instances, keep a hand-maintained
+`accounts.pwd.yaml` at the project root (read only, gitignored by default), with
+one entry per instance IRI:
+
+```yaml
+https://wiki-a.example.org:
+  username: <login>
+  password: <password>
+https://wiki-b.example.org:
+  username: <login>
+  password: <password>
+```
+
+`OswExpress(domain=...)` with no credential arguments reads this file if present;
+each connection is matched to the longest IRI it contains.
+
 ## Documentation
 
 Serve locally with live reload at `http://localhost:8000`, or run the

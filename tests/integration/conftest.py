@@ -1,12 +1,4 @@
-"""Working-directory isolation for the integration tests.
-
-The tests and the library defaults create files relative to the current
-working directory - among them credential files in CLEAR TEXT
-(accounts.pwd.yaml and domain-named files) and download caches
-(osw_files/). Running each test in its own pytest tmp dir keeps all of
-that out of the repository tree; pytest cleans its tmp dirs up on its
-own. Never rely on .gitignore for credential artifacts.
-"""
+"""Working-directory isolation for the integration tests."""
 
 from pathlib import Path
 

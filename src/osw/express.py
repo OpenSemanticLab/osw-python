@@ -92,9 +92,9 @@ class OswExpress(OSW):
 
     def __init__(
         self,
-        domain: str = None,
-        cred_filepath: Union[str, Path] = None,
-        cred_mngr: CredentialManager = None,
+        domain: str | None = None,
+        cred_filepath: str | Path | None = None,
+        cred_mngr: CredentialManager | None = None,
     ):
         if domain is None:
             if os.getenv("OSW_DOMAIN") is not None:
@@ -116,6 +116,8 @@ class OswExpress(OSW):
             # vars. A credential file is only ever READ; credentials obtained from
             # environment variables (OSW_USERNAME/OSW_PASSWORD, e.g. loaded from a
             # .env file) or an interactive prompt are kept in memory only.
+            # Credentials can be persisted with an explicit call of
+            # cred_mngr.save_credentials_to_file()
             if os.getenv("OSW_CRED_FILEPATH") is not None:
                 cred_filepath = os.getenv("OSW_CRED_FILEPATH")
             elif os.getenv("OSL_CRED_FILEPATH") is not None:

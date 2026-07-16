@@ -67,6 +67,12 @@ dataimport = [
     "openpyxl",
 ]
 UI = ["pysimplegui"]
+mcp = [
+    # official MCP Python SDK; FastMCP lives in mcp.server.fastmcp
+    "mcp>=1.2",
+    # .env loading for the stdio server (OSW_DOMAIN/OSW_USERNAME/OSW_PASSWORD)
+    "python-dotenv>=1.0",
+]
 workflow = [
     "prefect>=2.20.25,<3.0",
     # prefect 2.20.25 is the final 2.x release (no backports). Its
@@ -77,7 +83,11 @@ workflow = [
     "anyio>=4.4.0,<4.7",
 ]
 tutorial = ["osw[dataimport]"]
-all = ["osw[dataimport,DB,UI,S3,wikitext]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
+
+[project.scripts]
+# stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude Code)
+osw-mcp = "osw.mcp.server:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -99,6 +109,9 @@ dev = [
     # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
     # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
     "osw[workflow]",
+    # MCP server extra installed in dev so its modules type-check (ty) and
+    # deptry can resolve the mcp/dotenv imports in src/osw/mcp
+    "osw[mcp]",
     "geopy",
     "deepl",
     "sqlalchemy",
@@ -341,6 +354,8 @@ pybars3-wheel = "pybars"
 psycopg2 = "psycopg2"
 openpyxl = "openpyxl"
 pysimplegui = "PySimpleGUI"
+# python-dotenv imports as `dotenv`
+python-dotenv = "dotenv"
 
 [tool.deptry.per_rule_ignores]
 # DEP002: declared but not imported anywhere in src

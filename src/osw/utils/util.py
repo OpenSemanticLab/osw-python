@@ -274,6 +274,7 @@ def parallelize(
     iterable: Iterable,
     flush_at_end: bool = False,
     progress_bar: bool = True,
+    return_exceptions: bool = False,
     **kwargs,
 ):
     """A function to parallelize tasks with a progress bar and a message buffer.
@@ -289,6 +290,11 @@ def parallelize(
         execution.
     progress_bar:
         If True, a progress bar will be displayed.
+    return_exceptions:
+        If True, exceptions raised by ``func`` are returned in the result list at the
+        position of the corresponding item (instead of aborting the whole batch on the
+        first failure). Mirrors ``asyncio.gather(return_exceptions=...)``. Results stay
+        aligned with the input order, so callers can zip them back to ``iterable``.
     kwargs:
         Keyword arguments to be passed to the function.z
     """
@@ -324,6 +330,18 @@ def parallelize(
             print(
                 f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks)."
             )
+            if return_exceptions:
+                # tqdm.gather() re-raises the first exception (it has no
+                # return_exceptions kwarg), which would abandon the remaining
+                # results. Capture each task's exception instead so the batch
+                # completes and results stay aligned with the input order.
+                async def _capture(task):
+                    try:
+                        return await task
+                    except Exception as exc:  # noqa: BLE001 - returned to caller
+                        return exc
+
+                tasks = [_capture(task) for task in tasks]
             res = await tqdm.gather(
                 *tasks
             )  # like asyncio.gather, but with a progress bar

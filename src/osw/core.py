@@ -1609,10 +1609,33 @@ class OSW(BaseModel):
         change_id: str
         """The ID of the change"""
         pages: Dict[str, WtPage]
-        """The pages that have been stored"""
+        """The pages that have been successfully stored, keyed by full page title.
+        On partial failure this contains only the successfully-stored pages."""
+        failed: Dict[str, Exception] = {}
+        """Entities that could not be stored, keyed by full page title and mapped to
+        the exception that caused the failure. Empty on full success."""
 
         class Config:
             arbitrary_types_allowed = True
+
+    class StoreEntityPartialError(Exception):
+        """Raised by store_entity() when one or more entities could not be stored.
+
+        Carries the partial ``StoreEntityResult`` so callers can learn exactly which
+        entities were written (``stored`` / ``result.pages``) and which failed
+        (``failed`` / ``result.failed``) without a separate existence query.
+        """
+
+        def __init__(self, result: "OSW.StoreEntityResult"):
+            self.result = result
+            self.stored = list(result.pages.keys())
+            self.failed = result.failed
+            total = len(result.pages) + len(result.failed)
+            failed_titles = ", ".join(result.failed.keys())
+            super().__init__(
+                f"store_entity failed for {len(result.failed)} of {total} "
+                f"entities: {failed_titles}"
+            )
 
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
@@ -1806,27 +1829,63 @@ class OSW(BaseModel):
                 upload_index += 1
 
         def handle_upload_object_(upload_object: UploadObject) -> None:
+            # Let exceptions propagate: the caller collects them per entity below,
+            # so a single failure neither aborts the batch nor is silently
+            # swallowed (store_entity_ only records created_pages on success).
+            store_entity_(
+                upload_object.entity,
+                upload_object.namespace,
+                upload_object.index,
+                upload_object.overwrite_class_param,
+            )
+
+        def failure_title_(upload_object: UploadObject) -> str:
+            """Best-effort full page title of a failed entity, for error reporting."""
             try:
-                store_entity_(
-                    upload_object.entity,
-                    upload_object.namespace,
-                    upload_object.index,
-                    upload_object.overwrite_class_param,
+                namespace = upload_object.namespace or get_namespace(
+                    upload_object.entity
                 )
-            except Exception as e:
-                entity_name = getattr(upload_object.entity, "name", None) or "unknown"
-                _logger.error(f"Error storing entity '{entity_name}': {e}")
+                return f"{namespace}:{get_title(upload_object.entity)}"
+            except Exception:
+                return (
+                    getattr(upload_object.entity, "name", None)
+                    or getattr(upload_object.entity, "uuid", None)
+                    or "unknown"
+                )
 
         if param.parallel:
-            _ = parallelize(
-                handle_upload_object_, upload_object_list, flush_at_end=param.debug
+            # return_exceptions=True keeps results aligned with upload_object_list
+            # and lets every entity be attempted even if some fail.
+            results = parallelize(
+                handle_upload_object_,
+                upload_object_list,
+                flush_at_end=param.debug,
+                return_exceptions=True,
             )
         else:
-            _ = [
-                handle_upload_object_(upload_object)
-                for upload_object in upload_object_list
-            ]
-        return OSW.StoreEntityResult(change_id=param.change_id, pages=created_pages)
+            results = []
+            for upload_object in upload_object_list:
+                try:
+                    handle_upload_object_(upload_object)
+                    results.append(None)
+                except Exception as e:  # noqa: BLE001 - collected below
+                    results.append(e)
+
+        failed: Dict[str, Exception] = {}
+        for upload_object, result in zip(upload_object_list, results):
+            if isinstance(result, Exception):
+                title = failure_title_(upload_object)
+                _logger.error(f"Error storing entity '{title}': {result}")
+                failed[title] = result
+
+        store_result = OSW.StoreEntityResult(
+            change_id=param.change_id, pages=created_pages, failed=failed
+        )
+        if failed:
+            # Surface partial/total failure so callers cannot mistake a dropped
+            # page for a success. The result (successes + failures) rides along.
+            raise OSW.StoreEntityPartialError(store_result)
+        return store_result
 
     class DeleteEntityParam(OswBaseModel):
         entities: Union[OswBaseModel, List[OswBaseModel]]

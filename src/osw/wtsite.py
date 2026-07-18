@@ -5,6 +5,7 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 import json
 import os
 import shutil
+import threading
 import urllib
 import warnings
 import xml.etree.ElementTree as et
@@ -88,6 +89,13 @@ class WtSite:
 
         """
 
+        # Serializes destructive mutations of the shared mwclient session
+        # (cookie jar / tokens). Parallel uploads share one requests.Session, so
+        # concurrent clears/re-logins would otherwise corrupt each other's state.
+        # RLock (not Lock) because the edit() retry path may call _relogin() while
+        # already holding this lock.
+        self._session_lock = threading.RLock()
+
         scheme = "https"
 
         # Store credentials for potential re-login on session timeout
@@ -155,6 +163,20 @@ class WtSite:
         self._page_cache = {}
         self._cache_enabled = False
 
+    def _get_session_lock(self) -> threading.RLock:
+        """Return the session lock, lazily creating it if absent.
+
+        In normal use the lock is created in ``__init__`` before any worker
+        threads exist. This fallback keeps WtSite instances that bypassed
+        ``__init__`` (e.g. tests using ``WtSite.__new__``) working; those are
+        single-threaded at construction, so the lazy creation is race-free.
+        """
+        lock = getattr(self, "_session_lock", None)
+        if lock is None:
+            lock = threading.RLock()
+            self._session_lock = lock
+        return lock
+
     def _relogin(self):
         """Re-login to the wiki site using stored credentials.
 
@@ -176,9 +198,12 @@ class WtSite:
             # Stale session cookies cause MediaWiki to abort the login flow with
             # "Unable to continue login. Your session most likely timed out."
             # Clear client-side session state so login starts from a clean slate.
-            self._site.connection.cookies.clear()
-            self._site.tokens.clear()
-            self._site.login(username=cred.username, password=cred.password)
+            # Hold the session lock so in-flight parallel uploads cannot read the
+            # cookie jar / tokens while they are being wiped and rebuilt.
+            with self._get_session_lock():
+                self._site.connection.cookies.clear()
+                self._site.tokens.clear()
+                self._site.login(username=cred.username, password=cred.password)
         else:
             raise RuntimeError(
                 "Re-login is only supported for username/password credentials."
@@ -461,11 +486,14 @@ class WtSite:
 
     def _clear_cookies(self):
         # see https://github.com/mwclient/mwclient/issues/221
-        for cookie in self._site.connection.cookies:
-            if "PostEditRevision" in cookie.name:
-                self._site.connection.cookies.clear(
-                    cookie.domain, cookie.path, cookie.name
-                )
+        # Iterate a snapshot (list(...)) so mutating the jar mid-loop is safe, and
+        # hold the session lock so a peer thread cannot clear/re-login concurrently.
+        with self._get_session_lock():
+            for cookie in list(self._site.connection.cookies):
+                if "PostEditRevision" in cookie.name:
+                    self._site.connection.cookies.clear(
+                        cookie.domain, cookie.path, cookie.name
+                    )
 
     class SearchParam(wt.SearchParam):
         pass
@@ -1728,26 +1756,42 @@ class WtPage:
         mode:
             (optional) single API call ('action-multislot') or multiple (
             'action-singleslot'), by default 'action-multislot' (faster)
+
+        Raises
+        ------
+        RuntimeError
+            if the edit still fails after ``max_retry`` attempts. The last
+            underlying exception is chained via ``__cause__``. Previously this
+            method returned None on exhaustion, silently discarding the failure.
         """
-        retry = 0
         max_retry = 5
-        while retry < max_retry:
+        last_exc: Optional[Exception] = None
+        for attempt in range(max_retry):
             try:
                 return self._edit(comment, mode, bot_edit)
-            except Exception as e:
-                if retry < max_retry:
-                    retry += 1
-                    print(f"Page edit failed: {e}. Retry ({retry}/{max_retry})")
+            except Exception as e:  # noqa: BLE001 - re-raised below after retries
+                last_exc = e
+                print(f"Page edit failed: {e}. Retry ({attempt + 1}/{max_retry})")
+                if attempt + 1 < max_retry:
+                    # Attempt to recover the shared session before retrying.
+                    # Guard the whole block: a recovery failure must never mask
+                    # the original edit error we intend to re-raise below.
                     try:
-                        # refresh token for longer running processes
-                        self.wtSite._site.get_token("csrf", force=True)
+                        # Serialize session mutations so a peer thread's request
+                        # cannot read a half-cleared cookie jar / token set.
+                        with self.wtSite._get_session_lock():
+                            try:
+                                # refresh token for longer running processes
+                                self.wtSite._site.get_token("csrf", force=True)
+                            except Exception:
+                                # token refresh failed, attempt full re-login
+                                self.wtSite._relogin()
                     except Exception:
-                        # token refresh failed, attempt full re-login
-                        try:
-                            self.wtSite._relogin()
-                        except Exception:
-                            pass  # re-login failed, will retry anyway
+                        pass  # recovery failed, will retry / re-raise anyway
                     sleep(5)
+        raise RuntimeError(
+            f"Page edit for '{self.title}' failed after {max_retry} attempts"
+        ) from last_exc
 
     def _edit(
         self, comment: str = None, mode="action-multislot", bot_edit: bool = True

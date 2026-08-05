@@ -1,11 +1,16 @@
 # Integration tests against a live test wiki. Credentials come from the
 # INTEGR_TEST_* secrets; where they are unavailable (e.g. forks), the
 # credential fixtures make the tests skip instead of fail.
+#
+# Runs on every pull request into main, so breaking changes surface before the
+# release job (gated separately by required review on the pypi environment)
+# ever starts. No push trigger: a push to main is already covered by the PR
+# that preceded it, so a second run would add nothing.
 
 name: Integration
 
 on:
-  push:
+  pull_request:
     branches: [main]
   workflow_dispatch:
 

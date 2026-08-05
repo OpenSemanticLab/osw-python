@@ -1,4 +1,8 @@
 minimum_pre_commit_version: 3.2.0
+# Install both the pre-commit and commit-msg stage hooks on a plain
+# `pre-commit install` (no --hook-type flags needed).
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -24,3 +28,12 @@ repos:
       - id: ruff-check
         args: [--exit-non-zero-on-fix]
       - id: ruff-format
+
+  # Enforce Conventional Commits locally so python-semantic-release can derive
+  # versions and the changelog. Runs on the commit-msg stage; install it with
+  # `pre-commit install --hook-type commit-msg` (done by `make install`).
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]

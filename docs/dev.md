@@ -22,6 +22,9 @@ Requires [uv](https://docs.astral.sh/uv/) and `git`.
     uv run pre-commit install
     ```
 
+`pre-commit install` wires both hook stages (`pre-commit` and `commit-msg`);
+the latter enforces the commit message format below.
+
 ## Quality checks
 
 Lock consistency, linting and formatting (pre-commit incl. ruff), static
@@ -137,17 +140,38 @@ strict build that fails on any warning:
     uv build
     ```
 
+## Commit messages
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+`type(scope): subject`, scope optional. The local `commit-msg` hook (see
+Setup) rejects malformed messages, because they drive the automated release
+below.
+
+| Type | Release effect |
+| ---- | -------------- |
+| `feat` | minor release |
+| `fix`, `perf` | patch release |
+| `BREAKING CHANGE:` footer, or `!` after the type | major release |
+| `docs`, `chore`, `test`, `refactor`, `ci`, `style`, `build` | no release |
+
 ## Releasing
 
-Releases are fully automated
-([python-semantic-release](https://python-semantic-release.readthedocs.io/)):
-conventional commits on `main` decide the version bump (`fix:` patch,
-`feat:` minor, `BREAKING CHANGE:`/`!` major), CI updates the changelog,
-tags `vX.Y.Z`, builds, publishes to PyPI via trusted publishing and
-deploys the versioned docs. The package version is derived from the tag
-by `hatch-vcs`; nothing is bumped manually.
+There is no standing release branch: work goes `feature branch -> main`
+directly. Every pull request into `main` runs `main.yml` (quality, tests,
+docs), the integration suite, and a `version-preview` job that comments the
+version a merge would release, computed with the same conventional commits.
 
-To preview what the next release would be:
+Merging to `main` starts the release job
+(`on-release-main.yml`), which pauses on the `pypi` GitHub environment for a
+required reviewer to approve -- this is the deliberate-release control, in
+place of a staging branch. Once approved,
+[python-semantic-release](https://python-semantic-release.readthedocs.io/)
+bumps the static version in `pyproject.toml` and `CITATION.cff` (never edited
+by hand), updates `CHANGELOG.md`, relocks `uv.lock`, commits, tags `vX.Y.Z`,
+builds, publishes to PyPI via trusted publishing and deploys the versioned
+docs. Reject the approval and nothing ships.
+
+To preview what the next release would be locally:
 
 ```bash
 uv run semantic-release --noop version

@@ -23,17 +23,32 @@ make install    # environment + pre-commit hooks
 covers details such as running the integration tests and serving the docs
 locally.
 
+## Commit messages
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+`type(scope): subject`, for example `fix: correct sidebar collapse on small
+screens`. The scope is optional. A local `commit-msg` hook (installed by
+`make install`) rejects malformed messages, because they drive the automated
+release below.
+
+| Type | Release effect |
+| ---- | -------------- |
+| `feat` | minor release |
+| `fix`, `perf` | patch release |
+| `BREAKING CHANGE:` footer, or `!` after the type | major release |
+| `docs`, `chore`, `test`, `refactor`, `ci`, `style`, `build` | no release |
+
 ## Releasing
 
-Releases are fully automated with
-[python-semantic-release](https://python-semantic-release.readthedocs.io/):
-every push to `main` is analyzed, and conventional commits decide the
-outcome. `fix:` commits trigger a patch release, `feat:` a minor release
-and a `BREAKING CHANGE:` footer (or `!` after the type) a major release;
-other types (`chore:`, `docs:`, `ci:`, ...) release nothing. CI then
-updates the changelog, tags, builds, publishes to PyPI via trusted
-publishing and deploys the versioned docs. No manual version bumping or
-tagging.
+There is no standing release branch: work goes `feature branch -> main`.
+Every pull request into `main` runs the checks, the integration suite, and a
+bot comment predicting the version a merge would release. Merging starts the
+release job, which pauses on the `pypi` GitHub environment for a required
+reviewer to approve; approve and
+[python-semantic-release](https://python-semantic-release.readthedocs.io/)
+bumps the version (in `pyproject.toml`, never edited by hand), updates the
+changelog, tags, builds, publishes to PyPI via trusted publishing and deploys
+the versioned docs. Reject the approval and nothing ships.
 
 ## AI Guidelines
 

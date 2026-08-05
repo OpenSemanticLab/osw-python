@@ -19,7 +19,8 @@ fullpagetitle_to_download = "Item:OSWac34aa10f897463f966724d86eece3da"
 
 # getting the page content from the main slot (without info box...)
 page_content = (
-    osw.site.get_page(GetPageParam(titles=[fullpagetitle_to_download]))
+    osw.site
+    .get_page(GetPageParam(titles=[fullpagetitle_to_download]))
     .pages[0]
     .get_slot_content("main")
 )

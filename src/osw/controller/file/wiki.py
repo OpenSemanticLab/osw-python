@@ -130,8 +130,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             if key in OSW.StoreEntityParam.__fields__ and value is not None
         }
         for key in ["entities", "namespace"]:
-            if key in se_params:
-                del se_params[key]  # avoid duplicated kwargs
+            se_params.pop(key, None)  # avoid duplicated kwargs
         self.osw.store_entity(
             OSW.StoreEntityParam(
                 entities=[self.cast(model.WikiFile, **wf_params)],
@@ -194,9 +193,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         if self.namespace is None:
             self.namespace = get_namespace(self)
         # update meta information
-        if not hasattr(self, "meta"):
-            self.meta = model.Meta()
-        elif self.meta is None:
+        if not hasattr(self, "meta") or self.meta is None:
             self.meta = model.Meta()
         if not hasattr(self.meta, "wiki_page") or self.meta.wiki_page is None:
             self.meta.wiki_page = model.WikiPage()

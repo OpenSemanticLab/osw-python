@@ -8,10 +8,10 @@ from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
 # Run with:
-# tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 
 
-def test_ontology_import(wiki_domain, wiki_username, wiki_password):
+def test_ontology_import(wiki_domain, wiki_username, wiki_password, tmp_path):
     cm = CredentialManager()
     cm.add_credential(
         CredentialManager.UserPwdCredential(
@@ -62,7 +62,8 @@ def test_ontology_import(wiki_domain, wiki_username, wiki_password):
         base_class=model.OwlClass,
         base_class_title="Category:OSW725a3cf5458f4daea86615fcbd0029f8",  # OwlClass
         dump_files=True,
-        dump_path=os.path.dirname(os.path.abspath(__file__)),
+        # dump into the pytest tmp dir, not the module directory
+        dump_path=str(tmp_path),
         dry_run=False,
     )
 

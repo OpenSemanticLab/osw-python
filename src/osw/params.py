@@ -1,4 +1,4 @@
-from osw.auth import CredentialManager  # noqa: F401
+from osw.auth import CredentialManager
 from osw.core import (  # noqa: F401
     OSW,
     OVERWRITE_CLASS_OPTIONS,
@@ -7,7 +7,7 @@ from osw.core import (  # noqa: F401
 )
 from osw.express import DataModel, OswExpress  # noqa: F401
 from osw.wiki_tools import SearchParam  # noqa: F401
-from osw.wtsite import WtPage, WtSite  # noqa: F401
+from osw.wtsite import WtPage, WtSite
 
 
 # From osw.auth.CredentialManager:

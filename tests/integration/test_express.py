@@ -2,7 +2,7 @@
 This test can't be run directly (anymore) since calling fixtures directly has been
 deprecated in pytest 4.0.0. Instead, the test can be run with the following command,
 which requires pytest-mock to be installed:
-tox -e test -- path/to/test_express.py --wiki_domain domain --wiki_username user
+uv run pytest tests/integration -o addopts="" tests/integration/test_express.py --wiki_domain domain --wiki_username user
 --wiki_password pass
 
 
@@ -23,6 +23,7 @@ Tests to be written for express.py:
 """
 
 import os
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -51,7 +52,7 @@ def create_dummy_file(file_path: Path):
 @contextmanager
 def preserve_entity_py_state():
     path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
-    with open(path, "r") as file:
+    with open(path) as file:
         original_entity = file.read()
     try:
         yield None
@@ -61,34 +62,44 @@ def preserve_entity_py_state():
 
 
 def osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password):
+    from osw.auth import CredentialManager
+
     assert osw_express.domain == wiki_domain
     # An error would occur if the connection attempt to the wiki would have failed
     assert osw_express.site is not None
-    assert osw_express.cred_filepath is not None
-    assert osw_express.cred_filepath.exists()
-    assert osw_express.cred_filepath.is_file()
-    credentials = yaml.safe_load(osw_express.cred_filepath.open("r"))
-    assert wiki_domain in credentials
-    assert credentials[wiki_domain]["username"] == wiki_username
-    assert credentials[wiki_domain]["password"] == wiki_password
+    # Credentials are resolvable (in memory or from a caller-provided file);
+    # the library never writes a credential file on its own.
+    cred = osw_express.cred_mngr.get_credential(
+        CredentialManager.CredentialConfig(
+            iri=wiki_domain,
+            fallback=CredentialManager.CredentialFallback.none,
+        )
+    )
+    assert cred is not None
+    assert cred.username == wiki_username
+    assert cred.password == wiki_password
+    # a credential file is only ever one the caller provided themselves
+    if osw_express.cred_filepath is not None:
+        assert osw_express.cred_filepath.exists()
     return True
 
 
 def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     """Test OswExpress initialization with defined domain, but no cred_filepath nor
-    cred_mngr. As this is the first test to load the osw.express module,
-    the installation of the dependencies should be triggered here."""
+    cred_mngr. Credentials are prompted for interactively and are kept in
+    memory only; no credential file is created."""
     # A connection is opened with domain already set, so mocking is required for the
     #  username and password only
     mocked_input = mocker.patch("builtins.input")
     mocked_getpass = mocker.patch("getpass.getpass")
-    mocked_input.side_effect = [str(Path(default_paths.cred_filepath)), wiki_username]
+    mocked_input.side_effect = [wiki_username]
     mocked_getpass.return_value = wiki_password
     osw_express = osw.express.OswExpress(domain=wiki_domain)
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)
-    assert osw_express.cred_filepath == Path(osw.express.default_paths.cred_filepath)
+    # in-memory only: no credential file path is set and none is created
+    assert osw_express.cred_filepath is None
+    assert not Path(default_paths.cred_filepath).exists()
     osw_express.shut_down()
-    osw_express.cred_filepath.unlink()
 
 
 def test_init_from_env_vars(wiki_domain, wiki_username, wiki_password):
@@ -173,8 +184,9 @@ def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
     assert osw_express_and_credentials(
         osw_express, wiki_domain, wiki_username, wiki_password
     )
-    # Test file upload
-    file_path = Path.cwd() / "test_file.txt"
+    # Test file upload; unique name per run so leftovers on the shared
+    # test wiki never collide with a re-upload (fileexists-no-change)
+    file_path = Path.cwd() / f"test_file_{uuid.uuid4().hex[:8]}.txt"
     create_dummy_file(file_path)
     # Upload a file to an OSW instance
     wiki_file = osw.express.osw_upload_file(file_path, osw_express=osw_express)
@@ -197,7 +209,7 @@ def test_file_upload_download(wiki_domain, wiki_username, wiki_password):
 
 if __name__ == "__main__":
     cred_filepath_ = Path("accounts.pwd.yaml")
-    with open(cred_filepath_, "r") as file:
+    with open(cred_filepath_) as file:
         accounts = yaml.safe_load(file)
     wiki_domain_ = "wiki-dev.open-semantic-lab.org"
     wiki_username_ = accounts[wiki_domain_]["username"]
@@ -208,17 +220,15 @@ if __name__ == "__main__":
         import pytest
 
         # Runs all tests
-        pytest.main(
-            [
-                __file__,
-                "--wiki_domain",
-                wiki_domain_,
-                "--wiki_username",
-                wiki_username_,
-                "--wiki_password",
-                wiki_password_,
-            ]
-        )
+        pytest.main([
+            __file__,
+            "--wiki_domain",
+            wiki_domain_,
+            "--wiki_username",
+            wiki_username_,
+            "--wiki_password",
+            wiki_password_,
+        ])
     else:
         # Runs tests that can be run directly:
         test_init_with_cred_filepath(wiki_domain_, wiki_username_, wiki_password_)

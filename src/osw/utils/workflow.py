@@ -250,7 +250,7 @@ class ApiGatewayTransport(httpx.AsyncBaseTransport):
                 except Exception:
                     body = "<unreadable>"
                 log.warning(
-                    "ApiGateway returned 403, re-authenticating. " "Response: %s",
+                    "ApiGateway returned 403, re-authenticating. Response: %s",
                     body,
                 )
                 self._relogin_cb()
@@ -364,7 +364,7 @@ class NotifyTeams(NotifyTeamsParam):
 
         host_url = str(PREFECT_API_URL.value()).replace("/api", "")
 
-        _flow_run = f"**🚨Flow Run: [{flow.name} > {flow_run.name}]({host_url}/flow-runs/flow-run/{flow_run.id}) ❗{state.name}❗**\n\n"  # noqa
+        _flow_run = f"**🚨Flow Run: [{flow.name} > {flow_run.name}]({host_url}/flow-runs/flow-run/{flow_run.id}) ❗{state.name}❗**\n\n"
 
         if flow_run.deployment_id is not None:
             # Assigned deployment found
@@ -372,14 +372,18 @@ class NotifyTeams(NotifyTeamsParam):
                 f"{host_url}/deployments/deployment/{flow_run.deployment_id}"
             )
             if self.deployment_name == "" or self.deployment_name is None:
-                _deployment = f"🚀 Deployment: _[{flow_run.deployment_id}]({deployment_url})_\n\n"  # noqa
+                _deployment = (
+                    f"🚀 Deployment: _[{flow_run.deployment_id}]({deployment_url})_\n\n"
+                )
             else:
-                _deployment = f"🚀 Deployment: _[{self.deployment_name}]({deployment_url})_\n\n"  # noqa
+                _deployment = (
+                    f"🚀 Deployment: _[{self.deployment_name}]({deployment_url})_\n\n"
+                )
         else:
             # No deployment assigned
             _deployment = "🚀 Deployment: _Just flow, no deployment_\n\n"
 
-        _ts = f"🕑 Timestamp: _{flow_run.state.timestamp.strftime('%Y-%m-%d %H:%M:%S %Z')}_\n\n"  # noqa
+        _ts = f"🕑 Timestamp: _{flow_run.state.timestamp.strftime('%Y-%m-%d %H:%M:%S %Z')}_\n\n"
         if flow_run.tags != []:
             _tags = f"🏷️ Tags: _#{' #'.join(flow_run.tags)}_\n\n"
         else:

@@ -4,7 +4,7 @@ from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.wtsite import WtPage, WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 
 
 def _test_ontology_import(wiki_domain, wiki_username, wiki_password):

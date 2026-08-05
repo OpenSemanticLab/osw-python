@@ -110,10 +110,7 @@ class RegExPatternExtended(OswBaseModel):
     def test_pattern(self) -> bool:
         """Test the pattern by asserting self.example_match.groups.values()) ==
         self.expected_groups"""
-        if list(self.example_match.groups.values()) == self.expected_groups:
-            return True
-        else:
-            return False
+        return list(self.example_match.groups.values()) == self.expected_groups
 
 
 class MatchResult(OswBaseModel):
@@ -353,9 +350,9 @@ def test_regex_pattern(
         }
         former_matches.extend(previously_unmatched)
 
-    coverage["Accumulative coverage"] = sum(
-        [len(result["Matching strings"]) for result in matching_results]
-    ) / len(strings)
+    coverage["Accumulative coverage"] = sum([
+        len(result["Matching strings"]) for result in matching_results
+    ]) / len(strings)
     total_coverage = len(former_matches) / len(strings)
     coverage["Total coverage"] = total_coverage
     coverage["Not covered"] = 1 - total_coverage

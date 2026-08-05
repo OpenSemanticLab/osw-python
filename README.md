@@ -1,88 +1,55 @@
 [![PyPI-Server](https://img.shields.io/pypi/v/osw.svg)](https://pypi.org/project/osw/)
 [![DOI](https://zenodo.org/badge/458130867.svg)](https://zenodo.org/badge/latestdoi/458130867)
-[![Coveralls](https://img.shields.io/coveralls/github/OpenSemanticLab/osw-python/main.svg)](https://coveralls.io/r/OpenSemanticLab/osw)
-[![docs](xx.xx)](https://opensemanticlab.github.io/osw-python/)
+[![Codecov](https://codecov.io/gh/OpenSemanticLab/osw-python/graph/badge.svg)](https://codecov.io/gh/OpenSemanticLab/osw-python)
+[![docs](https://img.shields.io/badge/docs-online-blue)](https://opensemanticlab.github.io/osw-python/)
 ![license](https://img.shields.io/github/license/OpenSemanticLab/osw-python.svg)
-<!-- [![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.
-com/pydantic/pydantic/main/docs/badge/v2.json)](https://pydantic.dev) -->
-[![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
 
 # osw
 
-Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab.
+Python toolset for data processing, queries, wikicode generation and page
+manipulation within [OpenSemanticLab](https://github.com/OpenSemanticLab).
 
-General features for object-oriented interaction with knowledge graphs are planned to be moved to a standalone package:
-[oold-python](https://github.com/OpenSemanticWorld/oold-python)
+Work with OpenSemanticLab instances the way you work with Python objects:
+load pages as typed pydantic entities, query with semantic search, generate
+models from the schemas stored in the wiki, and write changes back.
+
+**Documentation: <https://opensemanticlab.github.io/osw-python/>**
 
 ## Installation
-```
+
+```bash
 pip install osw
 ```
 
-### Variants
-| Variant | Description |
-| -- | -- |
-`osw[wikitext]` | Additional functions in `wiki_tools` to transform mediawiki markup / templates
-`osw[DB]` | interact with SQL databases per DatabaseController
-`osw[S3]` | Interact with S3 Stores per S3FileController
-`osw[dataimport]` | Additional tools to import data
-`osw[UI]` | To use a helper UI to work with entity slots
+Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
+`osw[UI]`, `osw[all]`) are described in the
+[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
 
-To install multiple optional/extra dependencies run
-```
-pip install osw[opt1, opt2, ...]
-```
+## Quickstart
 
-To install all optional/extra dependencies run
-```
-pip install osw[all]
+```python
+from osw.express import OswExpress
+
+osw = OswExpress(domain="wiki-dev.open-semantic-lab.org")
+instances = osw.site.semantic_search("[[Category:Item]]")
+print(instances)
 ```
 
-## Getting started
-You can find examples in the tutorial folder, e.g. [entity creation](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/create_entity.py), [entity manipulaton](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/store_entity.py), [querying](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/query_minimal.py), and [file downloads](https://github.com/OpenSemanticLab/osw-python/blob/main/examples/file_download_minimal.py)
+More runnable scripts live in [examples/](examples/), and the
+[Basics tutorial](docs/tutorials/basics.ipynb) walks through the
+OpenSemanticLab data model.
 
-## Troubleshooting
+## Contributing
 
-### `Error: datamodel-codegen not found`
-make sure datamodel-codegen is installed and included in PATH, e. g. on jupyterlab:
-```
-os.environ["PATH"] += os.pathsep + "/home/jovyan/.local/bin"
-```
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Development setup, checks and tests are one command each: `make install`,
+`make check`, `make test`.
 
-## Documentation
+## Related projects
 
-https://opensemanticlab.github.io/osw-python/
+General features for object-oriented interaction with knowledge graphs live
+in the standalone package [oold-python](https://github.com/OO-LD/oold-python).
 
-### Tutorials
+## License
 
-Tutorials can be found at [tutorials](docs/tutorials/)
-- [Basics](docs/tutorials/basics.md) - a description of the data model of OpenSemanticLab and how to interact with it
-
-## Development
-
-Dev install
-```bash
-pip install -e . [dev,testing]
-```
-
-Activate pre-commit hooks (in git console)
-```
-pre-commit install
-```
-
-Run tests
-```bash
-tox -e test
-```
-
-Run integration tests (tests are skipped if login params are not provided)
-```bash
-tox -e test -- --wiki_domain "<osl-domain>" --wiki_username "<(bot)login>" --wiki_password "<password>" --db_username "<username>" --db_password "<password>"
-```
-
-<!-- pyscaffold-notes -->
-
-## Note
-
-This project has been set up using PyScaffold 4.3.1. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+AGPL-3.0-or-later, see [LICENSE.txt](LICENSE.txt).

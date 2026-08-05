@@ -5,7 +5,7 @@ from osw.auth import CredentialManager
 from osw.core import OSW
 from osw.wtsite import WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user
 # --wiki_password pass --db_username user --db_password pass
 
 
@@ -13,7 +13,7 @@ def _test_connection_string(
     wiki_domain, wiki_username, wiki_password, db_username, db_password
 ):
     # make sure to import controllers after updating the model (ignore linter warning)
-    import osw.controller as controller  # noqa: E402
+    import osw.controller as controller
 
     cstr = controller.DatabaseController.ConnectionString(
         dialect="postgresql",
@@ -60,7 +60,7 @@ def test_connect_and_query(
     # make sure to import controllers after updating the model (ignore linter warning)
     # the following does not work reliably if module was imported before model was loaded
     # import osw.controller as controller
-    from osw.controller.database import DatabaseController  # noqa: E402
+    from osw.controller.database import DatabaseController
 
     # load database definition
     db = osw.load_entity("Item:OSWb8cc7705e17c47b19331fdb045bfbca8")  # postgres

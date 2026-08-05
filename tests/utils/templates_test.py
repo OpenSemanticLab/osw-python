@@ -1,4 +1,3 @@
-# flake8: noqa: E501
 import json
 
 from osw.utils.oold import escape_json_strings
@@ -328,7 +327,7 @@ def test_helper_join():
 
 
 def test_raw_block():
-    template = """
+    template = r"""
 {
     "unit": {
         "format": "autocomplete",
@@ -408,7 +407,7 @@ def test_replace_helper():
 
 
 def test_metamodel_with_replace_helper():
-    template = """
+    template = r"""
     {
         "title": "{{{name}}}",
         "defaultProperties": [{{#replace "^[\s]*,+|,+[\s]*$" "" "g"}}{{!-- Trim leading and trailing whitespace + comma --}}{{#if positive_electrode}}

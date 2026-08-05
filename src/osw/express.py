@@ -1,4 +1,3 @@
-# flake8: noqa: E402
 """
 This module provides convenience functions for osw-python.
 
@@ -66,7 +65,7 @@ class OswExpress(OSW):
     @validator("domain")
     def validate_domain(cls, v):
         pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
-        assert re.match(pattern, v), "The domain is not valid."
+        assert re.match(pattern, v), "The domain is not valid."  # noqa: S101 pydantic validator idiom
         return v
 
     @overload
@@ -93,9 +92,9 @@ class OswExpress(OSW):
 
     def __init__(
         self,
-        domain: str = None,
-        cred_filepath: Union[str, Path] = None,
-        cred_mngr: CredentialManager = None,
+        domain: str | None = None,
+        cred_filepath: str | Path | None = None,
+        cred_mngr: CredentialManager | None = None,
     ):
         if domain is None:
             if os.getenv("OSW_DOMAIN") is not None:
@@ -113,66 +112,43 @@ class OswExpress(OSW):
             # If a credential manager is explicitly defined, that should have priority
             cred_filepath = cred_mngr.cred_filepath[0]
         if cred_filepath is None:
-            # If no credential file path is given, try to take it from environment vars
+            # If no credential file path is given, try to take it from environment
+            # vars. A credential file is only ever READ; credentials obtained from
+            # environment variables (OSW_USERNAME/OSW_PASSWORD, e.g. loaded from a
+            # .env file) or an interactive prompt are kept in memory only.
+            # Credentials can be persisted with an explicit call of
+            # cred_mngr.save_credentials_to_file()
             if os.getenv("OSW_CRED_FILEPATH") is not None:
                 cred_filepath = os.getenv("OSW_CRED_FILEPATH")
             elif os.getenv("OSL_CRED_FILEPATH") is not None:
                 cred_filepath = os.getenv("OSL_CRED_FILEPATH")
-            else:
-                # Otherwise, prompt user to set cred_filepath
-                cred_filepath = input(
-                    "No credential file path was provided. Please specify, where to "
-                    "save the credential file: "
-                )
+        if cred_filepath is not None:
+            if not isinstance(cred_filepath, Path):
+                cred_filepath = Path(cred_filepath)
+            if not cred_filepath.is_file():
                 print(
-                    f"Credential file path changed to '{cred_filepath}'."
-                    "\nPlease set environment variable 'OSW_CRED_FILEPATH' accordingly."
-                    "\nIf adequate, make sure to load the .env file."
+                    f"Credential file '{cred_filepath}' does not exist and will "
+                    "be ignored. Credentials are taken from the environment "
+                    "variables OSW_USERNAME/OSW_PASSWORD or an interactive "
+                    "prompt instead (in-memory only)."
                 )
-        if not isinstance(cred_filepath, Path):
-            cred_filepath = Path(cred_filepath)
-        if not cred_filepath.is_file():
-            print(f"Credential file '{cred_filepath}' is not a file. ")
-        if not cred_filepath.exists():
-            print(
-                f"Credential file '{cred_filepath}' does not exist and will be created."
-            )
+                cred_filepath = None
         if cred_mngr is None:
             # Create a credentials manager
             if cred_filepath is None:
                 cred_mngr = CredentialManager()
             else:  # Reuse passed cred_filepath
                 cred_mngr = CredentialManager(cred_filepath=cred_filepath)
-        if not cred_mngr.iri_in_file(domain):
-            cred = cred_mngr.get_credential(
-                CredentialManager.CredentialConfig(
-                    iri=domain,
-                    fallback=CredentialManager.CredentialFallback.ask,
-                )
-            )
-            cred_mngr.add_credential(cred)
-            # If there was no cred_filepath specified within the CredentialManager
-            #  the filepath from the OswExpress constructor will be used (either passed
-            #  as argument or set by default)
-            if cred_mngr.cred_filepath is None:
-                cred_mngr.save_credentials_to_file(
-                    filepath=cred_filepath, set_cred_filepath=True
-                )
-            # If there was a cred_filepath specified within the CredentialManager,
-            #  that filepath will be used
-            else:
-                cred_mngr.save_credentials_to_file()
         # Test if domain is reachable
         try:
             url = f"https://{domain}/wiki/Main_Page"
-            response = requests.get(url)
+            response = requests.get(url)  # noqa: S113 reachability probe, TODO add timeout
             if response.status_code == 200:
                 # Domain is reachable
                 print(f"Connecting to '{domain}'...")
             else:
                 raise ConnectionError(
-                    f"Could not connect to '{domain}'. "
-                    f"Response: {response.status_code}"
+                    f"Could not connect to '{domain}'. Response: {response.status_code}"
                 )
         except Exception as e:
             raise ConnectionError(f"Could not connect to '{domain}'. Error: {e}")
@@ -339,8 +315,8 @@ class FileResult(OswBaseModel):
     variable 'OSW_DOMAIN'. If None the domain is parsed from the URL."""
     cred_filepath: Optional[Union[str, Path]] = None
     """The filepath to the credentials file. Will only be used if cred_mngr is
-    None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml' is
-    expected to be found in the current working directory.
+    None. If cred_filepath is None, the default credentials file 'accounts.pwd.yaml'
+    in the current working directory (project root) is read if present.
     """
     cred_mngr: Optional[CredentialManager] = None
     """A credential manager object. If None, a new credential manager will be created
@@ -356,14 +332,13 @@ class FileResult(OswBaseModel):
             mode = self.mode
         kwargs["mode"] = mode
         if self.file_io is None or self.file_io.closed:
-            self.file_io = open(self.path, **kwargs)
+            self.file_io = open(self.path, **kwargs)  # noqa: SIM115 handle kept as instance state
         return self.file_io
 
     def close(self) -> None:
-        """Close the file, if not already closed."""
-        if self.file_io is None or self.file_io.closed:
-            warn("File already closed or not opened.")
-        else:
+        """Close the file. Like io streams, closing an already closed (or
+        never opened) file is a silent no-op."""
+        if self.file_io is not None and not self.file_io.closed:
             self.file_io.close()
 
     def read(self, n: int = -1) -> AnyStr:
@@ -577,8 +552,9 @@ def osw_download_file(
         variable 'OSW_DOMAIN'. If None the domain is parsed from the URL.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
-         None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
-         is expected to be found in the current working directory.
+         None. If cred_filepath is None, the default credentials file
+         'accounts.pwd.yaml' in the current working directory (project root) is read
+         if present.
     cred_mngr
         A credential manager object. If None, a new credential manager will be created
         using the cred_filepath.
@@ -736,7 +712,7 @@ class UploadFileResult(FileResult, WikiFileController):
             data["meta"] = model.Meta(wiki_page=wiki_page)
             data["title"] = title
         # Set change_id to existing meta
-        for meta in [data.get("meta"), getattr(data["source_file_controller"], "meta")]:
+        for meta in [data.get("meta"), data["source_file_controller"].meta]:
             if meta is not None:
                 if getattr(meta, "change_id", None) is None:
                     meta.change_id = [data["change_id"]]
@@ -799,8 +775,9 @@ def osw_upload_file(
         the URL. If fpt_or_url is no URL user must specify the domain.
     cred_filepath
         The filepath to the credentials file. Will only be used if cred_mngr is
-         None. If cred_filepath is None, a credentials file named 'accounts.pwd.yaml'
-         is expected to be found in the current working directory.
+         None. If cred_filepath is None, the default credentials file
+         'accounts.pwd.yaml' in the current working directory (project root) is read
+         if present.
     cred_mngr
         A credential manager object. If None, a new credential manager will be created
         using the cred_filepath.

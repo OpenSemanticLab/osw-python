@@ -89,9 +89,7 @@ class SmwSparqlClient:
             zip(self.smw_encoding_lists["in"], self.smw_encoding_lists["out"])
         )
         self.encoding_dict = {}
-        self.encoding_dict_inv = dict(
-            (self.encoding_dict[k], k) for k in self.encoding_dict
-        )
+        self.encoding_dict_inv = {self.encoding_dict[k]: k for k in self.encoding_dict}
 
     def create_sparql_client(self, endpoint, auth="none", user="", password=""):
         self.sparql = SPARQLWrapper(endpoint)
@@ -158,9 +156,8 @@ class SmwSparqlClient:
               }
             }
             LIMIT {{{limit}}}
-        """.replace(
-                "{{{select_statement}}}", select_statement
-            )
+        """
+            .replace("{{{select_statement}}}", select_statement)
             .replace("{{{where_statement}}}", where_statement)
             .replace("{{{inner_where_statement}}}", inner_where_statement)
             .replace("{{{limit}}}", str(limit))

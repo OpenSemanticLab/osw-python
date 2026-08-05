@@ -16,9 +16,9 @@ try:
     from osw.utils.wikitext import find_dependencies_recursively  # noqa
     from osw.utils.wikitext import get_wikitext_from_flat_content_dict  # noqa
     from osw.utils.wikitext import get_wikitext_from_flat_content_structure  # noqa
-    from osw.utils.wikitext import merge_wiki_page_text  # noqa;
+    from osw.utils.wikitext import merge_wiki_page_text
     from osw.utils.wikitext import schemaJson2WikiJson  # noqa
-    from osw.utils.wikitext import update_template_within_wikitext  # noqa
+    from osw.utils.wikitext import update_template_within_wikitext
     from osw.utils.wikitext import wikiJson2SchemaJson  # noqa
     from osw.utils.wikitext import wikiJson2SchemaJsonRecursion  # noqa
 
@@ -30,7 +30,7 @@ except ImportError:
 
 
 def read_domains_from_credentials_file(
-    cred_filepath: Union[str, FilePath]
+    cred_filepath: Union[str, FilePath],
 ) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
     """Reads domains and credentials from a yaml file
 
@@ -43,7 +43,7 @@ def read_domains_from_credentials_file(
     -------
 
     """
-    with open(cred_filepath, "r", encoding="utf-8") as stream_:
+    with open(cred_filepath, encoding="utf-8") as stream_:
         try:
             accounts_dict = yaml.safe_load(stream_)
             domains_list = list(accounts_dict.keys())
@@ -73,15 +73,15 @@ def read_credentials_from_yaml(
         contain keys 'username' and 'password'.
     """
     if password_file != "":
-        with open(password_file, "r") as stream:
+        with open(password_file) as stream:
             try:
                 accounts = yaml.safe_load(stream)
                 if domain is not None and domain in accounts.keys():
                     domain = domain
                 elif len(accounts.keys()) > 0:
-                    domain = list(accounts.keys())[0]
+                    domain = next(iter(accounts.keys()))
                     if len(accounts.keys()) > 0:
-                        domain = list(accounts.keys())[0]
+                        domain = next(iter(accounts.keys()))
                 user = accounts[domain]["username"]
                 password = accounts[domain]["password"]
             except yaml.YAMLError as exc:
@@ -244,7 +244,7 @@ def semantic_search(
         result = site.api("ask", query=single_query, format="json")
         if query.debug:
             if len(result["query"]["results"]) == 0:
-                print("Query '{}' returned no results".format(single_query))
+                print(f"Query '{single_query}' returned no results")
             else:
                 print(
                     "Query '{}' returned {} results".format(

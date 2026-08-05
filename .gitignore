@@ -42,9 +42,6 @@ coverage.xml
 build/*
 dist/*
 sdist/*
-docs/api/*
-docs/_rst/*
-docs/_build/*
 cover/*
 MANIFEST
 site
@@ -64,7 +61,13 @@ playground
 
 .env
 
-# Automatically added by osw.auth.CredentialManager.save_credentials_to_file:
+# Credential files and osw work dirs, in subdirectories and at the project root.
+# The root accounts.pwd.yaml is the default credential file (read only, never
+# written automatically); ignoring it prevents a hand-maintained credential
+# file from being staged. Credentials primarily come from .env / env vars.
 */osw_files/*
-
+/osw_files/
 */accounts.pwd.yaml
+/accounts.pwd.yaml
+.ign
+.claude

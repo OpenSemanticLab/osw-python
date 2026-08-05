@@ -3,7 +3,7 @@ from pathlib import Path
 
 import dotenv
 
-from osw.express import OswExpress, osw_download_file, osw_upload_file  # noqa: E402
+from osw.express import OswExpress, osw_download_file, osw_upload_file
 
 # Best practise load environment variables from .env file
 dotenv.load_dotenv()  # will look for a .env file in CWD and above

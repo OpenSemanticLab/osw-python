@@ -126,13 +126,13 @@ class DataFormat(DataTerm):
     Either text or link
     """
     type: list[str] | None = ["Category:OSWccac243b31f94574847861e5d9685b82"]
-'''  # noqa
+'''
 
     result = remove_constraints_from_forward_refs(src_code)
 
     # Test 1: DataFormat forward references should have min_items removed
     assert (
-        "data_format: list[DataFormat] | None = Field(\n        None,\n        min_items=1,"  # noqa
+        "data_format: list[DataFormat] | None = Field(\n        None,\n        min_items=1,"
         not in result
     )
     assert (
@@ -150,17 +150,17 @@ class DataFormat(DataTerm):
     # Test 3: DatasetSchema is NOT a forward ref (defined before Dataset),
     # so min_items should remain
     assert (
-        "dataset_schema: list[DatasetSchema] | None = Field(\n        None,\n        min_items=1,"  # noqa
+        "dataset_schema: list[DatasetSchema] | None = Field(\n        None,\n        min_items=1,"
         in result
     )
 
     # Test 4: Other fields should remain unchanged
     assert (
-        'distributions: list[Distribution] | None = Field(\n        None, title="Distributions / Downloads"\n    )'  # noqa
+        'distributions: list[Distribution] | None = Field(\n        None, title="Distributions / Downloads"\n    )'
         in result
     )
     assert (
-        'themes: list[Entity] | None = Field(\n        None, range="Category:Entity", title="Themes / Topics"\n    )'  # noqa
+        'themes: list[Entity] | None = Field(\n        None, range="Category:Entity", title="Themes / Topics"\n    )'
         in result
     )
 

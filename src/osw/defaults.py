@@ -12,7 +12,11 @@ BASE_PATH = Path.cwd()
 OSW_FILES_DIR_DEFAULT = BASE_PATH / "osw_files"
 DOWNLOAD_DIR_DEFAULT = OSW_FILES_DIR_DEFAULT / "downloads"
 CRED_FILENAME_DEFAULT = "accounts.pwd.yaml"
-CRED_FILEPATH_DEFAULT = OSW_FILES_DIR_DEFAULT / CRED_FILENAME_DEFAULT
+# Default credential file lives at the project root (current working directory),
+# matching the documented location and enabling a hand-maintained multi-instance
+# transfer file. It is only ever read; credentials are never written here
+# automatically. See osw.auth.CredentialManager.
+CRED_FILEPATH_DEFAULT = BASE_PATH / CRED_FILENAME_DEFAULT
 WIKI_DOMAIN_DEFAULT = "wiki-dev.open-semantic-lab.org"
 
 
@@ -120,9 +124,10 @@ class Paths(Defaults):
                     old_rel_path = getattr(self, attr_name).relative_to(old_val)
                     new_rel_path = new_val / old_rel_path
                     setattr(self, attr_name, new_rel_path)
+                    cls_name = type(self).__name__
                     print(
-                        f"Following the setting of {self.__name__}.{set_attr}, "
-                        f"{self.__name__}.{attr_name} was updated to {new_rel_path}."
+                        f"Following the setting of {cls_name}.{set_attr}, "
+                        f"{cls_name}.{attr_name} was updated to {new_rel_path}."
                     )
 
         if attr_name == "base":
@@ -156,7 +161,7 @@ class Params(Defaults):
     @validator("wiki_domain")
     def validate_wiki_domain(cls, v):
         pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
-        assert re.match(pattern, v), "The wiki domain is not valid."
+        assert re.match(pattern, v), "The wiki domain is not valid."  # noqa: S101 pydantic validator idiom
         return v
 
 

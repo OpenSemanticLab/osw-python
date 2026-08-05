@@ -70,7 +70,7 @@ class OswInstance(OswBaseModel):
             changed_slots = []
             for slot in SLOTS:
                 remote_content = wtpage.get_slot_content(slot)
-                if remote_content != content_dict.get(slot, None):
+                if remote_content != content_dict.get(slot):
                     changed_slots.append(slot)
             if len(changed_slots) == 0:
                 print(

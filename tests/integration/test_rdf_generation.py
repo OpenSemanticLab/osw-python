@@ -9,7 +9,7 @@ from osw.utils.wiki import get_full_title
 from osw.wtsite import WtSite
 
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 def test_local_rdf_graph_with_remote_context(wiki_domain, wiki_username, wiki_password):
     cm = CredentialManager()
     cm.add_credential(

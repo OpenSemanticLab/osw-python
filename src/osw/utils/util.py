@@ -108,7 +108,7 @@ class AsyncMessageBuffer(MessageBuffer):
 
 
 def redirect_print(
-    file_like: Union[IO, Path, MessageBuffer, AsyncMessageBuffer]
+    file_like: Union[IO, Path, MessageBuffer, AsyncMessageBuffer],
 ) -> Callable:
     def decorator(func_: Callable) -> Callable:
         """
@@ -315,7 +315,7 @@ def parallelize(
         async def _run_tasks():
             loop = asyncio.get_event_loop()
             # ToDo: handle IO-bound different from CPU-bound tasks
-            # see https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor # noqa
+            # see https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor
             # None => ThreadPoolExecutor for IO-bound tasks
             tasks = [
                 loop.run_in_executor(None, functools.partial(func, item, **kwargs))
@@ -419,7 +419,7 @@ def async_parallelize(func: Callable, iterable: Iterable, **kwargs):
     return asyncio.run(inner(func, iterable, **kwargs))
 
 
-class RedirectStdout(object):
+class RedirectStdout:
     """Can be used as a decorator or context manager to temporarily redirect
     stdout to a buffer.
 
@@ -464,7 +464,7 @@ if __name__ == "__main__":
     print("Redirecting print messages to a buffer.")
     message_buffer = MessageBuffer()
     io_buffer = StringIO()
-    file_as_buffer = open("xx.txt", "w")
+    file_as_buffer = open("xx.txt", "w")  # noqa: SIM115 buffer handed to caller
 
     def prepend_timestamp(line):
         return f"{datetime.now().isoformat()}: {line}"
@@ -611,6 +611,6 @@ if __name__ == "__main__":
     message_buffer.flush()
     file_as_buffer.close()
     print("Messages from the file buffer:")
-    with open("xx.txt", "r") as f:
+    with open("xx.txt") as f:
         for line_ in f.readlines():
             print(line_, end="")

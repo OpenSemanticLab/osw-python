@@ -76,9 +76,12 @@ deploy_param = DeployParam(
 
 
 @pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore:coroutine '_deploy' was never awaited")
 async def test_deploy_serve():
     """Test of deployment of example flow"""
     with prefect_test_harness():
+        # TODO: deliberately not awaited (a real deployment would need a
+        # prefect server); only verifies the coroutine can be constructed
         _deploy(param=deploy_param)
 
 

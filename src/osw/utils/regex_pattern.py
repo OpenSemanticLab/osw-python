@@ -73,8 +73,7 @@ REGEX_PATTERN_LIST = [
         expected_groups=["211104-sist-0003", "n stamped 20211116080457", ".pdf.ots"],
     ),
     RegExPatternExtended(
-        description="File page full page title (old format) with ISC-ID and "
-        "one suffix",
+        description="File page full page title (old format) with ISC-ID and one suffix",
         pattern=r"File:([A-Za-z0-9\-]+[\- ]{1}[0-9]{4})[\- ]{1}(.*)"
         r"(\.[a-zA-Z0-9]*[a-zA-Z]+[a-zA-Z0-9]*)",
         group_keys=["ISC-ID", "Label", "Suffix(es)"],

@@ -302,9 +302,7 @@ def isclass(obj, cls):
             obj_type.sort()
         if isinstance(cls_type, list):
             cls_type.sort()
-        if obj_type == cls_type and obj_type is not None:
-            return True
-        return False
+        return bool(obj_type == cls_type and obj_type is not None)
 
 
 def flatten_list(nested_list):
@@ -412,7 +410,7 @@ def jsonpath_search_and_return_list(
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:
             warnings.warn(
-                f"jsonpath_search_and_return_list() threw and " f"exception:\n{str(e)}",
+                f"jsonpath_search_and_return_list() threw and exception:\n{e!s}",
                 stacklevel=2,
             )
             result = jp_parse.find(search_tar)
@@ -424,9 +422,7 @@ def jsonpath_search_and_return_list(
             res_type = res.value["type"]
             res_type.sort()
             append = False
-            if class_to_match is None:
-                append = True
-            elif isclass(res.value, class_to_match):
+            if class_to_match is None or isclass(res.value, class_to_match):
                 append = True
             if append:
                 if val_key is None:
@@ -481,14 +477,9 @@ def nan_empty_or_none(inp: Any) -> bool:
     result
     """
     if isinstance(inp, str):
-        if inp == "nan" or inp == "":
-            return True
-        return False
+        return bool(inp == "nan" or inp == "")
     elif isinstance(inp, list):
-        for ele in inp:
-            if not nan_empty_or_none(ele):
-                return False
-        return True
+        return all(nan_empty_or_none(ele) for ele in inp)
     elif inp is None:
         return True
     else:
@@ -800,9 +791,7 @@ def get_entities_from_osw(
         if obj is None:
             return True
         elif isinstance(obj, list):
-            if len(obj) == 0:
-                return True
-            elif len([item for item in obj if item is not None]) == 0:
+            if len(obj) == 0 or len([item for item in obj if item is not None]) == 0:
                 return True
         return False
 
@@ -905,7 +894,7 @@ def translate_list_with_deepl(
         cred_filepath = default_paths.cred_filepath
     if translations is None:
         translations = {}
-    domains, accounts = wt.read_domains_from_credentials_file(cred_filepath)
+    _domains, accounts = wt.read_domains_from_credentials_file(cred_filepath)
     domain = "api-free.deepl.com"
     auth = accounts[domain]["password"]
     translator = deepl.Translator(auth)

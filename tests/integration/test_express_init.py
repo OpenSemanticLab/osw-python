@@ -11,7 +11,7 @@ Tests that require a live wiki connection use the wiki_domain, wiki_username,
 and wiki_password fixtures (passed via CLI args).
 
 Run with:
-    tox -e test -- tests/integration/test_express_init.py
+    uv run pytest tests/integration -o addopts="" tests/integration/test_express_init.py
         --wiki_domain <domain> --wiki_username <user> --wiki_password <pass>
 
 Or for unit-style tests only (no live wiki needed):
@@ -19,6 +19,7 @@ Or for unit-style tests only (no live wiki needed):
 """
 
 import os
+import uuid
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
@@ -439,17 +440,19 @@ class TestFileResult:
         fr.close()
         assert fio.closed
 
-    def test_close_already_closed_warns(self, tmp_path):
-        """Test that closing an already-closed file emits a warning."""
+    def test_close_already_closed_is_noop(self, tmp_path):
+        """Closing an already-closed (or never opened) file is a silent
+        no-op, matching io stream semantics."""
         fp = tmp_path / "test.txt"
         fp.write_text("data")
         fr = FileResult(path=fp)
-        # Not opened yet - should warn
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
+            fr.close()  # never opened
+            fr.open()
             fr.close()
-            assert len(w) == 1
-            assert "already closed" in str(w[0].message).lower()
+            fr.close()  # already closed
+            assert len(w) == 0
 
     def test_read_auto_opens(self, tmp_path):
         """Test that read() auto-opens the file if not opened."""
@@ -518,7 +521,7 @@ class TestFileResult:
 class TestDownloadFileResultValidation:
     """Test DownloadFileResult __init__ validation paths without live wiki."""
 
-    DOWNLOAD_ENV_VARS = ENV_VARS + ["OSW_DOWNLOAD_DIR", "OSL_DOWNLOAD_DIR"]
+    DOWNLOAD_ENV_VARS = [*ENV_VARS, "OSW_DOWNLOAD_DIR", "OSL_DOWNLOAD_DIR"]
 
     def test_title_without_domain_raises(self):
         """When url_or_title is a plain title (no URL) and no domain env var
@@ -778,6 +781,7 @@ class TestImportWithFallback:
         with pytest.raises(ValueError, match="to_import"):
             import_with_fallback(None, {})
 
+    @pytest.mark.filterwarnings("ignore:No 'dependencies' were passed:UserWarning")
     def test_nonexistent_class_no_deps_raises(self):
         """When the class doesn't exist and no dependencies or osw_fpt
         are given, should raise AttributeError."""
@@ -1107,7 +1111,7 @@ class TestUploadInvalidSourceType:
 def preserve_entity_py_state():
     """Preserve and restore entity.py to avoid test side effects."""
     path = Path(__file__).parents[2] / "src" / "osw" / "model" / "entity.py"
-    with open(path, "r") as file:
+    with open(path) as file:
         original_entity = file.read()
     try:
         yield None
@@ -1130,9 +1134,11 @@ class TestLiveUploadDownloadInstanceMethods:
             osw_obj = osw.express.OswExpress(
                 domain=wiki_domain, cred_filepath=cred_filepath
             )
-            # Create dummy file
-            source_file = Path.cwd() / "test_instance_upload.txt"
-            source_file.write_text("Instance upload test content")
+            # Create dummy file; unique name/content per run so leftovers
+            # on the shared test wiki never collide with a re-upload
+            uid = uuid.uuid4().hex[:8]
+            source_file = Path.cwd() / f"test_instance_upload_{uid}.txt"
+            source_file.write_text(f"Instance upload test content {uid}")
 
             try:
                 # Upload via instance method
@@ -1146,7 +1152,9 @@ class TestLiveUploadDownloadInstanceMethods:
                     overwrite=True,
                 )
                 assert local_file.path.exists()
-                assert local_file.path.read_text() == "Instance upload test content"
+                assert local_file.path.read_text() == (
+                    f"Instance upload test content {uid}"
+                )
 
                 # Cleanup
                 local_file.close()
@@ -1175,14 +1183,22 @@ class TestLiveUploadWithTargetFpt:
             osw_obj = osw.express.OswExpress(
                 domain=wiki_domain, cred_filepath=cred_filepath
             )
-            source_file = Path.cwd() / "test_target_fpt_upload.txt"
-            source_file.write_text("Target FPT test content")
+            # Unique name and content per run: the shared test wiki keeps
+            # pages between runs, and re-uploading identical content raises
+            # a fileexists-no-change API error.
+            uid = uuid.uuid4().hex[:8]
+            content = f"Target FPT test content {uid}"
+            source_file = Path.cwd() / f"test_target_fpt_upload_{uid}.txt"
+            source_file.write_text(content)
+            title = f"File:TestTargetFptUpload{uid}.txt"
 
+            wiki_file = None
+            local_file = None
             try:
                 wiki_file = osw_obj.upload_file(
                     source=source_file,
-                    url_or_title="File:TestTargetFptUpload.txt",
-                    target_fpt="File:TestTargetFptUpload.txt",
+                    url_or_title=title,
+                    target_fpt=title,
                 )
                 assert wiki_file is not None
                 assert wiki_file.change_id is not None
@@ -1193,13 +1209,14 @@ class TestLiveUploadWithTargetFpt:
                     url_or_title=wiki_file.url_or_title,
                     overwrite=True,
                 )
-                assert local_file.path.read_text() == "Target FPT test content"
-
-                # Cleanup
-                local_file.close()
-                local_file.delete()
-                wiki_file.delete()
+                assert local_file.path.read_text() == content
             finally:
+                # best-effort cleanup so no state leaks onto the shared wiki
+                if local_file is not None:
+                    local_file.close()
+                    local_file.delete()
+                if wiki_file is not None:
+                    wiki_file.delete()
                 if source_file.exists():
                     source_file.unlink()
             osw_obj.shut_down()
@@ -1211,6 +1228,10 @@ class TestLiveUploadWithTargetFpt:
 class TestLiveImportWithFallback:
     """Test import_with_fallback fallback path with live wiki."""
 
+    @pytest.mark.filterwarnings("ignore:No 'dependencies' were passed:UserWarning")
+    @pytest.mark.filterwarnings(
+        "ignore:An exception occurred while loading the module dependencies:UserWarning"
+    )
     def test_live_fallback_fetches_from_wiki(
         self, wiki_domain, wiki_username, wiki_password
     ):

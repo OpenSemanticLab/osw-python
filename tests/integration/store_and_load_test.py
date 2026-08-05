@@ -14,7 +14,7 @@ from osw.utils.wiki import get_full_title
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtSite
 
-# run with: tox -e test -- --wiki_domain domain --wiki_username user --wiki_password pass
+# run with: uv run pytest tests/integration -o addopts="" --wiki_domain domain --wiki_username user --wiki_password pass
 
 
 def test_store_and_load(wiki_domain, wiki_username, wiki_password):

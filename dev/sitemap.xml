@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/about/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/get-started/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/api/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/api/core/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/api/wiki-tools/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/api/auth/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/api/controller/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/api/model/</loc>
+      </url>
+      <url>
+        <loc>https://OpenSemanticLab.github.io/osw-python/dev/dev/</loc>
+      </url>
+</urlset>

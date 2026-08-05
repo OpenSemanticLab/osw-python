@@ -2103,7 +2103,7 @@ requires-dist = [
     { name = "psycopg2", marker = "extra == 'all'" },
     { name = "psycopg2", marker = "extra == 'db'" },
     { name = "pybars3-wheel" },
-    { name = "pydantic", extras = ["email"], specifier = ">=1.10.17" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.12.0" },
     { name = "pyld" },
     { name = "pysimplegui", marker = "extra == 'all'" },
     { name = "pysimplegui", marker = "extra == 'ui'" },

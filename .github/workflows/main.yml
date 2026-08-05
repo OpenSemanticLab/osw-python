@@ -19,9 +19,6 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
-        with:
-          # deep clone incl. tags so hatch-vcs can derive the version
-          fetch-depth: 0
 
       - uses: actions/cache@v4
         with:
@@ -58,9 +55,6 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
-        with:
-          # deep clone incl. tags so hatch-vcs can derive the version
-          fetch-depth: 0
 
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
@@ -85,12 +79,72 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
-        with:
-          # deep clone incl. tags so hatch-vcs can derive the version
-          fetch-depth: 0
 
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
       - name: Check if documentation can be built
         run: uv run zensical build -s
+
+  version-preview:
+    # Show contributors what a merge would release, based on the conventional
+    # commits on the branch. Pull requests only; informational.
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # PSR needs full history + tags to compute the bump
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Compute release preview
+        id: preview
+        run: |
+          # PSR only computes a release on the main branch; name the checked-out
+          # PR head 'main' so the preview reflects what a merge would release.
+          git checkout -B main >/dev/null 2>&1 || true
+          current=$(uv version --short 2>/dev/null || echo "unknown")
+          next=$(uv run semantic-release version --print 2>/dev/null || echo "")
+          if [ -n "$next" ] && [ "$next" != "$current" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          # Stamp the upcoming changelog section locally (no commit/tag/push/build)
+          # so the preview shows the notes this merge would add.
+          if [ -n "$next" ] && [ "$next" != "$current" ]; then
+            uv run semantic-release version --no-commit --no-tag --no-push --no-vcs-release --skip-build >/dev/null 2>&1 || true
+          fi
+          {
+            echo "changelog<<PSR_EOF"
+            git --no-pager diff HEAD -- CHANGELOG.md | awk '/^\+/ && !/^\+\+\+/ {sub(/^\+/,""); print}' | head -80
+            echo "PSR_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post release preview comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: version-preview
+          message: |
+            ## Release preview
+
+            ${{ steps.preview.outputs.released == 'true' && format('Merging this PR would release **v{0}** (current: `v{1}`).', steps.preview.outputs.next, steps.preview.outputs.current) || format('No version bump from the current commits (stays at `v{0}`). Use conventional commit types (`feat`, `fix`, ...) to trigger a release.', steps.preview.outputs.current) }}
+
+            <details><summary>Changelog preview (truncated)</summary>
+
+            ```markdown
+            ${{ steps.preview.outputs.changelog }}
+            ```
+
+            </details>
+
+            <sub>Preview via python-semantic-release and conventional commits.</sub>

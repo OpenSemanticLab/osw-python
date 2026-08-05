@@ -1,13 +1,18 @@
 # Automated release: python-semantic-release analyzes the conventional
-# commits on main, and when a release is due it updates CHANGELOG.md,
-# commits, tags vX.Y.Z, pushes and creates the GitHub release. hatch-vcs
-# derives the package version from that tag, so no version file is bumped.
-# Publishing happens in this same run: pushes made with GITHUB_TOKEN do
-# not retrigger workflows, so a tag-triggered publish would never fire.
+# commits on main, and when a release is due it bumps the static version in
+# pyproject.toml and CITATION.cff, updates CHANGELOG.md, relocks uv.lock,
+# commits, tags vX.Y.Z, pushes and creates the GitHub release. Publishing
+# happens in this same run: pushes made with GITHUB_TOKEN do not retrigger
+# workflows, so a tag-triggered publish would never fire.
 #
 # Filename and environment name are load-bearing: the PyPI trusted
 # publisher (OIDC) references workflow "on-release-main.yml" and
-# environment "pypi".
+# environment "pypi". That same "pypi" environment is also the release
+# gate: it has a required-reviewer protection rule (repo Settings ->
+# Environments -> pypi, configured out-of-repo), so this job pauses right
+# after checkout until a reviewer approves. Reject and nothing is tagged
+# or published. This is the deliberate-release control in place of a
+# staging branch.
 
 name: release-main
 
@@ -36,15 +41,27 @@ jobs:
       released: ${{ steps.psr.outputs.released }}
       version: ${{ steps.psr.outputs.version }}
     steps:
+      # The default GITHUB_TOKEN cannot push to a ruleset-protected main
+      # (fails with GH013). Mint a short-lived, repo-scoped (Contents: write)
+      # GitHub App token instead; the app is on main's branch-protection
+      # bypass list, so PSR's release commit and tag push succeed.
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - name: Check out
         uses: actions/checkout@v4
         with:
-          # full history: PSR analyzes commits, hatch-vcs needs the tags
+          # full history so PSR can analyze commits and tags
           fetch-depth: 0
           # latest main, not the triggering SHA: runs queued behind the
           # concurrency group must include release commits pushed by the
           # previous run, or their own push is rejected
           ref: main
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
@@ -52,7 +69,7 @@ jobs:
       - name: Version, tag and changelog with python-semantic-release
         id: psr
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -10,6 +10,138 @@
 
 <!-- version list -->
 
+## v2.0.0 (2026-08-05)
+
+### Bug Fixes
+
+- Bump pydantic floor to >=2.12.0 in pyproject.toml
+  ([`6b77272`](https://github.com/OpenSemanticLab/osw-python/commit/6b772725363afec206fb851c8a22a9a007077b72))
+
+- Make live upload integration tests rerun-safe
+  ([`51eab32`](https://github.com/OpenSemanticLab/osw-python/commit/51eab32bc2d79f9e69725fbfac43946fea3e528d))
+
+- Prevent KeyError when wiki file does not exist in download fallback
+  ([`e43f221`](https://github.com/OpenSemanticLab/osw-python/commit/e43f221b84b8371c430c1c2fe66653dc2294aa20))
+
+- Require pydantic>=2.12.0
+  ([`f21b5d5`](https://github.com/OpenSemanticLab/osw-python/commit/f21b5d56fa3ffffe1088c73b215283cabe233abe))
+
+- Resolve environment-dependent ty failure and deptry warnings
+  ([`13968ad`](https://github.com/OpenSemanticLab/osw-python/commit/13968ad37f0ea181728e6a2355d07dd23e62d92a))
+
+- Resolve environment-dependent ty failure on python 3.10
+  ([`85fd9cc`](https://github.com/OpenSemanticLab/osw-python/commit/85fd9cc65e82a58b6ff4e574fb53ef67923a5b42))
+
+- Restore accounts.pwd.yaml default at project root for file login
+  ([`ce3d5c5`](https://github.com/OpenSemanticLab/osw-python/commit/ce3d5c5de0709b9269df9ea920aaa8d4f11f11e4))
+
+- Typo
+  ([`a4bb8a4`](https://github.com/OpenSemanticLab/osw-python/commit/a4bb8a4be4fb09c0d11b867003e1ead9a72a81ca))
+
+- **wiki_tools**: Return list of full responses for prefix_search return_json
+  ([`26e0839`](https://github.com/OpenSemanticLab/osw-python/commit/26e0839c2908cbfc848d488b444a1cba2081f61b))
+
+- **wiki_tools**: Return list of full responses for prefix_search return_json
+  ([`3f36d77`](https://github.com/OpenSemanticLab/osw-python/commit/3f36d773372929a43af56e603d2483f7c6421c64))
+
+- **wiki_tools**: Return list of result dicts for semantic_search return_json
+  ([`182db57`](https://github.com/OpenSemanticLab/osw-python/commit/182db57a0deb9fbd3f5f55dcdddfdf6891868d90))
+
+- **wiki_tools**: Return list of result dicts for semantic_search return_json
+  ([`4daff1f`](https://github.com/OpenSemanticLab/osw-python/commit/4daff1f6f553bd0f5d8bf8576c452522153f8d8e))
+
+### Build System
+
+- Migrate packaging to hatchling + hatch-vcs and uv
+  ([`0d53373`](https://github.com/OpenSemanticLab/osw-python/commit/0d533732b790c9928674dfa9167fd1e799785a3b))
+
+- Switch to a static PSR-owned version, drop hatch-vcs
+  ([`dbfb319`](https://github.com/OpenSemanticLab/osw-python/commit/dbfb31933699cc509e473fec24fa62e21435ef0f))
+
+### Chores
+
+- Enforce conventional commit messages via pre-commit
+  ([`6c44650`](https://github.com/OpenSemanticLab/osw-python/commit/6c4465032e36c2553ce440bc0181ca39855b225b))
+
+- Ign local files
+  ([`df14ee5`](https://github.com/OpenSemanticLab/osw-python/commit/df14ee5f8b27a12d2849679008516e507b856f60))
+
+- Ignore accounts.pwd.yaml and remove duplicate gitignore entry
+  ([`62868a7`](https://github.com/OpenSemanticLab/osw-python/commit/62868a7e2d5491e3ac19dad357d3b1267d3054b9))
+
+- Remove legacy setuptools scaffolding and tidy repo
+  ([`1c4c97e`](https://github.com/OpenSemanticLab/osw-python/commit/1c4c97e995b7eca08b8cf910a17974c4e61ca6e6))
+
+- Replace black/isort/flake8 with ruff and add ty + deptry
+  ([`cf21071`](https://github.com/OpenSemanticLab/osw-python/commit/cf21071a5ea56e0c45561d65ca2917158ce8cdd8))
+
+### Code Style
+
+- Apply ruff format and lint auto-fixes
+  ([`39e83f0`](https://github.com/OpenSemanticLab/osw-python/commit/39e83f03cbfd6047a771deaaaf100bd89c4516a4))
+
+### Continuous Integration
+
+- Add uv-based main workflow with ty and codecov
+  ([`59a780b`](https://github.com/OpenSemanticLab/osw-python/commit/59a780b48314d46972cc4893c402f3050afa93a2))
+
+- Comment predicted release version on PRs into main
+  ([`9ca2c1a`](https://github.com/OpenSemanticLab/osw-python/commit/9ca2c1ae4fe7738b241a8f5ff33c00340029ae84))
+
+- Run integration tests on pull requests into main
+  ([`1e504b4`](https://github.com/OpenSemanticLab/osw-python/commit/1e504b434d0e3818ec71c14a3268d6ae66cae703))
+
+- Switch release to pypi trusted publishing (oidc)
+  ([`5e9ce62`](https://github.com/OpenSemanticLab/osw-python/commit/5e9ce620d5330ace74cc9f111f49fc060d35c799))
+
+- Use a github app token so release pushes survive branch protection
+  ([`508e843`](https://github.com/OpenSemanticLab/osw-python/commit/508e8433648038748a840fa20924855255968d04))
+
+### Documentation
+
+- Add versioned docs deployment with mike
+  ([`edd958a`](https://github.com/OpenSemanticLab/osw-python/commit/edd958a0f83a5aa15f81ed4f05bbc50e83dad028))
+
+- Consolidate sphinx and mkdocs into single-version zensical
+  ([`22c6326`](https://github.com/OpenSemanticLab/osw-python/commit/22c632601c8f4b721eb6c8a478723c5ea8defd10))
+
+- Document conventional commits and the approval-gated release flow
+  ([`80c9353`](https://github.com/OpenSemanticLab/osw-python/commit/80c9353b43a524cf1a05a8153bfd2e8de1abe492))
+
+- Restructure docs with hero landing page and tabbed guides
+  ([`b2b82cb`](https://github.com/OpenSemanticLab/osw-python/commit/b2b82cb2ed4e988f4d4fe2b1ed551f87be559614))
+
+### Features
+
+- Add automated releases with python-semantic-release
+  ([`647b481`](https://github.com/OpenSemanticLab/osw-python/commit/647b48121979b3d674e1045f64c5533d54078c31))
+
+- Add session-aware re-login on token renewal failure
+  ([`55e16b6`](https://github.com/OpenSemanticLab/osw-python/commit/55e16b629311e190b3e610502631de9d1f88f100))
+
+- Resolve credentials from env vars or memory, never write files
+  ([`9df297f`](https://github.com/OpenSemanticLab/osw-python/commit/9df297f87ba194b03cd1d1bd9648b9ae350d2b79))
+
+### Refactoring
+
+- Rework OswExpress init to use env vars and update tests
+  ([`8f99363`](https://github.com/OpenSemanticLab/osw-python/commit/8f993633d9d45486d78359d15d8be572564be1fa))
+
+### Testing
+
+- Add FileResult, DownloadFileResult, UploadFileResult, and import_with_fallback tests
+  ([`e92d47e`](https://github.com/OpenSemanticLab/osw-python/commit/e92d47e90591effff98dcdbf11f7438174c6273c))
+
+- Add OswExpress initialization path tests for increased coverage
+  ([`3dfacf6`](https://github.com/OpenSemanticLab/osw-python/commit/3dfacf64474ab5a30e90471edc9ae61786441f2a))
+
+- Add session renewal and token recovery tests for WtSite
+  ([`addf461`](https://github.com/OpenSemanticLab/osw-python/commit/addf461e5b752985dcbcd036c8e0561facea1e12))
+
+- Add upload/download instance method and UploadFileResult branch tests
+  ([`43c82b3`](https://github.com/OpenSemanticLab/osw-python/commit/43c82b391fc3bb5525e645e32818c6eb1d4e3a6e))
+
+
 ## Version v0.12.0
 
 - rework ontology import (BREAKING, see examples/ontology_import.py)

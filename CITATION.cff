@@ -1,13 +1,22 @@
-cff-version: 1.1.0
+cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+type: software
+title: "OpenSemanticWorld Python Package (osw-python)"
+# Managed by python-semantic-release (version_variables). Do not edit by hand.
+version: 1.1.2
+abstract: "Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab: work with OpenSemanticLab instances as typed pydantic entities, query with semantic search, generate models from wiki schemas, and write changes back."
+repository-code: "https://github.com/OpenSemanticLab/osw-python"
+url: "https://opensemanticlab.github.io/osw-python/"
+doi: 10.5281/zenodo.7799493
+# Authors listed here are the creators shown on each Zenodo release.
+# Listing is opt-in: open a PR to be added.
 authors:
   - family-names: Stier
     given-names: Simon
-    orcid: https://orcid.org/0000-0003-0410-3616
+    orcid: "https://orcid.org/0000-0003-0410-3616"
   - family-names: Gold
     given-names: Lukas
-    orcid: https://orcid.org/0000-0001-7444-2969
+    orcid: "https://orcid.org/0000-0001-7444-2969"
   - family-names: Räder
     given-names: Andreas
-    orcid: https://orcid.org/0000-0002-2673-0832
-title: OpenSemanticWorld Python Package (osw-python)
+    orcid: "https://orcid.org/0000-0002-2673-0832"

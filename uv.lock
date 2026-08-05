@@ -1978,6 +1978,7 @@ wheels = [
 
 [[package]]
 name = "osw"
+version = "1.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
@@ -2075,48 +2076,39 @@ requires-dist = [
     { name = "anyio", marker = "extra == 'workflow'", specifier = ">=4.4.0,<4.7" },
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "black" },
-    { name = "boto3", marker = "extra == 'all'" },
     { name = "boto3", marker = "extra == 's3'" },
     { name = "dask" },
     { name = "datamodel-code-generator", specifier = "==0.51.0" },
-    { name = "deepl", marker = "extra == 'all'" },
     { name = "deepl", marker = "extra == 'dataimport'" },
-    { name = "deepl", marker = "extra == 'tutorial'" },
-    { name = "geopy", marker = "extra == 'all'" },
     { name = "geopy", marker = "extra == 'dataimport'" },
-    { name = "geopy", marker = "extra == 'tutorial'" },
     { name = "httpx" },
     { name = "isort" },
     { name = "jsonpath-ng" },
     { name = "mwclient", specifier = ">=0.11.0" },
-    { name = "mwparserfromhell", marker = "extra == 'all'" },
     { name = "mwparserfromhell", marker = "extra == 'wikitext'" },
     { name = "numpy" },
     { name = "oold", specifier = ">=0.15.0" },
-    { name = "openpyxl", marker = "extra == 'all'" },
     { name = "openpyxl", marker = "extra == 'dataimport'" },
-    { name = "openpyxl", marker = "extra == 'tutorial'" },
     { name = "opensemantic" },
     { name = "opensemantic-base", specifier = ">=0.42.7" },
     { name = "opensemantic-core", specifier = ">=0.57.4" },
+    { name = "osw", extras = ["dataimport"], marker = "extra == 'tutorial'" },
+    { name = "osw", extras = ["dataimport", "db", "ui", "s3", "wikitext"], marker = "extra == 'all'" },
     { name = "prefect", marker = "extra == 'workflow'", specifier = ">=2.20.25,<3.0" },
-    { name = "psycopg2", marker = "extra == 'all'" },
     { name = "psycopg2", marker = "extra == 'db'" },
     { name = "pybars3-wheel" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.0" },
     { name = "pyld" },
-    { name = "pysimplegui", marker = "extra == 'all'" },
     { name = "pysimplegui", marker = "extra == 'ui'" },
     { name = "pyyaml" },
     { name = "rdflib" },
     { name = "requests" },
     { name = "sparqlwrapper" },
-    { name = "sqlalchemy", marker = "extra == 'all'" },
     { name = "sqlalchemy", marker = "extra == 'db'" },
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-provides-extras = ["all", "dataimport", "db", "s3", "tutorial", "ui", "wikitext", "workflow"]
+provides-extras = ["wikitext", "db", "s3", "dataimport", "ui", "workflow", "tutorial", "all"]
 
 [package.metadata.requires-dev]
 dev = [

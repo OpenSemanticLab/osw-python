@@ -6,7 +6,9 @@ readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
-dynamic = ["version"]
+# Managed by python-semantic-release (see [tool.semantic_release]). Do not
+# edit by hand; it is bumped automatically on merge to main.
+version = "1.1.2"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -80,14 +82,8 @@ tutorial = ["osw[dataimport]"]
 all = ["osw[dataimport,DB,UI,S3,wikitext]"]
 
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.version]
-source = "vcs"
-# Preserve the setuptools-scm scheme the project used previously so tag-derived
-# versions are identical (e.g. 1.1.2.post1.dev25+g<sha>).
-raw-options = { version_scheme = "no-guess-dev" }
 
 [dependency-groups]
 dev = [
@@ -268,11 +264,11 @@ ignore = [
 preview = true
 
 [tool.semantic_release]
-# No version_toml/version_variables: the package version is derived from
-# the git tag by hatch-vcs, so semantic-release only computes the next
-# version from the conventional commits, updates the changelog, commits,
-# tags (vX.Y.Z) and creates the GitHub release. Publishing to PyPI happens
-# in the same workflow run (on-release-main.yml).
+# python-semantic-release owns the version: it reads the conventional commits
+# on main, bumps the static version below and in CITATION.cff, updates the
+# changelog, relocks uv.lock, commits, tags (vX.Y.Z) and creates the GitHub
+# release. Publishing to PyPI happens in the same workflow run
+# (on-release-main.yml).
 commit_parser = "conventional"
 tag_format = "v{version}"
 commit_message = "chore(release): v{version} [skip ci]"
@@ -280,6 +276,12 @@ commit_message = "chore(release): v{version} [skip ci]"
 # straight to 1.0.0 (moot at >=1.0.0, kept for copy-paste safety)
 allow_zero_version = true
 exclude_commit_patterns = ['''chore\(release\):.*''']
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["CITATION.cff:version"]
+# relock so uv.lock's own pin of osw's version stays consistent, and include
+# the relocked file in the release commit
+build_command = "uv lock"
+assets = ["uv.lock"]
 
 [tool.semantic_release.changelog]
 # prepend new versions at the insertion flag, keep the manual history below

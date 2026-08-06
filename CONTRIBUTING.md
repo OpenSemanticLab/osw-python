@@ -50,6 +50,44 @@ bumps the version (in `pyproject.toml`, never edited by hand), updates the
 changelog, tags, builds, publishes to PyPI via trusted publishing and deploys
 the versioned docs. Reject the approval and nothing ships.
 
+## Citation and Authorship
+
+Authors of the project are listed explicitly in
+[`CITATION.cff`](CITATION.cff). This list is the set of creators shown on
+each [Zenodo](https://zenodo.org/doi/10.5281/zenodo.7799493) release. We keep
+it opt-in and curated rather than auto-generated from GitHub, so nobody is
+listed without consent, and the entries in `CITATION.cff` take precedence
+over GitHub's automatic contributor detection.
+
+To be officially listed as an author for future Zenodo releases, add
+yourself to the `authors:` list in `CITATION.cff`. Two ways, in order of
+preference:
+
+1. **Preferred, within your feature PR:** include the `CITATION.cff` edit
+   directly in the same PR that contributes your feature or fix, so
+   authorship is recorded together with the work.
+2. **Standalone PR:** if you are already a GitHub contributor and simply
+   want to be listed as an author on Zenodo, open a single PR that only adds
+   your entry.
+
+In either case, add an entry like:
+
+```yaml
+  - given-names: Your
+    family-names: Name
+    affiliation: "Your institution"                 # optional
+    orcid: "https://orcid.org/0000-0000-0000-0000"  # optional, use your real ORCID
+```
+
+Notes:
+
+- Append yourself to the end of the list (order is the citation order);
+  mention it in the PR if a different position is intended.
+- `affiliation` and `orcid` are optional but recommended for durable,
+  unambiguous attribution.
+- Only entries present in `CITATION.cff` at the tagged commit appear on that
+  release's Zenodo record, so add yourself before a release to be included.
+
 ## AI Guidelines
 
 AI tools may be used to assist development, but a human developer is always

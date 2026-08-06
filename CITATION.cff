@@ -9,7 +9,8 @@ repository-code: "https://github.com/OpenSemanticLab/osw-python"
 url: "https://opensemanticlab.github.io/osw-python/"
 doi: 10.5281/zenodo.7799493
 # Authors listed here are the creators shown on each Zenodo release.
-# Listing is opt-in: open a PR to be added.
+# Listing is opt-in: to be added, open a PR (see CONTRIBUTING.md,
+# "Citation and Authorship").
 authors:
   - family-names: Stier
     given-names: Simon

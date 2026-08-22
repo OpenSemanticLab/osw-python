@@ -14,6 +14,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import yaml
 
@@ -45,7 +46,10 @@ def _first_env(names: tuple[str, ...]) -> Optional[str]:
 class Settings:
     """Resolved, validated server settings."""
 
-    domain: str
+    # domain is optional: with a usable credential file, no domain need be
+    # configured via the environment; the active instance is then chosen from
+    # the credential file (auto-selected or via the select_instance tool).
+    domain: Optional[str]
     # username/password are optional: a configured credential file is an
     # alternative source of credentials (see ENV_CRED_FILEPATH).
     username: Optional[str] = None
@@ -93,6 +97,20 @@ def _cred_file_iris(cred_filepath: str) -> list[str]:
     return sorted(str(key) for key in data.keys())
 
 
+def _derive_domain(iri: str) -> str:
+    """Derive a bare domain from ``iri`` (a bare domain or a full URL).
+
+    ``OswExpress`` requires a bare domain and validates it with a regex, but
+    credential-file iris may be either a bare domain (``wiki.example.org``) or
+    a full URL (``https://wiki.example.org/w/``).
+    """
+    if "://" in iri:
+        netloc = urlparse(iri).netloc
+    else:
+        netloc = iri.split("/", 1)[0]
+    return netloc.rstrip(".")
+
+
 def _verify_cred_file_has_domain(cred_filepath: str, domain: str) -> None:
     """Verify that the credential file has an entry matching ``domain``.
 
@@ -136,11 +154,12 @@ def load() -> Settings:
     Raises
     ------
     RuntimeError
-        If domain is missing, if neither a usable credential file nor
-        username/password are configured, if a configured credential file
-        does not exist, or if a configured credential file has no entry
-        matching the domain. This keeps the osw interactive credential prompt
-        from ever being reached.
+        If domain is missing and no usable credential file is configured, if
+        neither a usable credential file nor username/password are
+        configured, if a configured credential file does not exist, or if a
+        configured credential file has no entry matching a configured domain.
+        This keeps the osw interactive credential prompt from ever being
+        reached.
     """
     env_file = os.getenv("OSW_MCP_ENV_FILE")
     if env_file:
@@ -163,9 +182,11 @@ def load() -> Settings:
             )
         cred_file_usable = True
 
-    # A usable credential file is an alternative source of username/password.
-    checks = [(ENV_DOMAIN, domain)]
+    # A usable credential file makes the domain optional: which instance to
+    # use is then chosen later (auto-selected or via select_instance).
+    checks = []
     if not cred_file_usable:
+        checks.append((ENV_DOMAIN, domain))
         checks.append((ENV_USERNAME, username))
         checks.append((ENV_PASSWORD, password))
     missing = [names[0] for names, value in checks if not value]
@@ -180,7 +201,7 @@ def load() -> Settings:
             "that would hang the stdio transport."
         )
 
-    if cred_file_usable:
+    if cred_file_usable and domain:
         _verify_cred_file_has_domain(cred_filepath, domain)
 
     return Settings(
@@ -208,6 +229,129 @@ def get_settings() -> Settings:
 
 
 def reset() -> None:
-    """Drop cached settings (used by tests)."""
-    global _settings
+    """Drop cached settings and the active-instance selection (used by tests)."""
+    global _settings, _active_iri, _active_resolved
     _settings = None
+    _active_iri = None
+    _active_resolved = False
+
+
+# -- active-instance state ---------------------------------------------------
+#
+# A server can be configured with several candidate instances (an
+# env-configured domain and/or the iris in a credential file). Exactly one of
+# them is "active" at a time; tools connect to whichever one is active. The
+# active instance is auto-selected on first access (see ``_auto_select_iri``)
+# and can be changed at runtime via ``set_active_instance`` (the
+# ``select_instance`` tool).
+
+_active_iri: Optional[str] = None
+_active_resolved: bool = False
+
+
+def _auto_select_iri() -> Optional[str]:
+    """Auto-select the active iri, or return ``None`` if none can be chosen.
+
+    1. A domain configured via the environment is always the active instance.
+    2. Otherwise, if a credential file is configured and contains exactly one
+       iri, that iri is the active instance.
+    3. Otherwise there is no active instance until ``set_active_instance`` is
+       called (e.g. via the ``select_instance`` tool).
+    """
+    settings = get_settings()
+    if settings.domain:
+        return settings.domain
+    if settings.cred_filepath:
+        iris = _cred_file_iris(settings.cred_filepath)
+        if len(iris) == 1:
+            return iris[0]
+    return None
+
+
+def available_iris() -> list[str]:
+    """Return every iri this server can connect to.
+
+    Combines the env-configured domain (if any) with the iris found in a
+    configured credential file (if any), without duplicates. Never includes
+    usernames, passwords, or any other credential value.
+    """
+    settings = get_settings()
+    iris: list[str] = []
+    if settings.domain:
+        iris.append(settings.domain)
+    if settings.cred_filepath:
+        for iri in _cred_file_iris(settings.cred_filepath):
+            if iri not in iris:
+                iris.append(iri)
+    return iris
+
+
+def get_active_iri() -> Optional[str]:
+    """Return the active instance iri, auto-selecting it on first access."""
+    global _active_iri, _active_resolved
+    if not _active_resolved:
+        _active_iri = _auto_select_iri()
+        _active_resolved = True
+    return _active_iri
+
+
+def get_active_domain() -> Optional[str]:
+    """Return the bare domain of the active instance, or ``None`` if unset."""
+    iri = get_active_iri()
+    if iri is None:
+        return None
+    return _derive_domain(iri)
+
+
+def set_active_instance(iri: str) -> None:
+    """Set the active instance to ``iri``.
+
+    Raises
+    ------
+    ValueError
+        If ``iri`` is not one of :func:`available_iris`, naming the iris that
+        are available so the caller can pick a valid one.
+    """
+    global _active_iri, _active_resolved
+    available = available_iris()
+    if iri not in available:
+        raise ValueError(
+            f"Unknown instance '{iri}'. Available: "
+            + (", ".join(available) or "(none)")
+        )
+    _active_iri = iri
+    _active_resolved = True
+
+
+def get_active_credentials() -> tuple[Optional[str], Optional[str]]:
+    """Return the username/password to use for the currently active instance.
+
+    Resolution order:
+
+    1. If a credential file is configured, look up the active iri via
+       ``CredentialManager.get_credential`` with ``fallback=CredentialFallback.none``
+       (never prompts interactively, never performs a network login). A
+       ``UserPwdCredential`` match yields its username/password. A match of any
+       other credential kind (e.g. ``OAuth1Credential``, which has no
+       username/password) yields ``(None, None)``.
+    2. Otherwise (no credential file configured, or no match found in it),
+       fall back to ``settings.username`` / ``settings.password``.
+    3. If neither source yields anything, returns ``(None, None)``.
+
+    Never raises and never prompts, so this is always safe to call from a
+    stdio MCP tool.
+    """
+    settings = get_settings()
+    active_iri = get_active_iri()
+    if settings.cred_filepath and active_iri:
+        cred_mngr = CredentialManager(cred_filepath=settings.cred_filepath)
+        credential = cred_mngr.get_credential(
+            CredentialManager.CredentialConfig(
+                iri=active_iri, fallback=CredentialManager.CredentialFallback.none
+            )
+        )
+        if credential is not None:
+            if isinstance(credential, CredentialManager.UserPwdCredential):
+                return credential.username, credential.password
+            return None, None
+    return settings.username, settings.password

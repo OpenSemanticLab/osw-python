@@ -29,6 +29,18 @@ _osw: Optional[OswExpress] = None
 _ledger: Optional[Ledger] = None
 
 
+def _require_active_domain() -> str:
+    """Return the active instance's domain, or raise a clear, actionable error."""
+    domain = config.get_active_domain()
+    if domain is None:
+        available = ", ".join(config.available_iris()) or "(none)"
+        raise RuntimeError(
+            "No OSL instance selected. Call select_instance first; "
+            f"available: {available}."
+        )
+    return domain
+
+
 def get_osw() -> OswExpress:
     """Return the shared ``OswExpress``, connecting on first use.
 
@@ -40,24 +52,29 @@ def get_osw() -> OswExpress:
     * a credential file (``settings.cred_filepath``), configured via
       ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``, wrapped in a
       ``CredentialManager`` and passed to ``OswExpress`` explicitly.
+
+    Connects to the active instance (see :mod:`osw.mcp.config`); raises if
+    none is selected.
     """
     global _osw
     if _osw is None:
         settings = config.get_settings()
+        domain = _require_active_domain()
         if settings.cred_filepath:
             cred_mngr = CredentialManager(cred_filepath=settings.cred_filepath)
-            _osw = OswExpress(domain=settings.domain, cred_mngr=cred_mngr)
+            _osw = OswExpress(domain=domain, cred_mngr=cred_mngr)
         else:
-            _osw = OswExpress(domain=settings.domain)
+            _osw = OswExpress(domain=domain)
     return _osw
 
 
 def get_ledger() -> Ledger:
-    """Return the shared provenance ledger."""
+    """Return the shared provenance ledger, keyed on the active instance's domain."""
     global _ledger
     if _ledger is None:
         settings = config.get_settings()
-        _ledger = Ledger(domain=settings.domain, state_dir=settings.state_dir)
+        domain = _require_active_domain()
+        _ledger = Ledger(domain=domain, state_dir=settings.state_dir)
     return _ledger
 
 
@@ -84,8 +101,12 @@ def run_guarded(fn: Callable[[OswExpress], dict]) -> dict:
 
 
 def reset() -> None:
-    """Drop the shared connection so the next call rebuilds it."""
-    global _osw
+    """Drop the shared connection and ledger so the next call rebuilds them.
+
+    Called after switching the active instance (``select_instance``) so a
+    stale connection or a ledger keyed on the previous domain is never reused.
+    """
+    global _osw, _ledger
     with _LOCK:
         if _osw is not None:
             try:
@@ -94,6 +115,7 @@ def reset() -> None:
             except Exception as exc:
                 print(f"[osw-mcp] error closing connection: {exc!r}", file=sys.stderr)
             _osw = None
+        _ledger = None
 
 
 def shutdown() -> None:

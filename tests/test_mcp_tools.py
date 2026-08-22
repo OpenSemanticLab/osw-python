@@ -6,6 +6,7 @@ These mock the shared connection so no network is required.
 from unittest.mock import MagicMock
 
 import pytest
+import yaml
 
 pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
@@ -183,6 +184,46 @@ def test_sparql_without_endpoint_reports_not_configured(env, monkeypatch):
     result = fake.tools["sparql_query"](query="SELECT * WHERE {?s ?p ?o}")
 
     assert result["type"] == "NotConfigured"
+
+
+def test_create_or_update_entity_uses_active_domain(env, monkeypatch, tmp_path):
+    """The response urls use the active domain, not a stale/static one."""
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "a", "password": "b"},
+            "wiki-b.example.org": {"username": "c", "password": "d"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("OSW_DOMAIN", raising=False)
+    monkeypatch.delenv("OSW_USERNAME", raising=False)
+    monkeypatch.delenv("OSW_PASSWORD", raising=False)
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    config.reset()
+    connection._osw = None
+    connection._ledger = None
+    config.set_active_instance("wiki-b.example.org")
+
+    osw = MagicMock()
+    osw.fetch_schema.return_value = MagicMock(error_messages=[])
+    osw.store_entity.return_value = MagicMock(
+        pages={"Item:OSW1": MagicMock()}, change_id="c1"
+    )
+    monkeypatch.setattr(connection, "get_osw", lambda: osw)
+    monkeypatch.setattr(
+        entities,
+        "_resolve_category_class",
+        lambda category: entities.model_entity.Entity,
+    )
+    fake = FakeMCP()
+    entities.register(fake, include_writes=True)
+
+    result = fake.tools["create_or_update_entity"](
+        category="Category:Item", jsondata={"label": [{"text": "Test"}]}
+    )
+
+    assert result["urls"] == ["https://wiki-b.example.org/wiki/Item:OSW1"]
 
 
 def test_run_guarded_converts_exceptions(env, monkeypatch):

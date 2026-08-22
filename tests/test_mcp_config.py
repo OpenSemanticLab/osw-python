@@ -179,12 +179,31 @@ def test_cred_file_missing_domain_entry_raises(monkeypatch, tmp_path):
     assert "wiki.example.org" in str(exc.value)
 
 
-def test_cred_file_missing_domain_env_still_raises(monkeypatch, tmp_path):
+def test_cred_file_without_domain_is_legal(monkeypatch, tmp_path):
+    # With a usable credential file, a missing domain is no longer an error:
+    # which instance to use is chosen later (auto-selected or via
+    # select_instance).
     cred_file = _write_cred_file(
         tmp_path / "accounts.yaml",
-        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+        {
+            "wiki-a.example.org": {"username": "alice", "password": "secret"},
+            "wiki-b.example.org": {"username": "bob", "password": "secret2"},
+        },
     )
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
-    with pytest.raises(RuntimeError) as exc:
-        config.load()
-    assert "OSW_DOMAIN" in str(exc.value)
+    settings = config.load()
+    assert settings.domain is None
+    assert settings.cred_filepath == str(cred_file)
+
+
+def test_cred_file_without_domain_skips_domain_verification(monkeypatch, tmp_path):
+    # No domain configured means there is nothing to verify at startup, even
+    # though the file does not contain an entry named after any particular
+    # domain the caller might later select.
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"wiki-a.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    settings = config.load()
+    assert settings.domain is None

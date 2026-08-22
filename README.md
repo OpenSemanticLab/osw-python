@@ -89,6 +89,27 @@ wiki-dev.open-semantic-lab.org:
   password: your-password
 ```
 
+**Multiple instances:** when the credential file holds more than one iri, the
+server starts without an active instance and exposes two extra tools:
+
+- `list_instances` returns the available iris, never any credential
+- `select_instance(iri)` switches to one, rebuilding the connection and the
+  provenance ledger, which is kept separate per domain
+
+If `OSW_DOMAIN` is set, or the file holds exactly one iri, that instance is
+selected automatically and neither tool needs to be called. Until an instance is
+active the other tools return "No OSL instance selected". `status` reports which
+one is active.
+
+Registering the server once per instance works too, and has the advantage that
+the instance is visible in the tool name at every call site, with read-only
+settable per instance:
+
+```bash
+claude mcp add osw-dev  --env OSW_MCP_ENV_FILE=/abs/path/dev.env -- uvx --from "osw[mcp]" osw-mcp
+claude mcp add osw-prod --env OSW_MCP_ENV_FILE=/abs/path/prod.env --env OSW_MCP_READ_ONLY=true -- uvx --from "osw[mcp]" osw-mcp
+```
+
 Register it with Claude Code (reference the `.env` via `OSW_MCP_ENV_FILE`; do
 not put `OSW_PASSWORD` inline in a committed `.mcp.json`):
 

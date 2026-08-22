@@ -84,12 +84,13 @@ def register(mcp) -> None:
             }
 
         def _run(_osw):
+            username, password = config.get_active_credentials()
             client = SmwSparqlClient(
                 endpoint=ep,
-                domain=settings.domain,
+                domain=config.get_active_domain(),
                 auth="basic",
-                user=settings.username,
-                password=settings.password,
+                user=username,
+                password=password,
             )
             raw = client.sparqlQuery(query)
             bindings = raw.get("results", {}).get("bindings", [])

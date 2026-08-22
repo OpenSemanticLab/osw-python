@@ -22,18 +22,31 @@ def register(mcp) -> None:
 
     @mcp.tool()
     def status() -> dict:
-        """Report the connected domain, user, mode and ledger info.
+        """Report the active instance, user, mode and ledger info.
 
-        Performs a light connectivity check. Never returns the password.
+        Performs a light connectivity check, but only when an instance is
+        selected. Never returns the password.
         """
         settings = config.get_settings()
-        ledger = get_ledger()
+        active_iri = config.get_active_iri()
+        active_domain = config.get_active_domain()
         info = {
             **settings.redacted(),
-            "ledger_path": str(ledger.path),
-            "ledger_entry_count": ledger.entry_count(),
-            "osw_version": _osw_version(),
+            "active_iri": active_iri,
+            "active_domain": active_domain,
         }
+        if active_iri is None:
+            available = ", ".join(config.available_iris()) or "(none)"
+            info["connected"] = False
+            info["message"] = (
+                "No OSL instance selected. Call select_instance to choose "
+                f"one; available: {available}."
+            )
+            return info
+        ledger = get_ledger()
+        info["ledger_path"] = str(ledger.path)
+        info["ledger_entry_count"] = ledger.entry_count()
+        info["osw_version"] = _osw_version()
         try:
             with osw_guard():
                 info["connected"] = True

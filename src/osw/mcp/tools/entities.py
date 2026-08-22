@@ -174,10 +174,11 @@ def register(mcp, *, include_writes: bool) -> None:
                     change_id=store.change_id,
                     slots=["jsondata"],
                 )
+            domain = config.get_active_domain()
             return {
                 "titles": titles,
                 "change_id": store.change_id,
-                "urls": [f"https://{settings.domain}/wiki/{t}" for t in titles],
+                "urls": [f"https://{domain}/wiki/{t}" for t in titles],
             }
 
         return run_guarded(_run)

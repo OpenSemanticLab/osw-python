@@ -1,7 +1,7 @@
 """Shared, thread-safe connection to a live OSL instance.
 
 A single process-wide ``OswExpress`` is built lazily on first use. Because
-mwclient's session is not thread-safe and FastMCP runs synchronous tools in a
+mwclient's session is not thread-safe and MCPServer runs synchronous tools in a
 worker-thread pool, every osw access is serialized through one lock.
 
 The osw library prints progress to ``stdout`` (e.g. "Connecting to ..."), but on

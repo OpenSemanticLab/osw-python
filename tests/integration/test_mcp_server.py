@@ -11,6 +11,9 @@ The wiki_* fixtures self-skip when credentials are absent.
 
 import pytest
 
+pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
+pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
+
 from osw.mcp import config, connection
 from osw.mcp.tools import entities, schema, search, slots, status
 

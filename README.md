@@ -24,6 +24,8 @@ pip install osw
 Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
 `osw[UI]`, `osw[mcp]`, `osw[all]`) are described in the
 [Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
+Note that `osw[mcp]` is not part of `osw[all]` and has to be installed
+explicitly, see [MCP server](#mcp-server).
 
 ## Quickstart
 
@@ -50,6 +52,12 @@ and delete entities, and upload/download files.
 ```bash
 pip install "osw[mcp]"
 ```
+
+This extra is deliberately not part of `osw[all]`. It needs `anyio>=4.9`, which
+conflicts with the pin the `osw[workflow]` extra requires for prefect 2.x, so
+the two cannot share an environment
+([#139](https://github.com/OpenSemanticLab/osw-python/issues/139)). Installing
+the server standalone, for example via `uvx`, avoids the question entirely.
 
 Configure credentials in a gitignored `.env` file (the server reads them at
 startup and never writes them to disk):

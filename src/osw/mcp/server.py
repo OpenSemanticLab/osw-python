@@ -10,20 +10,20 @@ from __future__ import annotations
 import atexit
 import sys
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from . import config, connection
 from .tools import register_all
 
 
-def create_server() -> FastMCP:
-    """Build the FastMCP server, registering tools per the read-only setting.
+def create_server() -> MCPServer:
+    """Build the MCPServer, registering tools per the read-only setting.
 
     Loads and validates settings first so a missing-credential misconfiguration
     fails fast (before any osw call that could trigger an interactive prompt).
     """
     settings = config.get_settings()
-    mcp = FastMCP("osw")
+    mcp = MCPServer("osw")
     register_all(mcp, include_writes=not settings.read_only)
     return mcp
 

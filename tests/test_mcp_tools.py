@@ -7,6 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
+pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
+
 from osw.mcp import config, connection
 from osw.mcp.tools import entities, search, slots
 

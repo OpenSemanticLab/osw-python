@@ -70,8 +70,9 @@ dataimport = [
 ]
 UI = ["pysimplegui"]
 mcp = [
-    # official MCP Python SDK; FastMCP lives in mcp.server.fastmcp
-    "mcp>=1.2",
+    # official MCP Python SDK; provides MCPServer from mcp.server.
+    # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.
+    "mcp>=2",
     # .env loading for the stdio server (OSW_DOMAIN/OSW_USERNAME/OSW_PASSWORD)
     "python-dotenv>=1.0",
 ]
@@ -85,7 +86,10 @@ workflow = [
     "anyio>=4.4.0,<4.7",
 ]
 tutorial = ["osw[dataimport]"]
-all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
+# mcp is deliberately excluded here: it requires anyio>=4.9, which conflicts
+# with the workflow extra's anyio cap. Install it explicitly with osw[mcp].
+# See https://github.com/OpenSemanticLab/osw-python/issues/139
+all = ["osw[dataimport,DB,UI,S3,wikitext]"]
 
 [project.scripts]
 # stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude Code)
@@ -96,18 +100,27 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    # test stack
+# pytest stack in its own group so it can be installed alongside the mcp
+# extra, which conflicts with the dev group (see [tool.uv] below).
+# Run the MCP tests with:
+#   uv sync --extra mcp --group test --no-dev
+#   uv run --extra mcp --group test --no-dev --no-sync python -m pytest tests/test_mcp_*.py
+test = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
     "pytest-asyncio",
-    # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
-    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
-    "osw[workflow]",
-    # MCP server extra installed in dev so its modules type-check (ty) and
-    # deptry can resolve the mcp/dotenv imports in src/osw/mcp
-    "osw[mcp]",
+]
+dev = [
+    { include-group = "test" },
+    # prefect/anyio are listed directly rather than via osw[workflow]: the
+    # workflow extra is in a uv conflict set (see [tool.uv] below), so a
+    # self-referential osw[workflow] entry here would only activate when
+    # --extra workflow is passed, leaving a bare `uv sync` on the anyio that
+    # breaks prefect 2.20. Keep these pins in sync with the workflow extra.
+    # Tracked in https://github.com/OpenSemanticLab/osw-python/issues/139
+    "prefect>=2.20.25,<3.0",
+    "anyio>=4.4.0,<4.7",
     "geopy",
     "deepl",
     "sqlalchemy",
@@ -304,6 +317,19 @@ insertion_flag = "<!-- version list -->"
 [tool.semantic_release.changelog.default_templates]
 changelog_file = "CHANGELOG.md"
 
+[tool.uv]
+# mcp 2.x needs anyio>=4.9; the workflow extra caps anyio<4.7 for prefect 2.20
+# (see the workflow extra above). They cannot share one resolution, so uv is
+# told to resolve them in separate splits. Install the MCP server standalone:
+# pip install "osw[mcp]".
+# The dev group is included too since it carries the same anyio cap directly
+# (see the dev group above). Tracked in
+# https://github.com/OpenSemanticLab/osw-python/issues/139
+conflicts = [
+    [{ extra = "mcp" }, { extra = "workflow" }],
+    [{ extra = "mcp" }, { group = "dev" }],
+]
+
 [tool.ty.environment]
 python = "./.venv"
 python-version = "3.10"
@@ -313,12 +339,17 @@ python-version = "3.10"
 #  - src/osw/model/entity.py: generated (datamodel-code-generator) models
 #  - examples, scripts: illustrative/maintenance code, not part of the package
 #  - tests: not yet type-clean, tightened in a follow-up
+#  - src/osw/mcp: its dependencies (the mcp extra) cannot be installed
+#    alongside the workflow extra (see [tool.uv] conflicts); revert this
+#    once the anyio conflict is resolved
+#    (https://github.com/OpenSemanticLab/osw-python/issues/139)
 exclude = [
     "src/osw/model/entity.py",
     "examples",
     "scripts",
     "tests",
     "docs",
+    "src/osw/mcp",
 ]
 
 [tool.ty.rules]
@@ -356,6 +387,7 @@ pybars3-wheel = "pybars"
 psycopg2 = "psycopg2"
 openpyxl = "openpyxl"
 pysimplegui = "PySimpleGUI"
+mcp = "mcp"
 # python-dotenv imports as `dotenv`
 python-dotenv = "dotenv"
 

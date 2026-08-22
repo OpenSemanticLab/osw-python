@@ -2,6 +2,9 @@
 
 import pytest
 
+pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
+pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
+
 from osw.mcp import config
 
 _ALL_VARS = [

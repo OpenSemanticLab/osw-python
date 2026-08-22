@@ -18,6 +18,7 @@ import threading
 from contextlib import contextmanager, redirect_stdout
 from typing import Callable, Optional
 
+from osw.auth import CredentialManager
 from osw.express import OswExpress
 
 from . import config
@@ -31,14 +32,23 @@ _ledger: Optional[Ledger] = None
 def get_osw() -> OswExpress:
     """Return the shared ``OswExpress``, connecting on first use.
 
-    Credentials and domain are resolved by osw from the environment
-    (``OSW_DOMAIN`` / ``OSW_USERNAME`` / ``OSW_PASSWORD``), which
-    :func:`osw.mcp.config.load` has already validated as present.
+    Credentials come from either of two sources, both already validated by
+    :func:`osw.mcp.config.load`:
+
+    * ``OSW_USERNAME`` / ``OSW_PASSWORD`` (or their ``OSL_*`` aliases), read
+      by osw from the environment; or
+    * a credential file (``settings.cred_filepath``), configured via
+      ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``, wrapped in a
+      ``CredentialManager`` and passed to ``OswExpress`` explicitly.
     """
     global _osw
     if _osw is None:
         settings = config.get_settings()
-        _osw = OswExpress(domain=settings.domain)
+        if settings.cred_filepath:
+            cred_mngr = CredentialManager(cred_filepath=settings.cred_filepath)
+            _osw = OswExpress(domain=settings.domain, cred_mngr=cred_mngr)
+        else:
+            _osw = OswExpress(domain=settings.domain)
     return _osw
 
 

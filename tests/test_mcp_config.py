@@ -1,6 +1,7 @@
 """Unit tests for osw.mcp.config (fail-fast credential validation)."""
 
 import pytest
+import yaml
 
 pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
@@ -14,6 +15,8 @@ _ALL_VARS = [
     "OSL_USERNAME",
     "OSW_PASSWORD",
     "OSL_PASSWORD",
+    "OSW_MCP_CRED_FILEPATH",
+    "OSL_CRED_FILEPATH",
     "OSW_SPARQL_ENDPOINT",
     "OSW_MCP_READ_ONLY",
     "OSW_MCP_STATE_DIR",
@@ -100,3 +103,88 @@ def test_invalid_int_raises(monkeypatch):
     monkeypatch.setenv("OSW_MCP_MAX_RESULTS", "notanumber")
     with pytest.raises(RuntimeError):
         config.load()
+
+
+def _write_cred_file(path, data):
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    return path
+
+
+def test_cred_file_configured_and_present_no_env_credentials(monkeypatch, tmp_path):
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    settings = config.load()
+    assert settings.domain == "wiki.example.org"
+    assert settings.cred_filepath == str(cred_file)
+    assert settings.username is None
+    assert settings.password is None
+
+
+def test_cred_file_missing_raises(monkeypatch, tmp_path):
+    missing = tmp_path / "does-not-exist.yaml"
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(missing))
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert str(missing) in str(exc.value)
+
+
+def test_missing_username_password_without_cred_file_raises(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_USERNAME" in str(exc.value)
+    assert "OSW_PASSWORD" in str(exc.value)
+    assert "OSW_DOMAIN" not in str(exc.value)
+
+
+def test_username_password_still_work_with_no_cred_file(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    settings = config.load()
+    assert settings.domain == "wiki.example.org"
+    assert settings.username == "alice"
+    assert settings.cred_filepath is None
+
+
+def test_redacted_never_contains_password_or_credential_value(monkeypatch, tmp_path):
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "supersecret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    settings = config.load()
+    redacted = settings.redacted()
+    assert "password" not in redacted
+    assert "supersecret" not in str(redacted)
+    assert redacted["cred_filepath_configured"] is True
+
+
+def test_cred_file_missing_domain_entry_raises(monkeypatch, tmp_path):
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"other.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "other.example.org" in str(exc.value)
+    assert "wiki.example.org" in str(exc.value)
+
+
+def test_cred_file_missing_domain_env_still_raises(monkeypatch, tmp_path):
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_DOMAIN" in str(exc.value)

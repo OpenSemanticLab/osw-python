@@ -71,6 +71,24 @@ OSW_SPARQL_ENDPOINT=https://.../sparql
 OSW_MCP_READ_ONLY=false          # true hides all mutating tools
 ```
 
+Alternatively, authenticate from an osw credential file, so the password is not
+duplicated into a second plaintext file:
+
+```dotenv
+OSW_DOMAIN=wiki-dev.open-semantic-lab.org
+OSW_MCP_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml
+```
+
+`OSL_CRED_FILEPATH` is accepted as a fallback, so deployments that already
+configure osw's `CredentialManager` need no extra setup. The file is the YAML
+format `CredentialManager` already reads, keyed by iri:
+
+```yaml
+wiki-dev.open-semantic-lab.org:
+  username: your-user
+  password: your-password
+```
+
 Register it with Claude Code (reference the `.env` via `OSW_MCP_ENV_FILE`; do
 not put `OSW_PASSWORD` inline in a committed `.mcp.json`):
 

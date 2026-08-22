@@ -12,10 +12,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
+
+import yaml
 
 # python-dotenv is part of the [mcp] extra
 from dotenv import load_dotenv
+
+from osw.auth import CredentialManager
 
 _TRUTHY = {"1", "true", "yes", "on"}
 
@@ -23,6 +28,8 @@ _TRUTHY = {"1", "true", "yes", "on"}
 ENV_DOMAIN = ("OSW_DOMAIN", "OSL_DOMAIN")
 ENV_USERNAME = ("OSW_USERNAME", "OSL_USERNAME")
 ENV_PASSWORD = ("OSW_PASSWORD", "OSL_PASSWORD")
+# OSL_CRED_FILEPATH is accepted because existing osw deployments already set it.
+ENV_CRED_FILEPATH = ("OSW_MCP_CRED_FILEPATH", "OSL_CRED_FILEPATH")
 
 
 def _first_env(names: tuple[str, ...]) -> Optional[str]:
@@ -39,9 +46,12 @@ class Settings:
     """Resolved, validated server settings."""
 
     domain: str
-    username: str
+    # username/password are optional: a configured credential file is an
+    # alternative source of credentials (see ENV_CRED_FILEPATH).
+    username: Optional[str] = None
     # kept only to build the SPARQL client; never returned by any tool
-    password: str = field(repr=False)
+    password: Optional[str] = field(default=None, repr=False)
+    cred_filepath: Optional[str] = None
     sparql_endpoint: Optional[str] = None
     read_only: bool = False
     state_dir: Optional[str] = None
@@ -55,6 +65,7 @@ class Settings:
             "username": self.username,
             "read_only": self.read_only,
             "sparql_endpoint_configured": bool(self.sparql_endpoint),
+            "cred_filepath_configured": bool(self.cred_filepath),
         }
 
 
@@ -70,17 +81,66 @@ def _int_env(name: str, default: int) -> int:
         )
 
 
+def _cred_file_iris(cred_filepath: str) -> list[str]:
+    """Return the top-level iri keys in a credential YAML file, best effort."""
+    try:
+        with open(cred_filepath, encoding="utf-8") as stream:
+            data = yaml.safe_load(stream)
+    except (OSError, yaml.YAMLError):
+        return []
+    if not data:
+        return []
+    return sorted(str(key) for key in data.keys())
+
+
+def _verify_cred_file_has_domain(cred_filepath: str, domain: str) -> None:
+    """Verify that the credential file has an entry matching ``domain``.
+
+    Uses ``CredentialManager.get_credential`` with ``fallback="none"`` so this
+    never prompts interactively and never performs a network login; it only
+    checks that a matching credential entry already exists in the file.
+
+    Raises
+    ------
+    RuntimeError
+        If no credential entry matches ``domain``, naming the iris the file
+        does contain (never their secrets) so the operator can fix it.
+    """
+    cred_mngr = CredentialManager(cred_filepath=cred_filepath)
+    credential = cred_mngr.get_credential(
+        CredentialManager.CredentialConfig(
+            iri=domain, fallback=CredentialManager.CredentialFallback.none
+        )
+    )
+    if credential is None:
+        available = ", ".join(_cred_file_iris(cred_filepath)) or "(none)"
+        raise RuntimeError(
+            f"Credential file '{cred_filepath}' has no entry matching domain "
+            f"'{domain}'. Iris found in the file: {available}. Add an entry "
+            "for the domain, or configure OSW_USERNAME/OSW_PASSWORD instead."
+        )
+
+
 def load() -> Settings:
     """Load and validate settings from the environment.
 
     Loads a ``.env`` file first: the path in ``OSW_MCP_ENV_FILE`` if set,
     otherwise dotenv's default search from the current working directory upward.
 
+    Credentials can come from either ``OSW_USERNAME``/``OSW_PASSWORD`` (or
+    their ``OSL_*`` aliases) or from a credential file configured via
+    ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``. When a credential file
+    is configured, it is validated here to actually contain an entry for the
+    configured domain.
+
     Raises
     ------
     RuntimeError
-        If any of domain / username / password is missing, so the osw
-        interactive credential prompt is never reached.
+        If domain is missing, if neither a usable credential file nor
+        username/password are configured, if a configured credential file
+        does not exist, or if a configured credential file has no entry
+        matching the domain. This keeps the osw interactive credential prompt
+        from ever being reached.
     """
     env_file = os.getenv("OSW_MCP_ENV_FILE")
     if env_file:
@@ -91,30 +151,43 @@ def load() -> Settings:
     domain = _first_env(ENV_DOMAIN)
     username = _first_env(ENV_USERNAME)
     password = _first_env(ENV_PASSWORD)
+    cred_filepath = _first_env(ENV_CRED_FILEPATH)
 
-    missing = [
-        names[0]
-        for names, value in (
-            (ENV_DOMAIN, domain),
-            (ENV_USERNAME, username),
-            (ENV_PASSWORD, password),
-        )
-        if not value
-    ]
+    cred_file_usable = False
+    if cred_filepath:
+        if not Path(cred_filepath).is_file():
+            raise RuntimeError(
+                f"Configured credential file '{cred_filepath}' does not exist. "
+                "Set OSW_MCP_CRED_FILEPATH / OSL_CRED_FILEPATH to a valid path, "
+                "or remove it and configure OSW_USERNAME/OSW_PASSWORD instead."
+            )
+        cred_file_usable = True
+
+    # A usable credential file is an alternative source of username/password.
+    checks = [(ENV_DOMAIN, domain)]
+    if not cred_file_usable:
+        checks.append((ENV_USERNAME, username))
+        checks.append((ENV_PASSWORD, password))
+    missing = [names[0] for names, value in checks if not value]
     if missing:
         raise RuntimeError(
             "Missing required OSW credential environment variables: "
             + ", ".join(missing)
             + ". Set them in your environment or a .env file "
-            "(pointed to by OSW_MCP_ENV_FILE). The server refuses to start "
-            "without them to avoid an interactive credential prompt that would "
-            "hang the stdio transport."
+            "(pointed to by OSW_MCP_ENV_FILE), or configure a credential file "
+            "via OSW_MCP_CRED_FILEPATH / OSL_CRED_FILEPATH. The server refuses "
+            "to start without them to avoid an interactive credential prompt "
+            "that would hang the stdio transport."
         )
+
+    if cred_file_usable:
+        _verify_cred_file_has_domain(cred_filepath, domain)
 
     return Settings(
         domain=domain,
         username=username,
         password=password,
+        cred_filepath=cred_filepath,
         sparql_endpoint=os.getenv("OSW_SPARQL_ENDPOINT") or None,
         read_only=(os.getenv("OSW_MCP_READ_ONLY", "").lower() in _TRUTHY),
         state_dir=os.getenv("OSW_MCP_STATE_DIR") or None,

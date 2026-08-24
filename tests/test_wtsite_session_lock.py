@@ -7,10 +7,11 @@ real ``requests`` cookie jar.
 
 import threading
 import types
+from copy import deepcopy
 
 import requests.cookies as rc
 
-from osw.wtsite import WtSite
+from osw.wtsite import WtPage, WtSite
 
 
 def _make_wtsite_with_jar():
@@ -61,14 +62,14 @@ def test_clear_cookies_under_concurrency_is_safe():
                             path="/",
                         )
                 ws._clear_cookies()
-        except Exception as exc:  # noqa: BLE001 - collected and asserted below
+        except Exception as exc:
             errors.append(exc)
 
     def reader():
         try:
             while not stop.is_set():
                 _ = [c.name for c in list(jar)]
-        except Exception as exc:  # noqa: BLE001 - collected and asserted below
+        except Exception as exc:
             errors.append(exc)
 
     clearers = [threading.Thread(target=clearer) for _ in range(4)]
@@ -86,3 +87,24 @@ def test_clear_cookies_under_concurrency_is_safe():
     assert errors == []
     # the non-PostEditRevision cookie must survive every clear
     assert "sessionToken" in {c.name for c in jar}
+
+
+def test_wtsite_survives_deepcopy_of_a_page():
+    """store_entity deep-copies the page, reaching WtSite through page.wtSite.
+
+    Without WtSite.__getstate__ dropping the lock this raises
+    TypeError: cannot pickle '_thread.RLock' object.
+    """
+    ws, jar = _make_wtsite_with_jar()
+    _populate(jar)
+    page = WtPage.__new__(WtPage)
+    page.wtSite = ws
+    page._slots = {"jsondata": {"uuid": "abc"}}
+
+    copied = deepcopy(page)
+
+    assert copied._slots == page._slots
+    assert copied._slots is not page._slots
+    # the copy has no lock until something asks for one
+    assert "_session_lock" not in copied.wtSite.__dict__
+    assert copied.wtSite._get_session_lock() is not ws._session_lock

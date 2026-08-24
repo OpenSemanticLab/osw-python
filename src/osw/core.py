@@ -1610,7 +1610,7 @@ class OSW(BaseModel):
         (``failed`` / ``result.failed``) without a separate existence query.
         """
 
-        def __init__(self, result: "OSW.StoreEntityResult"):
+        def __init__(self, result: OSW.StoreEntityResult):
             self.result = result
             self.stored = list(result.pages.keys())
             self.failed = result.failed
@@ -1852,7 +1852,7 @@ class OSW(BaseModel):
                 try:
                     handle_upload_object_(upload_object)
                     results.append(None)
-                except Exception as e:  # noqa: BLE001 - collected below
+                except Exception as e:
                     results.append(e)
 
         failed: Dict[str, Exception] = {}

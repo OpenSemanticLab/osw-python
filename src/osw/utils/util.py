@@ -338,7 +338,7 @@ def parallelize(
                 async def _capture(task):
                     try:
                         return await task
-                    except Exception as exc:  # noqa: BLE001 - returned to caller
+                    except Exception as exc:
                         return exc
 
                 tasks = [_capture(task) for task in tasks]

@@ -175,6 +175,18 @@ class WtSite:
             self._session_lock = lock
         return lock
 
+    def __getstate__(self):
+        """Drop the session lock when copying or pickling.
+
+        A WtSite is deep-copied as a side effect of copying a WtPage, which
+        happens on every store_entity() call (OSW._apply_overwrite_policy).
+        threading.RLock cannot be copied, so exclude it here; the copy gets a
+        fresh lock from _get_session_lock() on first use.
+        """
+        state = self.__dict__.copy()
+        state.pop("_session_lock", None)
+        return state
+
     def _relogin(self):
         """Re-login to the wiki site using stored credentials.
 
@@ -1759,7 +1771,7 @@ class WtPage:
         for attempt in range(max_retry):
             try:
                 return self._edit(comment, mode, bot_edit)
-            except Exception as e:  # noqa: BLE001 - re-raised below after retries
+            except Exception as e:
                 last_exc = e
                 print(f"Page edit failed: {e}. Retry ({attempt + 1}/{max_retry})")
                 if attempt + 1 < max_retry:

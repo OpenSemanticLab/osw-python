@@ -1,8 +1,8 @@
-"""Unit tests for osw.mcp.serialization."""
+"""Unit tests for osw.service.serialization."""
 
 from pathlib import Path
 
-from osw.mcp.serialization import cap_list, maybe_truncate, to_jsonable
+from osw.service.serialization import cap_list, maybe_truncate, to_jsonable
 
 
 def test_cap_list_under_limit():

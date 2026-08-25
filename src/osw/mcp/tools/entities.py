@@ -7,11 +7,11 @@ from typing import Optional
 
 import osw.model.entity as model_entity
 from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
+from osw.service import config
+from osw.service.serialization import maybe_truncate, to_jsonable
 from osw.wtsite import WtSite
 
-from .. import config
 from ..connection import get_ledger, run_guarded
-from ..serialization import maybe_truncate, to_jsonable
 
 _OVERWRITE = {
     "true": OverwriteOptions.true,

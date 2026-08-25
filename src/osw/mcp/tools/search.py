@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Optional
 
 from osw.core import OSW
+from osw.service import config
+from osw.service.serialization import cap_list, to_jsonable
 from osw.sparql_client_smw import SmwSparqlClient
 from osw.wtsite import WtSite
 
-from .. import config
 from ..connection import run_guarded
-from ..serialization import cap_list, to_jsonable
 
 
 def register(mcp) -> None:

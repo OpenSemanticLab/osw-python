@@ -2,7 +2,7 @@
 
 Run via the ``osw-mcp`` console script or ``python -m osw.mcp``. Connection
 credentials come from the environment / a ``.env`` file (see
-:mod:`osw.mcp.config`).
+:mod:`osw.service.config`).
 """
 
 from __future__ import annotations
@@ -12,7 +12,9 @@ import sys
 
 from mcp.server import MCPServer
 
-from . import config, connection
+from osw.service import config
+
+from . import connection
 from .tools import register_all
 
 

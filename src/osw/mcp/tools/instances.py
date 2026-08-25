@@ -1,7 +1,7 @@
 """Instance selection tools: list and switch between configured OSL instances.
 
 A server can be configured with several candidate instances (an env-configured
-domain and/or the iris in a credential file, see :mod:`osw.mcp.config`). These
+domain and/or the iris in a credential file, see :mod:`osw.service.config`). These
 tools let the model discover the available instances and pick which one
 subsequent tool calls talk to. Registered unconditionally, not gated on
 ``include_writes``: they change server-local state, not wiki content.
@@ -9,7 +9,9 @@ subsequent tool calls talk to. Registered unconditionally, not gated on
 
 from __future__ import annotations
 
-from .. import config, connection
+from osw.service import config
+
+from .. import connection
 
 
 def register(mcp) -> None:

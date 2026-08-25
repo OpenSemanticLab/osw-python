@@ -2182,6 +2182,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "python-dotenv" },
     { name = "python-semantic-release" },
     { name = "ruff" },
     { name = "sqlalchemy" },
@@ -2193,6 +2194,7 @@ test = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
@@ -2255,6 +2257,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "python-semantic-release", specifier = ">=10.0.0" },
     { name = "ruff", specifier = ">=0.15.7" },
     { name = "sqlalchemy" },
@@ -2266,6 +2269,7 @@ test = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "python-dotenv", specifier = ">=1.0" },
 ]
 
 [[package]]

@@ -3,11 +3,11 @@ valid entities before writing them."""
 
 from __future__ import annotations
 
+from osw.service import config
+from osw.service.serialization import maybe_truncate
 from osw.wtsite import WtSite
 
-from .. import config
 from ..connection import run_guarded
-from ..serialization import maybe_truncate
 
 
 def register(mcp) -> None:

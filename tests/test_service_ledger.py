@@ -1,6 +1,6 @@
-"""Unit tests for the osw.mcp provenance ledger."""
+"""Unit tests for the osw.service provenance ledger."""
 
-from osw.mcp.ledger import Ledger
+from osw.service.ledger import Ledger
 
 
 def _ledger(tmp_path):

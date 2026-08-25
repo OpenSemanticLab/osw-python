@@ -14,8 +14,9 @@ import pytest
 pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
 
-from osw.mcp import config, connection
+from osw.mcp import connection
 from osw.mcp.tools import entities, schema, search, slots, status
+from osw.service import config
 
 
 class _Collector:

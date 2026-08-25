@@ -9,8 +9,9 @@ import yaml
 pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
 
-from osw.mcp import config, connection
+from osw.mcp import connection
 from osw.mcp.tools import instances
+from osw.service import config
 
 _ALL_VARS = [
     "OSW_DOMAIN",

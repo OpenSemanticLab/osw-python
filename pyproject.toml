@@ -102,7 +102,8 @@ build-backend = "hatchling.build"
 [dependency-groups]
 # pytest stack in its own group so it can be installed alongside the mcp
 # extra, which conflicts with the dev group (see [tool.uv] below).
-# Run the MCP tests with:
+# tests/test_service_*.py run in a plain `uv sync` dev env (no mcp extra
+# needed). Run the MCP-extra tests (tests/test_mcp_*.py) with:
 #   uv sync --extra mcp --group test --no-dev
 #   uv run --extra mcp --group test --no-dev --no-sync python -m pytest tests/test_mcp_*.py
 test = [
@@ -110,6 +111,9 @@ test = [
     "pytest-cov",
     "pytest-mock",
     "pytest-asyncio",
+    # not part of the mcp conflict set, so the shared service layer (which reads
+    # .env lazily) stays importable and testable in a plain `uv sync` env.
+    "python-dotenv>=1.0",
 ]
 dev = [
     { include-group = "test" },

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import sys
 
-from .. import config
+from osw.service import config
+
 from ..connection import get_ledger, osw_guard
 
 

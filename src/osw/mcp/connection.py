@@ -20,9 +20,8 @@ from typing import Callable, Optional
 
 from osw.auth import CredentialManager
 from osw.express import OswExpress
-
-from . import config
-from .ledger import Ledger
+from osw.service import config
+from osw.service.ledger import Ledger
 
 _LOCK = threading.RLock()
 _osw: Optional[OswExpress] = None
@@ -45,7 +44,7 @@ def get_osw() -> OswExpress:
     """Return the shared ``OswExpress``, connecting on first use.
 
     Credentials come from either of two sources, both already validated by
-    :func:`osw.mcp.config.load`:
+    :func:`osw.service.config.load`:
 
     * ``OSW_USERNAME`` / ``OSW_PASSWORD`` (or their ``OSL_*`` aliases), read
       by osw from the environment; or
@@ -53,7 +52,7 @@ def get_osw() -> OswExpress:
       ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``, wrapped in a
       ``CredentialManager`` and passed to ``OswExpress`` explicitly.
 
-    Connects to the active instance (see :mod:`osw.mcp.config`); raises if
+    Connects to the active instance (see :mod:`osw.service.config`); raises if
     none is selected.
     """
     global _osw

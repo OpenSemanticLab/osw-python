@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
+from pydantic import BaseModel
+
 LEDGER_VERSION = 1
 
 
@@ -38,6 +40,21 @@ def _now() -> str:
 def _safe_domain(domain: str) -> str:
     """Turn a domain into a filesystem-safe filename fragment."""
     return "".join(c if c.isalnum() or c in "-._" else "_" for c in domain)
+
+
+class LedgerRecord(BaseModel):
+    """One ledger entry an operation wants written after a successful write.
+
+    Mirrors the keyword arguments of :meth:`Ledger.record`, minus ``tool``,
+    which ``bind()`` fills in from the operation name.
+    """
+
+    title: str
+    op: str  # the verb: "create", "update", "create_or_update"
+    change_id: Optional[str] = None
+    slots: Optional[List[str]] = None
+    uuid: Optional[str] = None
+    namespace: Optional[str] = None
 
 
 class Ledger:

@@ -18,19 +18,27 @@ from urllib.parse import urlparse
 
 import yaml
 
-# python-dotenv is part of the [mcp] extra
-from dotenv import load_dotenv
-
 from osw.auth import CredentialManager
 
 _TRUTHY = {"1", "true", "yes", "on"}
 
-# Environment variable names (OSL_* are accepted as fallbacks, matching osw).
+# Environment variable names. Each tuple lists the canonical ``OSW_*`` name
+# first, followed by every alias that must keep working. ``OSW_CRED_FILEPATH``
+# is canonical (rather than an ``OSW_MCP_``-prefixed name) because
+# ``osw.express`` already reads that exact name (see ``src/osw/express.py``,
+# search for ``CRED_FILEPATH``); the ``OSW_MCP_`` prefix used elsewhere was a
+# gratuitous divergence from that. ``OSL_*`` names are accepted as legacy
+# fallbacks, matching osw itself.
 ENV_DOMAIN = ("OSW_DOMAIN", "OSL_DOMAIN")
 ENV_USERNAME = ("OSW_USERNAME", "OSL_USERNAME")
 ENV_PASSWORD = ("OSW_PASSWORD", "OSL_PASSWORD")
-# OSL_CRED_FILEPATH is accepted because existing osw deployments already set it.
-ENV_CRED_FILEPATH = ("OSW_MCP_CRED_FILEPATH", "OSL_CRED_FILEPATH")
+ENV_CRED_FILEPATH = ("OSW_CRED_FILEPATH", "OSW_MCP_CRED_FILEPATH", "OSL_CRED_FILEPATH")
+ENV_SPARQL_ENDPOINT = ("OSW_SPARQL_ENDPOINT",)
+ENV_READ_ONLY = ("OSW_READ_ONLY", "OSW_MCP_READ_ONLY")
+ENV_STATE_DIR = ("OSW_STATE_DIR", "OSW_MCP_STATE_DIR")
+ENV_MAX_RESULTS = ("OSW_MAX_RESULTS", "OSW_MCP_MAX_RESULTS")
+ENV_MAX_CHARS = ("OSW_MAX_CHARS", "OSW_MCP_MAX_CHARS")
+ENV_FILE = ("OSW_ENV_FILE", "OSW_MCP_ENV_FILE")
 
 
 def _first_env(names: tuple[str, ...]) -> Optional[str]:
@@ -73,13 +81,16 @@ class Settings:
         }
 
 
-def _int_env(name: str, default: int) -> int:
-    raw = os.getenv(name)
+def _int_env(names: tuple[str, ...], default: int) -> int:
+    raw = _first_env(names)
     if raw is None or raw.strip() == "":
         return default
     try:
         return int(raw)
     except ValueError:
+        # Name the variable that was actually set (not necessarily the
+        # canonical one), so the operator can find what to fix.
+        name = next((n for n in names if os.getenv(n) == raw), names[0])
         raise RuntimeError(
             f"Environment variable {name}={raw!r} is not a valid integer."
         )
@@ -139,33 +150,70 @@ def _verify_cred_file_has_domain(cred_filepath: str, domain: str) -> None:
         )
 
 
-def load() -> Settings:
+def _load_env_file() -> None:
+    """Load a .env file if one is configured or discoverable.
+
+    dotenv is optional (it ships with the ``mcp`` extra). An *explicitly*
+    configured env file with dotenv missing is an error, because the operator
+    asked for something that cannot happen. An implicit search is skipped
+    silently.
+    """
+    path = _first_env(ENV_FILE)
+    try:
+        import dotenv
+    except ImportError:
+        if path is None:
+            return
+        name = next((n for n in ENV_FILE if os.getenv(n) == path), ENV_FILE[0])
+        raise RuntimeError(
+            f"{name} is set (to '{path}') but python-dotenv is not installed. "
+            "Install the osw[mcp] extra, or the `test` dependency group, to "
+            "use an env file."
+        )
+    if path:
+        dotenv.load_dotenv(path)
+    else:
+        dotenv.load_dotenv()
+
+
+def load(strict: bool = True) -> Settings:
     """Load and validate settings from the environment.
 
-    Loads a ``.env`` file first: the path in ``OSW_MCP_ENV_FILE`` if set,
-    otherwise dotenv's default search from the current working directory upward.
+    Loads a ``.env`` file first: the path in ``OSW_ENV_FILE`` (or its
+    ``OSW_MCP_ENV_FILE`` alias) if set, otherwise dotenv's default search from
+    the current working directory upward.
 
     Credentials can come from either ``OSW_USERNAME``/``OSW_PASSWORD`` (or
     their ``OSL_*`` aliases) or from a credential file configured via
-    ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``. When a credential file
-    is configured, it is validated here to actually contain an entry for the
-    configured domain.
+    ``OSW_CRED_FILEPATH`` (or its ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``
+    aliases). When a credential file is configured, it is validated here to
+    actually contain an entry for the configured domain.
+
+    Parameters
+    ----------
+    strict:
+        When ``True`` (the default), missing required credentials (no domain
+        + username/password and no usable credential file) raise
+        ``RuntimeError``. When ``False``, that specific check is skipped and a
+        best-effort ``Settings`` is returned instead, with whatever was found
+        (fields may be ``None``) -- useful for a status command that wants to
+        report "not configured" rather than crash. Every other error still
+        raises regardless of ``strict``: a configured credential file that
+        does not exist, a configured credential file with no entry matching a
+        configured domain, an unparseable integer environment variable, and a
+        missing ``python-dotenv`` for an explicitly configured env file.
 
     Raises
     ------
     RuntimeError
         If domain is missing and no usable credential file is configured, if
         neither a usable credential file nor username/password are
-        configured, if a configured credential file does not exist, or if a
-        configured credential file has no entry matching a configured domain.
-        This keeps the osw interactive credential prompt from ever being
-        reached.
+        configured (only when ``strict`` is ``True``), if a configured
+        credential file does not exist, or if a configured credential file has
+        no entry matching a configured domain. This keeps the osw interactive
+        credential prompt from ever being reached.
     """
-    env_file = os.getenv("OSW_MCP_ENV_FILE")
-    if env_file:
-        load_dotenv(env_file)
-    else:
-        load_dotenv()
+    _load_env_file()
 
     domain = _first_env(ENV_DOMAIN)
     username = _first_env(ENV_USERNAME)
@@ -177,8 +225,9 @@ def load() -> Settings:
         if not Path(cred_filepath).is_file():
             raise RuntimeError(
                 f"Configured credential file '{cred_filepath}' does not exist. "
-                "Set OSW_MCP_CRED_FILEPATH / OSL_CRED_FILEPATH to a valid path, "
-                "or remove it and configure OSW_USERNAME/OSW_PASSWORD instead."
+                "Set OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH / "
+                "OSL_CRED_FILEPATH aliases) to a valid path, or remove it and "
+                "configure OSW_USERNAME/OSW_PASSWORD instead."
             )
         cred_file_usable = True
 
@@ -190,15 +239,16 @@ def load() -> Settings:
         checks.append((ENV_USERNAME, username))
         checks.append((ENV_PASSWORD, password))
     missing = [names[0] for names, value in checks if not value]
-    if missing:
+    if missing and strict:
         raise RuntimeError(
             "Missing required OSW credential environment variables: "
             + ", ".join(missing)
             + ". Set them in your environment or a .env file "
-            "(pointed to by OSW_MCP_ENV_FILE), or configure a credential file "
-            "via OSW_MCP_CRED_FILEPATH / OSL_CRED_FILEPATH. The server refuses "
-            "to start without them to avoid an interactive credential prompt "
-            "that would hang the stdio transport."
+            "(pointed to by OSW_ENV_FILE / OSW_MCP_ENV_FILE), or configure a "
+            "credential file via OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH "
+            "/ OSL_CRED_FILEPATH aliases). The server refuses to start without "
+            "them to avoid an interactive credential prompt that would hang "
+            "the stdio transport."
         )
 
     if cred_file_usable and domain:
@@ -209,11 +259,11 @@ def load() -> Settings:
         username=username,
         password=password,
         cred_filepath=cred_filepath,
-        sparql_endpoint=os.getenv("OSW_SPARQL_ENDPOINT") or None,
-        read_only=(os.getenv("OSW_MCP_READ_ONLY", "").lower() in _TRUTHY),
-        state_dir=os.getenv("OSW_MCP_STATE_DIR") or None,
-        max_results=_int_env("OSW_MCP_MAX_RESULTS", 100),
-        max_chars=_int_env("OSW_MCP_MAX_CHARS", 100_000),
+        sparql_endpoint=_first_env(ENV_SPARQL_ENDPOINT),
+        read_only=(_first_env(ENV_READ_ONLY) or "").lower() in _TRUTHY,
+        state_dir=_first_env(ENV_STATE_DIR),
+        max_results=_int_env(ENV_MAX_RESULTS, 100),
+        max_chars=_int_env(ENV_MAX_CHARS, 100_000),
     )
 
 

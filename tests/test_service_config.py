@@ -1,12 +1,11 @@
-"""Unit tests for osw.mcp.config (fail-fast credential validation)."""
+"""Unit tests for osw.service.config (fail-fast credential validation)."""
+
+import sys
 
 import pytest
 import yaml
 
-pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
-pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
-
-from osw.mcp import config
+from osw.service import config
 
 _ALL_VARS = [
     "OSW_DOMAIN",
@@ -15,13 +14,19 @@ _ALL_VARS = [
     "OSL_USERNAME",
     "OSW_PASSWORD",
     "OSL_PASSWORD",
+    "OSW_CRED_FILEPATH",
     "OSW_MCP_CRED_FILEPATH",
     "OSL_CRED_FILEPATH",
     "OSW_SPARQL_ENDPOINT",
+    "OSW_READ_ONLY",
     "OSW_MCP_READ_ONLY",
+    "OSW_STATE_DIR",
     "OSW_MCP_STATE_DIR",
+    "OSW_MAX_RESULTS",
     "OSW_MCP_MAX_RESULTS",
+    "OSW_MAX_CHARS",
     "OSW_MCP_MAX_CHARS",
+    "OSW_ENV_FILE",
     "OSW_MCP_ENV_FILE",
 ]
 
@@ -207,3 +212,189 @@ def test_cred_file_without_domain_skips_domain_verification(monkeypatch, tmp_pat
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
     settings = config.load()
     assert settings.domain is None
+
+
+# -- canonical OSW_* names --------------------------------------------------
+
+
+def test_canonical_cred_filepath(monkeypatch, tmp_path):
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    settings = config.load()
+    assert settings.cred_filepath == str(cred_file)
+
+
+def test_canonical_read_only(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_READ_ONLY", "true")
+    settings = config.load()
+    assert settings.read_only is True
+
+
+def test_canonical_state_dir(monkeypatch, tmp_path):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    state_dir = str(tmp_path / "state")
+    monkeypatch.setenv("OSW_STATE_DIR", state_dir)
+    settings = config.load()
+    assert settings.state_dir == state_dir
+
+
+def test_canonical_max_results(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MAX_RESULTS", "7")
+    settings = config.load()
+    assert settings.max_results == 7
+
+
+def test_canonical_max_chars(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MAX_CHARS", "12345")
+    settings = config.load()
+    assert settings.max_chars == 12345
+
+
+def test_canonical_env_file(monkeypatch, tmp_path):
+    env = tmp_path / "creds.env"
+    env.write_text(
+        "OSW_DOMAIN=fromfile.example.org\nOSW_USERNAME=fileuser\nOSW_PASSWORD=filepw\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("OSW_MCP_ENV_FILE", raising=False)
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+    settings = config.load()
+    assert settings.domain == "fromfile.example.org"
+    assert settings.username == "fileuser"
+
+
+# -- OSW_MCP_* aliases not already covered above ----------------------------
+
+
+def test_alias_state_dir(monkeypatch, tmp_path):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    state_dir = str(tmp_path / "state")
+    monkeypatch.setenv("OSW_MCP_STATE_DIR", state_dir)
+    settings = config.load()
+    assert settings.state_dir == state_dir
+
+
+def test_alias_max_chars(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MCP_MAX_CHARS", "54321")
+    settings = config.load()
+    assert settings.max_chars == 54321
+
+
+# -- canonical wins when both canonical and alias are set --------------------
+
+
+def test_canonical_wins_over_alias(monkeypatch, tmp_path):
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    other_cred_file = _write_cred_file(
+        tmp_path / "other.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(other_cred_file))
+    monkeypatch.setenv("OSW_READ_ONLY", "true")
+    monkeypatch.setenv("OSW_MCP_READ_ONLY", "false")
+    monkeypatch.setenv("OSW_MAX_RESULTS", "1")
+    monkeypatch.setenv("OSW_MCP_MAX_RESULTS", "2")
+    monkeypatch.setenv("OSW_MAX_CHARS", "10")
+    monkeypatch.setenv("OSW_MCP_MAX_CHARS", "20")
+    state_dir = str(tmp_path / "state")
+    other_state_dir = str(tmp_path / "other-state")
+    monkeypatch.setenv("OSW_STATE_DIR", state_dir)
+    monkeypatch.setenv("OSW_MCP_STATE_DIR", other_state_dir)
+
+    settings = config.load()
+
+    assert settings.cred_filepath == str(cred_file)
+    assert settings.read_only is True
+    assert settings.max_results == 1
+    assert settings.max_chars == 10
+    assert settings.state_dir == state_dir
+
+
+def test_canonical_env_file_wins_over_alias(monkeypatch, tmp_path):
+    canonical_env = tmp_path / "canonical.env"
+    canonical_env.write_text("OSW_DOMAIN=canonical.example.org\n", encoding="utf-8")
+    alias_env = tmp_path / "alias.env"
+    alias_env.write_text("OSW_DOMAIN=alias.example.org\n", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(canonical_env))
+    monkeypatch.setenv("OSW_MCP_ENV_FILE", str(alias_env))
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+
+    settings = config.load()
+
+    assert settings.domain == "canonical.example.org"
+
+
+# -- strict=False ------------------------------------------------------------
+
+
+def test_load_not_strict_returns_settings_without_raising(monkeypatch):
+    settings = config.load(strict=False)
+    assert settings.domain is None
+    assert settings.username is None
+    assert settings.password is None
+
+
+def test_load_not_strict_still_raises_on_invalid_int(monkeypatch):
+    monkeypatch.setenv("OSW_MAX_RESULTS", "notanumber")
+    with pytest.raises(RuntimeError):
+        config.load(strict=False)
+
+
+def test_load_not_strict_still_raises_on_missing_cred_file(monkeypatch, tmp_path):
+    missing = tmp_path / "does-not-exist.yaml"
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(missing))
+    with pytest.raises(RuntimeError) as exc:
+        config.load(strict=False)
+    assert str(missing) in str(exc.value)
+
+
+# -- _load_env_file / optional dotenv ----------------------------------------
+
+
+def test_load_env_file_raises_when_configured_and_dotenv_missing(monkeypatch, tmp_path):
+    env = tmp_path / "creds.env"
+    env.write_text("OSW_DOMAIN=wiki.example.org\n", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+    monkeypatch.setitem(sys.modules, "dotenv", None)
+    with pytest.raises(RuntimeError) as exc:
+        config._load_env_file()
+    assert "OSW_ENV_FILE" in str(exc.value)
+    assert "python-dotenv" in str(exc.value)
+
+
+def test_load_env_file_silent_when_not_configured_and_dotenv_missing(
+    monkeypatch,
+):
+    monkeypatch.delenv("OSW_MCP_ENV_FILE", raising=False)
+    monkeypatch.delenv("OSW_ENV_FILE", raising=False)
+    monkeypatch.setitem(sys.modules, "dotenv", None)
+    # must not raise
+    config._load_env_file()

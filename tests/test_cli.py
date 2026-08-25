@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import typer
+import yaml
 from typer.testing import CliRunner
 
 import osw.cli.main as cli_main
@@ -360,3 +361,62 @@ def test_ledger_path_prints_the_ledger_file_path(runner, configured_env):
 
     assert result.exit_code == 0, result.stderr
     assert "path" in result.stdout
+
+
+# -- instance list / --instance ---------------------------------------------------
+def test_instance_list_never_leaks_credentials(runner, monkeypatch, tmp_path):
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "alice", "password": "supersecret"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    config.reset()
+
+    result = runner.invoke(app, ["instance", "list"])
+
+    assert result.exit_code == 0, result.stderr
+    assert "wiki-a.example.org" in result.stdout
+    assert "supersecret" not in result.stdout
+    assert "alice" not in result.stdout
+
+
+def test_instance_flag_sets_active_instance(runner, monkeypatch, tmp_path):
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "a", "password": "b"},
+            "wiki-b.example.org": {"username": "c", "password": "d"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    config.reset()
+
+    result = runner.invoke(
+        app, ["--instance", "wiki-b.example.org", "--json", "instance", "list"]
+    )
+
+    assert result.exit_code == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["active_iri"] == "wiki-b.example.org"
+    assert payload["active_domain"] == "wiki-b.example.org"
+
+
+def test_instance_flag_unknown_iri_exits_cleanly(runner, monkeypatch, tmp_path):
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({"wiki-a.example.org": {"username": "a", "password": "b"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    config.reset()
+
+    result = runner.invoke(app, ["--instance", "nope.example.org", "instance", "list"])
+
+    assert result.exit_code == 3  # UnknownInstance
+    assert result.stderr.strip().startswith("UnknownInstance:")
+    assert "wiki-a.example.org" in result.stderr
+    assert "Traceback" not in result.stderr

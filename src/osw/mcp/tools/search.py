@@ -6,6 +6,7 @@ from osw.service.ops import search as _ops  # noqa: F401  (registers the operati
 from osw.service.registry import bind, iter_operations
 
 from .. import connection
+from ..registration import tool_kwargs
 
 
 def register(mcp) -> None:
@@ -14,4 +15,4 @@ def register(mcp) -> None:
     for op in iter_operations(surface="mcp"):
         if op.group != "search":
             continue
-        mcp.tool()(bind(op, ctx))
+        mcp.tool(**tool_kwargs(op, ctx.settings))(bind(op, ctx))

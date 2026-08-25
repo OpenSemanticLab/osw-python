@@ -66,8 +66,10 @@ class Context:
         if domain is None:
             available = ", ".join(config.available_iris()) or "(none)"
             raise errors.NotConfigured(
-                "No OSL instance selected. Call select_instance first; "
-                f"available: {available}."
+                "No OSL instance selected. For a server process, set "
+                "OSW_DOMAIN (or OSW_ENV_FILE to point at a .env file that "
+                "sets it); for the CLI, pass --instance <iri>. "
+                f"Available: {available}."
             )
         return domain
 

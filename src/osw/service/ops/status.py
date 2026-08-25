@@ -37,8 +37,9 @@ def status(ctx: Context) -> dict:
         available = ", ".join(config.available_iris()) or "(none)"
         info["connected"] = False
         info["message"] = (
-            "No OSL instance selected. Call select_instance to choose "
-            f"one; available: {available}."
+            "No OSL instance selected. For a server process, set OSW_DOMAIN "
+            "(or OSW_ENV_FILE to point at a .env file that sets it); for the "
+            f"CLI, pass --instance <iri>. Available: {available}."
         )
         return info
     ledger = ctx.ledger

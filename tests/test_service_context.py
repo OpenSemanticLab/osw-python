@@ -107,7 +107,8 @@ def test_osw_property_raises_not_configured_when_no_active_domain(
 
     with pytest.raises(errors.NotConfigured) as exc_info:
         _ = ctx.osw
-    assert "select_instance" in str(exc_info.value)
+    assert "OSW_DOMAIN" in str(exc_info.value)
+    assert "--instance" in str(exc_info.value)
 
 
 # -- limit ----------------------------------------------------------------

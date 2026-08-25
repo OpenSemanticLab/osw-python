@@ -11,7 +11,7 @@ given invocation is built lazily, inside each command's callback, so
 from __future__ import annotations
 
 import inspect
-from typing import Any, get_type_hints
+from typing import Any, Optional, get_type_hints
 
 import typer
 
@@ -22,7 +22,7 @@ import osw.cli.ops
 
 # Registers every operation in osw.service.registry.REGISTRY as a side effect.
 import osw.service.ops  # noqa: F401
-from osw.service import config
+from osw.service import config, errors
 from osw.service.context import Context, Policy
 from osw.service.errors import OpError
 from osw.service.params import json_value
@@ -37,6 +37,12 @@ app = typer.Typer(no_args_is_help=True, add_completion=False)
 @app.callback()
 def _callback(
     ctx: typer.Context,
+    instance: Optional[str] = typer.Option(
+        None,
+        "--instance",
+        help="Iri of the OSL instance to use for this command, when more "
+        "than one is configured (e.g. via a credential file).",
+    ),
     as_json: bool = typer.Option(
         False, "--json", "-j", help="Emit machine-readable JSON on stdout."
     ),
@@ -50,10 +56,16 @@ def _callback(
     """osw: command-line access to an OpenSemanticLab (OSW) instance.
 
     Connection settings and credentials come from the environment or a
-    .env file (see ``osw.service.config``); no instance selection option is
-    exposed here yet.
+    .env file (see ``osw.service.config``). Pass --instance to pick which
+    configured instance this invocation talks to; unlike the MCP server, the
+    CLI is stateless, so the choice only applies to this one command.
     """
-    ctx.obj = {"as_json": as_json, "read_only": read_only, "verbose": verbose}
+    ctx.obj = {
+        "instance": instance,
+        "as_json": as_json,
+        "read_only": read_only,
+        "verbose": verbose,
+    }
 
 
 def _op_params(op: Operation) -> list[inspect.Parameter]:
@@ -100,17 +112,23 @@ def _run(op: Operation, typer_ctx: typer.Context, kwargs: dict[str, Any]) -> Non
         if content_model == "json" and isinstance(content, str):
             kwargs["content"] = json_value(content)
 
-    settings = config.load(strict=False)
-    policy = Policy(
-        capture_stdout=bool(opts.get("as_json")),
-        errors_as_dicts=False,
-        allow_writes=not opts.get("read_only"),
-        allow_interactive=True,
-    )
-    context = Context(settings, policy)
-    bound = bind(op, context)
-
     try:
+        instance = opts.get("instance")
+        if instance:
+            try:
+                config.set_active_instance(instance)
+            except ValueError as exc:
+                raise errors.UnknownInstance(str(exc)) from exc
+
+        settings = config.load(strict=False)
+        policy = Policy(
+            capture_stdout=bool(opts.get("as_json")),
+            errors_as_dicts=False,
+            allow_writes=not opts.get("read_only"),
+            allow_interactive=True,
+        )
+        context = Context(settings, policy)
+        bound = bind(op, context)
         result = bound(**kwargs)
     except OpError as exc:
         typer.echo(f"{exc.type}: {exc}", err=True)

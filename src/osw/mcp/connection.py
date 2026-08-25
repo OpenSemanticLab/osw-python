@@ -35,8 +35,9 @@ def _require_active_domain() -> str:
     if domain is None:
         available = ", ".join(config.available_iris()) or "(none)"
         raise RuntimeError(
-            "No OSL instance selected. Call select_instance first; "
-            f"available: {available}."
+            "No OSL instance selected. For a server process, set OSW_DOMAIN "
+            "(or OSW_ENV_FILE to point at a .env file that sets it); for the "
+            f"CLI, pass --instance <iri>. Available: {available}."
         )
     return domain
 
@@ -140,11 +141,7 @@ def legacy_context(*, include_writes: bool = True) -> _LegacyContext:
 
 
 def reset() -> None:
-    """Drop the shared connection and ledger so the next call rebuilds them.
-
-    Called after switching the active instance (``select_instance``) so a
-    stale connection or a ledger keyed on the previous domain is never reused.
-    """
+    """Drop the shared connection and ledger so the next call rebuilds them."""
     global _osw, _ledger
     with _LOCK:
         if _osw is not None:

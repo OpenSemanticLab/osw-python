@@ -1,4 +1,4 @@
-"""Unit tests for multi-instance selection in osw.mcp (config + connection + tools).
+"""Unit tests for multi-instance selection in osw.mcp (config + connection).
 
 These are fully offline: no network, no live wiki.
 """
@@ -10,7 +10,6 @@ pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
 
 from osw.mcp import connection
-from osw.mcp.tools import instances
 from osw.service import config
 
 _ALL_VARS = [
@@ -129,60 +128,6 @@ def test_set_active_instance_unknown_iri_raises(monkeypatch, tmp_path):
     with pytest.raises(ValueError) as exc:
         config.set_active_instance("does-not-exist.example.org")
     assert "wiki-a.example.org" in str(exc.value)
-
-
-def test_select_instance_tool_sets_active(monkeypatch, tmp_path):
-    cred_file = _write_cred_file(
-        tmp_path / "accounts.yaml",
-        {
-            "wiki-a.example.org": {"username": "a", "password": "b"},
-            "wiki-b.example.org": {"username": "c", "password": "d"},
-        },
-    )
-    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
-    fake = FakeMCP()
-    instances.register(fake)
-
-    result = fake.tools["select_instance"](iri="wiki-b.example.org")
-
-    assert result["active_iri"] == "wiki-b.example.org"
-    assert result["active_domain"] == "wiki-b.example.org"
-    assert config.get_active_iri() == "wiki-b.example.org"
-
-
-def test_select_instance_tool_unknown_iri_returns_error(monkeypatch, tmp_path):
-    cred_file = _write_cred_file(
-        tmp_path / "accounts.yaml",
-        {"wiki-a.example.org": {"username": "a", "password": "b"}},
-    )
-    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
-    fake = FakeMCP()
-    instances.register(fake)
-
-    result = fake.tools["select_instance"](iri="nope.example.org")
-
-    assert result["type"] == "UnknownInstance"
-    assert "wiki-a.example.org" in result["error"]
-
-
-# -- list_instances never leaks credentials ---------------------------------
-def test_list_instances_never_leaks_credentials(monkeypatch, tmp_path):
-    cred_file = _write_cred_file(
-        tmp_path / "accounts.yaml",
-        {
-            "wiki-a.example.org": {"username": "alice", "password": "supersecret"},
-        },
-    )
-    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
-    fake = FakeMCP()
-    instances.register(fake)
-
-    result = fake.tools["list_instances"]()
-
-    assert result["iris"] == ["wiki-a.example.org"]
-    assert result["active_iri"] == "wiki-a.example.org"
-    assert "supersecret" not in str(result)
-    assert "alice" not in str(result)
 
 
 # -- get_osw() / run_guarded without an active instance ----------------------

@@ -6,6 +6,7 @@ from osw.service.ops import entities as _ops  # noqa: F401  (registers the opera
 from osw.service.registry import bind, iter_operations
 
 from .. import connection
+from ..registration import tool_kwargs
 
 
 def register(mcp, *, include_writes: bool) -> None:
@@ -14,4 +15,4 @@ def register(mcp, *, include_writes: bool) -> None:
     for op in iter_operations(surface="mcp", include_writes=include_writes):
         if op.group != "entity":
             continue
-        mcp.tool()(bind(op, ctx))
+        mcp.tool(**tool_kwargs(op, ctx.settings))(bind(op, ctx))

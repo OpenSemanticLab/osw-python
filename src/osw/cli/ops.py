@@ -22,7 +22,7 @@ from typing import Optional
 
 from osw.controller.file.wiki import WikiFileController
 from osw.core import OverwriteOptions
-from osw.service import errors
+from osw.service import config, errors
 from osw.service.context import Context
 from osw.service.ledger import LedgerRecord
 from osw.service.registry import operation
@@ -143,3 +143,25 @@ def upload_file(
 def ledger_path(ctx: Context) -> dict:
     """Print the local path of the provenance ledger file for the active instance."""
     return {"path": str(ctx.ledger.path)}
+
+
+@operation(
+    group="instance",
+    cli_name="list",
+    surfaces=frozenset({"cli"}),
+    read_only_hint=True,
+    idempotent_hint=True,
+)
+def list_instances(ctx: Context) -> dict:
+    """List the OSL instances this process can connect to.
+
+    Reports the iris available from the env-configured domain and/or a
+    configured credential file, and which one (if any) is currently active
+    for this invocation (see --instance). Never returns usernames, passwords,
+    or any other credential value.
+    """
+    return {
+        "iris": config.available_iris(),
+        "active_iri": config.get_active_iri(),
+        "active_domain": config.get_active_domain(),
+    }

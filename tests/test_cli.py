@@ -7,6 +7,7 @@ patched wherever a test actually reaches a command's body.
 
 from __future__ import annotations
 
+import io
 import json
 from unittest.mock import MagicMock
 
@@ -17,6 +18,7 @@ from typer.testing import CliRunner
 import osw.cli.main as cli_main
 from osw.cli.main import app
 from osw.cli.render import render
+from osw.core import OverwriteOptions
 from osw.service import config
 from osw.service.params import json_value
 from osw.service.registry import iter_operations
@@ -249,3 +251,112 @@ def test_render_dict_shows_key_value_lines():
     assert "title" in rendered
     assert "Item:OSW1" in rendered
     assert "exists" in rendered
+
+
+# -- CLI-only path-taking file commands (osw.cli.ops) ---------------------------
+# These are the only operations in the codebase allowed to name a path; they
+# are exercised here rather than in tests/test_service_ops_files.py.
+def test_download_file_writes_to_tmp_path(
+    runner, configured_env, monkeypatch, tmp_path
+):
+    fake_osw, _page = _fake_osw_with_page(exists=True)
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+
+    wf = MagicMock()
+    wf.title = "OSWabc123.txt"
+    wf.get.return_value = io.BytesIO(b"hello world")
+    monkeypatch.setattr("osw.cli.ops.WikiFileController", MagicMock(return_value=wf))
+
+    result = runner.invoke(
+        app,
+        ["file", "download", "File:OSWabc123.txt", "--target-dir", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0, result.stderr
+    written = tmp_path / "OSWabc123.txt"
+    assert written.read_bytes() == b"hello world"
+
+
+def test_download_file_missing_page_raises_not_found(
+    runner, configured_env, monkeypatch, tmp_path
+):
+    fake_osw, _page = _fake_osw_with_page(exists=False)
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+
+    result = runner.invoke(
+        app,
+        ["file", "download", "File:doesnotexist.txt", "--target-dir", str(tmp_path)],
+    )
+
+    assert result.exit_code == 2  # NotFound
+    assert "NotFound" in result.stderr
+
+
+def test_upload_file_reads_from_tmp_path(runner, configured_env, monkeypatch, tmp_path):
+    fake_osw, _page = _fake_osw_with_page(exists=True)
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+
+    src = tmp_path / "photo.png"
+    src.write_bytes(b"binarydata")
+
+    wf = MagicMock()
+    wf.namespace = "File"
+    wf.title = "OSWxyz.png"
+    wf.url = "https://wiki.example.org/wiki/File:OSWxyz.png"
+    monkeypatch.setattr("osw.cli.ops.WikiFileController", MagicMock(return_value=wf))
+    captured = {}
+    wf.put.side_effect = lambda stream, **kwargs: captured.update(
+        name=stream.name, content=stream.read(), kwargs=kwargs
+    )
+
+    result = runner.invoke(app, ["file", "upload", str(src)])
+
+    assert result.exit_code == 0, result.stderr
+    wf.put.assert_called_once()
+    assert captured["name"] == "photo.png"
+    assert captured["content"] == b"binarydata"
+    assert captured["kwargs"] == {"overwrite": OverwriteOptions.true}
+
+
+def test_upload_file_honors_name_and_no_overwrite(
+    runner, configured_env, monkeypatch, tmp_path
+):
+    fake_osw, _page = _fake_osw_with_page(exists=True)
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+
+    src = tmp_path / "photo.png"
+    src.write_bytes(b"binarydata")
+
+    wf = MagicMock()
+    wf.namespace = "File"
+    wf.title = "OSWxyz.png"
+    wf.url = "https://wiki.example.org/wiki/File:OSWxyz.png"
+    monkeypatch.setattr("osw.cli.ops.WikiFileController", MagicMock(return_value=wf))
+    captured = {}
+    wf.put.side_effect = lambda stream, **kwargs: captured.update(
+        name=stream.name, kwargs=kwargs
+    )
+
+    result = runner.invoke(
+        app,
+        ["file", "upload", str(src), "--name", "renamed.png", "--no-overwrite"],
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert captured["name"] == "renamed.png"
+    assert captured["kwargs"] == {"overwrite": OverwriteOptions.false}
+
+
+def test_upload_file_missing_source_raises_not_found(runner, configured_env, tmp_path):
+    result = runner.invoke(app, ["file", "upload", str(tmp_path / "nope.png")])
+
+    assert result.exit_code == 2  # NotFound
+    assert "NotFound" in result.stderr
+
+
+# -- ledger path ------------------------------------------------------------------
+def test_ledger_path_prints_the_ledger_file_path(runner, configured_env):
+    result = runner.invoke(app, ["ledger", "path"])
+
+    assert result.exit_code == 0, result.stderr
+    assert "path" in result.stdout

@@ -42,7 +42,6 @@ def status(ctx: Context) -> dict:
         )
         return info
     ledger = ctx.ledger
-    info["ledger_path"] = str(ledger.path)
     info["ledger_entry_count"] = ledger.entry_count()
     info["osw_version"] = _osw_version()
     try:

@@ -15,4 +15,4 @@ registered on the MCP server and commands are listed in ``osw --help``.
 
 from __future__ import annotations
 
-from . import entities, schema, search, slots, status
+from . import entities, files, schema, search, slots, status

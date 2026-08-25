@@ -15,6 +15,11 @@ from typing import Any, get_type_hints
 
 import typer
 
+# Registers the CLI-only, path-taking operations (file download/upload, ledger
+# path). Imported here -- and nowhere in osw.mcp -- so a path-taking operation
+# can never reach the MCP registry.
+import osw.cli.ops
+
 # Registers every operation in osw.service.registry.REGISTRY as a side effect.
 import osw.service.ops  # noqa: F401
 from osw.service import config

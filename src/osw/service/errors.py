@@ -13,7 +13,7 @@ Exit codes are grouped by category, not unique per subclass:
 * ``3`` -- invalid input: an argument is malformed, does not validate, or
   does not resolve (:class:`SchemaError`, :class:`ClassNotFound`,
   :class:`ValidationError`, :class:`UnknownInstance`, :class:`InvalidSlot`,
-  :class:`InvalidContent`, :class:`SlotMissing`).
+  :class:`InvalidContent`, :class:`SlotMissing`, :class:`BinaryContent`).
 * ``4`` -- refused/blocked: disallowed by a provenance or safety guard
   (:class:`ExternalDeleteBlocked`, :class:`ReadOnly`).
 * ``5`` -- not configured: required configuration is missing
@@ -115,4 +115,15 @@ class SlotMissing(OpError):
     """A slot does not exist on a page and ``create_if_missing`` is false."""
 
     type = "SlotMissing"
+    exit_code = 3
+
+
+class BinaryContent(OpError):
+    """A file's bytes do not decode under the requested text encoding.
+
+    Raised by ``read_file_text`` when the requested file is not text; the mcp
+    surface cannot return raw bytes, so the caller must use the CLI instead.
+    """
+
+    type = "BinaryContent"
     exit_code = 3

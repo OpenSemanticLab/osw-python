@@ -47,6 +47,9 @@ dependencies = [
     "dask",
     "tqdm",
     "pybars3-wheel",
+    # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
+    # install osw` never ships a broken `osw` console script
+    "typer",
 ]
 
 [project.urls]
@@ -92,6 +95,9 @@ tutorial = ["osw[dataimport]"]
 all = ["osw[dataimport,DB,UI,S3,wikitext]"]
 
 [project.scripts]
+# command-line access to a live OSL instance, built from the same
+# osw.service.registry the MCP server uses
+osw = "osw.cli.main:app"
 # stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude Code)
 osw-mcp = "osw.mcp.server:main"
 

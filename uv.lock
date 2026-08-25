@@ -2117,6 +2117,7 @@ dependencies = [
     { name = "requests" },
     { name = "sparqlwrapper" },
     { name = "tqdm" },
+    { name = "typer" },
     { name = "typing-extensions" },
 ]
 
@@ -2234,6 +2235,7 @@ requires-dist = [
     { name = "sparqlwrapper" },
     { name = "sqlalchemy", marker = "extra == 'db'" },
     { name = "tqdm" },
+    { name = "typer" },
     { name = "typing-extensions" },
 ]
 provides-extras = ["wikitext", "db", "s3", "dataimport", "ui", "mcp", "workflow", "tutorial", "all"]

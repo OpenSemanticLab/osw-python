@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
+from typing import Annotated, Optional
+
+import typer
 
 import osw.model.entity as model_entity
 from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
 from osw.service import config, errors
 from osw.service.context import Context
 from osw.service.ledger import LedgerRecord
+from osw.service.params import json_value
 from osw.service.registry import operation
 from osw.service.serialization import maybe_truncate, to_jsonable
 from osw.wtsite import WtSite
@@ -113,7 +116,7 @@ def export_entity_jsonld(
 def create_or_update_entity(
     ctx: Context,
     category: str,
-    jsondata: dict,
+    jsondata: Annotated[dict, typer.Option(parser=json_value)],
     namespace: Optional[str] = None,
     overwrite: str = "keep existing",
     comment: Optional[str] = None,

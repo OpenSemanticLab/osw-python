@@ -3,6 +3,7 @@
 These mock the shared connection so no network is required.
 """
 
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,10 +12,15 @@ import yaml
 pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
 
+from mcp.server import MCPServer
+
 from osw.mcp import connection
 from osw.mcp.tools import entities, search, slots
 from osw.service import config
+from osw.service.config import Settings
+from osw.service.context import Context, Policy
 from osw.service.ops import entities as entity_ops
+from osw.service.registry import REGISTRY, bind
 
 
 class FakeMCP:
@@ -226,6 +232,24 @@ def test_create_or_update_entity_uses_active_domain(env, monkeypatch, tmp_path):
     )
 
     assert result["urls"] == ["https://wiki-b.example.org/wiki/Item:OSW1"]
+
+
+# -- jsondata's typer marker does not change the MCP schema ------------------
+def test_jsondata_schema_unchanged_by_cli_typer_marker(env):
+    """create_or_update_entity's jsondata carries a typer.Option marker (for
+    the CLI's JSON parser) since step 6 of the MCP/CLI migration; pydantic
+    ignores Annotated metadata it does not recognise, so the schema the MCP
+    SDK derives for it must still be a plain JSON-object schema."""
+    op = REGISTRY["create_or_update_entity"]
+    ctx = Context(Settings(domain=None), Policy())
+    mcp = MCPServer("test")
+    mcp.tool()(bind(op, ctx))
+
+    tools = asyncio.run(mcp.list_tools())
+    tool = next(t for t in tools if t.name == "create_or_update_entity")
+    jsondata_schema = tool.input_schema["properties"]["jsondata"]
+
+    assert jsondata_schema["type"] == "object"
 
 
 def test_run_guarded_converts_exceptions(env, monkeypatch):

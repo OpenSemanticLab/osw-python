@@ -96,6 +96,11 @@ def set_slot(
     ctx: Context,
     title: str,
     slot: str,
+    # Deliberately left without a typer marker: typer has no support for
+    # arbitrary Union types (verified empirically), and whether this is JSON
+    # depends on the sibling `slot` argument's content model, so a single
+    # static parser would be wrong. osw.cli.main handles the CLI coercion
+    # explicitly, after both arguments are known.
     content: Union[str, dict, list],
     comment: Optional[str] = None,
     create_if_missing: bool = True,

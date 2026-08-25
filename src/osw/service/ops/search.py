@@ -35,6 +35,7 @@ def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -
 
 @operation(
     group="search",
+    cli_name="text",
     read_only_hint=True,
     idempotent_hint=True,
 )
@@ -48,6 +49,7 @@ def full_text_search(ctx: Context, text: str, limit: Optional[int] = None) -> di
 
 @operation(
     group="search",
+    cli_name="instances",
     read_only_hint=True,
     idempotent_hint=True,
 )
@@ -68,6 +70,7 @@ def list_instances_of_category(
 
 @operation(
     group="search",
+    cli_name="sparql",
     read_only_hint=True,
     idempotent_hint=True,
     open_world_hint=True,

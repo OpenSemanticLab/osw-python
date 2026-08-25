@@ -3,39 +3,16 @@ valid entities before writing them."""
 
 from __future__ import annotations
 
-from osw.service import config
-from osw.service.serialization import maybe_truncate
-from osw.wtsite import WtSite
+from osw.service.ops import schema as _ops  # noqa: F401  (registers the operations)
+from osw.service.registry import bind, iter_operations
 
-from ..connection import run_guarded
+from .. import connection
 
 
 def register(mcp) -> None:
     """Register the read-only schema tool on ``mcp``."""
-    settings = config.get_settings()
-
-    @mcp.tool()
-    def get_category_schema(category: str) -> dict:
-        """Return the JSON Schema of a category (its ``jsonschema`` slot).
-
-        ``category`` is a full category page name, e.g. ``Category:Item``. The
-        schema is read directly from the page slot, which - unlike fetching and
-        generating models - does not modify any local files. Use the returned
-        schema to construct a valid ``jsondata`` payload for
-        ``create_or_update_entity``.
-        """
-
-        def _run(osw):
-            page = osw.site.get_page(WtSite.GetPageParam(titles=[category])).pages[0]
-            if not page.exists:
-                return {"category": category, "exists": False, "schema": None}
-            schema = page.get_slot_content("jsonschema")
-            content, truncated = maybe_truncate(schema, settings.max_chars)
-            return {
-                "category": category,
-                "exists": True,
-                "schema": content,
-                "truncated": truncated,
-            }
-
-        return run_guarded(_run)
+    ctx = connection.legacy_context()
+    for op in iter_operations(surface="mcp"):
+        if op.group != "schema":
+            continue
+        mcp.tool()(bind(op, ctx))

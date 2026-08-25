@@ -14,6 +14,7 @@ pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
 from osw.mcp import connection
 from osw.mcp.tools import entities, search, slots
 from osw.service import config
+from osw.service.ops import entities as entity_ops
 
 
 class FakeMCP:
@@ -213,9 +214,9 @@ def test_create_or_update_entity_uses_active_domain(env, monkeypatch, tmp_path):
     )
     monkeypatch.setattr(connection, "get_osw", lambda: osw)
     monkeypatch.setattr(
-        entities,
+        entity_ops,
         "_resolve_category_class",
-        lambda category: entities.model_entity.Entity,
+        lambda category: entity_ops.model_entity.Entity,
     )
     fake = FakeMCP()
     entities.register(fake, include_writes=True)

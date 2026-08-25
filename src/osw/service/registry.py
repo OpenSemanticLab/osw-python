@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import Any, Callable, Iterator, Literal, Optional
+from typing import Any, Callable, Iterator, Literal, Optional, get_type_hints
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -169,13 +169,30 @@ def bind(op: Operation, ctx: Context) -> Callable[..., dict]:
                 return exc.payload()
             return {"error": str(exc), "type": type(exc).__name__}
 
+    # Resolve annotations here, against the op module's globals. `bound` lives in
+    # this module, so a consumer calling get_type_hints() on it would otherwise
+    # try to resolve `from __future__ import annotations` strings against the
+    # wrong namespace. include_extras keeps Annotated[...] metadata intact.
+    try:
+        hints = get_type_hints(op.fn, include_extras=True)
+    except Exception:  # unresolvable forward ref: leave the strings in place
+        hints = {}
+
     sig = inspect.signature(op.fn)
-    params = list(sig.parameters.values())[1:]  # drop ctx
+    params = [
+        p.replace(annotation=hints.get(p.name, p.annotation))
+        for p in list(sig.parameters.values())[1:]  # drop ctx
+    ]
+    annotations = dict(getattr(op.fn, "__annotations__", {}))
+    annotations.update(hints)
+    annotations.pop("ctx", None)
+
     bound.__name__ = op.fn.__name__
     bound.__qualname__ = op.fn.__qualname__
     bound.__doc__ = op.fn.__doc__
-    bound.__signature__ = sig.replace(parameters=params)
-    annotations = dict(getattr(op.fn, "__annotations__", {}))
-    annotations.pop("ctx", None)
+    bound.__signature__ = sig.replace(
+        parameters=params,
+        return_annotation=hints.get("return", sig.return_annotation),
+    )
     bound.__annotations__ = annotations
     return bound

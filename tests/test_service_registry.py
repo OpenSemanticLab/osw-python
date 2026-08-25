@@ -7,6 +7,7 @@ network.
 """
 
 import inspect
+import typing
 from unittest.mock import MagicMock
 
 import pytest
@@ -203,6 +204,34 @@ def test_bind_signature_excludes_ctx():
     assert "ctx" not in bound.__annotations__
     assert bound.__doc__ == fn.__doc__
     assert bound.__name__ == fn.__name__
+
+
+def test_bind_resolves_string_annotations_against_the_op_module():
+    """An op module using ``from __future__ import annotations`` stores its
+    annotations as strings. ``bound`` lives in registry.py, so a consumer calling
+    get_type_hints() on it would resolve them against the wrong globals; bind()
+    must therefore resolve them eagerly."""
+    ns: dict = {}
+    exec(
+        "from __future__ import annotations\n"
+        "from typing import Optional\n"
+        "class Marker: pass\n"
+        "def fn(ctx, thing: Optional[Marker] = None) -> dict:\n"
+        "    '''Do a thing.'''\n"
+        "    return {}\n",
+        ns,
+    )
+    fn, marker = ns["fn"], ns["Marker"]
+    assert fn.__annotations__["thing"] == "Optional[Marker]"
+
+    op = registry.Operation(name="op1", fn=fn)
+    bound = registry.bind(op, Context(_settings(), osw=object()))
+
+    expected = typing.Optional[marker]
+    assert bound.__annotations__["thing"] == expected
+    assert inspect.signature(bound).parameters["thing"].annotation == expected
+    # Marker is not in registry.py's globals, so this raised NameError before.
+    assert typing.get_type_hints(bound)["thing"] == expected
 
 
 # -- bind(): error handling --------------------------------------------------

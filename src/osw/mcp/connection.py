@@ -21,6 +21,7 @@ from typing import Callable, Optional
 from osw.auth import CredentialManager
 from osw.express import OswExpress
 from osw.service import config
+from osw.service.context import Context, Policy
 from osw.service.ledger import Ledger
 
 _LOCK = threading.RLock()
@@ -97,6 +98,45 @@ def run_guarded(fn: Callable[[OswExpress], dict]) -> dict:
     except Exception as exc:
         print(f"[osw-mcp] tool error: {exc!r}", file=sys.stderr)
         return {"error": str(exc), "type": type(exc).__name__}
+
+
+class _LegacyContext(Context):
+    """Transitional :class:`Context` backed by this module's process globals.
+
+    Operations have moved to :mod:`osw.service.ops`, but ``register()`` still
+    runs against the globals above and the existing tests monkeypatch
+    ``connection.get_osw`` / ``connection.get_ledger``. Resolving both through
+    the module functions on every access keeps that working. Deleted together
+    with the rest of this module once ``server.py`` builds a real Context.
+    """
+
+    def __init__(self, settings, policy=None) -> None:
+        super().__init__(settings, policy)
+        self._lock = _LOCK  # share the lock with any remaining run_guarded call
+
+    @property
+    def osw(self) -> OswExpress:
+        return get_osw()
+
+    @property
+    def ledger(self) -> Ledger:
+        return get_ledger()
+
+    def reset(self) -> None:
+        reset()
+
+
+def legacy_context(*, include_writes: bool = True) -> _LegacyContext:
+    """Build the transitional context the tool groups bind their operations to."""
+    return _LegacyContext(
+        config.get_settings(),
+        Policy(
+            capture_stdout=True,
+            errors_as_dicts=True,
+            allow_writes=include_writes,
+            allow_interactive=False,
+        ),
+    )
 
 
 def reset() -> None:

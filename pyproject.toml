@@ -349,17 +349,17 @@ python-version = "3.10"
 #  - src/osw/model/entity.py: generated (datamodel-code-generator) models
 #  - examples, scripts: illustrative/maintenance code, not part of the package
 #  - tests: not yet type-clean, tightened in a follow-up
-#  - src/osw/mcp: its dependencies (the mcp extra) cannot be installed
-#    alongside the workflow extra (see [tool.uv] conflicts); revert this
-#    once the anyio conflict is resolved
-#    (https://github.com/OpenSemanticLab/osw-python/issues/139)
+#
+# src/osw/mcp is no longer excluded. The mcp extra still cannot be installed
+# alongside the dev group (issue #139), so the two SDK imports in server.py
+# carry an inline `ty: ignore[unresolved-import]`; everything else there, and
+# all of src/osw/service and src/osw/cli, is checked.
 exclude = [
     "src/osw/model/entity.py",
     "examples",
     "scripts",
     "tests",
     "docs",
-    "src/osw/mcp",
 ]
 
 [tool.ty.rules]

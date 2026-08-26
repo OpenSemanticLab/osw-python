@@ -166,6 +166,18 @@ def _make_command(op: Operation):
 
 _groups: dict[str, typer.Typer] = {}
 
+# One line per command group. Without these ``osw --help`` lists eight bare
+# group names with nothing next to them; a group missing an entry still works.
+_GROUP_HELP = {
+    "entity": "Read, write, export and delete entities.",
+    "file": "Wiki file pages: metadata, inline text, and local transfer.",
+    "instance": "Inspect the OSL instances this process can connect to.",
+    "ledger": "The local provenance ledger of pages written from here.",
+    "schema": "Category JSON Schemas.",
+    "search": "Query the instance: semantic, full-text or SPARQL.",
+    "slot": "Read and write individual page slots.",
+}
+
 for _op in iter_operations(surface="cli"):
     _command = _make_command(_op)
     if _op.group is None:
@@ -175,7 +187,7 @@ for _op in iter_operations(surface="cli"):
         if _sub is None:
             _sub = typer.Typer()
             _groups[_op.group] = _sub
-            app.add_typer(_sub, name=_op.group)
+            app.add_typer(_sub, name=_op.group, help=_GROUP_HELP.get(_op.group))
         _sub.command(name=_op.command)(_command)
 
 

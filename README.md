@@ -86,8 +86,9 @@ paths.
 ## Configuration
 
 Both the CLI and the MCP server read their settings from the environment or
-from a `.env` file. Keep credentials in a gitignored file; they are read at
-startup and never written back to disk.
+from a `.env` file. Keep credentials in a gitignored file; they are read once
+per process, into that process only, and never written back to disk. A real
+environment variable always wins over the same name in a `.env` file.
 
 ```dotenv
 OSW_DOMAIN=wiki-dev.open-semantic-lab.org
@@ -135,6 +136,35 @@ set wins:
 | `OSW_STATE_DIR` | `OSW_MCP_STATE_DIR` | Where the provenance ledger is kept |
 | `OSW_MAX_RESULTS` | `OSW_MCP_MAX_RESULTS` | Default result cap (100) |
 | `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
+
+### Where the `.env` file comes from
+
+Set `OSW_ENV_FILE` to a path and that file is loaded, always. With it unset the
+two adapters differ on purpose:
+
+- The **CLI** searches upward from the working directory, so a `.env` in a
+  project root applies to every `osw` command run anywhere inside it.
+- The **MCP server** searches nowhere. Its working directory is picked by the
+  MCP client, so an implicit search would make the credentials it loads depend
+  on how the client happened to be launched. Point it at a file explicitly with
+  `OSW_ENV_FILE` in the server's `env` block (see below).
+
+Both print the sources they resolved to stderr before connecting:
+
+```text
+[osw] env file       : /home/me/project/.env (found from the working directory upward)
+[osw] credential file: /abs/path/to/accounts.pwd.yaml
+```
+
+Quote Windows paths with single quotes, or leave them unquoted. A double-quoted
+value in a `.env` file is escape-decoded, so `\a` in a path silently becomes a
+BEL byte that renders as nothing:
+
+```dotenv
+OSW_CRED_FILEPATH='C:\Users\me\accounts.pwd.yaml'   # ok
+OSW_CRED_FILEPATH=C:\Users\me\accounts.pwd.yaml     # ok
+OSW_CRED_FILEPATH="C:\Users\me\accounts.pwd.yaml"   # broken: \a is eaten
+```
 
 ## MCP server
 

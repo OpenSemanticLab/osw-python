@@ -76,6 +76,13 @@ def runner():
     return CliRunner(mix_stderr=False)
 
 
+def _error_lines(stderr: str) -> list[str]:
+    """``stderr`` minus the ``[osw]`` config banner every command prints."""
+    return [
+        line for line in stderr.strip().splitlines() if not line.startswith("[osw] ")
+    ]
+
+
 def _fake_osw_with_page(exists=True):
     page = MagicMock()
     page.exists = exists
@@ -162,10 +169,10 @@ def test_op_error_exits_with_its_exit_code_and_no_traceback(runner, configured_e
     result = runner.invoke(app, ["search", "sparql", "SELECT * WHERE {?s ?p ?o}"])
 
     assert result.exit_code == 5
-    assert result.stderr.strip() == (
+    assert _error_lines(result.stderr) == [
         "NotConfigured: SPARQL endpoint not configured. Set "
         "OSW_SPARQL_ENDPOINT or pass the 'endpoint' argument."
-    )
+    ]
     assert "Traceback" not in result.stderr
     assert "Traceback" not in result.stdout
 
@@ -185,7 +192,7 @@ def test_read_only_blocks_a_write_command(runner, configured_env):
     )
 
     assert result.exit_code == 4
-    assert result.stderr.strip().startswith("ReadOnly:")
+    assert _error_lines(result.stderr)[0].startswith("ReadOnly:")
     assert "Traceback" not in result.stderr
 
 

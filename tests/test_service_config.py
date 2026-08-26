@@ -398,3 +398,136 @@ def test_load_env_file_silent_when_not_configured_and_dotenv_missing(
     monkeypatch.setitem(sys.modules, "dotenv", None)
     # must not raise
     config._load_env_file()
+
+
+# -- implicit .env discovery ----------------------------------------------------
+def test_no_implicit_env_search_by_default(monkeypatch, tmp_path):
+    """Discovery is off unless an adapter opts in, so a stray .env in the
+    working directory cannot decide which instance a server connects to."""
+    monkeypatch.delenv("OSW_MCP_ENV_FILE", raising=False)
+    monkeypatch.delenv("OSW_ENV_FILE", raising=False)
+    (tmp_path / ".env").write_text(
+        "OSW_DOMAIN=from-cwd.example.org\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    config._load_env_file()
+
+    assert config._first_env(config.ENV_DOMAIN) is None
+    assert config._env_file_origin == "not searched"
+
+
+def test_implicit_env_search_starts_at_the_working_directory(monkeypatch, tmp_path):
+    """The search must start at the CWD, not at this module's directory.
+
+    ``dotenv.load_dotenv()`` with no arguments walks up from the *calling
+    module's* file, which is osw/service/config.py: under an editable install
+    that is the osw checkout, so it would silently load the checkout's own
+    .env no matter where the user is standing.
+    """
+    monkeypatch.delenv("OSW_MCP_ENV_FILE", raising=False)
+    monkeypatch.delenv("OSW_ENV_FILE", raising=False)
+    nested = tmp_path / "project" / "sub"
+    nested.mkdir(parents=True)
+    (tmp_path / "project" / ".env").write_text(
+        "OSW_DOMAIN=from-cwd.example.org\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(nested)
+    config.set_env_file_discovery(True)
+
+    config._load_env_file()
+
+    assert config._first_env(config.ENV_DOMAIN) == "from-cwd.example.org"
+    assert config._env_file_origin == "discovered"
+
+
+def test_explicit_env_file_wins_over_discovery(monkeypatch, tmp_path):
+    explicit = tmp_path / "explicit.env"
+    explicit.write_text("OSW_DOMAIN=explicit.example.org\n", encoding="utf-8")
+    (tmp_path / ".env").write_text(
+        "OSW_DOMAIN=from-cwd.example.org\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("OSW_ENV_FILE", str(explicit))
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    config._load_env_file()
+
+    assert config._first_env(config.ENV_DOMAIN) == "explicit.example.org"
+    assert config._env_file_origin == "explicit"
+
+
+def test_set_env_file_discovery_raises_only_on_a_late_change(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "u")
+    monkeypatch.setenv("OSW_PASSWORD", "p")
+    config.get_settings()  # populates the cache
+
+    config.set_env_file_discovery(False)  # re-asserting the current value is fine
+
+    with pytest.raises(RuntimeError, match="before settings are loaded"):
+        config.set_env_file_discovery(True)
+
+
+# -- .env escape footgun --------------------------------------------------------
+def test_missing_cred_file_flags_an_escape_mangled_path(monkeypatch):
+    r"""A double-quoted Windows path in .env loses \a to a BEL byte.
+
+    The mangled path then renders as if it were the path the user typed, so
+    the plain "does not exist" message looks wrong rather than informative.
+    """
+    # What dotenv produces for OSW_CRED_FILEPATH="C:\dir\accounts.yaml":
+    # the \a is decoded to BEL, which prints as nothing.
+    mangled = "C:" + chr(92) + "dir" + chr(7) + "ccounts.yaml"
+    monkeypatch.setenv("OSW_CRED_FILEPATH", mangled)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "control character" in str(exc.value)
+    assert "single quotes" in str(exc.value)
+
+
+def test_missing_cred_file_without_control_chars_has_no_escape_hint(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(tmp_path / "nope.yaml"))
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "does not exist" in str(exc.value)
+    assert "control character" not in str(exc.value)
+
+
+# -- startup banner -------------------------------------------------------------
+def test_log_config_sources_reports_env_and_cred_file(monkeypatch, tmp_path, capsys):
+    cred = tmp_path / "accounts.yaml"
+    cred.write_text(
+        yaml.safe_dump({"wiki.example.org": {"username": "u", "password": "p"}}),
+        encoding="utf-8",
+    )
+    env = tmp_path / "creds.env"
+    env.write_text("", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred))
+    config._load_env_file()
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    # stdout is the JSON-RPC stream under MCP and the result payload under
+    # `osw --json`, so the banner must never appear there.
+    assert captured.out == ""
+    assert str(env) in captured.err
+    assert str(cred) in captured.err
+
+
+def test_log_config_sources_omits_cred_file_when_unconfigured(monkeypatch, capsys):
+    config._load_env_file()
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "env file" in captured.err
+    assert "credential file" not in captured.err

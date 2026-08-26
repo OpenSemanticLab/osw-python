@@ -107,6 +107,10 @@ def _build_server() -> tuple[MCPServer, Context]:
     to one OSL instance for its whole lifetime, so registering tools that
     would all fail at call time would be actively misleading.
     """
+    # Before get_settings(), so a misconfiguration that makes loading raise
+    # still reports which files were read. stderr, so it lands in the MCP
+    # client's server log without touching the JSON-RPC stream on stdout.
+    config.log_config_sources()
     settings = config.get_settings()
     domain = config.get_active_domain()
     if domain is None:

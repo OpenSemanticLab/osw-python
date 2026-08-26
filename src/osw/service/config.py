@@ -11,6 +11,7 @@ as a password). We therefore fail fast with a clear error instead.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -56,7 +57,7 @@ class Settings:
 
     # domain is optional: with a usable credential file, no domain need be
     # configured via the environment; the active instance is then chosen from
-    # the credential file (auto-selected or via the select_instance tool).
+    # the credential file (auto-selected, or picked with the CLI's --instance).
     domain: Optional[str]
     # username/password are optional: a configured credential file is an
     # alternative source of credentials (see ENV_CRED_FILEPATH).
@@ -94,6 +95,24 @@ def _int_env(names: tuple[str, ...], default: int) -> int:
         raise RuntimeError(
             f"Environment variable {name}={raw!r} is not a valid integer."
         )
+
+
+def _escape_hint(value: str) -> str:
+    """Extra error text when ``value`` holds a control character, else "".
+
+    A double-quoted value in a ``.env`` file goes through escape decoding, so
+    a Windows path like ``"C:\\dir\\accounts.yaml"`` silently loses its ``\\a``
+    to a BEL byte. The result renders as nothing in a terminal, which makes the
+    resulting "does not exist" message look like it is naming the right path.
+    """
+    if not any(ord(char) < 32 for char in value):
+        return ""
+    return (
+        f" The configured path contains a control character ({value!r}). A "
+        "double-quoted value in a .env file is escape-decoded, so a Windows "
+        r"path loses sequences like \a, \b, \f, \n, \r, \t and \v. Use single "
+        "quotes, no quotes, forward slashes, or doubled backslashes."
+    )
 
 
 def _cred_file_iris(cred_filepath: str) -> list[str]:
@@ -150,14 +169,54 @@ def _verify_cred_file_has_domain(cred_filepath: str, domain: str) -> None:
         )
 
 
+# Whether to look for a .env file when none is configured explicitly. Off by
+# default, so a process only reads a file it was pointed at: the MCP server's
+# working directory is chosen by the MCP client, so searching it would make
+# which credentials get loaded depend on how the client was launched. The CLI
+# turns it on (see osw.cli.main), where the working directory is the one the
+# user typed the command in.
+_discover_env_file: bool = False
+
+# Where the .env file actually came from, for the startup banner. One of
+# "explicit", "discovered", "none" (searched, nothing found) or "not searched".
+_env_file_path: Optional[str] = None
+_env_file_origin: str = "not searched"
+
+
+def set_env_file_discovery(enabled: bool) -> None:
+    """Enable or disable the implicit ``.env`` search (default: disabled).
+
+    Must be called before settings are first loaded, since the file is read
+    exactly once per process; a call that would *change* the setting after
+    that raises rather than silently having no effect. Re-asserting the
+    current value is always allowed, so an adapter can call this on every
+    command without tracking whether it already did.
+    """
+    global _discover_env_file
+    if enabled != _discover_env_file and _settings is not None:
+        raise RuntimeError(
+            "set_env_file_discovery() must be called before settings are "
+            "loaded; they are already cached for this process."
+        )
+    _discover_env_file = enabled
+
+
 def _load_env_file() -> None:
-    """Load a .env file if one is configured or discoverable.
+    """Load a .env file if one is configured or (when enabled) discoverable.
 
     dotenv is optional (it ships with the ``mcp`` extra). An *explicitly*
     configured env file with dotenv missing is an error, because the operator
     asked for something that cannot happen. An implicit search is skipped
     silently.
+
+    The implicit search starts at the current working directory and walks
+    upward. ``dotenv.load_dotenv()`` with no arguments would instead walk up
+    from the *calling module's* directory, which is this file: under an
+    editable install that is the osw checkout and under a normal install it is
+    site-packages. Neither is what a user standing in a project directory
+    means by "the .env file", hence the explicit ``usecwd=True``.
     """
+    global _env_file_path, _env_file_origin
     path = _first_env(ENV_FILE)
     try:
         import dotenv
@@ -172,16 +231,50 @@ def _load_env_file() -> None:
         )
     if path:
         dotenv.load_dotenv(path)
-    else:
-        dotenv.load_dotenv()
+        _env_file_path, _env_file_origin = path, "explicit"
+        return
+    if not _discover_env_file:
+        return
+    found = dotenv.find_dotenv(usecwd=True)
+    if not found:
+        _env_file_origin = "none"
+        return
+    dotenv.load_dotenv(found)
+    _env_file_path, _env_file_origin = found, "discovered"
+
+
+def log_config_sources(stream=None) -> None:
+    """Print where configuration was read from, one line per source.
+
+    Loads the ``.env`` file first if that has not happened yet, and reads the
+    environment directly rather than a ``Settings``. Both so this can run
+    *before* settings are loaded: a misconfiguration makes loading raise, and
+    that is exactly when knowing which files were read matters most.
+
+    Always writes to ``stderr``: under MCP ``stdout`` carries the JSON-RPC
+    stream, and under ``osw --json`` it carries the result payload.
+    """
+    _load_env_file()
+    out = sys.stderr if stream is None else stream
+    described = {
+        "explicit": f"{_env_file_path} (from {ENV_FILE[0]})",
+        "discovered": f"{_env_file_path} (found from the working directory upward)",
+        "none": "none found (searched from the working directory upward)",
+        "not searched": f"not configured (set {ENV_FILE[0]} to use one)",
+    }[_env_file_origin]
+    print(f"[osw] env file       : {described}", file=out)
+    cred_filepath = _first_env(ENV_CRED_FILEPATH)
+    if cred_filepath:
+        print(f"[osw] credential file: {cred_filepath}", file=out)
 
 
 def load(strict: bool = True) -> Settings:
     """Load and validate settings from the environment.
 
     Loads a ``.env`` file first: the path in ``OSW_ENV_FILE`` (or its
-    ``OSW_MCP_ENV_FILE`` alias) if set, otherwise dotenv's default search from
-    the current working directory upward.
+    ``OSW_MCP_ENV_FILE`` alias) if set, otherwise a search from the current
+    working directory upward, but only when ``set_env_file_discovery(True)``
+    has enabled it (the CLI does; the MCP server does not).
 
     Credentials can come from either ``OSW_USERNAME``/``OSW_PASSWORD`` (or
     their ``OSL_*`` aliases) or from a credential file configured via
@@ -228,11 +321,12 @@ def load(strict: bool = True) -> Settings:
                 "Set OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH / "
                 "OSL_CRED_FILEPATH aliases) to a valid path, or remove it and "
                 "configure OSW_USERNAME/OSW_PASSWORD instead."
+                + _escape_hint(cred_filepath)
             )
         cred_file_usable = True
 
     # A usable credential file makes the domain optional: which instance to
-    # use is then chosen later (auto-selected or via select_instance).
+    # use is then chosen later (auto-selected, or via the CLI's --instance).
     checks = []
     if not cred_file_usable:
         checks.append((ENV_DOMAIN, domain))
@@ -281,9 +375,13 @@ def get_settings() -> Settings:
 def reset() -> None:
     """Drop cached settings and the active-instance selection (used by tests)."""
     global _settings, _active_iri, _active_resolved
+    global _discover_env_file, _env_file_path, _env_file_origin
     _settings = None
     _active_iri = None
     _active_resolved = False
+    _discover_env_file = False
+    _env_file_path = None
+    _env_file_origin = "not searched"
 
 
 # -- active-instance state ---------------------------------------------------
@@ -292,8 +390,8 @@ def reset() -> None:
 # env-configured domain and/or the iris in a credential file). Exactly one of
 # them is "active" at a time; tools connect to whichever one is active. The
 # active instance is auto-selected on first access (see ``_auto_select_iri``)
-# and can be changed at runtime via ``set_active_instance`` (the
-# ``select_instance`` tool).
+# and can be changed via ``set_active_instance`` (the CLI's ``--instance``
+# flag; the MCP server is pinned to one instance and never switches).
 
 _active_iri: Optional[str] = None
 _active_resolved: bool = False
@@ -306,7 +404,7 @@ def _auto_select_iri() -> Optional[str]:
     2. Otherwise, if a credential file is configured and contains exactly one
        iri, that iri is the active instance.
     3. Otherwise there is no active instance until ``set_active_instance`` is
-       called (e.g. via the ``select_instance`` tool).
+       called (e.g. via the CLI's ``--instance`` flag).
     """
     settings = get_settings()
     if settings.domain:

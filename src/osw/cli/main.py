@@ -60,6 +60,10 @@ def _callback(
     configured instance this invocation talks to; unlike the MCP server, the
     CLI is stateless, so the choice only applies to this one command.
     """
+    # The CLI's working directory is the one the user typed the command in, so
+    # searching it upward for a .env is what they mean. The MCP server leaves
+    # this off: its working directory is chosen by the MCP client.
+    config.set_env_file_discovery(True)
     ctx.obj = {
         "instance": instance,
         "as_json": as_json,
@@ -120,6 +124,9 @@ def _run(op: Operation, typer_ctx: typer.Context, kwargs: dict[str, Any]) -> Non
             except ValueError as exc:
                 raise errors.UnknownInstance(str(exc)) from exc
 
+        # Before load(), so a misconfiguration that makes loading raise still
+        # reports which files were read.
+        config.log_config_sources()
         settings = config.load(strict=False)
         policy = Policy(
             capture_stdout=bool(opts.get("as_json")),

@@ -1,7 +1,7 @@
 """Unit tests for osw.service.errors.
 
 Each ``OpError`` subclass must reproduce, key-for-key and value-for-value, the
-dict a tool body in ``osw.mcp.tools`` returns today.
+error dict shape the MCP tools returned before the move to ``osw.service``.
 """
 
 from osw.service import errors

@@ -1,6 +1,9 @@
-"""Unit tests for osw.mcp.registration (Operation -> mcp.tool() kwargs).
+"""Unit tests for osw.mcp.server's Operation -> mcp.tool() kwargs mapping
+(``_annotations``, ``_meta``, ``tool_kwargs``).
 
-These are fully offline: no network, no live wiki.
+Pure unit tests, offline, no network, no live wiki. Server-level
+registration-shape tests (which tools end up on a real ``MCPServer``) live in
+``tests/test_mcp_server.py``.
 """
 
 from __future__ import annotations
@@ -11,7 +14,7 @@ pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 
 from mcp.types import ToolAnnotations
 
-from osw.mcp.registration import _annotations, _meta, tool_kwargs
+from osw.mcp.server import _annotations, _meta, tool_kwargs
 from osw.service.config import Settings
 from osw.service.registry import Operation
 
@@ -106,37 +109,3 @@ def test_tool_kwargs_uses_name_and_docstring():
     assert kwargs["description"] == "A test operation."
     assert kwargs["annotations"] is None
     assert "anthropic/maxResultSizeChars" in kwargs["meta"]
-
-
-# -- no instance-switching tools on the registered server ------------------------
-def test_registered_server_exposes_no_instance_switching_tools(monkeypatch):
-    from osw.mcp.tools import register_all
-    from osw.service import config
-
-    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
-    monkeypatch.setenv("OSW_USERNAME", "u")
-    monkeypatch.setenv("OSW_PASSWORD", "p")
-    config.reset()
-
-    class FakeMCP:
-        def __init__(self):
-            self.names = []
-
-        def tool(self, *_args, **kwargs):
-            def deco(fn):
-                self.names.append(kwargs.get("name") or fn.__name__)
-                return fn
-
-            return deco
-
-    fake = FakeMCP()
-    try:
-        register_all(fake, include_writes=True)
-    finally:
-        config.reset()
-
-    # Assert something WAS registered first: the two absence checks below
-    # would otherwise pass on an empty list.
-    assert "get_entity" in fake.names
-    assert "list_instances" not in fake.names
-    assert "select_instance" not in fake.names

@@ -1,16 +1,16 @@
-"""Unit tests for multi-instance selection in osw.mcp (config + connection).
+"""Unit tests for multi-instance selection in osw.service (config + Context).
 
-These are fully offline: no network, no live wiki.
+These are fully offline: no network, no live wiki. They also need no MCP SDK:
+osw.service is deliberately SDK-free, so unlike tests/test_mcp_*.py these run
+in the default dev environment.
 """
 
 import pytest
 import yaml
 
-pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
-pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
-
-from osw.mcp import connection
-from osw.service import config
+from osw.service import config, errors
+from osw.service.context import Context, Policy
+from osw.service.registry import Operation, bind
 
 _ALL_VARS = [
     "OSW_DOMAIN",
@@ -30,20 +30,6 @@ _ALL_VARS = [
 ]
 
 
-class FakeMCP:
-    """Minimal stand-in that captures @tool-decorated functions by name."""
-
-    def __init__(self):
-        self.tools = {}
-
-    def tool(self, *_a, **_k):
-        def deco(fn):
-            self.tools[fn.__name__] = fn
-            return fn
-
-        return deco
-
-
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch, tmp_path):
     for var in _ALL_VARS:
@@ -53,12 +39,8 @@ def _clean_env(monkeypatch, tmp_path):
     empty.write_text("", encoding="utf-8")
     monkeypatch.setenv("OSW_MCP_ENV_FILE", str(empty))
     config.reset()
-    connection._osw = None
-    connection._ledger = None
     yield
     config.reset()
-    connection._osw = None
-    connection._ledger = None
 
 
 def _write_cred_file(path, data):
@@ -130,7 +112,7 @@ def test_set_active_instance_unknown_iri_raises(monkeypatch, tmp_path):
     assert "wiki-a.example.org" in str(exc.value)
 
 
-# -- get_osw() / run_guarded without an active instance ----------------------
+# -- Context.osw / bind() without an active instance -------------------------
 def test_get_osw_raises_when_no_instance_selected(monkeypatch, tmp_path):
     cred_file = _write_cred_file(
         tmp_path / "accounts.yaml",
@@ -140,9 +122,10 @@ def test_get_osw_raises_when_no_instance_selected(monkeypatch, tmp_path):
         },
     )
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    ctx = Context(config.get_settings(), Policy())
 
-    with pytest.raises(RuntimeError) as exc:
-        connection.get_osw()
+    with pytest.raises(errors.NotConfigured) as exc:
+        _ = ctx.osw
     assert "No OSL instance selected" in str(exc.value)
     assert "wiki-a.example.org" in str(exc.value)
     assert "wiki-b.example.org" in str(exc.value)
@@ -160,9 +143,17 @@ def test_run_guarded_surfaces_no_instance_selected_as_structured_dict(
     )
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
 
-    result = connection.run_guarded(lambda osw: {"ok": True})
+    def _touch_osw(ctx) -> dict:
+        """Test-only op: access ctx.osw to trigger active-domain resolution."""
+        _ = ctx.osw
+        return {"ok": True}
 
-    assert result["type"] == "RuntimeError"
+    op = Operation(name="_touch_osw", fn=_touch_osw)
+    ctx = Context(config.get_settings(), Policy(errors_as_dicts=True))
+
+    result = bind(op, ctx)()
+
+    assert result["type"] == "NotConfigured"
     assert "No OSL instance selected" in result["error"]
 
 
@@ -181,7 +172,7 @@ def test_derive_domain_from_full_url():
     )
 
 
-# -- connection.reset() drops the ledger -------------------------------------
+# -- Context.reset() drops the ledger -----------------------------------------
 def test_reset_drops_ledger_for_new_domain_after_switching(monkeypatch, tmp_path):
     cred_file = _write_cred_file(
         tmp_path / "accounts.yaml",
@@ -193,13 +184,14 @@ def test_reset_drops_ledger_for_new_domain_after_switching(monkeypatch, tmp_path
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
     monkeypatch.setenv("OSW_MCP_STATE_DIR", str(tmp_path / "state"))
     config.set_active_instance("wiki-a.example.org")
+    ctx = Context(config.get_settings(), Policy())
 
-    ledger_a = connection.get_ledger()
+    ledger_a = ctx.ledger
     assert "wiki-a.example.org" in str(ledger_a.path)
 
     config.set_active_instance("wiki-b.example.org")
-    connection.reset()
-    ledger_b = connection.get_ledger()
+    ctx.reset()
+    ledger_b = ctx.ledger
 
     assert "wiki-b.example.org" in str(ledger_b.path)
     assert ledger_a.path != ledger_b.path

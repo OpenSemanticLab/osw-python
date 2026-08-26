@@ -1,9 +1,9 @@
 """Per-instance execution context shared by every osw.service adapter.
 
-Replaces the module-level globals in :mod:`osw.mcp.connection` (``_osw``,
-``_ledger``, ``_LOCK``) with an object, so a single process can hold more than
-one connected instance and tests can inject a fake ``osw``/``ledger`` instead
-of monkeypatching a module.
+Holds the connection state (``osw``, ``ledger``, the lock) on an object rather
+than in module-level globals, so a single process can hold more than one
+connected instance and tests can inject a fake ``osw``/``ledger`` instead of
+monkeypatching a module.
 
 The osw library prints progress to ``stdout`` (e.g. "Connecting to ..."). On
 the MCP stdio transport ``stdout`` is the JSON-RPC channel, so

@@ -8,15 +8,19 @@ credentials come from the environment / a ``.env`` file (see
 from __future__ import annotations
 
 import atexit
+import inspect
 import sys
+from typing import Any, Optional
 
 from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
 
 import osw
+import osw.service.ops
 from osw.service import config
-
-from . import connection
-from .tools import register_all
+from osw.service.config import Settings
+from osw.service.context import Context, Policy
+from osw.service.registry import Operation, bind, iter_operations
 
 INSTRUCTIONS = """\
 This server is pinned to exactly one OpenSemanticLab (OSL) instance for its
@@ -36,8 +40,63 @@ provenance ledger's path), use the `osw` CLI instead.
 """
 
 
-def create_server() -> MCPServer:
-    """Build the MCPServer, registering tools per the read-only setting.
+def _annotations(op: Operation) -> Optional[ToolAnnotations]:
+    """Build ``ToolAnnotations`` from ``op``'s four hints.
+
+    Returns ``None`` when every hint is unset, so a hint-less operation gets
+    no ``annotations`` at all rather than an all-``None`` object.
+
+    Built by explicit keyword, never ``**dict``: passing an unrecognized
+    keyword to ``ToolAnnotations`` (verified empirically against the
+    installed mcp SDK) is silently dropped rather than raising, so a
+    misspelled field name would otherwise fail with no error and leave the
+    hint permanently ``None``.
+    """
+    hints = (
+        op.read_only_hint,
+        op.destructive_hint,
+        op.idempotent_hint,
+        op.open_world_hint,
+    )
+    if all(hint is None for hint in hints):
+        return None
+    return ToolAnnotations(
+        read_only_hint=op.read_only_hint,
+        destructive_hint=op.destructive_hint,
+        idempotent_hint=op.idempotent_hint,
+        open_world_hint=op.open_world_hint,
+    )
+
+
+def _meta(op: Operation, settings: Settings) -> dict[str, Any]:
+    """Build the MCP ``_meta`` dict for ``op``.
+
+    ``anthropic/maxResultSizeChars`` always has a value: ``op``'s own limit
+    if it declares one, else the server-wide default. ``requiresUserInteraction``
+    is only present (and only ever ``True``) for operations that declare it.
+    ``op.extra_meta`` is merged last, so it can override either key.
+    """
+    meta: dict[str, Any] = {
+        "anthropic/maxResultSizeChars": op.max_result_size_chars or settings.max_chars,
+    }
+    if op.requires_user_interaction:
+        meta["anthropic/requiresUserInteraction"] = True
+    meta.update(op.extra_meta)
+    return meta
+
+
+def tool_kwargs(op: Operation, settings: Settings) -> dict[str, Any]:
+    """Keyword arguments for ``mcp.tool(...)`` for one operation."""
+    return {
+        "name": op.name,
+        "description": inspect.getdoc(op.fn),
+        "annotations": _annotations(op),
+        "meta": _meta(op, settings),
+    }
+
+
+def _build_server() -> tuple[MCPServer, Context]:
+    """Build the MCPServer and the Context its tools are bound to.
 
     Loads and validates settings first so a missing-credential misconfiguration
     fails fast (before any osw call that could trigger an interactive prompt).
@@ -55,24 +114,40 @@ def create_server() -> MCPServer:
             "file (OSW_CRED_FILEPATH) holding exactly one iri. "
             f"Available: {available}."
         )
+    ctx = Context(
+        settings,
+        Policy(
+            capture_stdout=True,
+            errors_as_dicts=True,
+            allow_writes=not settings.read_only,
+            allow_interactive=False,
+        ),
+    )
     mcp = MCPServer("osw", instructions=INSTRUCTIONS, version=osw.__version__)
-    register_all(mcp, include_writes=not settings.read_only)
+    for op in iter_operations(surface="mcp", include_writes=not settings.read_only):
+        mcp.tool(**tool_kwargs(op, settings))(bind(op, ctx))
+    return mcp, ctx
+
+
+def create_server() -> MCPServer:
+    """Build the MCPServer, registering tools per the read-only setting."""
+    mcp, _ctx = _build_server()
     return mcp
 
 
 def main() -> None:
     """Console-script entry point: build the server and serve over stdio."""
     try:
-        mcp = create_server()
+        mcp, ctx = _build_server()
     except Exception as exc:
         print(f"[osw-mcp] failed to start: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
-    atexit.register(connection.shutdown)
+    atexit.register(ctx.close)
     try:
         mcp.run(transport="stdio")
     finally:
-        connection.shutdown()
+        ctx.close()
 
 
 if __name__ == "__main__":

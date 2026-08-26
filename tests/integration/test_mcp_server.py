@@ -14,23 +14,10 @@ import pytest
 pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
 pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
 
-from osw.mcp import connection
-from osw.mcp.tools import entities, schema, search, slots, status
+import osw.service.ops  # noqa: F401  (registers the operations)
 from osw.service import config
-
-
-class _Collector:
-    """Captures @tool-decorated functions so they can be called directly."""
-
-    def __init__(self):
-        self.tools = {}
-
-    def tool(self, *_a, **_k):
-        def deco(fn):
-            self.tools[fn.__name__] = fn
-            return fn
-
-        return deco
+from osw.service.context import Context, Policy
+from osw.service.registry import bind, iter_operations
 
 
 @pytest.fixture
@@ -43,21 +30,24 @@ def mcp_tools(wiki_domain, wiki_username, wiki_password, tmp_path, monkeypatch):
     monkeypatch.setenv("OSW_PASSWORD", wiki_password)
     monkeypatch.setenv("OSW_MCP_STATE_DIR", str(tmp_path / "state"))
     config.reset()
-    connection._osw = None
-    connection._ledger = None
 
-    collector = _Collector()
-    status.register(collector)
-    search.register(collector)
-    schema.register(collector)
-    slots.register(collector, include_writes=True)
-    entities.register(collector, include_writes=True)
+    ctx = Context(
+        config.get_settings(),
+        Policy(
+            capture_stdout=True,
+            errors_as_dicts=True,
+            allow_writes=True,
+            allow_interactive=False,
+        ),
+    )
+    tools = {
+        op.name: bind(op, ctx)
+        for op in iter_operations(surface="mcp", include_writes=True)
+    }
 
-    yield collector.tools
+    yield tools
 
-    connection.shutdown()
-    connection._osw = None
-    connection._ledger = None
+    ctx.close()
     config.reset()
 
 

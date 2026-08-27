@@ -22,10 +22,8 @@ pip install osw
 ```
 
 Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
-`osw[UI]`, `osw[mcp]`, `osw[all]`) are described in the
+`osw[UI]`, `osw[all]`) are described in the
 [Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
-Note that `osw[mcp]` is not part of `osw[all]` and has to be installed
-explicitly, see [MCP server](#mcp-server).
 
 ## Quickstart
 
@@ -41,241 +39,18 @@ More runnable scripts live in [examples/](examples/), and the
 [Basics tutorial](docs/tutorials/basics.ipynb) walks through the
 OpenSemanticLab data model.
 
-## Command line
+## CLI and MCP tools
 
-Installing `osw` also installs an `osw` command that works against a live
-instance:
+Installing `osw` also installs an `osw` command line client, and the separate
+`osw[mcp]` extra adds an MCP server that exposes a live instance to agent
+clients such as Claude Code:
 
 ```bash
-osw status
 osw search ask '[[Category:Item]]' --limit 5
-osw entity get 'Item:OSW1234...' --json | jq .
-osw file cat 'File:Example.csv'                            # inline text
-osw file download 'File:Example.csv' --target-dir ./tmp    # to disk
 ```
 
-Commands are grouped by subject:
-
-| Group | Commands |
-| --- | --- |
-| `entity` | `get`, `put`, `export`, `delete` |
-| `file` | `info`, `cat`, `write`, `download`, `upload` |
-| `search` | `ask`, `text`, `instances`, `sparql` |
-| `slot` | `list`, `get`, `set` |
-| `schema` | `get` |
-| `instance` | `list` |
-| `ledger` | `path` |
-| top level | `status` |
-
-Global options apply to every command:
-
-- `--instance IRI` selects the instance for this invocation when more than one
-  is configured. The CLI is stateless, so the choice is never persisted.
-- `--json` / `-j` writes machine-readable JSON to stdout and keeps osw's own
-  progress output on stderr, so it pipes cleanly into `jq`.
-- `--read-only` refuses write operations.
-- `--verbose` / `-v` shows full tracebacks instead of a one-line message.
-
-Failures exit non-zero with a short message on stderr and no traceback.
-
-The CLI and the MCP server below run the same operations from one shared,
-SDK-free core (`osw.service`), so a command and its matching tool behave
-identically. They differ in exactly one way: only the CLI accepts filesystem
-paths.
-
-## Configuration
-
-Both the CLI and the MCP server read their settings from the environment or
-from a `.env` file. Keep credentials in a gitignored file; they are read once
-per process, into that process only, and never written back to disk. A real
-environment variable always wins over the same name in a `.env` file.
-
-```dotenv
-OSW_DOMAIN=wiki-dev.open-semantic-lab.org
-OSW_USERNAME=your-user
-OSW_PASSWORD=your-password
-# optional
-OSW_SPARQL_ENDPOINT=https://.../sparql
-OSW_READ_ONLY=false          # true hides all mutating tools
-```
-
-Alternatively, authenticate from an osw credential file, so the password is not
-duplicated into a second plaintext file:
-
-```dotenv
-OSW_DOMAIN=wiki-dev.open-semantic-lab.org
-OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml
-```
-
-The file is the YAML format osw's `CredentialManager` already reads, keyed by
-iri, so deployments that configure it need no extra setup:
-
-```yaml
-wiki-dev.open-semantic-lab.org:
-  username: your-user
-  password: your-password
-```
-
-A credential file may hold several iris. One is selected automatically only if
-it is the only one; otherwise pick it with `osw --instance <iri>`, or pin the
-server process with `OSW_DOMAIN`.
-
-The canonical variable names are `OSW_*`. Older `OSW_MCP_*` and `OSL_*` names
-stay accepted so existing deployments keep working, and the first name that is
-set wins:
-
-| Canonical | Also accepted | Meaning |
-| --- | --- | --- |
-| `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to |
-| `OSW_USERNAME` | `OSL_USERNAME` | Login user |
-| `OSW_PASSWORD` | `OSL_PASSWORD` | Login password |
-| `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri |
-| `OSW_ENV_FILE` | `OSW_MCP_ENV_FILE` | `.env` file to load |
-| `OSW_READ_ONLY` | `OSW_MCP_READ_ONLY` | `true` refuses every write |
-| `OSW_SPARQL_ENDPOINT` | | Endpoint for `sparql` queries |
-| `OSW_STATE_DIR` | `OSW_MCP_STATE_DIR` | Where the provenance ledger is kept |
-| `OSW_MAX_RESULTS` | `OSW_MCP_MAX_RESULTS` | Default result cap (100) |
-| `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
-
-### Where the `.env` file comes from
-
-Set `OSW_ENV_FILE` to a path and that file is loaded, always. With it unset the
-two adapters differ on purpose:
-
-- The **CLI** searches upward from the working directory, so a `.env` in a
-  project root applies to every `osw` command run anywhere inside it.
-- The **MCP server** searches nowhere. Its working directory is picked by the
-  MCP client, so an implicit search would make the credentials it loads depend
-  on how the client happened to be launched. Point it at a file explicitly with
-  `OSW_ENV_FILE` in the server's `env` block (see below).
-
-Both print the sources they resolved to stderr before connecting:
-
-```text
-[osw] env file       : /home/me/project/.env (found from the working directory upward)
-[osw] credential file: /abs/path/to/accounts.pwd.yaml
-```
-
-Quote Windows paths with single quotes, or leave them unquoted. A double-quoted
-value in a `.env` file is escape-decoded, so `\a` in a path silently becomes a
-BEL byte that renders as nothing:
-
-```dotenv
-OSW_CRED_FILEPATH='C:\Users\me\accounts.pwd.yaml'   # ok
-OSW_CRED_FILEPATH=C:\Users\me\accounts.pwd.yaml     # ok
-OSW_CRED_FILEPATH="C:\Users\me\accounts.pwd.yaml"   # broken: \a is eaten
-```
-
-## MCP server
-
-`osw[mcp]` ships an [MCP](https://modelcontextprotocol.io) server that exposes a
-live OpenSemanticLab instance to MCP clients such as Claude Code. It wraps
-`OswExpress` and provides tools to search (semantic / SPARQL / full-text),
-introspect category schemas, read entities and every page slot, create/update
-and delete entities, and read and write file pages as text.
-
-```bash
-pip install "osw[mcp]"
-```
-
-This extra is deliberately not part of `osw[all]`. It needs `anyio>=4.9`, which
-conflicts with the pin the `osw[workflow]` extra requires for prefect 2.x, so
-the two cannot share an environment
-([#139](https://github.com/OpenSemanticLab/osw-python/issues/139)). Installing
-the server standalone, for example via `uvx`, avoids the question entirely.
-
-**No filesystem access:** no MCP tool takes or returns a local path. File
-content moves inline as text (`get_file_info`, `read_file_text`,
-`write_file_text`), and everything path-based lives in the CLI instead
-(`osw file download`, `osw file upload`, `osw ledger path`). MCP does not imply
-a shared host: a server can be containerised or remote, so a path argument is
-either meaningless or a way to reach a filesystem nobody granted access to. A
-CLI runs where the command was typed, under that user's own permissions, and an
-agent calling it goes through whatever command permissions already apply to it.
-
-**One server per instance:** each server process is pinned to exactly one OSL
-instance for its whole lifetime; there is no tool to switch at runtime. If no
-instance resolves at startup (a configured `OSW_DOMAIN`, or a credential file
-holding exactly one iri), the server refuses to start rather than register
-tools that would all fail.
-
-Register it with Claude Code by referencing the `.env` via `OSW_ENV_FILE`. Do
-not put `OSW_PASSWORD` inline in a committed `.mcp.json`. The transport is
-stdio; SSE and HTTP are not supported.
-
-```json
-{
-  "mcpServers": {
-    "osw": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "osw[mcp]", "osw-mcp"],
-      "env": { "OSW_ENV_FILE": "/abs/path/to/.env" }
-    }
-  }
-}
-```
-
-Or via the CLI:
-
-```bash
-claude mcp add osw --transport stdio --env OSW_ENV_FILE=/abs/path/to/.env -- uvx --from "osw[mcp]" osw-mcp
-```
-
-To work with more than one instance, register one server per instance, each
-with its own env file pinning a single `OSW_DOMAIN`:
-
-```json
-{
-  "mcpServers": {
-    "osw-dev": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "osw[mcp]", "osw-mcp"],
-      "env": { "OSW_ENV_FILE": "/abs/path/dev.env" }
-    },
-    "osw-prod": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--from", "osw[mcp]", "osw-mcp"],
-      "env": {
-        "OSW_ENV_FILE": "/abs/path/prod.env",
-        "OSW_READ_ONLY": "true"
-      }
-    }
-  }
-}
-```
-
-That puts the instance in the tool name at every call site
-(`mcp__osw-prod__get_entity`), so the destination is visible in the permission
-prompt, read-only is settable per instance, and permissions can differ per
-instance:
-
-```json
-{
-  "permissions": {
-    "allow": ["mcp__osw-dev"],
-    "ask": ["mcp__osw-prod"]
-  }
-}
-```
-
-`status` reports the active instance and connection state (never the password).
-
-**Safe deletes:** the server records every entity it creates or modifies in a
-local provenance ledger. It deletes those without extra prompting, but refuses
-to delete anything it did not create unless the caller passes
-`confirm_external_delete=true`.
-
-**Editable-checkout caveat:** `create_or_update_entity` and
-`export_entity_jsonld` call `fetch_schema`, which regenerates
-`src/osw/model/entity.py` inside the installed package. With a normal
-`pip install "osw[mcp]"` this writes into site-packages and is harmless. If you
-run the server from an editable source checkout, those two tools will modify the
-generated model file in your working tree. The read tools (`get_entity`,
-`get_slot`, `get_category_schema`, ...) read raw page slots and never trigger
-this.
+Commands, tools and their configuration are described in the
+[CLI and MCP guide](https://opensemanticlab.github.io/osw-python/cli-and-mcp/).
 
 ## Contributing
 

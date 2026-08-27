@@ -14,6 +14,7 @@ nav = [
     { "Home" = "index.md" },
     { "About" = "about.md" },
     { "Get Started" = "get-started.md" },
+    { "CLI and MCP tools" = "cli-and-mcp.md" },
     { "API Reference" = [
         { "Overview" = "api/index.md" },
         { "OSW" = "api/core.md" },

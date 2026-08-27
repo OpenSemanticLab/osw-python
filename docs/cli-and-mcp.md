@@ -158,9 +158,11 @@ instance resolves at startup (a configured `OSW_DOMAIN`, or a credential file
 holding exactly one iri), the server refuses to start rather than register
 tools that would all fail.
 
-Register it with Claude Code by referencing the `.env` via `OSW_ENV_FILE`. Do
-not put `OSW_PASSWORD` inline in a committed `.mcp.json`. The transport is
-stdio; SSE and HTTP are not supported.
+Every setting from the table above can be set in the server entry's `env`
+block, so no `.env` file is needed. Pointing at a credential file is the
+recommended form: the client config then holds a path and an instance name, and
+no secret at all. Never put `OSW_PASSWORD` inline in a committed `.mcp.json`.
+The transport is stdio; SSE and HTTP are not supported.
 
 ```json
 {
@@ -169,20 +171,34 @@ stdio; SSE and HTTP are not supported.
       "type": "stdio",
       "command": "uvx",
       "args": ["--from", "osw[mcp]", "osw-mcp"],
-      "env": { "OSW_ENV_FILE": "/abs/path/to/.env" }
+      "env": {
+        "OSW_CRED_FILEPATH": "/abs/path/to/accounts.pwd.yaml",
+        "OSW_DOMAIN": "wiki-dev.open-semantic-lab.org"
+      }
     }
   }
 }
 ```
 
-Or via the CLI:
+`OSW_DOMAIN` may be omitted when the credential file holds exactly one iri.
+Setting it anyway is worth the line: the server then checks at startup that the
+file has a matching entry and, if not, names the iris the file does contain
+(never their secrets) instead of failing later on the first call.
+
+To point at a `.env` file instead, replace the `env` block with
+`{ "OSW_ENV_FILE": "/abs/path/to/.env" }`.
+
+Registering the same thing from a shell is easiest with `add-json`, which takes
+the entry verbatim. Note that a Windows path needs forward slashes or doubled
+backslashes to be valid JSON:
 
 ```bash
-claude mcp add osw --transport stdio --env OSW_ENV_FILE=/abs/path/to/.env -- uvx --from "osw[mcp]" osw-mcp
+claude mcp add-json osw '{"type":"stdio","command":"uvx","args":["--from","osw[mcp]","osw-mcp"],"env":{"OSW_CRED_FILEPATH":"/abs/path/to/accounts.pwd.yaml","OSW_DOMAIN":"wiki-dev.open-semantic-lab.org"}}'
 ```
 
 To work with more than one instance, register one server per instance, each
-with its own env file pinning a single `OSW_DOMAIN`:
+pinned to a single `OSW_DOMAIN`. One credential file can serve them all, since
+it is keyed by iri:
 
 ```json
 {
@@ -191,14 +207,18 @@ with its own env file pinning a single `OSW_DOMAIN`:
       "type": "stdio",
       "command": "uvx",
       "args": ["--from", "osw[mcp]", "osw-mcp"],
-      "env": { "OSW_ENV_FILE": "/abs/path/dev.env" }
+      "env": {
+        "OSW_CRED_FILEPATH": "/abs/path/to/accounts.pwd.yaml",
+        "OSW_DOMAIN": "wiki-dev.open-semantic-lab.org"
+      }
     },
     "osw-prod": {
       "type": "stdio",
       "command": "uvx",
       "args": ["--from", "osw[mcp]", "osw-mcp"],
       "env": {
-        "OSW_ENV_FILE": "/abs/path/prod.env",
+        "OSW_CRED_FILEPATH": "/abs/path/to/accounts.pwd.yaml",
+        "OSW_DOMAIN": "wiki.open-semantic-lab.org",
         "OSW_READ_ONLY": "true"
       }
     }

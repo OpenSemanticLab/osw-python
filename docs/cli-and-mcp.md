@@ -75,9 +75,10 @@ wiki-dev.open-semantic-lab.org:
   password: your-password
 ```
 
-A credential file may hold several iris. One is selected automatically only if
-it is the only one; otherwise pick it with `osw --instance <iri>`, or pin the
-server process with `OSW_DOMAIN`.
+A credential file may hold several iris. The CLI selects one automatically if
+it is the only one, and otherwise wants `osw --instance <iri>`. The MCP server
+never selects one: it requires `OSW_DOMAIN`, see
+[One server per instance](#mcp-server).
 
 The canonical variable names are `OSW_*`. Older `OSW_MCP_*` and `OSL_*` names
 stay accepted so existing deployments keep working, and the first name that is
@@ -153,15 +154,29 @@ CLI runs where the command was typed, under that user's own permissions, and an
 agent calling it goes through whatever command permissions already apply to it.
 
 **One server per instance:** each server process is pinned to exactly one OSL
-instance for its whole lifetime; there is no tool to switch at runtime. If no
-instance resolves at startup (a configured `OSW_DOMAIN`, or a credential file
-holding exactly one iri), the server refuses to start rather than register
-tools that would all fail.
+instance for its whole lifetime; there is no tool to switch at runtime.
+`OSW_DOMAIN` must be set, either in the server entry's `env` block or in the
+`.env` file that entry names. The server never picks an instance for you, not
+even when the credential file holds exactly one iri: which instance a tool call
+reaches has to be readable from the configuration. Without it the server
+refuses to start rather than register tools that would all fail.
 
-Every setting from the table above can be set in the server entry's `env`
-block, so no `.env` file is needed. Pointing at a credential file is the
-recommended form: the client config then holds a path and an instance name, and
-no secret at all. Never put `OSW_PASSWORD` inline in a committed `.mcp.json`.
+There are two ways to configure a server entry, and both are supported:
+
+- **Directly in the entry's `env` block.** Every setting from the table above
+  can be set there, so no `.env` file is needed at all.
+- **In a `.env` file**, named by `OSW_ENV_FILE` in the `env` block. Useful when
+  several tools share one settings file, or when the client config is committed
+  and the settings file is not.
+
+The `env` block naming `OSW_CRED_FILEPATH` and `OSW_DOMAIN` is the preferred
+form. It is more verbose, and that is the point: the destination instance is
+spelled out in the entry itself, so it is visible at a glance and in a diff,
+rather than being one indirection away in a file the entry merely points at.
+The secret stays out of the client config either way, since a credential file
+contributes a path and an instance name and nothing else. Never put
+`OSW_PASSWORD` inline in a committed `.mcp.json`.
+
 The transport is stdio; SSE and HTTP are not supported.
 
 ```json
@@ -180,13 +195,13 @@ The transport is stdio; SSE and HTTP are not supported.
 }
 ```
 
-`OSW_DOMAIN` may be omitted when the credential file holds exactly one iri.
-Setting it anyway is worth the line: the server then checks at startup that the
-file has a matching entry and, if not, names the iris the file does contain
-(never their secrets) instead of failing later on the first call.
+At startup the server checks that the credential file has an entry matching
+`OSW_DOMAIN` and, if not, names the iris the file does contain (never their
+secrets), so a typo surfaces immediately rather than on the first tool call.
 
-To point at a `.env` file instead, replace the `env` block with
-`{ "OSW_ENV_FILE": "/abs/path/to/.env" }`.
+The `.env` variant of the same entry replaces the whole `env` block with
+`{ "OSW_ENV_FILE": "/abs/path/to/dev.env" }`, where `dev.env` sets `OSW_DOMAIN`
+and the credentials.
 
 Registering the same thing from a shell is easiest with `add-json`, which takes
 the entry verbatim. Note that a Windows path needs forward slashes or doubled
@@ -197,8 +212,10 @@ claude mcp add-json osw '{"type":"stdio","command":"uvx","args":["--from","osw[m
 ```
 
 To work with more than one instance, register one server per instance, each
-pinned to a single `OSW_DOMAIN`. One credential file can serve them all, since
-it is keyed by iri:
+pinned to a single `OSW_DOMAIN`. The two entries below show the two styles side
+by side: `osw-dev` puts everything in a `.env` file, `osw-prod` names the
+credential file and the domain directly. One credential file can serve any
+number of servers, since it is keyed by iri.
 
 ```json
 {
@@ -207,10 +224,7 @@ it is keyed by iri:
       "type": "stdio",
       "command": "uvx",
       "args": ["--from", "osw[mcp]", "osw-mcp"],
-      "env": {
-        "OSW_CRED_FILEPATH": "/abs/path/to/accounts.pwd.yaml",
-        "OSW_DOMAIN": "wiki-dev.open-semantic-lab.org"
-      }
+      "env": { "OSW_ENV_FILE": "/abs/path/to/dev.env" }
     },
     "osw-prod": {
       "type": "stdio",
@@ -224,6 +238,13 @@ it is keyed by iri:
     }
   }
 }
+```
+
+`dev.env` has to pin the instance itself, since the server will not infer one:
+
+```dotenv
+OSW_DOMAIN=wiki-dev.open-semantic-lab.org
+OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml
 ```
 
 That puts the instance in the tool name at every call site

@@ -128,20 +128,34 @@ def test_no_instance_switching_tools_registered(monkeypatch):
     assert "select_instance" not in names
 
 
-def test_create_server_raises_when_no_instance_resolves(monkeypatch, tmp_path):
-    # A credential file with more than one iri makes settings valid (no
-    # OSW_DOMAIN/OSW_USERNAME/OSW_PASSWORD required) but leaves no instance
-    # auto-selected, so config.get_active_domain() is None.
+def _write_cred_file(tmp_path, iris):
     cred_file = tmp_path / "accounts.yaml"
     cred_file.write_text(
-        yaml.safe_dump({
-            "wiki-a.example.org": {"username": "a", "password": "b"},
-            "wiki-b.example.org": {"username": "c", "password": "d"},
-        }),
+        yaml.safe_dump({iri: {"username": "a", "password": "b"} for iri in iris}),
         encoding="utf-8",
     )
+    return cred_file
+
+
+def test_create_server_raises_when_no_domain_is_configured(monkeypatch, tmp_path):
+    # A credential file with more than one iri makes settings valid (no
+    # OSW_DOMAIN/OSW_USERNAME/OSW_PASSWORD required) but names no instance.
+    cred_file = _write_cred_file(tmp_path, ["wiki-a.example.org", "wiki-b.example.org"])
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
     config.reset()
 
-    with pytest.raises(RuntimeError, match="No OSL instance resolved"):
+    with pytest.raises(RuntimeError, match="No OSL instance configured"):
+        server.create_server()
+
+
+def test_create_server_does_not_auto_select_a_single_iri(monkeypatch, tmp_path):
+    # config.get_active_domain() *would* resolve this one (the CLI relies on
+    # that), but the server must not: which instance its tools reach has to be
+    # readable from the configuration, not inferred from the credential file.
+    cred_file = _write_cred_file(tmp_path, ["wiki-only.example.org"])
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    config.reset()
+    assert config.get_active_domain() == "wiki-only.example.org"
+
+    with pytest.raises(RuntimeError, match="No OSL instance configured"):
         server.create_server()

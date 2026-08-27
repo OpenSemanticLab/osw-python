@@ -103,23 +103,27 @@ def _build_server() -> tuple[MCPServer, Context]:
 
     Loads and validates settings first so a missing-credential misconfiguration
     fails fast (before any osw call that could trigger an interactive prompt).
-    Also fails fast if no instance resolves: this server is statically pinned
-    to one OSL instance for its whole lifetime, so registering tools that
-    would all fail at call time would be actively misleading.
+    Also fails fast unless a domain was configured *explicitly*: this server is
+    statically pinned to one OSL instance for its whole lifetime, and which one
+    that is has to be readable from the configuration rather than inferred.
+    Deliberately stricter than :func:`config.get_active_domain`, which the CLI
+    uses: there the instance is visible on the command line at every
+    invocation, and ``--instance`` can override it per command.
     """
     # Before get_settings(), so a misconfiguration that makes loading raise
     # still reports which files were read. stderr, so it lands in the MCP
     # client's server log without touching the JSON-RPC stream on stdout.
     config.log_config_sources()
     settings = config.get_settings()
-    domain = config.get_active_domain()
+    domain = settings.domain
     if domain is None:
         available = ", ".join(config.available_iris()) or "(none)"
         raise RuntimeError(
-            "No OSL instance resolved. Set OSW_DOMAIN (or OSW_ENV_FILE to "
-            "point at a .env file that sets it), or configure a credential "
-            "file (OSW_CRED_FILEPATH) holding exactly one iri. "
-            f"Available: {available}."
+            "No OSL instance configured. Set OSW_DOMAIN in this server's env "
+            "block, or in the .env file named by OSW_ENV_FILE. The server "
+            "never picks an instance for you, not even when a credential file "
+            "holds exactly one iri, because which instance a tool call reaches "
+            f"must be readable from the configuration. Available: {available}."
         )
     ctx = Context(
         settings,

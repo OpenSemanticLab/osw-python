@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import os
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from osw.auth import CredentialManager
 
@@ -51,9 +51,40 @@ def _first_env(names: tuple[str, ...]) -> Optional[str]:
     return None
 
 
-@dataclass(frozen=True)
-class Settings:
+# Which env variable tuple feeds each Settings field, used to name the offending
+# variable when pydantic rejects a value.
+_ENV_BY_FIELD: dict[str, tuple[str, ...]] = {
+    "domain": ENV_DOMAIN,
+    "username": ENV_USERNAME,
+    "password": ENV_PASSWORD,
+    "cred_filepath": ENV_CRED_FILEPATH,
+    "sparql_endpoint": ENV_SPARQL_ENDPOINT,
+    "read_only": ENV_READ_ONLY,
+    "state_dir": ENV_STATE_DIR,
+    "max_results": ENV_MAX_RESULTS,
+    "max_chars": ENV_MAX_CHARS,
+}
+
+
+def _env_name_for(field_name: str) -> str:
+    """Name the env variable that actually supplied ``field_name``.
+
+    Falls back to the canonical name so the operator always gets something
+    actionable to fix.
+    """
+    names = _ENV_BY_FIELD.get(field_name, ())
+    if not names:
+        return field_name
+    for name in names:
+        if os.getenv(name):
+            return name
+    return names[0]
+
+
+class Settings(BaseModel):
     """Resolved, validated server settings."""
+
+    model_config = ConfigDict(frozen=True)
 
     # domain is optional: with a usable credential file, no domain need be
     # configured via the environment; the active instance is then chosen from
@@ -63,13 +94,59 @@ class Settings:
     # alternative source of credentials (see ENV_CRED_FILEPATH).
     username: Optional[str] = None
     # kept only to build the SPARQL client; never returned by any tool
-    password: Optional[str] = field(default=None, repr=False)
+    password: Optional[str] = Field(default=None, repr=False)
     cred_filepath: Optional[str] = None
     sparql_endpoint: Optional[str] = None
     read_only: bool = False
     state_dir: Optional[str] = None
-    max_results: int = 100
-    max_chars: int = 100_000
+    max_results: int = Field(default=100, gt=0)
+    max_chars: int = Field(default=100_000, gt=0)
+
+    @field_validator("domain")
+    @classmethod
+    def _validate_domain(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if not value.strip():
+            raise ValueError("must not be empty or whitespace-only")
+        if any(char.isspace() for char in value):
+            raise ValueError("must not contain whitespace")
+        if any(ord(char) < 32 for char in value):
+            raise ValueError("must not contain control characters")
+        return value
+
+    @field_validator("sparql_endpoint")
+    @classmethod
+    def _validate_sparql_endpoint(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        parsed = urlparse(value)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            raise ValueError(
+                "must be a valid http(s) URL (e.g. 'https://wiki.example.org/sparql')"
+            )
+        return value
+
+    @field_validator("state_dir")
+    @classmethod
+    def _validate_state_dir(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if not value.strip():
+            raise ValueError("must not be empty or whitespace-only")
+        return value
+
+    @field_validator("cred_filepath")
+    @classmethod
+    def _validate_cred_filepath(cls, value: Optional[str]) -> Optional[str]:
+        # Control characters are deliberately not rejected here: load() already
+        # produces a much better, hint-carrying error for that case via
+        # _escape_hint(), and that check runs before Settings is constructed.
+        if value is None:
+            return value
+        if not value.strip():
+            raise ValueError("must not be empty or whitespace-only")
+        return value
 
     def redacted(self) -> dict:
         """A dict view safe for logging / the status tool (no password)."""
@@ -80,21 +157,6 @@ class Settings:
             "sparql_endpoint_configured": bool(self.sparql_endpoint),
             "cred_filepath_configured": bool(self.cred_filepath),
         }
-
-
-def _int_env(names: tuple[str, ...], default: int) -> int:
-    raw = _first_env(names)
-    if raw is None or raw.strip() == "":
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        # Name the variable that was actually set (not necessarily the
-        # canonical one), so the operator can find what to fix.
-        name = next((n for n in names if os.getenv(n) == raw), names[0])
-        raise RuntimeError(
-            f"Environment variable {name}={raw!r} is not a valid integer."
-        )
 
 
 def _escape_hint(value: str) -> str:
@@ -292,7 +354,9 @@ def load(strict: bool = True) -> Settings:
         report "not configured" rather than crash. Every other error still
         raises regardless of ``strict``: a configured credential file that
         does not exist, a configured credential file with no entry matching a
-        configured domain, an unparseable integer environment variable, and a
+        configured domain, an environment variable holding a value the
+        settings model rejects (an unparseable or non-positive integer, a
+        malformed SPARQL endpoint URL, a domain containing whitespace), and a
         missing ``python-dotenv`` for an explicitly configured env file.
 
     Raises
@@ -347,7 +411,7 @@ def load(strict: bool = True) -> Settings:
     if cred_file_usable and domain:
         _verify_cred_file_has_domain(cred_filepath, domain)
 
-    return Settings(
+    kwargs: dict = dict(
         domain=domain,
         username=username,
         password=password,
@@ -355,9 +419,26 @@ def load(strict: bool = True) -> Settings:
         sparql_endpoint=_first_env(ENV_SPARQL_ENDPOINT),
         read_only=(_first_env(ENV_READ_ONLY) or "").lower() in _TRUTHY,
         state_dir=_first_env(ENV_STATE_DIR),
-        max_results=_int_env(ENV_MAX_RESULTS, 100),
-        max_chars=_int_env(ENV_MAX_CHARS, 100_000),
     )
+    # An unset or blank/whitespace-only integer variable falls back to the
+    # model default; pass the raw string only when there is one to validate.
+    max_results_raw = _first_env(ENV_MAX_RESULTS)
+    if max_results_raw is not None and max_results_raw.strip():
+        kwargs["max_results"] = max_results_raw
+    max_chars_raw = _first_env(ENV_MAX_CHARS)
+    if max_chars_raw is not None and max_chars_raw.strip():
+        kwargs["max_chars"] = max_chars_raw
+
+    try:
+        return Settings(**kwargs)
+    except ValidationError as exc:
+        details = []
+        for err in exc.errors():
+            field_name = str(err["loc"][0]) if err["loc"] else "<config>"
+            details.append(
+                f"{_env_name_for(field_name)}={err.get('input')!r}: {err['msg']}"
+            )
+        raise RuntimeError("Invalid OSW configuration: " + "; ".join(details)) from exc
 
 
 _settings: Optional[Settings] = None

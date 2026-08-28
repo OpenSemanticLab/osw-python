@@ -4,8 +4,10 @@ import sys
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from osw.service import config
+from osw.service.config import Settings
 
 _ALL_VARS = [
     "OSW_DOMAIN",
@@ -531,3 +533,73 @@ def test_log_config_sources_omits_cred_file_when_unconfigured(monkeypatch, capsy
     captured = capsys.readouterr()
     assert "env file" in captured.err
     assert "credential file" not in captured.err
+
+
+# -- Settings validation (pydantic) ------------------------------------------
+
+
+def test_blank_max_results_falls_back_to_default(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MAX_RESULTS", "   ")
+    settings = config.load()
+    assert settings.max_results == 100
+
+
+def test_zero_max_results_raises(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MAX_RESULTS", "0")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_MAX_RESULTS" in str(exc.value)
+
+
+def test_malformed_sparql_endpoint_raises(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_SPARQL_ENDPOINT", "not a url")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_SPARQL_ENDPOINT" in str(exc.value)
+
+
+def test_valid_sparql_endpoint_loads(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_SPARQL_ENDPOINT", "https://wiki.example.org/sparql")
+    settings = config.load()
+    assert settings.sparql_endpoint == "https://wiki.example.org/sparql"
+
+
+def test_error_names_the_alias_that_was_set(monkeypatch):
+    # Only the alias is set (not the canonical name), so the error must name
+    # the alias, not the canonical variable, for the operator to find it.
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MCP_MAX_RESULTS", "notanumber")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_MCP_MAX_RESULTS" in str(exc.value)
+
+
+def test_domain_with_whitespace_rejected():
+    with pytest.raises(ValidationError):
+        Settings(domain="wiki.example.org has a space")
+
+
+def test_domain_as_full_url_accepted():
+    # get_active_domain() relies on a full URL being a legal domain value.
+    settings = Settings(domain="https://wiki.example.org/w/")
+    assert settings.domain == "https://wiki.example.org/w/"
+
+
+def test_settings_is_frozen():
+    settings = Settings(domain="wiki.example.org")
+    with pytest.raises(ValidationError):
+        settings.domain = "other.example.org"

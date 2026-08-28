@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "OpenSemanticWorld Python Package (osw-python)"
 # Managed by python-semantic-release (version_variables). Do not edit by hand.
-version: 2.0.0
+version: 2.0.1
 abstract: "Python toolset for data processing, queries, wikicode generation and page manipulation within OpenSemanticLab: work with OpenSemanticLab instances as typed pydantic entities, query with semantic search, generate models from wiki schemas, and write changes back."
 repository-code: "https://github.com/OpenSemanticLab/osw-python"
 url: "https://opensemanticlab.github.io/osw-python/"

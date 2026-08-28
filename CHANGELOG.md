@@ -10,6 +10,19 @@
 
 <!-- version list -->
 
+## v2.0.1 (2026-08-28)
+
+### Bug Fixes
+
+- **deps**: Widen workflow anyio pin to >=4.9,<4.14
+  ([`21c4043`](https://github.com/OpenSemanticLab/osw-python/commit/21c4043a168379de43a7fe8ccabd1c266fe1a656))
+
+### Documentation
+
+- Add citation and authorship section to CONTRIBUTING.md
+  ([`a3a8119`](https://github.com/OpenSemanticLab/osw-python/commit/a3a8119cd047cee741812b11e3f1f26c3f91c639))
+
+
 ## v2.0.0 (2026-08-05)
 
 ### Bug Fixes

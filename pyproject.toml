@@ -73,10 +73,12 @@ workflow = [
     "prefect>=2.20.25,<3.0",
     # prefect 2.20.25 is the final 2.x release (no backports). Its
     # GatherTaskGroup subclasses anyio's TaskGroup but doesn't implement
-    # create_task, which newer anyio 4.x made abstract (broken on 4.14,
-    # verified good on 4.6.2); hold anyio to the last verified-good 4.6 line
-    # so the prefect-2.x flow engine can still instantiate task groups.
-    "anyio>=4.4.0,<4.7",
+    # create_task, which anyio 4.14.0 promoted to an abstract method
+    # (start_soon stopped being the abstract one). 4.13.x is the last line
+    # where the prefect-2.x flow engine can still instantiate task groups.
+    # The floor is 4.9 so this stays compatible with mcp>=2, see
+    # https://github.com/OpenSemanticLab/osw-python/issues/139
+    "anyio>=4.9,<4.14",
 ]
 tutorial = ["osw[dataimport]"]
 all = ["osw[dataimport,DB,UI,S3,wikitext]"]

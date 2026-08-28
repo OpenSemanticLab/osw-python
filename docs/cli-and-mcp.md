@@ -8,32 +8,30 @@ differ in exactly one way: only the CLI accepts filesystem paths.
 
 ## Setup
 
-Installing osw provides the `osw` command; the `osw[mcp]` extra adds the
-`osw-mcp` server:
+Install one of the two; the second includes the first:
 
-=== "uv (recommended)"
+```bash
+uv tool install osw             # the `osw` command
+uv tool install "osw[mcp]"      # the same, plus the `osw-mcp` server
+```
 
-    ```bash
-    uv add osw
-    uv add "osw[mcp]"
-    ```
+<details markdown="1">
+<summary>Other ways to install</summary>
 
-=== "pip"
+```bash
+pip install "osw[mcp]"          # into the active environment
+uv add "osw[mcp]"               # as a dependency of the current uv project
+uvx --from "osw[mcp]" osw-mcp   # run the server without installing it
+```
 
-    ```bash
-    pip install osw
-    pip install "osw[mcp]"
-    ```
+`uvx` is what the registration examples further down use, so the server needs
+no install of its own.
+
+</details>
 
 `osw[mcp]` is not part of `osw[all]`, see [Design notes](#design-notes). The
 other extras are listed in the
-[Get Started guide](get-started.md#optional-extras). The server also runs
-without being installed at all, which is what the registration examples below
-do:
-
-```bash
-uvx --from "osw[mcp]" osw-mcp
-```
+[Get Started guide](get-started.md#optional-extras).
 
 Both adapters need an instance and credentials. The quickest start is a
 gitignored `.env` file in your project root:
@@ -209,13 +207,6 @@ instance:
   local provenance ledger. It deletes those without extra prompting, but refuses
   to delete anything it did not create unless the caller passes
   `confirm_external_delete=true`.
-- **Editable checkouts:** `create_or_update_entity` and `export_entity_jsonld`
-  call `fetch_schema`, which regenerates `src/osw/model/entity.py` inside the
-  installed package. With a normal, non-editable install this writes into
-  site-packages and is harmless, but a server run from an editable source
-  checkout modifies that file in your working tree. The read tools
-  (`get_entity`, `get_slot`, `get_category_schema`, ...) read raw page slots and
-  never trigger it.
 
 ## Configuration
 
@@ -329,3 +320,24 @@ Why the two adapters are shaped the way they are:
   ([#139](https://github.com/OpenSemanticLab/osw-python/issues/139)).
   Installing the server standalone, for example via `uvx`, avoids the question
   entirely.
+
+## Notes for developers
+
+To try an unreleased branch against a real client, point `uvx` at the checkout
+instead of at PyPI. Everything else about the registration stays the same:
+
+```bash
+uvx --reinstall --from "/abs/path/to/osw-python[mcp]" osw-mcp
+```
+
+`--reinstall` is what picks up your latest edits, since `uvx` caches the wheel
+it builds. In a JSON `args` array, a Windows path needs forward slashes or
+doubled backslashes.
+
+Prefer that over an editable install for the server. `create_or_update_entity`
+and `export_entity_jsonld` call `fetch_schema`, which regenerates
+`src/osw/model/entity.py` inside the installed package: `uvx` builds a
+non-editable wheel, so the write lands in the uv cache, while under
+`pip install -e` or `uv sync` it lands in your working tree. The read tools
+(`get_entity`, `get_slot`, `get_category_schema`, ...) read raw page slots and
+never trigger it.

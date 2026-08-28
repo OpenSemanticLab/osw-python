@@ -498,10 +498,21 @@ class WtSite:
         # hold the session lock so a peer thread cannot clear/re-login concurrently.
         with self._get_session_lock():
             for cookie in list(self._site.connection.cookies):
+                # The session lock does not cover requests' own jar writes:
+                # extract_cookies() drops any cookie whose Set-Cookie expiry is in
+                # the past, on every response. On py<=3.10 http.cookiejar iterates
+                # via a lazy map(dict.get, sorted(keys)), so such a delete makes the
+                # snapshot yield None instead of a cookie.
+                if cookie is None:
+                    continue
                 if "PostEditRevision" in cookie.name:
-                    self._site.connection.cookies.clear(
-                        cookie.domain, cookie.path, cookie.name
-                    )
+                    try:
+                        self._site.connection.cookies.clear(
+                            cookie.domain, cookie.path, cookie.name
+                        )
+                    except KeyError:
+                        # already removed between snapshot and delete
+                        pass
 
     class SearchParam(wt.SearchParam):
         pass

@@ -1338,6 +1338,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityPartialError" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        StoreEntityPartialError
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#osw.core.OSW.StoreEntityResult" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1354,6 +1365,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         change_id
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityResult.failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        failed
       </span>
     </span>
   </a>
@@ -2485,6 +2507,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityPartialError" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        StoreEntityPartialError
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#osw.core.OSW.StoreEntityResult" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2501,6 +2534,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         change_id
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#osw.core.OSW.StoreEntityResult.failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        failed
       </span>
     </span>
   </a>
@@ -4779,7 +4823,66 @@
 <span class="normal">2081</span>
 <span class="normal">2082</span>
 <span class="normal">2083</span>
-<span class="normal">2084</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">2084</span>
+<span class="normal">2085</span>
+<span class="normal">2086</span>
+<span class="normal">2087</span>
+<span class="normal">2088</span>
+<span class="normal">2089</span>
+<span class="normal">2090</span>
+<span class="normal">2091</span>
+<span class="normal">2092</span>
+<span class="normal">2093</span>
+<span class="normal">2094</span>
+<span class="normal">2095</span>
+<span class="normal">2096</span>
+<span class="normal">2097</span>
+<span class="normal">2098</span>
+<span class="normal">2099</span>
+<span class="normal">2100</span>
+<span class="normal">2101</span>
+<span class="normal">2102</span>
+<span class="normal">2103</span>
+<span class="normal">2104</span>
+<span class="normal">2105</span>
+<span class="normal">2106</span>
+<span class="normal">2107</span>
+<span class="normal">2108</span>
+<span class="normal">2109</span>
+<span class="normal">2110</span>
+<span class="normal">2111</span>
+<span class="normal">2112</span>
+<span class="normal">2113</span>
+<span class="normal">2114</span>
+<span class="normal">2115</span>
+<span class="normal">2116</span>
+<span class="normal">2117</span>
+<span class="normal">2118</span>
+<span class="normal">2119</span>
+<span class="normal">2120</span>
+<span class="normal">2121</span>
+<span class="normal">2122</span>
+<span class="normal">2123</span>
+<span class="normal">2124</span>
+<span class="normal">2125</span>
+<span class="normal">2126</span>
+<span class="normal">2127</span>
+<span class="normal">2128</span>
+<span class="normal">2129</span>
+<span class="normal">2130</span>
+<span class="normal">2131</span>
+<span class="normal">2132</span>
+<span class="normal">2133</span>
+<span class="normal">2134</span>
+<span class="normal">2135</span>
+<span class="normal">2136</span>
+<span class="normal">2137</span>
+<span class="normal">2138</span>
+<span class="normal">2139</span>
+<span class="normal">2140</span>
+<span class="normal">2141</span>
+<span class="normal">2142</span>
+<span class="normal">2143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OSW</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Bundles core functionalities of OpenSemanticWorld (OSW)&quot;&quot;&quot;</span>
 
     <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;2ea5b605-c91f-4e5a-9559-3dff79fdd4a5&quot;</span>
@@ -6267,10 +6370,33 @@
         <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;The ID of the change&quot;&quot;&quot;</span>
         <span class="n">pages</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WtPage</span><span class="p">]</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The pages that have been stored&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The pages that have been successfully stored, keyed by full page title.</span>
+<span class="sd">        On partial failure this contains only the successfully-stored pages.&quot;&quot;&quot;</span>
+        <span class="n">failed</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Entities that could not be stored, keyed by full page title and mapped to</span>
+<span class="sd">        the exception that caused the failure. Empty on full success.&quot;&quot;&quot;</span>
 
         <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
             <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityPartialError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Raised by store_entity() when one or more entities could not be stored.</span>
+
+<span class="sd">        Carries the partial ``StoreEntityResult`` so callers can learn exactly which</span>
+<span class="sd">        entities were written (``stored`` / ``result.pages``) and which failed</span>
+<span class="sd">        (``failed`` / ``result.failed``) without a separate existence query.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stored</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">pages</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">failed</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">failed</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">pages</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failed</span><span class="p">)</span>
+            <span class="n">failed_titles</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failed</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;store_entity failed for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failed</span><span class="p">)</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;entities: </span><span class="si">{</span><span class="n">failed_titles</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -6464,27 +6590,63 @@
                 <span class="n">upload_index</span> <span class="o">+=</span> <span class="mi">1</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">:</span> <span class="n">UploadObject</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Let exceptions propagate: the caller collects them per entity below,</span>
+            <span class="c1"># so a single failure neither aborts the batch nor is silently</span>
+            <span class="c1"># swallowed (store_entity_ only records created_pages on success).</span>
+            <span class="n">store_entity_</span><span class="p">(</span>
+                <span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span>
+                <span class="n">upload_object</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+                <span class="n">upload_object</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+                <span class="n">upload_object</span><span class="o">.</span><span class="n">overwrite_class_param</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">failure_title_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">:</span> <span class="n">UploadObject</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Best-effort full page title of a failed entity, for error reporting.&quot;&quot;&quot;</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">store_entity_</span><span class="p">(</span>
-                    <span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span>
-                    <span class="n">upload_object</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
-                    <span class="n">upload_object</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
-                    <span class="n">upload_object</span><span class="o">.</span><span class="n">overwrite_class_param</span><span class="p">,</span>
+                <span class="n">namespace</span> <span class="o">=</span> <span class="n">upload_object</span><span class="o">.</span><span class="n">namespace</span> <span class="ow">or</span> <span class="n">get_namespace</span><span class="p">(</span>
+                    <span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span>
                 <span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">entity_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;unknown&quot;</span>
-                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error storing entity &#39;</span><span class="si">{</span><span class="n">entity_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">get_title</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span>
+                    <span class="nb">getattr</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="s2">&quot;uuid&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="ow">or</span> <span class="s2">&quot;unknown&quot;</span>
+                <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">parallel</span><span class="p">:</span>
-            <span class="n">_</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
-                <span class="n">handle_upload_object_</span><span class="p">,</span> <span class="n">upload_object_list</span><span class="p">,</span> <span class="n">flush_at_end</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">debug</span>
+            <span class="c1"># return_exceptions=True keeps results aligned with upload_object_list</span>
+            <span class="c1"># and lets every entity be attempted even if some fail.</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+                <span class="n">handle_upload_object_</span><span class="p">,</span>
+                <span class="n">upload_object_list</span><span class="p">,</span>
+                <span class="n">flush_at_end</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">debug</span><span class="p">,</span>
+                <span class="n">return_exceptions</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">_</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">upload_object</span> <span class="ow">in</span> <span class="n">upload_object_list</span>
-            <span class="p">]</span>
-        <span class="k">return</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span><span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span> <span class="n">pages</span><span class="o">=</span><span class="n">created_pages</span><span class="p">)</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">upload_object</span> <span class="ow">in</span> <span class="n">upload_object_list</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="n">failed</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">upload_object</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">upload_object_list</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+                <span class="n">title</span> <span class="o">=</span> <span class="n">failure_title_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
+                <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error storing entity &#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">failed</span><span class="p">[</span><span class="n">title</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+
+        <span class="n">store_result</span> <span class="o">=</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span>
+            <span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span> <span class="n">pages</span><span class="o">=</span><span class="n">created_pages</span><span class="p">,</span> <span class="n">failed</span><span class="o">=</span><span class="n">failed</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">failed</span><span class="p">:</span>
+            <span class="c1"># Surface partial/total failure so callers cannot mistake a dropped</span>
+            <span class="c1"># page for a success. The result (successes + failures) rides along.</span>
+            <span class="k">raise</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityPartialError</span><span class="p">(</span><span class="n">store_result</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">store_result</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">DeleteEntityParam</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
         <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -6819,37 +6981,37 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1959</span>
-<span class="normal">1960</span>
-<span class="normal">1961</span>
-<span class="normal">1962</span>
-<span class="normal">1963</span>
-<span class="normal">1964</span>
-<span class="normal">1965</span>
-<span class="normal">1966</span>
-<span class="normal">1967</span>
-<span class="normal">1968</span>
-<span class="normal">1969</span>
-<span class="normal">1970</span>
-<span class="normal">1971</span>
-<span class="normal">1972</span>
-<span class="normal">1973</span>
-<span class="normal">1974</span>
-<span class="normal">1975</span>
-<span class="normal">1976</span>
-<span class="normal">1977</span>
-<span class="normal">1978</span>
-<span class="normal">1979</span>
-<span class="normal">1980</span>
-<span class="normal">1981</span>
-<span class="normal">1982</span>
-<span class="normal">1983</span>
-<span class="normal">1984</span>
-<span class="normal">1985</span>
-<span class="normal">1986</span>
-<span class="normal">1987</span>
-<span class="normal">1988</span>
-<span class="normal">1989</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2018</span>
+<span class="normal">2019</span>
+<span class="normal">2020</span>
+<span class="normal">2021</span>
+<span class="normal">2022</span>
+<span class="normal">2023</span>
+<span class="normal">2024</span>
+<span class="normal">2025</span>
+<span class="normal">2026</span>
+<span class="normal">2027</span>
+<span class="normal">2028</span>
+<span class="normal">2029</span>
+<span class="normal">2030</span>
+<span class="normal">2031</span>
+<span class="normal">2032</span>
+<span class="normal">2033</span>
+<span class="normal">2034</span>
+<span class="normal">2035</span>
+<span class="normal">2036</span>
+<span class="normal">2037</span>
+<span class="normal">2038</span>
+<span class="normal">2039</span>
+<span class="normal">2040</span>
+<span class="normal">2041</span>
+<span class="normal">2042</span>
+<span class="normal">2043</span>
+<span class="normal">2044</span>
+<span class="normal">2045</span>
+<span class="normal">2046</span>
+<span class="normal">2047</span>
+<span class="normal">2048</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdParams</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">context_loader_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">WtSite</span><span class="o">.</span><span class="n">JsonLdContextLoaderParams</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The configuration for the JSON-LD context loader.&quot;&quot;&quot;</span>
     <span class="n">entities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
@@ -7161,16 +7323,16 @@ level, the full page title is used.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1991</span>
-<span class="normal">1992</span>
-<span class="normal">1993</span>
-<span class="normal">1994</span>
-<span class="normal">1995</span>
-<span class="normal">1996</span>
-<span class="normal">1997</span>
-<span class="normal">1998</span>
-<span class="normal">1999</span>
-<span class="normal">2000</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2050</span>
+<span class="normal">2051</span>
+<span class="normal">2052</span>
+<span class="normal">2053</span>
+<span class="normal">2054</span>
+<span class="normal">2055</span>
+<span class="normal">2056</span>
+<span class="normal">2057</span>
+<span class="normal">2058</span>
+<span class="normal">2059</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ExportJsonLdResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
     <span class="n">documents</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A single JSON-LD document per entity&quot;&quot;&quot;</span>
     <span class="n">graph_document</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -7785,13 +7947,13 @@ This includes the requested schemas and their dependencies.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/osw/core.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1951</span>
-<span class="normal">1952</span>
-<span class="normal">1953</span>
-<span class="normal">1954</span>
-<span class="normal">1955</span>
-<span class="normal">1956</span>
-<span class="normal">1957</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2010</span>
+<span class="normal">2011</span>
+<span class="normal">2012</span>
+<span class="normal">2013</span>
+<span class="normal">2014</span>
+<span class="normal">2015</span>
+<span class="normal">2016</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JsonLdMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;enum for jsonld processing mode&quot;&quot;&quot;</span>
 
     <span class="n">expand</span> <span class="o">=</span> <span class="s2">&quot;expand&quot;</span>
@@ -9251,6 +9413,96 @@ is set, this setting is used.</p>
 
 
 
+<h2 id="osw.core.OSW.StoreEntityPartialError" class="doc doc-heading">
+            <code>StoreEntityPartialError</code>
+
+
+<a href="#osw.core.OSW.StoreEntityPartialError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="Exception">Exception</span></code></p>
+
+
+
+        <p>Raised by store_entity() when one or more entities could not be stored.</p>
+<p>Carries the partial <code>StoreEntityResult</code> so callers can learn exactly which
+entities were written (<code>stored</code> / <code>result.pages</code>) and which failed
+(<code>failed</code> / <code>result.failed</code>) without a separate existence query.</p>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>src/osw/core.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1605</span>
+<span class="normal">1606</span>
+<span class="normal">1607</span>
+<span class="normal">1608</span>
+<span class="normal">1609</span>
+<span class="normal">1610</span>
+<span class="normal">1611</span>
+<span class="normal">1612</span>
+<span class="normal">1613</span>
+<span class="normal">1614</span>
+<span class="normal">1615</span>
+<span class="normal">1616</span>
+<span class="normal">1617</span>
+<span class="normal">1618</span>
+<span class="normal">1619</span>
+<span class="normal">1620</span>
+<span class="normal">1621</span>
+<span class="normal">1622</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityPartialError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised by store_entity() when one or more entities could not be stored.</span>
+
+<span class="sd">    Carries the partial ``StoreEntityResult`` so callers can learn exactly which</span>
+<span class="sd">    entities were written (``stored`` / ``result.pages``) and which failed</span>
+<span class="sd">    (``failed`` / ``result.failed``) without a separate existence query.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stored</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">pages</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failed</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">failed</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">pages</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failed</span><span class="p">)</span>
+        <span class="n">failed_titles</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failed</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;store_entity failed for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">failed</span><span class="p">)</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;entities: </span><span class="si">{</span><span class="n">failed_titles</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h2 id="osw.core.OSW.StoreEntityResult" class="doc doc-heading">
             <code>StoreEntityResult</code>
 
@@ -9284,13 +9536,21 @@ is set, this setting is used.</p>
 <span class="normal">1596</span>
 <span class="normal">1597</span>
 <span class="normal">1598</span>
-<span class="normal">1599</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
+<span class="normal">1599</span>
+<span class="normal">1600</span>
+<span class="normal">1601</span>
+<span class="normal">1602</span>
+<span class="normal">1603</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StoreEntityResult</span><span class="p">(</span><span class="n">OswBaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of store_entity()&quot;&quot;&quot;</span>
 
     <span class="n">change_id</span><span class="p">:</span> <span class="nb">str</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The ID of the change&quot;&quot;&quot;</span>
     <span class="n">pages</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WtPage</span><span class="p">]</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;The pages that have been stored&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The pages that have been successfully stored, keyed by full page title.</span>
+<span class="sd">    On partial failure this contains only the successfully-stored pages.&quot;&quot;&quot;</span>
+    <span class="n">failed</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Entities that could not be stored, keyed by full page title and mapped to</span>
+<span class="sd">    the exception that caused the failure. Empty on full success.&quot;&quot;&quot;</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
         <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
@@ -9333,6 +9593,30 @@ is set, this setting is used.</p>
 
 
 
+<h3 id="osw.core.OSW.StoreEntityResult.failed" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">failed</span> <span class="o">=</span> <span class="p">{}</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#osw.core.OSW.StoreEntityResult.failed" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Entities that could not be stored, keyed by full page title and mapped to
+the exception that caused the failure. Empty on full success.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h3 id="osw.core.OSW.StoreEntityResult.pages" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">pages</span></code>
 
@@ -9345,7 +9629,8 @@ is set, this setting is used.</p>
 
     <div class="doc doc-contents ">
 
-        <p>The pages that have been stored</p>
+        <p>The pages that have been successfully stored, keyed by full page title.
+On partial failure this contains only the successfully-stored pages.</p>
 
     </div>
 
@@ -9485,62 +9770,62 @@ values being the full page name (IRI) of the dependencies.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1830</span>
-<span class="normal">1831</span>
-<span class="normal">1832</span>
-<span class="normal">1833</span>
-<span class="normal">1834</span>
-<span class="normal">1835</span>
-<span class="normal">1836</span>
-<span class="normal">1837</span>
-<span class="normal">1838</span>
-<span class="normal">1839</span>
-<span class="normal">1840</span>
-<span class="normal">1841</span>
-<span class="normal">1842</span>
-<span class="normal">1843</span>
-<span class="normal">1844</span>
-<span class="normal">1845</span>
-<span class="normal">1846</span>
-<span class="normal">1847</span>
-<span class="normal">1848</span>
-<span class="normal">1849</span>
-<span class="normal">1850</span>
-<span class="normal">1851</span>
-<span class="normal">1852</span>
-<span class="normal">1853</span>
-<span class="normal">1854</span>
-<span class="normal">1855</span>
-<span class="normal">1856</span>
-<span class="normal">1857</span>
-<span class="normal">1858</span>
-<span class="normal">1859</span>
-<span class="normal">1860</span>
-<span class="normal">1861</span>
-<span class="normal">1862</span>
-<span class="normal">1863</span>
-<span class="normal">1864</span>
-<span class="normal">1865</span>
-<span class="normal">1866</span>
-<span class="normal">1867</span>
-<span class="normal">1868</span>
-<span class="normal">1869</span>
-<span class="normal">1870</span>
-<span class="normal">1871</span>
-<span class="normal">1872</span>
-<span class="normal">1873</span>
-<span class="normal">1874</span>
-<span class="normal">1875</span>
-<span class="normal">1876</span>
-<span class="normal">1877</span>
-<span class="normal">1878</span>
-<span class="normal">1879</span>
-<span class="normal">1880</span>
-<span class="normal">1881</span>
-<span class="normal">1882</span>
-<span class="normal">1883</span>
-<span class="normal">1884</span>
-<span class="normal">1885</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1889</span>
+<span class="normal">1890</span>
+<span class="normal">1891</span>
+<span class="normal">1892</span>
+<span class="normal">1893</span>
+<span class="normal">1894</span>
+<span class="normal">1895</span>
+<span class="normal">1896</span>
+<span class="normal">1897</span>
+<span class="normal">1898</span>
+<span class="normal">1899</span>
+<span class="normal">1900</span>
+<span class="normal">1901</span>
+<span class="normal">1902</span>
+<span class="normal">1903</span>
+<span class="normal">1904</span>
+<span class="normal">1905</span>
+<span class="normal">1906</span>
+<span class="normal">1907</span>
+<span class="normal">1908</span>
+<span class="normal">1909</span>
+<span class="normal">1910</span>
+<span class="normal">1911</span>
+<span class="normal">1912</span>
+<span class="normal">1913</span>
+<span class="normal">1914</span>
+<span class="normal">1915</span>
+<span class="normal">1916</span>
+<span class="normal">1917</span>
+<span class="normal">1918</span>
+<span class="normal">1919</span>
+<span class="normal">1920</span>
+<span class="normal">1921</span>
+<span class="normal">1922</span>
+<span class="normal">1923</span>
+<span class="normal">1924</span>
+<span class="normal">1925</span>
+<span class="normal">1926</span>
+<span class="normal">1927</span>
+<span class="normal">1928</span>
+<span class="normal">1929</span>
+<span class="normal">1930</span>
+<span class="normal">1931</span>
+<span class="normal">1932</span>
+<span class="normal">1933</span>
+<span class="normal">1934</span>
+<span class="normal">1935</span>
+<span class="normal">1936</span>
+<span class="normal">1937</span>
+<span class="normal">1938</span>
+<span class="normal">1939</span>
+<span class="normal">1940</span>
+<span class="normal">1941</span>
+<span class="normal">1942</span>
+<span class="normal">1943</span>
+<span class="normal">1944</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">entity</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">],</span> <span class="n">DeleteEntityParam</span><span class="p">],</span>
     <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9693,66 +9978,7 @@ values being the full page name (IRI) of the dependencies.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2002</span>
-<span class="normal">2003</span>
-<span class="normal">2004</span>
-<span class="normal">2005</span>
-<span class="normal">2006</span>
-<span class="normal">2007</span>
-<span class="normal">2008</span>
-<span class="normal">2009</span>
-<span class="normal">2010</span>
-<span class="normal">2011</span>
-<span class="normal">2012</span>
-<span class="normal">2013</span>
-<span class="normal">2014</span>
-<span class="normal">2015</span>
-<span class="normal">2016</span>
-<span class="normal">2017</span>
-<span class="normal">2018</span>
-<span class="normal">2019</span>
-<span class="normal">2020</span>
-<span class="normal">2021</span>
-<span class="normal">2022</span>
-<span class="normal">2023</span>
-<span class="normal">2024</span>
-<span class="normal">2025</span>
-<span class="normal">2026</span>
-<span class="normal">2027</span>
-<span class="normal">2028</span>
-<span class="normal">2029</span>
-<span class="normal">2030</span>
-<span class="normal">2031</span>
-<span class="normal">2032</span>
-<span class="normal">2033</span>
-<span class="normal">2034</span>
-<span class="normal">2035</span>
-<span class="normal">2036</span>
-<span class="normal">2037</span>
-<span class="normal">2038</span>
-<span class="normal">2039</span>
-<span class="normal">2040</span>
-<span class="normal">2041</span>
-<span class="normal">2042</span>
-<span class="normal">2043</span>
-<span class="normal">2044</span>
-<span class="normal">2045</span>
-<span class="normal">2046</span>
-<span class="normal">2047</span>
-<span class="normal">2048</span>
-<span class="normal">2049</span>
-<span class="normal">2050</span>
-<span class="normal">2051</span>
-<span class="normal">2052</span>
-<span class="normal">2053</span>
-<span class="normal">2054</span>
-<span class="normal">2055</span>
-<span class="normal">2056</span>
-<span class="normal">2057</span>
-<span class="normal">2058</span>
-<span class="normal">2059</span>
-<span class="normal">2060</span>
-<span class="normal">2061</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2061</span>
 <span class="normal">2062</span>
 <span class="normal">2063</span>
 <span class="normal">2064</span>
@@ -9775,7 +10001,66 @@ values being the full page name (IRI) of the dependencies.</p>
 <span class="normal">2081</span>
 <span class="normal">2082</span>
 <span class="normal">2083</span>
-<span class="normal">2084</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
+<span class="normal">2084</span>
+<span class="normal">2085</span>
+<span class="normal">2086</span>
+<span class="normal">2087</span>
+<span class="normal">2088</span>
+<span class="normal">2089</span>
+<span class="normal">2090</span>
+<span class="normal">2091</span>
+<span class="normal">2092</span>
+<span class="normal">2093</span>
+<span class="normal">2094</span>
+<span class="normal">2095</span>
+<span class="normal">2096</span>
+<span class="normal">2097</span>
+<span class="normal">2098</span>
+<span class="normal">2099</span>
+<span class="normal">2100</span>
+<span class="normal">2101</span>
+<span class="normal">2102</span>
+<span class="normal">2103</span>
+<span class="normal">2104</span>
+<span class="normal">2105</span>
+<span class="normal">2106</span>
+<span class="normal">2107</span>
+<span class="normal">2108</span>
+<span class="normal">2109</span>
+<span class="normal">2110</span>
+<span class="normal">2111</span>
+<span class="normal">2112</span>
+<span class="normal">2113</span>
+<span class="normal">2114</span>
+<span class="normal">2115</span>
+<span class="normal">2116</span>
+<span class="normal">2117</span>
+<span class="normal">2118</span>
+<span class="normal">2119</span>
+<span class="normal">2120</span>
+<span class="normal">2121</span>
+<span class="normal">2122</span>
+<span class="normal">2123</span>
+<span class="normal">2124</span>
+<span class="normal">2125</span>
+<span class="normal">2126</span>
+<span class="normal">2127</span>
+<span class="normal">2128</span>
+<span class="normal">2129</span>
+<span class="normal">2130</span>
+<span class="normal">2131</span>
+<span class="normal">2132</span>
+<span class="normal">2133</span>
+<span class="normal">2134</span>
+<span class="normal">2135</span>
+<span class="normal">2136</span>
+<span class="normal">2137</span>
+<span class="normal">2138</span>
+<span class="normal">2139</span>
+<span class="normal">2140</span>
+<span class="normal">2141</span>
+<span class="normal">2142</span>
+<span class="normal">2143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">export_jsonld</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">ExportJsonLdParams</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExportJsonLdResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Exports the given entity/entities as JSON-LD.&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">resolve_context</span><span class="p">:</span>
@@ -11221,30 +11506,7 @@ instance of class that does not define a field 'type'</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/osw/core.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1601</span>
-<span class="normal">1602</span>
-<span class="normal">1603</span>
-<span class="normal">1604</span>
-<span class="normal">1605</span>
-<span class="normal">1606</span>
-<span class="normal">1607</span>
-<span class="normal">1608</span>
-<span class="normal">1609</span>
-<span class="normal">1610</span>
-<span class="normal">1611</span>
-<span class="normal">1612</span>
-<span class="normal">1613</span>
-<span class="normal">1614</span>
-<span class="normal">1615</span>
-<span class="normal">1616</span>
-<span class="normal">1617</span>
-<span class="normal">1618</span>
-<span class="normal">1619</span>
-<span class="normal">1620</span>
-<span class="normal">1621</span>
-<span class="normal">1622</span>
-<span class="normal">1623</span>
-<span class="normal">1624</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1624</span>
 <span class="normal">1625</span>
 <span class="normal">1626</span>
 <span class="normal">1627</span>
@@ -11433,7 +11695,66 @@ instance of class that does not define a field 'type'</p>
 <span class="normal">1810</span>
 <span class="normal">1811</span>
 <span class="normal">1812</span>
-<span class="normal">1813</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
+<span class="normal">1813</span>
+<span class="normal">1814</span>
+<span class="normal">1815</span>
+<span class="normal">1816</span>
+<span class="normal">1817</span>
+<span class="normal">1818</span>
+<span class="normal">1819</span>
+<span class="normal">1820</span>
+<span class="normal">1821</span>
+<span class="normal">1822</span>
+<span class="normal">1823</span>
+<span class="normal">1824</span>
+<span class="normal">1825</span>
+<span class="normal">1826</span>
+<span class="normal">1827</span>
+<span class="normal">1828</span>
+<span class="normal">1829</span>
+<span class="normal">1830</span>
+<span class="normal">1831</span>
+<span class="normal">1832</span>
+<span class="normal">1833</span>
+<span class="normal">1834</span>
+<span class="normal">1835</span>
+<span class="normal">1836</span>
+<span class="normal">1837</span>
+<span class="normal">1838</span>
+<span class="normal">1839</span>
+<span class="normal">1840</span>
+<span class="normal">1841</span>
+<span class="normal">1842</span>
+<span class="normal">1843</span>
+<span class="normal">1844</span>
+<span class="normal">1845</span>
+<span class="normal">1846</span>
+<span class="normal">1847</span>
+<span class="normal">1848</span>
+<span class="normal">1849</span>
+<span class="normal">1850</span>
+<span class="normal">1851</span>
+<span class="normal">1852</span>
+<span class="normal">1853</span>
+<span class="normal">1854</span>
+<span class="normal">1855</span>
+<span class="normal">1856</span>
+<span class="normal">1857</span>
+<span class="normal">1858</span>
+<span class="normal">1859</span>
+<span class="normal">1860</span>
+<span class="normal">1861</span>
+<span class="normal">1862</span>
+<span class="normal">1863</span>
+<span class="normal">1864</span>
+<span class="normal">1865</span>
+<span class="normal">1866</span>
+<span class="normal">1867</span>
+<span class="normal">1868</span>
+<span class="normal">1869</span>
+<span class="normal">1870</span>
+<span class="normal">1871</span>
+<span class="normal">1872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">store_entity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">StoreEntityParam</span><span class="p">,</span> <span class="n">OswBaseModel</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">OswBaseModel</span><span class="p">]]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StoreEntityResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;stores the given dataclass instance as OSW page by calling BaseModel.json()</span>
@@ -11625,27 +11946,63 @@ instance of class that does not define a field 'type'</p>
             <span class="n">upload_index</span> <span class="o">+=</span> <span class="mi">1</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">:</span> <span class="n">UploadObject</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Let exceptions propagate: the caller collects them per entity below,</span>
+        <span class="c1"># so a single failure neither aborts the batch nor is silently</span>
+        <span class="c1"># swallowed (store_entity_ only records created_pages on success).</span>
+        <span class="n">store_entity_</span><span class="p">(</span>
+            <span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span>
+            <span class="n">upload_object</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="n">upload_object</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+            <span class="n">upload_object</span><span class="o">.</span><span class="n">overwrite_class_param</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">failure_title_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">:</span> <span class="n">UploadObject</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Best-effort full page title of a failed entity, for error reporting.&quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">store_entity_</span><span class="p">(</span>
-                <span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span>
-                <span class="n">upload_object</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
-                <span class="n">upload_object</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
-                <span class="n">upload_object</span><span class="o">.</span><span class="n">overwrite_class_param</span><span class="p">,</span>
+            <span class="n">namespace</span> <span class="o">=</span> <span class="n">upload_object</span><span class="o">.</span><span class="n">namespace</span> <span class="ow">or</span> <span class="n">get_namespace</span><span class="p">(</span>
+                <span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span>
             <span class="p">)</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">entity_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;unknown&quot;</span>
-            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error storing entity &#39;</span><span class="si">{</span><span class="n">entity_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">get_title</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">upload_object</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span> <span class="s2">&quot;uuid&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="s2">&quot;unknown&quot;</span>
+            <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">parallel</span><span class="p">:</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
-            <span class="n">handle_upload_object_</span><span class="p">,</span> <span class="n">upload_object_list</span><span class="p">,</span> <span class="n">flush_at_end</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">debug</span>
+        <span class="c1"># return_exceptions=True keeps results aligned with upload_object_list</span>
+        <span class="c1"># and lets every entity be attempted even if some fail.</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+            <span class="n">handle_upload_object_</span><span class="p">,</span>
+            <span class="n">upload_object_list</span><span class="p">,</span>
+            <span class="n">flush_at_end</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">debug</span><span class="p">,</span>
+            <span class="n">return_exceptions</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">upload_object</span> <span class="ow">in</span> <span class="n">upload_object_list</span>
-        <span class="p">]</span>
-    <span class="k">return</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span><span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span> <span class="n">pages</span><span class="o">=</span><span class="n">created_pages</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">upload_object</span> <span class="ow">in</span> <span class="n">upload_object_list</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">handle_upload_object_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+    <span class="n">failed</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">upload_object</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">upload_object_list</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="n">failure_title_</span><span class="p">(</span><span class="n">upload_object</span><span class="p">)</span>
+            <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error storing entity &#39;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">failed</span><span class="p">[</span><span class="n">title</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+
+    <span class="n">store_result</span> <span class="o">=</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityResult</span><span class="p">(</span>
+        <span class="n">change_id</span><span class="o">=</span><span class="n">param</span><span class="o">.</span><span class="n">change_id</span><span class="p">,</span> <span class="n">pages</span><span class="o">=</span><span class="n">created_pages</span><span class="p">,</span> <span class="n">failed</span><span class="o">=</span><span class="n">failed</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">failed</span><span class="p">:</span>
+        <span class="c1"># Surface partial/total failure so callers cannot mistake a dropped</span>
+        <span class="c1"># page for a success. The result (successes + failures) rides along.</span>
+        <span class="k">raise</span> <span class="n">OSW</span><span class="o">.</span><span class="n">StoreEntityPartialError</span><span class="p">(</span><span class="n">store_result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">store_result</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

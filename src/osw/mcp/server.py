@@ -107,8 +107,8 @@ def _build_server() -> tuple[MCPServer, Context]:
     statically pinned to one OSL instance for its whole lifetime, and which one
     that is has to be readable from the configuration rather than inferred.
     Deliberately stricter than :func:`config.get_active_domain`, which the CLI
-    uses: there the instance is visible on the command line at every
-    invocation, and ``--instance`` can override it per command.
+    uses: there the instance is resolved per invocation and reported at
+    startup, and ``--instance`` can override it per command.
     """
     # Before get_settings(), so a misconfiguration that makes loading raise
     # still reports which files were read. stderr, so it lands in the MCP

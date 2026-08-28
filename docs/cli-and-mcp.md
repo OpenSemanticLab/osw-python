@@ -73,8 +73,8 @@ Commands are grouped by subject:
 
 Global options apply to every command:
 
-- `--instance IRI` picks the instance. Optional: it is only required when the
-  `.env` sets no `OSW_DOMAIN` and the credential file it names holds more than
+- `--instance IRI` picks the instance. Optional: it is only required when
+  `OSW_DOMAIN` is not set and the configured credential file holds more than
   one iri.
 - `--json` / `-j` writes machine-readable JSON to stdout and keeps osw's own
   progress output on stderr, so it pipes cleanly into `jq`.

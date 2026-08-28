@@ -10,6 +10,20 @@
 
 <!-- version list -->
 
+## v2.0.2 (2026-08-28)
+
+### Bug Fixes
+
+- Keep WtSite deep-copyable after adding the session lock
+  ([`aa0d359`](https://github.com/OpenSemanticLab/osw-python/commit/aa0d359e188b6fe0a12aa1a8a1ac819a6ea2ce87))
+
+- Make _clear_cookies safe against concurrent jar mutation
+  ([`e5fb473`](https://github.com/OpenSemanticLab/osw-python/commit/e5fb473f4740c180930a4a7be08d6843cb61fca5))
+
+- Prevent silent page loss in store_entity parallel upload
+  ([`fc2fe36`](https://github.com/OpenSemanticLab/osw-python/commit/fc2fe364022c0549e8fe891a238c84592f7f14c1))
+
+
 ## v2.0.1 (2026-08-28)
 
 ### Bug Fixes

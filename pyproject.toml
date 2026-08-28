@@ -8,7 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not
 # edit by hand; it is bumped automatically on merge to main.
-version = "2.0.1"
+version = "2.0.2"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

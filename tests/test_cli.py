@@ -1,7 +1,7 @@
 """Unit tests for the osw CLI (src/osw/cli).
 
-Runs in the plain dev env (no mcp extra needed): the CLI never imports the
-mcp SDK. No network is touched -- ``osw.service.context.OswExpress`` is
+The CLI never imports the mcp SDK, and no network is touched --
+``osw.service.context.OswExpress`` is
 patched wherever a test actually reaches a command's body.
 """
 

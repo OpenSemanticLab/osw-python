@@ -1,8 +1,7 @@
 """Unit tests for multi-instance selection in osw.service (config + Context).
 
-These are fully offline: no network, no live wiki. They also need no MCP SDK:
-osw.service is deliberately SDK-free, so unlike tests/test_mcp_*.py these run
-in the default dev environment.
+These are fully offline: no network, no live wiki, and no MCP SDK, since
+osw.service is deliberately SDK-free.
 """
 
 import pytest

@@ -1,6 +1,6 @@
 """Unit tests for osw.service.ops.files (Operation.fn called directly).
 
-Runs in the plain dev env (no mcp extra, no network): ``WikiFileController``
+Fully offline: ``WikiFileController``
 is replaced with a fake factory that records its constructor arguments, so
 every test can inspect the title/namespace a real controller would have
 derived without touching a wiki.

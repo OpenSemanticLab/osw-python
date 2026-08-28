@@ -22,7 +22,7 @@ pip install osw
 ```
 
 Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
-`osw[UI]`, `osw[all]`) are described in the
+`osw[UI]`, `osw[mcp]`, `osw[all]`) are described in the
 [Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
 
 ## Quickstart

@@ -10,6 +10,33 @@
 
 <!-- version list -->
 
+## v2.0.2 (2026-08-28)
+
+### Bug Fixes
+
+- Keep WtSite deep-copyable after adding the session lock
+  ([`aa0d359`](https://github.com/OpenSemanticLab/osw-python/commit/aa0d359e188b6fe0a12aa1a8a1ac819a6ea2ce87))
+
+- Make _clear_cookies safe against concurrent jar mutation
+  ([`e5fb473`](https://github.com/OpenSemanticLab/osw-python/commit/e5fb473f4740c180930a4a7be08d6843cb61fca5))
+
+- Prevent silent page loss in store_entity parallel upload
+  ([`fc2fe36`](https://github.com/OpenSemanticLab/osw-python/commit/fc2fe364022c0549e8fe891a238c84592f7f14c1))
+
+
+## v2.0.1 (2026-08-28)
+
+### Bug Fixes
+
+- **deps**: Widen workflow anyio pin to >=4.9,<4.14
+  ([`21c4043`](https://github.com/OpenSemanticLab/osw-python/commit/21c4043a168379de43a7fe8ccabd1c266fe1a656))
+
+### Documentation
+
+- Add citation and authorship section to CONTRIBUTING.md
+  ([`a3a8119`](https://github.com/OpenSemanticLab/osw-python/commit/a3a8119cd047cee741812b11e3f1f26c3f91c639))
+
+
 ## v2.0.0 (2026-08-05)
 
 ### Bug Fixes

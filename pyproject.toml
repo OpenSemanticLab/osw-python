@@ -8,7 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not
 # edit by hand; it is bumped automatically on merge to main.
-version = "2.0.0"
+version = "2.0.2"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -83,16 +83,15 @@ workflow = [
     "prefect>=2.20.25,<3.0",
     # prefect 2.20.25 is the final 2.x release (no backports). Its
     # GatherTaskGroup subclasses anyio's TaskGroup but doesn't implement
-    # create_task, which newer anyio 4.x made abstract (broken on 4.14,
-    # verified good on 4.6.2); hold anyio to the last verified-good 4.6 line
-    # so the prefect-2.x flow engine can still instantiate task groups.
-    "anyio>=4.4.0,<4.7",
+    # create_task, which anyio 4.14.0 promoted to an abstract method
+    # (start_soon stopped being the abstract one). 4.13.x is the last line
+    # where the prefect-2.x flow engine can still instantiate task groups.
+    # The floor is 4.9 so this stays compatible with mcp>=2, see
+    # https://github.com/OpenSemanticLab/osw-python/issues/139
+    "anyio>=4.9,<4.14",
 ]
 tutorial = ["osw[dataimport]"]
-# mcp is deliberately excluded here: it requires anyio>=4.9, which conflicts
-# with the workflow extra's anyio cap. Install it explicitly with osw[mcp].
-# See https://github.com/OpenSemanticLab/osw-python/issues/139
-all = ["osw[dataimport,DB,UI,S3,wikitext]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
 
 [project.scripts]
 # command-line access to a live OSL instance, built from the same
@@ -106,31 +105,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-# pytest stack in its own group so it can be installed alongside the mcp
-# extra, which conflicts with the dev group (see [tool.uv] below).
-# tests/test_service_*.py run in a plain `uv sync` dev env (no mcp extra
-# needed). Run the MCP-extra tests (tests/test_mcp_*.py) with:
-#   uv sync --extra mcp --group test --no-dev
-#   uv run --extra mcp --group test --no-dev --no-sync python -m pytest tests/test_mcp_*.py
-test = [
+dev = [
+    # test stack
     "pytest",
     "pytest-cov",
     "pytest-mock",
     "pytest-asyncio",
-    # not part of the mcp conflict set, so the shared service layer (which reads
-    # .env lazily) stays importable and testable in a plain `uv sync` env.
-    "python-dotenv>=1.0",
-]
-dev = [
-    { include-group = "test" },
-    # prefect/anyio are listed directly rather than via osw[workflow]: the
-    # workflow extra is in a uv conflict set (see [tool.uv] below), so a
-    # self-referential osw[workflow] entry here would only activate when
-    # --extra workflow is passed, leaving a bare `uv sync` on the anyio that
-    # breaks prefect 2.20. Keep these pins in sync with the workflow extra.
-    # Tracked in https://github.com/OpenSemanticLab/osw-python/issues/139
-    "prefect>=2.20.25,<3.0",
-    "anyio>=4.4.0,<4.7",
+    # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
+    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests.
+    # mcp is included so the MCP server and its tests run in the same
+    # environment as everything else.
+    "osw[workflow,mcp]",
     "geopy",
     "deepl",
     "sqlalchemy",
@@ -327,19 +312,6 @@ insertion_flag = "<!-- version list -->"
 [tool.semantic_release.changelog.default_templates]
 changelog_file = "CHANGELOG.md"
 
-[tool.uv]
-# mcp 2.x needs anyio>=4.9; the workflow extra caps anyio<4.7 for prefect 2.20
-# (see the workflow extra above). They cannot share one resolution, so uv is
-# told to resolve them in separate splits. Install the MCP server standalone:
-# pip install "osw[mcp]".
-# The dev group is included too since it carries the same anyio cap directly
-# (see the dev group above). Tracked in
-# https://github.com/OpenSemanticLab/osw-python/issues/139
-conflicts = [
-    [{ extra = "mcp" }, { extra = "workflow" }],
-    [{ extra = "mcp" }, { group = "dev" }],
-]
-
 [tool.ty.environment]
 python = "./.venv"
 python-version = "3.10"
@@ -350,10 +322,8 @@ python-version = "3.10"
 #  - examples, scripts: illustrative/maintenance code, not part of the package
 #  - tests: not yet type-clean, tightened in a follow-up
 #
-# src/osw/mcp is no longer excluded. The mcp extra still cannot be installed
-# alongside the dev group (issue #139), so the two SDK imports in server.py
-# carry an inline `ty: ignore[unresolved-import]`; everything else there, and
-# all of src/osw/service and src/osw/cli, is checked.
+# src/osw/mcp, src/osw/service and src/osw/cli are checked: the mcp extra is
+# part of the dev group, so the SDK imports resolve.
 exclude = [
     "src/osw/model/entity.py",
     "examples",

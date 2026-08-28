@@ -61,15 +61,21 @@ def test_search_schema_and_read(mcp_tools):
     category_schema = mcp_tools["get_category_schema"](category="Category:Item")
     assert "exists" in category_schema
 
-    if found["titles"]:
-        title = found["titles"][0]
-        entity = mcp_tools["get_entity"](title=title)
-        assert entity["title"] == title
-        assert entity["exists"] is True
+    # An ask query has no defined result order and a category can hold pages
+    # without a jsondata slot, so check every hit rather than trusting the first.
+    titles = found["titles"]
+    if titles:
+        with_jsondata = []
+        for title in titles:
+            entity = mcp_tools["get_entity"](title=title)
+            assert entity["title"] == title
+            assert entity["exists"] is True
 
-        page_slots = mcp_tools["list_page_slots"](title=title)
-        assert page_slots["exists"] is True
-        assert any(s["key"] == "jsondata" for s in page_slots["slots"])
+            page_slots = mcp_tools["list_page_slots"](title=title)
+            assert page_slots["exists"] is True
+            if any(s["key"] == "jsondata" for s in page_slots["slots"]):
+                with_jsondata.append(title)
+        assert with_jsondata, f"no jsondata slot on any of {titles}"
 
 
 def test_delete_guard_blocks_untracked(mcp_tools):

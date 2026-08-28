@@ -14,9 +14,6 @@ import asyncio
 import pytest
 import yaml
 
-pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
-pytest.importorskip("dotenv", reason="requires the osw[mcp] extra")
-
 from osw.mcp import server
 from osw.service import config
 from osw.service.registry import iter_operations

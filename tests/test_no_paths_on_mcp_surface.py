@@ -1,11 +1,8 @@
 """Guard tests: no filesystem path may ever reach the MCP surface.
 
-Runs in the plain dev env (no mcp extra needed): importing ``osw.cli.ops``
-(to register the CLI-only, path-taking operations, so the negative check
-below cannot pass vacuously) and ``osw.service.ops`` touches neither the
-``mcp`` SDK nor the network. Only ``test_mcp_server_never_imports_cli``
-needs the ``mcp`` extra (it imports ``osw.mcp.server`` itself), and
-self-skips without it.
+Offline: importing ``osw.cli.ops`` (to register the CLI-only, path-taking
+operations, so the negative check below cannot pass vacuously) and
+``osw.service.ops`` touches the network nowhere.
 """
 
 from __future__ import annotations
@@ -14,8 +11,6 @@ import inspect
 import subprocess
 import sys
 from unittest.mock import MagicMock
-
-import pytest
 
 # Registers every operation, including the CLI-only path-taking ones, so
 # osw.service.registry.REGISTRY is fully populated for the checks below.
@@ -72,7 +67,6 @@ def test_bound_operations_do_not_expose_ctx():
 
 
 def test_mcp_server_never_imports_cli():
-    pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
     result = subprocess.run(
         [
             sys.executable,

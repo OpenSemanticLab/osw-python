@@ -29,8 +29,7 @@ no install of its own.
 
 </details>
 
-`osw[mcp]` is not part of `osw[all]`, see [Design notes](#design-notes). The
-other extras are listed in the
+`osw[mcp]` is also part of `osw[all]`. The other extras are listed in the
 [Get Started guide](get-started.md#optional-extras).
 
 Both adapters need an instance and credentials. The quickest start is a
@@ -314,12 +313,9 @@ Why the two adapters are shaped the way they are:
 - **stdio only.** SSE is deprecated upstream, and HTTP would need a
   per-connection auth model this server does not have: it holds one set of wiki
   credentials, which every client would share.
-- **`osw[mcp]` outside `osw[all]`.** It needs `anyio>=4.9`, which conflicts with
-  the pin the `osw[workflow]` extra requires for prefect 2.x, so the two cannot
-  share an environment
-  ([#139](https://github.com/OpenSemanticLab/osw-python/issues/139)).
-  Installing the server standalone, for example via `uvx`, avoids the question
-  entirely.
+- **`mcp` is an extra, not a base dependency.** The SDK pulls in a server stack
+  (starlette, uvicorn, sse-starlette) that nothing in the Python API or the CLI
+  needs, so only users who actually run the server pay for it.
 
 ## Notes for developers
 

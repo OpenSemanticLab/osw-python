@@ -41,7 +41,7 @@ OpenSemanticLab data model.
 
 ## CLI and MCP tools
 
-Installing `osw` also installs an `osw` command line client, and the separate
+Installing `osw` also installs an `osw` command line client, and the
 `osw[mcp]` extra adds an MCP server that exposes a live instance to agent
 clients such as Claude Code:
 

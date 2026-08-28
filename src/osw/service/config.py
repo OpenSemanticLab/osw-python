@@ -226,8 +226,7 @@ def _load_env_file() -> None:
         name = next((n for n in ENV_FILE if os.getenv(n) == path), ENV_FILE[0])
         raise RuntimeError(
             f"{name} is set (to '{path}') but python-dotenv is not installed. "
-            "Install the osw[mcp] extra, or the `test` dependency group, to "
-            "use an env file."
+            "Install the osw[mcp] extra to use an env file."
         )
     if path:
         dotenv.load_dotenv(path)

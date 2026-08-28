@@ -8,10 +8,6 @@ registration-shape tests (which tools end up on a real ``MCPServer``) live in
 
 from __future__ import annotations
 
-import pytest
-
-pytest.importorskip("mcp", reason="requires the osw[mcp] extra")
-
 from mcp.types import ToolAnnotations
 
 from osw.mcp.server import _annotations, _meta, tool_kwargs

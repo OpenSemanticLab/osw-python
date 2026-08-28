@@ -12,11 +12,8 @@ import inspect
 import sys
 from typing import Any, Optional
 
-# ty cannot resolve these: the mcp extra is uninstallable alongside the dev
-# group (anyio conflict, issue #139), so it is absent from the env ty runs in.
-# The rest of this module is type-checked; drop the ignores once #139 is fixed.
-from mcp.server import MCPServer  # ty: ignore[unresolved-import]
-from mcp.types import ToolAnnotations  # ty: ignore[unresolved-import]
+from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
 
 import osw
 import osw.service.ops

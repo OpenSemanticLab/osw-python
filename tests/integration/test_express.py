@@ -22,7 +22,6 @@ Tests to be written for express.py:
 * test_upload_file
 """
 
-import os
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -102,11 +101,13 @@ def test_init_with_domain(wiki_domain, wiki_username, wiki_password, mocker):
     osw_express.shut_down()
 
 
-def test_init_from_env_vars(wiki_domain, wiki_username, wiki_password):
+def test_init_from_env_vars(monkeypatch, wiki_domain, wiki_username, wiki_password):
+    # monkeypatch, not os.environ: the file is unlinked at the end of this test, so
+    # a leaked OSW_CRED_FILEPATH would point every later test at a missing file.
     cred_filepath = Path.cwd() / "accounts.pwd.yaml"
-    os.environ["OSW_CRED_FILEPATH"] = str(cred_filepath)
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_filepath))
     create_credentials_file(cred_filepath, wiki_domain, wiki_username, wiki_password)
-    os.environ["OSW_DOMAIN"] = wiki_domain
+    monkeypatch.setenv("OSW_DOMAIN", wiki_domain)
 
     osw_express = osw.express.OswExpress()
     osw_express_and_credentials(osw_express, wiki_domain, wiki_username, wiki_password)

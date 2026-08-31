@@ -2,11 +2,48 @@ import functools
 import os
 from typing import IO, Any, Dict, List, Optional
 
+import mwclient.errors
+
 from osw.controller.file.base import FileController
 from osw.controller.file.remote import RemoteFileController
 from osw.core import OSW, model
 from osw.utils.wiki import get_namespace, get_title
 from osw.wtsite import WtSite
+
+
+def get_allowed_file_extensions(mw_site) -> Optional[List[str]]:
+    """Queries the file extensions the wiki accepts, None if unavailable"""
+    try:
+        result = mw_site.api(
+            "query", meta="siteinfo", siprop="fileextensions", formatversion=2
+        )
+    except Exception:
+        # only used to enrich an error message, never worth failing over
+        return None
+    extensions = result.get("query", {}).get("fileextensions", [])
+    return [entry["ext"] for entry in extensions if "ext" in entry]
+
+
+def reraise_upload_error(
+    error: mwclient.errors.APIError, mw_site, title: str, suffix: Optional[str]
+) -> None:
+    """Turns a rejected file extension into a readable error, re-raises the rest
+
+    MediaWiki reports a rejected extension as filetype-banned,
+    filetype-banned-type or filetype-badtype, depending on the version.
+    """
+    if "filetype" not in str(getattr(error, "code", "")):
+        raise error
+    allowed = get_allowed_file_extensions(mw_site)
+    hint = (
+        f" Extensions allowed on this wiki: {', '.join(sorted(allowed))}."
+        if allowed
+        else ""
+    )
+    raise ValueError(
+        f"Upload of '{title}' was rejected because the file extension "
+        f"'{suffix}' is not allowed on {mw_site.host}.{hint}"
+    ) from error
 
 
 class WikiFileController(model.WikiFile, RemoteFileController):
@@ -138,13 +175,16 @@ class WikiFileController(model.WikiFile, RemoteFileController):
                 **se_params,
             )
         )
-        self.osw.mw_site.upload(
-            file=file,
-            filename=self.title,
-            # comment="",
-            # description="",
-            ignore=True,
-        )
+        try:
+            self.osw.mw_site.upload(
+                file=file,
+                filename=self.title,
+                # comment="",
+                # description="",
+                ignore=True,
+            )
+        except mwclient.errors.APIError as e:
+            reraise_upload_error(e, self.osw.mw_site, self.title, self.suffix)
 
     def put_from(self, other: FileController, **kwargs: Dict[str, Any]):
         # if isinstance(file, LocalFileController) and self.suffix is None:

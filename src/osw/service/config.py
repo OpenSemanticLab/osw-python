@@ -21,8 +21,6 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from osw.auth import CredentialManager
 
-_TRUTHY = {"1", "true", "yes", "on"}
-
 # Environment variable names. Each tuple lists the canonical ``OSW_*`` name
 # first, followed by every alias that must keep working. ``OSW_CRED_FILEPATH``
 # is canonical (rather than an ``OSW_MCP_``-prefixed name) because
@@ -417,11 +415,16 @@ def load(strict: bool = True) -> Settings:
         password=password,
         cred_filepath=cred_filepath,
         sparql_endpoint=_first_env(ENV_SPARQL_ENDPOINT),
-        read_only=(_first_env(ENV_READ_ONLY) or "").lower() in _TRUTHY,
         state_dir=_first_env(ENV_STATE_DIR),
     )
-    # An unset or blank/whitespace-only integer variable falls back to the
-    # model default; pass the raw string only when there is one to validate.
+    # An unset or blank/whitespace-only variable falls back to the model
+    # default; pass the raw string only when there is one to validate. Letting
+    # pydantic parse read_only rather than testing membership in a truthy set
+    # matters because the default is fail-open: a typo like "ture" would
+    # otherwise silently leave writes enabled on a server meant to be read-only.
+    read_only_raw = _first_env(ENV_READ_ONLY)
+    if read_only_raw is not None and read_only_raw.strip():
+        kwargs["read_only"] = read_only_raw
     max_results_raw = _first_env(ENV_MAX_RESULTS)
     if max_results_raw is not None and max_results_raw.strip():
         kwargs["max_results"] = max_results_raw

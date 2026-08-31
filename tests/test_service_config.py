@@ -588,6 +588,54 @@ def test_error_names_the_alias_that_was_set(monkeypatch):
     assert "OSW_MCP_MAX_RESULTS" in str(exc.value)
 
 
+def test_misspelled_read_only_raises(monkeypatch):
+    # A typo must not silently enable writes: read_only is the one flag whose
+    # fail-open default is dangerous, so an unparseable value has to be loud.
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_READ_ONLY", "ture")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_READ_ONLY" in str(exc.value)
+
+
+@pytest.mark.parametrize("raw", ["1", "true", "TRUE", "yes", "on", "y", "t"])
+def test_read_only_truthy_spellings(monkeypatch, raw):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_READ_ONLY", raw)
+    assert config.load().read_only is True
+
+
+@pytest.mark.parametrize("raw", ["0", "false", "FALSE", "no", "off", "n", "f"])
+def test_read_only_falsy_spellings(monkeypatch, raw):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_READ_ONLY", raw)
+    assert config.load().read_only is False
+
+
+def test_blank_read_only_falls_back_to_default(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_READ_ONLY", "   ")
+    assert config.load().read_only is False
+
+
+def test_read_only_error_names_the_alias_that_was_set(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_MCP_READ_ONLY", "disabled")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_MCP_READ_ONLY" in str(exc.value)
+
+
 def test_domain_with_whitespace_rejected():
     with pytest.raises(ValidationError):
         Settings(domain="wiki.example.org has a space")

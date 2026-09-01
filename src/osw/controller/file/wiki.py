@@ -64,6 +64,22 @@ def assert_upload_success(result: Any, title: str, host: str) -> None:
     )
 
 
+def store_params_for_upload(
+    se_params: Dict[str, Any], page_existed: bool
+) -> Dict[str, Any]:
+    """Picks the overwrite policy for the entity that accompanies an upload
+
+    An upload creates the file page when it was not there yet. store_entity
+    would then see an existing page and, under the default 'keep existing',
+    leave the metadata unwritten. So the entity has to replace what the upload
+    put there. A page that was already there keeps whatever the caller asked
+    for.
+    """
+    if page_existed:
+        return se_params
+    return {**se_params, "overwrite": "replace remote"}
+
+
 class WikiFileController(model.WikiFile, RemoteFileController):
     """File controller for wiki files"""
 
@@ -190,6 +206,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         # across the two writes, so one of them can be left standing. A file
         # page without metadata is visibly incomplete, while metadata without a
         # file looks like a valid entity until someone tries to download it.
+        page_existed = self.osw.mw_site.pages[f"{self.namespace}:{self.title}"].exists
         try:
             result = self.osw.mw_site.upload(
                 file=file,
@@ -205,7 +222,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             OSW.StoreEntityParam(
                 entities=[self.cast(model.WikiFile, **wf_params)],
                 namespace=self.namespace,
-                **se_params,
+                **store_params_for_upload(se_params, page_existed),
             )
         )
 

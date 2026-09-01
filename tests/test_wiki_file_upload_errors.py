@@ -15,6 +15,7 @@ from osw.controller.file.wiki import (
     assert_upload_success,
     get_allowed_file_extensions,
     reraise_upload_error,
+    store_params_for_upload,
 )
 
 
@@ -107,6 +108,27 @@ def test_upload_without_success_raises(result):
 
     assert "a.png" in str(exc_info.value)
     assert "wiki.example.org" in str(exc_info.value)
+
+
+def test_a_page_the_upload_created_gets_its_metadata_written():
+    """Otherwise store_entity keeps the empty page the upload just left behind."""
+    assert store_params_for_upload({}, page_existed=False) == {
+        "overwrite": "replace remote"
+    }
+
+
+def test_an_existing_page_keeps_the_callers_overwrite_policy():
+    se_params = {"overwrite": "keep existing", "edit_comment": "hi"}
+
+    assert store_params_for_upload(se_params, page_existed=True) == se_params
+
+
+def test_store_params_are_not_mutated():
+    se_params = {"edit_comment": "hi"}
+
+    store_params_for_upload(se_params, page_existed=False)
+
+    assert se_params == {"edit_comment": "hi"}
 
 
 def test_warned_upload_reports_the_warnings():

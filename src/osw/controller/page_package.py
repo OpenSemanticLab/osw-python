@@ -689,21 +689,32 @@ class PagePackageController(model.PagePackageMetaData):
             if params.read_listed_pages_from_script:
                 search_paths = [params.script_dir]
                 search_paths.extend(params.additional_script_dirs)
-                try:
-                    script_path = find_package_dir(
-                        f"{package_to_process}.py", search_paths
+                # Prefer the script in script_dir over the additional dirs,
+                # instead of failing on a script present in several.
+                script_path = find_first_package_dir(
+                    f"{package_to_process}.py", search_paths
+                )
+                new_listed_pages = []
+                required_packages = []
+                if script_path is None:
+                    warn(
+                        f"Package script for {package_to_process} not found in any "
+                        f"of the search paths: {search_paths}"
                     )
-                    package_script = read_package_script_file(script_path)
-                    new_listed_pages = get_listed_pages_from_package_script(
-                        package_script
-                    )
-                    required_packages = get_required_packages_from_package_script(
-                        package_script
-                    )
-                except Exception as e:
-                    warn(f"Error reading package script for {package_to_process}: {e}")
-                    new_listed_pages = []
-                    required_packages = []
+                else:
+                    try:
+                        package_script = read_package_script_file(script_path)
+                        new_listed_pages = get_listed_pages_from_package_script(
+                            package_script
+                        )
+                        required_packages = get_required_packages_from_package_script(
+                            package_script
+                        )
+                    except Exception as e:
+                        warn(
+                            f"Error reading package script for "
+                            f"{package_to_process}: {e}"
+                        )
             else:
                 search_paths = [params.creation_config.working_dir.parent]
                 search_paths.extend(params.additional_package_dirs)

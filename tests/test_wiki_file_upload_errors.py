@@ -2,12 +2,17 @@
 
 Regression guard for #51: a file rejected because of its extension must produce
 an error that names the extension, instead of a bare MediaWiki API code.
+
+Also guards the silent-failure path: mwclient raises only on an 'error' key, so
+an upload MediaWiki declined by other means must be caught by inspecting the
+returned result.
 """
 
 import mwclient.errors
 import pytest
 
 from osw.controller.file.wiki import (
+    assert_upload_success,
     get_allowed_file_extensions,
     reraise_upload_error,
 )
@@ -85,3 +90,29 @@ def test_get_allowed_file_extensions_reads_siteinfo():
     site = _FakeSite(extensions=["png", "jpg"])
 
     assert get_allowed_file_extensions(site) == ["png", "jpg"]
+
+
+def test_successful_upload_passes():
+    assert (
+        assert_upload_success({"result": "Success"}, "a.png", "wiki.example.org")
+        is None
+    )
+
+
+@pytest.mark.parametrize("result", [{}, None, {"result": "Poll"}])
+def test_upload_without_success_raises(result):
+    """Anything but a Success result means the file did not arrive."""
+    with pytest.raises(ValueError) as exc_info:
+        assert_upload_success(result, "a.png", "wiki.example.org")
+
+    assert "a.png" in str(exc_info.value)
+    assert "wiki.example.org" in str(exc_info.value)
+
+
+def test_warned_upload_reports_the_warnings():
+    result = {"result": "Warning", "warnings": {"badfilename": "a_png"}}
+
+    with pytest.raises(ValueError) as exc_info:
+        assert_upload_success(result, "a.png", "wiki.example.org")
+
+    assert "badfilename" in str(exc_info.value)

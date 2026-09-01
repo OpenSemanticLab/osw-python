@@ -46,6 +46,24 @@ def reraise_upload_error(
     ) from error
 
 
+def assert_upload_success(result: Any, title: str, host: str) -> None:
+    """Raises unless the upload API reports that it stored the file
+
+    mwclient raises only when the response carries an 'error' key. A file that
+    MediaWiki declined for any other reason comes back as a normal return value
+    with a result other than 'Success', so without this check the upload would
+    fail silently.
+    """
+    status = result.get("result") if isinstance(result, dict) else None
+    if status == "Success":
+        return
+    warnings = result.get("warnings") if isinstance(result, dict) else None
+    detail = f" Warnings: {warnings}." if warnings else ""
+    raise ValueError(
+        f"Upload of '{title}' to {host} did not succeed (result: {status}).{detail}"
+    )
+
+
 class WikiFileController(model.WikiFile, RemoteFileController):
     """File controller for wiki files"""
 
@@ -168,15 +186,12 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         }
         for key in ["entities", "namespace"]:
             se_params.pop(key, None)  # avoid duplicated kwargs
-        self.osw.store_entity(
-            OSW.StoreEntityParam(
-                entities=[self.cast(model.WikiFile, **wf_params)],
-                namespace=self.namespace,
-                **se_params,
-            )
-        )
+        # Upload before storing the entity: MediaWiki offers no transaction
+        # across the two writes, so one of them can be left standing. A file
+        # page without metadata is visibly incomplete, while metadata without a
+        # file looks like a valid entity until someone tries to download it.
         try:
-            self.osw.mw_site.upload(
+            result = self.osw.mw_site.upload(
                 file=file,
                 filename=self.title,
                 # comment="",
@@ -185,6 +200,14 @@ class WikiFileController(model.WikiFile, RemoteFileController):
             )
         except mwclient.errors.APIError as e:
             reraise_upload_error(e, self.osw.mw_site, self.title, self.suffix)
+        assert_upload_success(result, self.title, self.osw.mw_site.host)
+        self.osw.store_entity(
+            OSW.StoreEntityParam(
+                entities=[self.cast(model.WikiFile, **wf_params)],
+                namespace=self.namespace,
+                **se_params,
+            )
+        )
 
     def put_from(self, other: FileController, **kwargs: Dict[str, Any]):
         # if isinstance(file, LocalFileController) and self.suffix is None:

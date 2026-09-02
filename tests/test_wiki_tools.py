@@ -1,4 +1,7 @@
+import warnings
 from unittest.mock import MagicMock
+
+import pytest
 
 import osw.wiki_tools as wt
 
@@ -27,6 +30,12 @@ def _ask_result(*titles):
             }
         }
     }
+
+
+def _ask_result_empty():
+    """Build the SMW ``ask`` API result dict for a zero-result query, mirroring
+    SMW's behaviour of serialising an empty result set as a JSON array."""
+    return {"query": {"results": []}}
 
 
 def test_semantic_search_return_json_single_query_returns_list_with_dict():
@@ -76,6 +85,126 @@ def test_semantic_search_returns_flat_list_of_titles():
 
     # return_json=False (the default) still yields a flat list of page titles
     assert out == ["Item:OSW1", "Item:OSW2"]
+
+
+def test_semantic_search_zero_results_returns_empty_list():
+    site = MagicMock()
+    site.api.return_value = _ask_result_empty()
+
+    out = wt.semantic_search(site, "[[HasType::Category:Nonexistent]]")
+
+    assert out == []
+
+
+def test_semantic_search_zero_results_return_json_returns_list_with_dict():
+    result = _ask_result_empty()
+    site = MagicMock()
+    site.api.return_value = result
+
+    out = wt.semantic_search(
+        site,
+        wt.SearchParam(query="[[HasType::Category:Nonexistent]]", return_json=True),
+    )
+
+    assert out == [result]
+
+
+def test_semantic_search_batch_with_one_zero_result_query():
+    result_a = _ask_result("Item:OSW1")
+    result_b = _ask_result_empty()
+    result_c = _ask_result("Item:OSW3")
+    site = MagicMock()
+    site.api.side_effect = [result_a, result_b, result_c]
+
+    out = wt.semantic_search(
+        site,
+        wt.SearchParam(
+            query=[
+                "[[HasType::Category:A]]",
+                "[[HasType::Category:B]]",
+                "[[HasType::Category:C]]",
+            ]
+        ),
+    )
+
+    assert out == ["Item:OSW1", "Item:OSW3"]
+
+
+def test_semantic_search_parallel_batch_with_one_zero_result_query():
+    results = [
+        _ask_result("Item:OSW1"),
+        _ask_result("Item:OSW2"),
+        _ask_result_empty(),
+        _ask_result("Item:OSW4"),
+        _ask_result("Item:OSW5"),
+        _ask_result("Item:OSW6"),
+    ]
+    site = MagicMock()
+    site.api.side_effect = results
+
+    out = wt.semantic_search(
+        site,
+        wt.SearchParam(
+            query=[
+                "[[HasType::Category:A]]",
+                "[[HasType::Category:B]]",
+                "[[HasType::Category:C]]",
+                "[[HasType::Category:D]]",
+                "[[HasType::Category:E]]",
+                "[[HasType::Category:F]]",
+            ]
+        ),
+    )
+
+    assert sorted(out) == [
+        "Item:OSW1",
+        "Item:OSW2",
+        "Item:OSW4",
+        "Item:OSW5",
+        "Item:OSW6",
+    ]
+
+
+def test_semantic_search_truncation_warning():
+    titles = [f"Item:OSW{i}" for i in range(5)]
+    result = _ask_result(*titles)
+    site = MagicMock()
+    site.api.return_value = result
+
+    with pytest.warns(UserWarning, match="truncated"):
+        out = wt.semantic_search(
+            site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=5)
+        )
+
+    assert sorted(out) == sorted(titles)
+
+
+def test_semantic_search_no_truncation_warning_below_limit():
+    titles = [f"Item:OSW{i}" for i in range(5)]
+    result = _ask_result(*titles)
+    site = MagicMock()
+    site.api.return_value = result
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        out = wt.semantic_search(
+            site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=1000)
+        )
+
+    assert not any("truncated" in str(w.message) for w in caught)
+    assert sorted(out) == sorted(titles)
+
+
+def test_semantic_search_exists_drop_warning():
+    result = _ask_result("Item:OSW1", "Item:OSW2")
+    result["query"]["results"]["Item:OSW2"]["exists"] = ""
+    site = MagicMock()
+    site.api.return_value = result
+
+    with pytest.warns(UserWarning, match="non-existing"):
+        out = wt.semantic_search(site, "[[HasType::Category:Item]]")
+
+    assert out == ["Item:OSW1"]
 
 
 def _prefixsearch_result(*titles):

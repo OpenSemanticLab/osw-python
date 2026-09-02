@@ -42,12 +42,11 @@ def test_get_uuid_ignores_file_suffixes(suffix):
     assert get_uuid(osw_id) == uuid_
 
 
-@pytest.mark.parametrize("prefix", ["", "OSW", "osw"])
-def test_get_uuid_accepts_a_bare_uuid(prefix):
+def test_get_uuid_accepts_a_bare_uuid():
+    """The prefix is optional, as it was when it was stripped by str.replace."""
     uuid_ = uuid.uuid4()
 
-    assert get_uuid(f"{prefix}{str(uuid_).replace('-', '')}") == uuid_
-    assert get_uuid(f"{prefix}{uuid_}") == uuid_  # dashed
+    assert get_uuid(str(uuid_).replace("-", "")) == uuid_
 
 
 @pytest.mark.parametrize(
@@ -60,6 +59,8 @@ def test_get_uuid_accepts_a_bare_uuid(prefix):
         "OSW2ea5b605c91f4e5a95593dff79fdd4a5x",
         "OSW2ea5b605c91f4e5a95593dff79fdd4a5.",  # empty suffix
         "OSWzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        "osw2ea5b605c91f4e5a95593dff79fdd4a5",  # prefix is case sensitive
+        "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5",  # an OSW-ID carries no dashes
     ],
 )
 def test_get_uuid_rejects_what_is_not_an_osw_id(osw_id):

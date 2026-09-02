@@ -7,9 +7,8 @@ from opensemantic.v1 import get_full_title, get_namespace, get_title  # noqa: F4
 
 OSW_ID_PATTERN = re.compile(
     r"^(?:OSW)?"  # the prefix, absent when a bare uuid is passed
-    r"([0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12})"
-    r"(?:\.[\w-]+)*$",  # file suffixes, e.g. '.png' or '.drawio.png'
-    re.IGNORECASE,
+    r"([0-9a-fA-F]{32})"  # the uuid, in the hex form an OSW-ID carries it
+    r"(?:\.[\w-]+)*$"  # file suffixes, e.g. '.png' or '.drawio.png'
 )
 """Matches an OSW-ID with an optional prefix and any number of file suffixes"""
 

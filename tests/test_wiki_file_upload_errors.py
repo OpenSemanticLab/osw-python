@@ -13,23 +13,36 @@ import pytest
 
 from osw.controller.file.wiki import (
     assert_upload_success,
-    get_allowed_file_extensions,
+    format_allowed_extensions,
     reraise_upload_error,
     store_params_for_upload,
 )
+from osw.wtsite import WtSite
 
 
-class _FakeSite:
+class _FakeMwSite:
+    """Stands in for the mwclient.Site behind WtSite.mw_site."""
+
     host = "wiki.example.org"
 
     def __init__(self, extensions=None, fail=False):
-        self._extensions = extensions
+        self._extensions = extensions or []
         self._fail = fail
+        self.api_calls = 0
 
     def api(self, *args, **kwargs):
+        self.api_calls += 1
         if self._fail:
             raise RuntimeError("siteinfo unavailable")
         return {"query": {"fileextensions": [{"ext": e} for e in self._extensions]}}
+
+
+def _fake_site(extensions=None, fail=False):
+    """Builds a minimal WtSite carrying a fake mwclient site, bypassing __init__."""
+    ws = WtSite.__new__(WtSite)
+    ws._site = _FakeMwSite(extensions=extensions, fail=fail)
+    ws._allowed_file_extensions = None
+    return ws
 
 
 def _api_error(code):
@@ -40,7 +53,7 @@ def _api_error(code):
     "code", ["filetype-banned", "filetype-banned-type", "filetype-badtype"]
 )
 def test_rejected_extension_names_the_extension(code):
-    site = _FakeSite(extensions=["png", "pdf"])
+    site = _fake_site(extensions=["png", "pdf"])
 
     with pytest.raises(ValueError) as exc_info:
         reraise_upload_error(_api_error(code), site, "OSW123.exe", ".exe")
@@ -53,7 +66,7 @@ def test_rejected_extension_names_the_extension(code):
 
 
 def test_original_error_is_chained():
-    site = _FakeSite(extensions=["png"])
+    site = _fake_site(extensions=["png"])
     original = _api_error("filetype-banned")
 
     with pytest.raises(ValueError) as exc_info:
@@ -63,7 +76,7 @@ def test_original_error_is_chained():
 
 
 def test_unrelated_api_error_is_reraised_unchanged():
-    site = _FakeSite(extensions=["png"])
+    site = _fake_site(extensions=["png"])
     original = _api_error("readapidenied")
 
     with pytest.raises(mwclient.errors.APIError) as exc_info:
@@ -74,23 +87,50 @@ def test_unrelated_api_error_is_reraised_unchanged():
 
 def test_message_omits_the_hint_when_siteinfo_fails():
     """A failing siteinfo lookup must not mask the upload error."""
-    site = _FakeSite(fail=True)
+    site = _fake_site(fail=True)
 
     with pytest.raises(ValueError) as exc_info:
         reraise_upload_error(_api_error("filetype-banned"), site, "a.exe", ".exe")
 
-    assert "allowed on this wiki" not in str(exc_info.value)
-    assert ".exe" in str(exc_info.value)
+    message = str(exc_info.value)
+    assert "Extensions allowed" not in message
+    assert "clear_allowed_file_extensions_cache" not in message
+    assert ".exe" in message
 
 
-def test_get_allowed_file_extensions_returns_none_on_failure():
-    assert get_allowed_file_extensions(_FakeSite(fail=True)) is None
+def test_message_names_the_fetch_time_and_the_reset_hint():
+    site = _fake_site(extensions=["png", "pdf"])
+
+    with pytest.raises(ValueError) as exc_info:
+        reraise_upload_error(_api_error("filetype-banned"), site, "a.exe", ".exe")
+
+    message = str(exc_info.value)
+    fetched_at = site.get_allowed_file_extensions().fetched_at
+    assert f"{fetched_at:%Y-%m-%d %H:%M:%S}" in message
+    assert "osw.site.clear_allowed_file_extensions_cache()" in message
 
 
-def test_get_allowed_file_extensions_reads_siteinfo():
-    site = _FakeSite(extensions=["png", "jpg"])
+def test_a_second_rejected_upload_does_not_query_the_wiki_again():
+    site = _fake_site(extensions=["png", "pdf"])
 
-    assert get_allowed_file_extensions(site) == ["png", "jpg"]
+    with pytest.raises(ValueError):
+        reraise_upload_error(_api_error("filetype-banned"), site, "a.exe", ".exe")
+    with pytest.raises(ValueError):
+        reraise_upload_error(_api_error("filetype-banned"), site, "b.exe", ".exe")
+
+    assert site.mw_site.api_calls == 1
+
+
+def test_format_allowed_extensions_is_empty_when_extensions_is_none():
+    allowed = WtSite.AllowedFileExtensionsResult(extensions=None, fetched_at=None)
+
+    assert format_allowed_extensions(allowed) == ""
+
+
+def test_format_allowed_extensions_is_empty_when_extensions_is_empty():
+    allowed = WtSite.AllowedFileExtensionsResult(extensions=[], fetched_at=None)
+
+    assert format_allowed_extensions(allowed) == ""
 
 
 def test_successful_upload_passes():

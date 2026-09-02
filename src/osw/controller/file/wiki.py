@@ -11,21 +11,21 @@ from osw.utils.wiki import get_namespace, get_title
 from osw.wtsite import WtSite
 
 
-def get_allowed_file_extensions(mw_site) -> Optional[List[str]]:
-    """Queries the file extensions the wiki accepts, None if unavailable"""
-    try:
-        result = mw_site.api(
-            "query", meta="siteinfo", siprop="fileextensions", formatversion=2
-        )
-    except Exception:
-        # only used to enrich an error message, never worth failing over
-        return None
-    extensions = result.get("query", {}).get("fileextensions", [])
-    return [entry["ext"] for entry in extensions if "ext" in entry]
+def format_allowed_extensions(allowed: WtSite.AllowedFileExtensionsResult) -> str:
+    """Renders the allowed-extensions hint for a rejected-upload error message"""
+    if not allowed.extensions or allowed.fetched_at is None:
+        return ""
+    ttl_hours = int(WtSite.ALLOWED_FILE_EXTENSIONS_TTL.total_seconds() // 3600)
+    return (
+        f" Extensions allowed there, read {allowed.fetched_at:%Y-%m-%d %H:%M:%S} and "
+        f"cached for {ttl_hours} h: {', '.join(sorted(allowed.extensions))}. "
+        "Call osw.site.clear_allowed_file_extensions_cache() to re-read the list "
+        "if the wiki configuration changed since."
+    )
 
 
 def reraise_upload_error(
-    error: mwclient.errors.APIError, mw_site, title: str, suffix: Optional[str]
+    error: mwclient.errors.APIError, site: WtSite, title: str, suffix: Optional[str]
 ) -> None:
     """Turns a rejected file extension into a readable error, re-raises the rest
 
@@ -34,15 +34,11 @@ def reraise_upload_error(
     """
     if "filetype" not in str(getattr(error, "code", "")):
         raise error
-    allowed = get_allowed_file_extensions(mw_site)
-    hint = (
-        f" Extensions allowed on this wiki: {', '.join(sorted(allowed))}."
-        if allowed
-        else ""
-    )
+    allowed = site.get_allowed_file_extensions()
+    hint = format_allowed_extensions(allowed)
     raise ValueError(
         f"Upload of '{title}' was rejected because the file extension "
-        f"'{suffix}' is not allowed on {mw_site.host}.{hint}"
+        f"'{suffix}' is not allowed on {site.mw_site.host}.{hint}"
     ) from error
 
 
@@ -216,7 +212,7 @@ class WikiFileController(model.WikiFile, RemoteFileController):
                 ignore=True,
             )
         except mwclient.errors.APIError as e:
-            reraise_upload_error(e, self.osw.mw_site, self.title, self.suffix)
+            reraise_upload_error(e, self.osw.site, self.title, self.suffix)
         assert_upload_success(result, self.title, self.osw.mw_site.host)
         self.osw.store_entity(
             OSW.StoreEntityParam(

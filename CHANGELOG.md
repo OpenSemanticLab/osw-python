@@ -10,6 +10,17 @@
 
 <!-- version list -->
 
+## v2.1.4 (2026-09-02)
+
+### Bug Fixes
+
+- **page_package**: Apply the same search order to package scripts
+  ([`751a0e3`](https://github.com/OpenSemanticLab/osw-python/commit/751a0e3df80000e639349401b29a6ed311fb5f69))
+
+- **page_package**: Prefer the package found in the working dir
+  ([`6e58d9e`](https://github.com/OpenSemanticLab/osw-python/commit/6e58d9ea1fe9067326571356ef8de736c7938ab2))
+
+
 ## v2.1.3 (2026-09-02)
 
 ### Bug Fixes

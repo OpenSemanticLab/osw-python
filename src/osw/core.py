@@ -384,11 +384,11 @@ class OSW(BaseModel):
 
             page.set_slot_content("jsonschema", schema)
         else:
-            print("Error: Unsupported entity type")
+            _logger.error("Unsupported entity type")
             return
 
         page.edit()
-        print("Entity stored at " + page.get_url())
+        _logger.info("Entity stored at " + page.get_url())
 
     class SchemaUnregistration(BaseModel):
         """dataclass param of register_schema()"""
@@ -421,7 +421,7 @@ class OSW(BaseModel):
         ):
             uuid = schema_unregistration.model_cls.__uuid__
         else:
-            print("Error: Neither model nor model id provided")
+            _logger.error("Neither model nor model id provided")
 
         entity_title = "Category:" + OSW.get_osw_id(uuid)
         page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[0]
@@ -607,15 +607,15 @@ class OSW(BaseModel):
             fetchSchemaParam.offline_pages is not None
             and schema_title in fetchSchemaParam.offline_pages
         ):
-            print(f"Fetch {schema_title} from offline pages")
+            _logger.info(f"Fetch {schema_title} from offline pages")
             page = fetchSchemaParam.offline_pages[schema_title]
         else:
-            print(f"Fetch {schema_title} from online pages")
+            _logger.info(f"Fetch {schema_title} from online pages")
             page = self.site.get_page(WtSite.GetPageParam(titles=[schema_title])).pages[
                 0
             ]
             if not page.exists:
-                print(f"Error: Page {schema_title} does not exist")
+                _logger.error(f"Page {schema_title} does not exist")
                 # the $ref that led here was already rewritten to this file name
                 write_schema_stub(get_model_dir_path(), schema_name)
                 return OSW.FetchSchemaResult(
@@ -637,7 +637,7 @@ class OSW(BaseModel):
                 )
                 schema_str = json.dumps(schema)
         if (schema_str is None) or (schema_str == ""):
-            print(f"Warning: Schema slot of {schema_title} is empty")
+            _logger.warning(f"Schema slot of {schema_title} is empty")
             schema_str = "{}"  # empty schema to make reference work
             if fetchSchemaParam.warning_messages is None:
                 fetchSchemaParam.warning_messages = []
@@ -1027,7 +1027,7 @@ class OSW(BaseModel):
                     # may overlap partially, e.g.
                     # from datetime import date
                     # from datetime import date, datetime
-                    print("Replace import statement:", import_stmt)
+                    _logger.info(f"Replace import statement: {import_stmt}")
                     content = re.sub(
                         r"^" + re.escape(import_stmt) + r"$",
                         "",
@@ -1216,7 +1216,7 @@ class OSW(BaseModel):
             param = entity_title
 
         if param.model_to_use:
-            print(f"Using schema {param.model_to_use.__name__} to create entity")
+            _logger.info(f"Using schema {param.model_to_use.__name__} to create entity")
 
         # store original cache state
         cache_state = self.site.get_cache_enabled()
@@ -1266,8 +1266,8 @@ class OSW(BaseModel):
                                 )
                         if not hasattr(model, cls_name):
                             schemas_fetched = False
-                            print(
-                                f"Error: Model {cls_name} not found. Schema {category} "
+                            _logger.error(
+                                f"Model {cls_name} not found. Schema {category} "
                                 f"needs to be fetched first."
                             )
             if not schemas_fetched:
@@ -1278,7 +1278,7 @@ class OSW(BaseModel):
                     entity: model.OswBaseModel = param.model_to_use(**jsondata)
 
                 elif len(schemas) == 0:
-                    _logger.error("Error: no schema defined")
+                    _logger.error("no schema defined")
 
                 elif len(schemas) == 1:
                     cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
@@ -1408,8 +1408,8 @@ class OSW(BaseModel):
                 try:
                     uuid_from_title = get_uuid(title)
                 except ValueError:
-                    print(
-                        f"Error: UUID could not be determined from title: '{title}', "
+                    _logger.error(
+                        f"UUID could not be determined from title: '{title}', "
                         f"nor fromjsondata: {jsondata}"
                     )
                     return entity
@@ -1450,7 +1450,7 @@ class OSW(BaseModel):
 
         def set_content(content_to_set: dict) -> None:
             if param.debug:
-                print(f"content_to_set: {content_to_set!s}")
+                _logger.debug(f"content_to_set: {content_to_set!s}")
             for slot_ in content_to_set.keys():
                 page.set_slot_content(slot_, content_to_set[slot_])
 
@@ -1481,7 +1481,7 @@ class OSW(BaseModel):
             page.exists
             and param.policy.overwrite == AddOverwriteClassOptions.keep_existing
         ):
-            print(
+            _logger.warning(
                 f"Entity '{entity_title}' already exists and won't be stored "
                 f"with overwrite set to 'keep existing'!"
             )
@@ -1509,7 +1509,7 @@ class OSW(BaseModel):
         if remote_content["footer"]:
             new_content["footer"] = remote_content["footer"]
         if param.debug:
-            print(f"'remote_content': {remote_content!s}")
+            _logger.debug(f"'remote_content': {remote_content!s}")
         # Get the local content
         # Properties that are not set in the local content will be set to None
         # We want those not to be listed as keys
@@ -1517,7 +1517,7 @@ class OSW(BaseModel):
         if param.remove_empty:
             remove_empty(local_content["jsondata"])
         if param.debug:
-            print(f"'local_content': {local_content!s}")
+            _logger.debug(f"'local_content': {local_content!s}")
         # Apply the overwrite logic
         # a) If there is a key in the remote content that is not in the local
         #    content, we have to keep it
@@ -1530,7 +1530,7 @@ class OSW(BaseModel):
         #     if key not in local_content["jsondata"].keys()
         # }
         if param.debug:
-            print(f"'New content' after 'remote' update: {new_content!s}")
+            _logger.debug(f"'New content' after 'remote' update: {new_content!s}")
         # b) If there is a key in the local content that is not in the remote
         #    content, we have to keep it
         new_content["jsondata"].update({
@@ -1539,7 +1539,7 @@ class OSW(BaseModel):
             if key not in remote_content["jsondata"].keys()
         })
         if param.debug:
-            print(f"'New content' after 'local' update: {new_content!s}")
+            _logger.debug(f"'New content' after 'local' update: {new_content!s}")
         # c) If there is a key in both contents, we have to apply the overwrite
         #    logic
         # todo: include logic for hidden and read_only properties!
@@ -1549,14 +1549,14 @@ class OSW(BaseModel):
             if param.policy.get_overwrite_setting(key) == OverwriteOptions.true
         })
         if param.debug:
-            print(f"'New content' after 'True' update: {new_content!s}")
+            _logger.debug(f"'New content' after 'True' update: {new_content!s}")
         new_content["jsondata"].update({
             key: value
             for (key, value) in remote_content["jsondata"].items()
             if param.policy.get_overwrite_setting(key) == OverwriteOptions.false
         })
         if param.debug:
-            print(f"'New content' after 'False' update: {new_content!s}")
+            _logger.debug(f"'New content' after 'False' update: {new_content!s}")
         new_content["jsondata"].update({
             key: value
             for (key, value) in local_content["jsondata"].items()
@@ -1566,8 +1566,8 @@ class OSW(BaseModel):
             )
         })
         if param.debug:
-            print(f"'New content' after 'only empty' update: {new_content!s}")
-            print(f"'New content' to be stored: {new_content!s}")
+            _logger.debug(f"'New content' after 'only empty' update: {new_content!s}")
+            _logger.debug(f"'New content' to be stored: {new_content!s}")
         set_content(new_content)
         return page  # Guard clause --> exit function
 
@@ -1792,7 +1792,9 @@ class OSW(BaseModel):
                         )
                         generated_schemas[key] = json.loads(schema_str)
                 except Exception as e:
-                    print(f"Schema generation from template failed for {entity_}: {e}")
+                    _logger.error(
+                        f"Schema generation from template failed for {entity_}: {e}"
+                    )
 
                 mode = AggregateGeneratedSchemasParamMode.ROOT_LEVEL
                 # Put generated schema in definitions section,
@@ -1816,16 +1818,16 @@ class OSW(BaseModel):
                 )  # will set page.changed if the content of the page has changed
             if not param.offline and page.changed:
                 if index is None:
-                    print(f"Entity stored at '{page.get_url()}'.")
+                    _logger.info(f"Entity stored at '{page.get_url()}'.")
                 else:
-                    print(
+                    _logger.info(
                         f"({index + 1}/{max_index}) Entity stored at "
                         f"'{page.get_url()}'."
                     )
             created_pages[page.title] = page
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
-        print(
+        _logger.info(
             "Entities to be uploaded have been sorted according to their type.\n"
             "If you would like to overwrite existing entities or properties, "
             "pass a StoreEntityParam to store_entity() with "
@@ -1853,7 +1855,7 @@ class OSW(BaseModel):
                     overwrite=param.overwrite,
                 )
                 if param.debug:
-                    print(
+                    _logger.debug(
                         f"Now adding entities of class type '{class_type}' "
                         f"({entity_model.__name__}) to upload list. No class specific"
                         f" overwrite setting found. Using fallback option '"
@@ -1978,7 +1980,7 @@ class OSW(BaseModel):
             if title_ is None:
                 title_ = OSW.get_osw_id(entity_.uuid)
             if namespace_ is None or title_ is None:
-                print("Error: Unsupported entity type")
+                _logger.error("Unsupported entity type")
                 return
             entity_title = namespace_ + ":" + title_
             page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[
@@ -1987,9 +1989,9 @@ class OSW(BaseModel):
 
             if page.exists:
                 page.delete(comment_)
-                print("Entity deleted: " + page.get_url())
+                _logger.info("Entity deleted: " + page.get_url())
             else:
-                print(f"Entity '{entity_title}' does not exist!")
+                _logger.warning(f"Entity '{entity_title}' does not exist!")
 
         if entity.parallel:
             _ = parallelize(

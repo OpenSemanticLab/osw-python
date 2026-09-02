@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.1.5 (2026-09-02)
+
+### Bug Fixes
+
+- Handle empty SMW ask results in semantic_search
+  ([`e00ca8b`](https://github.com/OpenSemanticLab/osw-python/commit/e00ca8be80eb1575a520b609d5d988604ad59e24))
+
+
 ## v2.1.4 (2026-09-02)
 
 ### Bug Fixes

@@ -71,6 +71,46 @@ from osw.wtsite import WtPage, WtSite
 _logger = logging.getLogger(__name__)
 
 
+def get_model_dir_path() -> str:
+    """The directory the fetched json schemas are written to"""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
+
+
+def write_schema_stub(model_dir_path: str, schema_name: str) -> str:
+    """Writes an empty schema, so a $ref pointing at it still resolves
+
+    A $ref is rewritten to a local file name before the page it names is
+    fetched. When that page turns out not to exist, nothing writes the file,
+    and datamodel-code-generator later fails with FileNotFoundError far away
+    from the cause. An empty schema keeps generation going, and the reason is
+    reported in the FetchSchemaResult instead.
+    """
+    schema_path = os.path.join(model_dir_path, schema_name + ".json")
+    os.makedirs(os.path.dirname(schema_path), exist_ok=True)
+    with open(schema_path, "w", encoding="utf-8") as f:
+        f.write("{}")
+    return schema_path
+
+
+def collect_messages(
+    target: Optional[List[str]], source: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Adds the messages in source to target, skipping duplicates
+
+    _FetchSchemaParam is copied shallowly for a recursive fetch, so target and
+    source can be the very same list. That case is already merged and is left
+    alone rather than iterated while being appended to.
+    """
+    if not source or target is source:
+        return target
+    if target is None:
+        target = []
+    for message in source:
+        if message not in target:
+            target.append(message)
+    return target
+
+
 # Reusable type definitions
 class OverwriteOptions(Enum):
     """Options for overwriting properties"""
@@ -477,13 +517,15 @@ class OSW(BaseModel):
 
         # merge unique results and return
         merged_result = OSW.FetchSchemaResult(
-            fetched_schema_titles=[], error_messages=[]
+            fetched_schema_titles=[], error_messages=[], warning_messages=[]
         )
         for result in results:
             if result.fetched_schema_titles:
                 merged_result.fetched_schema_titles.extend(result.fetched_schema_titles)
             if result.error_messages:
                 merged_result.error_messages.extend(result.error_messages)
+            if result.warning_messages:
+                merged_result.warning_messages.extend(result.warning_messages)
         return OSW.FetchSchemaResult(
             fetched_schema_titles=(
                 list(set(merged_result.fetched_schema_titles))
@@ -493,6 +535,11 @@ class OSW(BaseModel):
             error_messages=(
                 list(set(merged_result.error_messages))
                 if len(merged_result.error_messages) > 0
+                else None
+            ),
+            warning_messages=(
+                list(set(merged_result.warning_messages))
+                if len(merged_result.warning_messages) > 0
                 else None
             ),
         )
@@ -569,6 +616,8 @@ class OSW(BaseModel):
             ]
             if not page.exists:
                 print(f"Error: Page {schema_title} does not exist")
+                # the $ref that led here was already rewritten to this file name
+                write_schema_stub(get_model_dir_path(), schema_name)
                 return OSW.FetchSchemaResult(
                     fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
                     warning_messages=fetchSchemaParam.warning_messages,
@@ -606,6 +655,7 @@ class OSW(BaseModel):
         schema = json.loads(schema_str.replace("$ref", "dollarref"))
 
         jsonpath_expr = parse("$..dollarref")
+        ref_error_messages = None
         for match in jsonpath_expr.find(schema):
             # value = "https://" + self.mw_site.host + match.value
             if match.value.startswith("#"):
@@ -628,11 +678,18 @@ class OSW(BaseModel):
                 _param = fetchSchemaParam.copy()
                 _param.root = False
                 _param.schema_title = ref_schema_title
-                self._fetch_schema(_param)  # resolve references recursive
+                ref_result = self._fetch_schema(_param)  # resolve refs recursive
+                # the recursive call is the only place that knows why a
+                # referenced schema could not be fetched, so its messages have
+                # to be carried up rather than dropped
+                ref_error_messages = collect_messages(
+                    ref_error_messages, ref_result.error_messages
+                )
+                fetchSchemaParam.warning_messages = collect_messages(
+                    fetchSchemaParam.warning_messages, ref_result.warning_messages
+                )
 
-        model_dir_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "model"
-        )  # src/model
+        model_dir_path = get_model_dir_path()  # src/model
         schema_path = os.path.join(model_dir_path, schema_name + ".json")
         os.makedirs(os.path.dirname(schema_path), exist_ok=True)
         with open(schema_path, "w", encoding="utf-8") as f:
@@ -1005,6 +1062,7 @@ class OSW(BaseModel):
         return OSW.FetchSchemaResult(
             fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
             warning_messages=fetchSchemaParam.warning_messages,
+            error_messages=ref_error_messages,
         )
 
     def install_dependencies(

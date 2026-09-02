@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.1.0 (2026-09-02)
+
+### Features
+
+- **express**: Let a download keep the original file name
+  ([`d8c30c9`](https://github.com/OpenSemanticLab/osw-python/commit/d8c30c99414977c7a8ed6fb0f72118c0b7d3d595))
+
+
 ## v2.0.3 (2026-09-02)
 
 ### Bug Fixes

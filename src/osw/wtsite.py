@@ -875,7 +875,7 @@ class WtSite:
                 shutil.rmtree(config.content_path)
         except OSError as e:
             if debug:
-                _logger.error(f"Error: {e.filename} - {e.strerror}.")
+                _logger.error(f"{e.filename} - {e.strerror}.")
         # Create a dump config
         if dump_config is None:
             dump_config = WtPage.PageDumpConfig(
@@ -890,7 +890,7 @@ class WtSite:
         added_titles = []  # keep track of added pages, prevent duplicates
 
         if config.name not in bundle.packages:
-            _logger.error(f"Error: package {config.name} does not exist in bundle")
+            _logger.error(f"package {config.name} does not exist in bundle")
             return
         if not bundle.packages[config.name].pages:
             bundle.packages[config.name].pages = []
@@ -2191,9 +2191,7 @@ class WtPage:
                     if ft is not None:
                         file_page_refs.append(ft)
                 except ValueError:
-                    _logger.warning(
-                        "Warning: Error while parsing uuid in editor template"
-                    )
+                    _logger.warning("Error while parsing uuid in editor template")
         return list(set(file_page_refs))
 
     @try_and_renew_token

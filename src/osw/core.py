@@ -384,7 +384,7 @@ class OSW(BaseModel):
 
             page.set_slot_content("jsonschema", schema)
         else:
-            _logger.error("Error: Unsupported entity type")
+            _logger.error("Unsupported entity type")
             return
 
         page.edit()
@@ -421,7 +421,7 @@ class OSW(BaseModel):
         ):
             uuid = schema_unregistration.model_cls.__uuid__
         else:
-            _logger.error("Error: Neither model nor model id provided")
+            _logger.error("Neither model nor model id provided")
 
         entity_title = "Category:" + OSW.get_osw_id(uuid)
         page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[0]
@@ -615,7 +615,7 @@ class OSW(BaseModel):
                 0
             ]
             if not page.exists:
-                _logger.error(f"Error: Page {schema_title} does not exist")
+                _logger.error(f"Page {schema_title} does not exist")
                 # the $ref that led here was already rewritten to this file name
                 write_schema_stub(get_model_dir_path(), schema_name)
                 return OSW.FetchSchemaResult(
@@ -637,7 +637,7 @@ class OSW(BaseModel):
                 )
                 schema_str = json.dumps(schema)
         if (schema_str is None) or (schema_str == ""):
-            _logger.warning(f"Warning: Schema slot of {schema_title} is empty")
+            _logger.warning(f"Schema slot of {schema_title} is empty")
             schema_str = "{}"  # empty schema to make reference work
             if fetchSchemaParam.warning_messages is None:
                 fetchSchemaParam.warning_messages = []
@@ -1267,7 +1267,7 @@ class OSW(BaseModel):
                         if not hasattr(model, cls_name):
                             schemas_fetched = False
                             _logger.error(
-                                f"Error: Model {cls_name} not found. Schema {category} "
+                                f"Model {cls_name} not found. Schema {category} "
                                 f"needs to be fetched first."
                             )
             if not schemas_fetched:
@@ -1278,7 +1278,7 @@ class OSW(BaseModel):
                     entity: model.OswBaseModel = param.model_to_use(**jsondata)
 
                 elif len(schemas) == 0:
-                    _logger.error("Error: no schema defined")
+                    _logger.error("no schema defined")
 
                 elif len(schemas) == 1:
                     cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
@@ -1409,7 +1409,7 @@ class OSW(BaseModel):
                     uuid_from_title = get_uuid(title)
                 except ValueError:
                     _logger.error(
-                        f"Error: UUID could not be determined from title: '{title}', "
+                        f"UUID could not be determined from title: '{title}', "
                         f"nor fromjsondata: {jsondata}"
                     )
                     return entity
@@ -1980,7 +1980,7 @@ class OSW(BaseModel):
             if title_ is None:
                 title_ = OSW.get_osw_id(entity_.uuid)
             if namespace_ is None or title_ is None:
-                _logger.error("Error: Unsupported entity type")
+                _logger.error("Unsupported entity type")
                 return
             entity_title = namespace_ + ":" + title_
             page = self.site.get_page(WtSite.GetPageParam(titles=[entity_title])).pages[

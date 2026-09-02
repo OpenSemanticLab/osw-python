@@ -609,10 +609,10 @@ class OntologyImporter(OswBaseModel):
                             "de",
                         ]:
                             # ToDo: Support all/more languages
-                            _logger.warning((
-                                "Warning: remove value with unsupported language: ",
-                                f"{node[key]['lang']}",
-                            ))
+                            _logger.warning(
+                                "remove value with unsupported language: "
+                                f"{node[key]['lang']}"
+                            )
                             del node[key]
                             continue
                     elif isinstance(node[key], list):
@@ -626,22 +626,19 @@ class OntologyImporter(OswBaseModel):
                                     "lang"
                                 ] not in ["en", "de"]:
                                     # ToDo: Support all/more languages
-                                    _logger.warning((
-                                        "Warning: remove value with unsupported language: ",
-                                        f"{node[key][i]['lang']}",
-                                    ))
+                                    _logger.warning(
+                                        "remove value with unsupported language: "
+                                        f"{node[key][i]['lang']}"
+                                    )
                                     del node[key][i]
                                     continue
                             else:
                                 _logger.warning(
-                                    "Warning: remove invalide multilang value: "
-                                    f"{node[key][i]}"
+                                    f"remove invalide multilang value: {node[key][i]}"
                                 )
                                 del node[key][i]
                     else:
-                        _logger.warning(
-                            f"Warning: remove invalide multilang value: {node[key]}"
-                        )
+                        _logger.warning(f"remove invalide multilang value: {node[key]}")
                         del node[key]
             for key in ps.ensure_array:
                 if key in node and not isinstance(node[key], list):
@@ -823,7 +820,7 @@ class OntologyImporter(OswBaseModel):
                 )
                 text += f"\n {new_iri}|{smw_import_type}"
             else:
-                _logger.error("Error: Entity has not iri/uri property")
+                _logger.error("Entity has not iri/uri property")
 
         import_page.set_slot_content("main", text)
         import_page.edit("import ontology")
@@ -887,7 +884,7 @@ class OntologyImporter(OswBaseModel):
                 if o.prefix == prefix or o.prefix_name == prefix:
                     onto = o
             if onto is None:
-                _logger.error(f"Error: No ontology defined for prefix {prefix}")
+                _logger.error(f"No ontology defined for prefix {prefix}")
             else:
                 if not dry_run:
                     self._store_ontology(

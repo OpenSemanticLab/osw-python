@@ -300,9 +300,7 @@ def find_dependencies(wikitext, debug=False):
         # see https://www.semantic-mediawiki.org/wiki/Help:Special_properties
         if "Property:" in dependency and (" " in dependency or "_" in dependency):
             if debug:
-                _logger.debug(
-                    f"Info: Remove presumptive built-in property {dependency}"
-                )
+                _logger.debug(f"Remove presumptive built-in property {dependency}")
         else:
             filtered_dependencies.append(dependency)
     return filtered_dependencies
@@ -404,7 +402,7 @@ def get_wikitext_from_flat_content_dict(d: dict) -> str:
                 else:
                     if string_index != index:
                         _logger.warning(
-                            f"Warning: template param '{key}' has mixed template/"
+                            f"template param '{key}' has mixed template/"
                             f"string values: {value}"
                         )
                     if string_index > 0 and element and not element.strip().isspace():
@@ -440,9 +438,7 @@ def get_wikitext_from_flat_content_structure(content):
         elif isinstance(content_element, str):
             wt += content_element  # "\n" + content_element
         else:
-            _logger.error(
-                f"Error: content element is not dict or string: {content_element}"
-            )
+            _logger.error(f"content element is not dict or string: {content_element}")
     return wt
 
 
@@ -473,7 +469,7 @@ def wikiJson2SchemaJson(schema, wikiJson):
         or not isinstance(wikiJson[1], str)
         or not isinstance(wikiJson[2], dict)
     ):
-        _logger.error(f"Error: Invalid wikiJson: {wikiJson}")
+        _logger.error(f"Invalid wikiJson: {wikiJson}")
         return schemaJson
 
     schemaJson = wikiJson2SchemaJsonRecursion(schema, wikiJson[0], wikiJson[2])
@@ -623,8 +619,7 @@ def schemaJson2WikiJson(schemaJson, isRoot=True):
         wikiJson[0][template] = {}
     else:
         _logger.error(
-            f"Error: Mandatory property 'osl_template' not found in schemaJson "
-            f"{schemaJson}"
+            f"Mandatory property 'osl_template' not found in schemaJson {schemaJson}"
         )
         return
 

@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.1.3 (2026-09-02)
+
+### Bug Fixes
+
+- **wtsite**: Repair the dangling combine_into reference
+  ([`707be40`](https://github.com/OpenSemanticLab/osw-python/commit/707be4030e9221e8180de0198e4282b4d0cb4fcc))
+
+
 ## v2.1.2 (2026-09-02)
 
 ### Bug Fixes

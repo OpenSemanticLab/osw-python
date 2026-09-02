@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.2.0 (2026-09-02)
+
+### Features
+
+- **wtsite**: Allow an edit comment on upload_page
+  ([`0d3899c`](https://github.com/OpenSemanticLab/osw-python/commit/0d3899c782998c5750338dc11beea569207cb26c))
+
+
 ## v2.1.5 (2026-09-02)
 
 ### Bug Fixes

@@ -50,6 +50,31 @@ SLOTS = {
 }
 
 
+def _combine_into(update: dict, combined: dict) -> None:
+    """Merges update into combined in place, recursing into nested dicts
+
+    A nested dict is merged key by key, so keys only present in combined
+    survive. Any other value replaces what is already there.
+
+    Parameters
+    ----------
+    update
+        The dict to take the new keys and values from.
+    combined
+        The dict to merge into. Modified in place.
+    """
+    for key, value in update.items():
+        target = combined.get(key)
+        if isinstance(value, dict):
+            if not isinstance(target, dict):
+                # nothing to merge with, so start from an empty dict rather
+                # than storing a reference to the one in update
+                target = combined[key] = {}
+            _combine_into(value, target)
+        else:
+            combined[key] = value
+
+
 # Classes
 class WtSite:
     """A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and
@@ -1698,14 +1723,19 @@ class WtPage:
             res.append(match.value)
         return res
 
+    @staticmethod
     @deprecated("No longer supported")
-    def update_dict(self, combined: dict, update: dict) -> None:
-        for k, v in update.items():
-            if isinstance(v, dict):
-                # todo: fix reference for combine_into
-                wt.combine_into(v, combined.setdefault(k, {}))
-            else:
-                combined[k] = v
+    def update_dict(combined: dict, update: dict) -> None:
+        """Merges update into combined in place, recursing into nested dicts
+
+        Parameters
+        ----------
+        combined
+            The dict to merge into. Modified in place.
+        update
+            The dict to take the new keys and values from.
+        """
+        _combine_into(update, combined)
 
     @deprecated("No longer supported for replace=False")
     def set_value(self, jsonpath_match, value, replace=False):
@@ -1735,10 +1765,11 @@ class WtPage:
         # else: jsonpath_expr.update(d, value)
         matches = jsonpath_expr.find(d)
         for match in matches:
-            print(match.full_path)
+            # str(match.full_path) raises TypeError because the keys of d are the
+            # list indices, so this cannot be printed or logged as it stands
             # pprint(value)
             if not replace:
-                WtPage.update_dict(match.value, value)
+                _combine_into(value, match.value)
                 value = match.value
             # pprint(value)
             match.full_path.update_or_create(d, value)

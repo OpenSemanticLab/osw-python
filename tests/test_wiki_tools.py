@@ -207,6 +207,99 @@ def test_semantic_search_exists_drop_warning():
     assert out == ["Item:OSW1"]
 
 
+@pytest.mark.parametrize(
+    "query, expected",
+    [
+        ("[[HasType::Category:Item]]", None),
+        ("[[HasType::Category:Item]]|limit=2", 2),
+        ("[[HasType::Category:Item]]|?Name|limit=2|offset=5", 2),
+        ("[[HasType::Category:Item]]| limit = 2 ", 2),
+        ("[[HasType::Category:Item]]|Limit=2", 2),
+        # SMW honours the last one, so that is the effective limit
+        ("[[HasType::Category:Item]]|limit=2|limit=7", 7),
+        # a limit inside a condition is a value, not a parameter
+        ("[[HasText::limit=2]]", None),
+        ("[[HasText::a||limit=2]]", None),
+        # a printout named 'limit', not the parameter
+        ("[[HasType::Category:Item]]|?limit", None),
+        # a printout parameter, which limits that printout and not the query
+        ("[[HasType::Category:Item]]|?Has subobject|+limit=3", None),
+        # not a number, so there is no limit to honour
+        ("[[HasType::Category:Item]]|limit=all", None),
+    ],
+)
+def test_get_query_limit(query, expected):
+    assert wt.get_query_limit(query) == expected
+
+
+def test_semantic_search_appends_the_default_limit():
+    site = MagicMock()
+    site.api.return_value = _ask_result("Item:OSW1")
+
+    wt.semantic_search(site, "[[HasType::Category:Item]]")
+
+    assert site.api.call_args.kwargs["query"] == (
+        "[[HasType::Category:Item]]|limit=1000"
+    )
+
+
+def test_semantic_search_keeps_a_limit_the_caller_wrote():
+    """Appending the default would override it, since SMW honours the last one."""
+    site = MagicMock()
+    site.api.return_value = _ask_result("Item:OSW1")
+
+    wt.semantic_search(site, "[[HasType::Category:Item]]|limit=2")
+
+    assert site.api.call_args.kwargs["query"] == "[[HasType::Category:Item]]|limit=2"
+
+
+def test_semantic_search_query_limit_beats_the_search_param_limit():
+    site = MagicMock()
+    site.api.return_value = _ask_result("Item:OSW1")
+
+    wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]|limit=2", limit=500)
+    )
+
+    assert site.api.call_args.kwargs["query"] == "[[HasType::Category:Item]]|limit=2"
+
+
+def test_semantic_search_truncation_warning_uses_the_query_limit():
+    """The caller's limit is the one the results were truncated at."""
+    titles = [f"Item:OSW{i}" for i in range(2)]
+    site = MagicMock()
+    site.api.return_value = _ask_result(*titles)
+
+    with pytest.warns(UserWarning, match="requested limit of 2"):
+        out = wt.semantic_search(site, "[[HasType::Category:Item]]|limit=2")
+
+    assert sorted(out) == sorted(titles)
+
+
+def test_semantic_search_no_truncation_warning_for_a_zero_limit():
+    """'limit=0' asks for no results, so meeting it is not truncation."""
+    site = MagicMock()
+    site.api.return_value = _ask_result_empty()
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        wt.semantic_search(site, "[[HasType::Category:Item]]|limit=0")
+
+    assert not any("truncated" in str(w.message) for w in caught)
+
+
+def test_semantic_search_no_truncation_warning_below_the_query_limit():
+    titles = [f"Item:OSW{i}" for i in range(2)]
+    site = MagicMock()
+    site.api.return_value = _ask_result(*titles)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        wt.semantic_search(site, "[[HasType::Category:Item]]|limit=50")
+
+    assert not any("truncated" in str(w.message) for w in caught)
+
+
 def _prefixsearch_result(*titles):
     """Build a minimal MediaWiki ``prefixsearch`` API result dict."""
     return {

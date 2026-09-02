@@ -1,5 +1,6 @@
 import getpass
 import logging
+import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
@@ -219,6 +220,33 @@ def prefix_search(
     #  return page_list  # original return
 
 
+def _ask_results_as_dict(results: Union[dict, list]) -> dict:
+    """Normalise the ``results`` payload of an SMW ``ask`` response to a mapping.
+
+    SMW serialises a non-empty result set as a JSON object keyed by page title,
+    but an empty one as a JSON array, which would otherwise break attribute
+    access on the result.
+
+    Parameters
+    ----------
+    results :
+        The ``result["query"]["results"]`` payload of an SMW ``ask`` response.
+
+    Returns
+    -------
+    result:
+        The payload normalised to a dict, keyed by page title (or index if a
+        title is unavailable).
+    """
+    if isinstance(results, dict):
+        return results
+    if not results:
+        return {}
+    return {
+        page.get("fulltext", str(index)): page for index, page in enumerate(results)
+    }
+
+
 def semantic_search(
     site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
 ) -> Union[List[str], List[dict]]:
@@ -245,19 +273,25 @@ def semantic_search(
         page_list = list()
         single_query += f"|limit={query.limit}"
         result = site.api("ask", query=single_query, format="json")
+        results = _ask_results_as_dict(result["query"]["results"])
+        n = len(results)
         if query.debug:
-            if len(result["query"]["results"]) == 0:
+            if n == 0:
                 _logger.debug(f"Query '{single_query}' returned no results")
             else:
-                _logger.debug(
-                    "Query '{}' returned {} results".format(
-                        single_query, len(result["query"]["results"])
-                    )
-                )
+                _logger.debug(f"Query '{single_query}' returned {n} results")
+        if n >= query.limit:
+            warnings.warn(
+                f"Query '{single_query}' returned {n} results, which meets the "
+                f"requested limit of {query.limit}. Results are truncated - raise "
+                f"the limit or page through with '|offset=' to retrieve the "
+                f"remainder."
+            )
         if query.return_json:
             return result
 
-        for page in result["query"]["results"].values():
+        dropped = 0
+        for page in results.values():
             title = page["fulltext"]
             exists = page["exists"]
             if "#" not in title and query.debug:
@@ -265,6 +299,13 @@ def semantic_search(
                 # original position of "page_list.append(title)" line
             if exists == "1":
                 page_list.append(title)
+            else:
+                dropped += 1
+        if dropped > 0:
+            warnings.warn(
+                f"Query '{single_query}': {dropped} of {n} results were dropped "
+                f"because the wiki reported them as non-existing pages."
+            )
         return page_list
 
     if query.parallel:

@@ -248,6 +248,32 @@ def find_package_dir(
         return matching_dirs[0]
 
 
+def find_first_package_dir(
+    package_or_script_name: str, search_paths: List[Path] = None
+) -> Optional[Path]:
+    """searches the search_paths in order and returns the first match
+
+    Unlike find_package_dir, which searches all paths at once and rejects a
+    name that exists in more than one of them, this prefers the earlier path.
+    Returns None if no search path holds the name. A path holding more than one
+    match is ambiguous on its own, so it is skipped with a warning.
+    """
+    if search_paths is None:
+        search_paths = []
+    for search_path in search_paths:
+        try:
+            return find_package_dir(package_or_script_name, [search_path])
+        except FileNotFoundError:
+            # expected: not every search path holds every package
+            continue
+        except ValueError as e:
+            warn(
+                f"Multiple elements {package_or_script_name} found in "
+                f"{search_path}: {e}"
+            )
+    return None
+
+
 def get_listed_pages_from_package_info(package_info: Union[dict, Path]) -> List[str]:
     """Takes in the output of read_package_info_file and returns a list of
     pages listed in the package"""
@@ -663,35 +689,58 @@ class PagePackageController(model.PagePackageMetaData):
             if params.read_listed_pages_from_script:
                 search_paths = [params.script_dir]
                 search_paths.extend(params.additional_script_dirs)
-                try:
-                    script_path = find_package_dir(
-                        f"{package_to_process}.py", search_paths
+                # Prefer the script in script_dir over the additional dirs,
+                # instead of failing on a script present in several.
+                script_path = find_first_package_dir(
+                    f"{package_to_process}.py", search_paths
+                )
+                new_listed_pages = []
+                required_packages = []
+                if script_path is None:
+                    warn(
+                        f"Package script for {package_to_process} not found in any "
+                        f"of the search paths: {search_paths}"
                     )
-                    package_script = read_package_script_file(script_path)
-                    new_listed_pages = get_listed_pages_from_package_script(
-                        package_script
-                    )
-                    required_packages = get_required_packages_from_package_script(
-                        package_script
-                    )
-                except Exception as e:
-                    warn(f"Error reading package script for {package_to_process}: {e}")
-                    new_listed_pages = []
-                    required_packages = []
+                else:
+                    try:
+                        package_script = read_package_script_file(script_path)
+                        new_listed_pages = get_listed_pages_from_package_script(
+                            package_script
+                        )
+                        required_packages = get_required_packages_from_package_script(
+                            package_script
+                        )
+                    except Exception as e:
+                        warn(
+                            f"Error reading package script for "
+                            f"{package_to_process}: {e}"
+                        )
             else:
                 search_paths = [params.creation_config.working_dir.parent]
                 search_paths.extend(params.additional_package_dirs)
-                try:
-                    package_dir = find_package_dir(package_to_process, search_paths)
-                    package_info = read_package_info_file(package_dir)
-                    new_listed_pages = get_listed_pages_from_package_info(package_info)
-                    required_packages = get_required_packages_from_package_info_file(
-                        package_info
+                # Prefer the package in the working dir over the additional
+                # dirs, instead of failing on a package present in several.
+                package_dir = find_first_package_dir(package_to_process, search_paths)
+                new_listed_pages = []
+                required_packages = []
+                if package_dir is None:
+                    warn(
+                        f"Package info for {package_to_process} not found in any "
+                        f"of the search paths: {search_paths}"
                     )
-                except Exception as e:
-                    warn(f"Error reading package info for {package_to_process}: {e}")
-                    new_listed_pages = []
-                    required_packages = []
+                else:
+                    try:
+                        package_info = read_package_info_file(package_dir)
+                        new_listed_pages = get_listed_pages_from_package_info(
+                            package_info
+                        )
+                        required_packages = (
+                            get_required_packages_from_package_info_file(package_info)
+                        )
+                    except Exception as e:
+                        warn(
+                            f"Error reading package info for {package_to_process}: {e}"
+                        )
             # Check for redundant pages
             for pack_ in listed_pages.keys():
                 new_redundant_pages = list(

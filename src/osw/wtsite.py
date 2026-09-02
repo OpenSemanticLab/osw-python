@@ -652,6 +652,8 @@ class WtSite:
         """If True, uploads the pages in parallel."""
         debug: Optional[bool] = False
         """If True, debug messages will be printed."""
+        comment: Optional[str] = None
+        """Edit comment for the page history, applied to every uploaded page."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -691,7 +693,7 @@ class WtSite:
                     f"WtSite from which this method is called from "
                     f"are not matching!"
                 )
-            page.edit()
+            page.edit(param.comment)
 
             if index is None:
                 _logger.info(f"Uploaded page to {page.get_url()}.")

@@ -10,6 +10,41 @@
 
 <!-- version list -->
 
+## v2.2.0 (2026-09-02)
+
+### Features
+
+- **wtsite**: Allow an edit comment on upload_page
+  ([`0d3899c`](https://github.com/OpenSemanticLab/osw-python/commit/0d3899c782998c5750338dc11beea569207cb26c))
+
+
+## v2.1.5 (2026-09-02)
+
+### Bug Fixes
+
+- Handle empty SMW ask results in semantic_search
+  ([`e00ca8b`](https://github.com/OpenSemanticLab/osw-python/commit/e00ca8be80eb1575a520b609d5d988604ad59e24))
+
+
+## v2.1.4 (2026-09-02)
+
+### Bug Fixes
+
+- **page_package**: Apply the same search order to package scripts
+  ([`751a0e3`](https://github.com/OpenSemanticLab/osw-python/commit/751a0e3df80000e639349401b29a6ed311fb5f69))
+
+- **page_package**: Prefer the package found in the working dir
+  ([`6e58d9e`](https://github.com/OpenSemanticLab/osw-python/commit/6e58d9ea1fe9067326571356ef8de736c7938ab2))
+
+
+## v2.1.3 (2026-09-02)
+
+### Bug Fixes
+
+- **wtsite**: Repair the dangling combine_into reference
+  ([`707be40`](https://github.com/OpenSemanticLab/osw-python/commit/707be4030e9221e8180de0198e4282b4d0cb4fcc))
+
+
 ## v2.1.2 (2026-09-02)
 
 ### Bug Fixes

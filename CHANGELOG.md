@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.1.1 (2026-09-02)
+
+### Bug Fixes
+
+- **core**: Write a stub for a $ref whose page does not exist
+  ([`6c672dc`](https://github.com/OpenSemanticLab/osw-python/commit/6c672dc4c1e44cb559b817597fcd34f54df10768))
+
+
 ## v2.1.0 (2026-09-02)
 
 ### Features

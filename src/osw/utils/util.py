@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import logging
 import sys
 import threading
 from asyncio import Queue
@@ -309,18 +310,85 @@ class ThreadRoutedStdout:
         return getattr(self.stream, name)
 
 
+class ThreadRoutedLogHandler(logging.Handler):
+    """A log handler that routes each worker thread's records to its own buffer
+
+    The counterpart of ThreadRoutedStdout for the modules that log rather than
+    print. Installed on the 'osw' logger for the duration of a parallelize()
+    call, in place of the handlers a record would otherwise reach. Threads that
+    have not registered a buffer, the calling thread among them, are forwarded
+    to those handlers unchanged.
+
+    Routing has to happen at the handler, not at a filter on the 'osw' logger. A
+    logger's filters only run for records logged on that logger itself, so they
+    would never see the records from osw.wtsite and the other child loggers.
+    """
+
+    def __init__(self, handlers: List[logging.Handler]):
+        super().__init__()
+        self.handlers = handlers
+        self._local = threading.local()
+
+    def register(self) -> List[logging.LogRecord]:
+        """Gives the calling thread its own buffer and returns it"""
+        buffer = []
+        self._local.buffer = buffer
+        return buffer
+
+    def unregister(self):
+        """Sends the calling thread's records back to the wrapped handlers"""
+        self._local.buffer = None
+
+    def emit(self, record: logging.LogRecord):
+        buffer = getattr(self._local, "buffer", None)
+        if buffer is None:
+            self.replay(record)
+            return
+        buffer.append(record)
+
+    def replay(self, record: logging.LogRecord):
+        """Passes a record on to the handlers this one stands in for"""
+        for handler in self.handlers:
+            if record.levelno >= handler.level:
+                handler.handle(record)
+
+
+def handler_chain(logger: logging.Logger) -> List[logging.Handler]:
+    """The handlers a record logged on logger reaches, ancestors included
+
+    Mirrors what logging.Logger.callHandlers walks, so that replacing the
+    handlers of one logger can stand in for the whole chain.
+    """
+    handlers = []
+    current = logger
+    while current:
+        handlers.extend(current.handlers)
+        if not current.propagate:
+            break
+        current = current.parent
+    return handlers
+
+
 def capture_output(
-    call: Callable, stdout: ThreadRoutedStdout, sink: List[str], index: int
+    call: Callable,
+    stdout: ThreadRoutedStdout,
+    log_handler: ThreadRoutedLogHandler,
+    printed: List[str],
+    logged: List[List[logging.LogRecord]],
+    index: int,
 ) -> Callable:
-    """Wraps call so that what it prints ends up in sink[index] instead of stdout"""
+    """Wraps call so what it prints and logs ends up in the slot at index"""
 
     def wrapper():
         buffer = stdout.register()
+        records = log_handler.register()
         try:
             return call()
         finally:
             stdout.unregister()
-            sink[index] = "".join(buffer)
+            log_handler.unregister()
+            printed[index] = "".join(buffer)
+            logged[index] = records
 
     return wrapper
 
@@ -361,7 +429,12 @@ def parallelize(
     # One slot per item, so the collected output can be replayed in input order
     # even though the tasks finish in whatever order they finish.
     outputs = [""] * len(items)
+    records: List[List[logging.LogRecord]] = [[] for _ in items]
     stdout = ThreadRoutedStdout(sys.stdout)
+    osw_logger = logging.getLogger("osw")
+    log_handler = ThreadRoutedLogHandler(handler_chain(osw_logger))
+    saved_handlers = osw_logger.handlers
+    saved_propagate = osw_logger.propagate
 
     # run func concurrently with each item in iterable using asyncio
     async def _run_tasks():
@@ -373,7 +446,12 @@ def parallelize(
             loop.run_in_executor(
                 None,
                 capture_output(
-                    functools.partial(func, item, **kwargs), stdout, outputs, index
+                    functools.partial(func, item, **kwargs),
+                    stdout,
+                    log_handler,
+                    outputs,
+                    records,
+                    index,
                 ),
             )
             for index, item in enumerate(items)
@@ -396,6 +474,10 @@ def parallelize(
         return await gather(*tasks)
 
     sys.stdout = stdout
+    # standing in for the whole chain, so records from the osw.* child loggers
+    # are routed too rather than propagating past this handler to the originals
+    osw_logger.handlers = [log_handler]
+    osw_logger.propagate = False
     try:
         # Check if we are already in an event loop, e.g. in a Jupyter notebook
         try:
@@ -414,12 +496,16 @@ def parallelize(
             results = asyncio.run(_run_tasks())
     finally:
         sys.stdout = stdout.stream
+        osw_logger.handlers = saved_handlers
+        osw_logger.propagate = saved_propagate
         if flush_at_end:
             # in the finally block, so a failed batch still reports what its
             # tasks had to say
-            for output in outputs:
+            for output, task_records in zip(outputs, records):
                 if output:
                     print(output, end="")
+                for record in task_records:
+                    log_handler.replay(record)
 
     return results
 

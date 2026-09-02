@@ -276,6 +276,45 @@ def test_semantic_search_truncation_warning_uses_the_query_limit():
     assert sorted(out) == sorted(titles)
 
 
+def test_semantic_search_limit_none_sends_no_limit():
+    """None asks for no limit at all, leaving the wiki to apply its own."""
+    site = MagicMock()
+    site.api.return_value = _ask_result("Item:OSW1")
+
+    wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=None)
+    )
+
+    assert site.api.call_args.kwargs["query"] == "[[HasType::Category:Item]]"
+
+
+def test_semantic_search_limit_none_keeps_a_limit_the_caller_wrote():
+    site = MagicMock()
+    site.api.return_value = _ask_result("Item:OSW1")
+
+    wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]|limit=2", limit=None)
+    )
+
+    assert site.api.call_args.kwargs["query"] == "[[HasType::Category:Item]]|limit=2"
+
+
+def test_semantic_search_limit_none_does_not_warn_about_truncation():
+    """With no limit in force the result count says nothing about truncation."""
+    titles = [f"Item:OSW{i}" for i in range(5)]
+    site = MagicMock()
+    site.api.return_value = _ask_result(*titles)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        out = wt.semantic_search(
+            site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=None)
+        )
+
+    assert not any("truncated" in str(w.message) for w in caught)
+    assert sorted(out) == sorted(titles)
+
+
 def test_semantic_search_no_truncation_warning_for_a_zero_limit():
     """'limit=0' asks for no results, so meeting it is not truncation."""
     site = MagicMock()

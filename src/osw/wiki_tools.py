@@ -138,8 +138,9 @@ class SearchParam(OswBaseModel):
     parallel: Optional[bool] = None  # is set to true if query is a list longer than 5
     debug: Optional[bool] = False
     limit: Optional[int] = 1000
-    """the result limit to apply. Ignored by semantic_search for a query that
-    sets 'limit=' itself, since SMW honours the last limit in the query string"""
+    """the result limit to apply, None to apply none and leave it to the wiki.
+    Ignored by semantic_search for a query that sets 'limit=' itself, since SMW
+    honours the last limit in the query string"""
     return_json: Optional[bool] = False
 
     def __init__(self, **data):
@@ -289,7 +290,7 @@ def semantic_search(
     query :
         (List of) query text(s) or instance of SearchParam. A query that sets
         ``limit=`` itself keeps that limit; ``SearchParam.limit`` is only
-        appended to a query that does not.
+        appended to a query that does not, and only when it is not None.
 
     Returns
     -------
@@ -304,9 +305,11 @@ def semantic_search(
     def semantic_search_(single_query):
         page_list = list()
         # SMW honours the last limit in the query string, so appending the
-        # default would silently override a limit the caller wrote themselves
+        # default would silently override a limit the caller wrote themselves.
+        # A SearchParam limit of None asks for no limit at all, leaving the
+        # wiki to apply its own default
         limit = get_query_limit(single_query)
-        if limit is None:
+        if limit is None and query.limit is not None:
             limit = query.limit
             single_query += f"|limit={limit}"
         result = site.api("ask", query=single_query, format="json")
@@ -317,8 +320,9 @@ def semantic_search(
                 print(f"Query '{single_query}' returned no results")
             else:
                 print(f"Query '{single_query}' returned {n} results")
-        # 'limit=0' asks for no results at all, e.g. with a count format, so
-        # meeting it says nothing about truncation
+        # No limit in force, or 'limit=0' asking for no results at all as a
+        # count format does, means the result count says nothing about
+        # truncation
         if limit and n >= limit:
             warnings.warn(
                 f"Query '{single_query}' returned {n} results, which meets the "

@@ -10,6 +10,19 @@
 
 <!-- version list -->
 
+## v2.0.3 (2026-09-02)
+
+### Bug Fixes
+
+- Allow uploading a file from an in-memory stream
+  ([`64d99d6`](https://github.com/OpenSemanticLab/osw-python/commit/64d99d66ea45bc56bdaa6d12f2502df0bbbaf88c))
+
+### Testing
+
+- Rename oold.py to oold_test.py so its tests are collected
+  ([`20072a9`](https://github.com/OpenSemanticLab/osw-python/commit/20072a9249cd97126a222c62a70f84e0433343ef))
+
+
 ## v2.0.2 (2026-08-28)
 
 ### Bug Fixes

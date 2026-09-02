@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import IO, Any, Dict
 
+from osw.controller.file.base import FileController
 from osw.controller.file.local import LocalFileController
 from osw.controller.file.memory import InMemoryController
 from osw.controller.file.remote import RemoteFileController
@@ -25,6 +26,25 @@ class OfflineRemoteFileController(RemoteFileController):
 
     def put(self, file: IO, **kwargs: Dict[str, Any]):
         pass
+
+
+class ControllerWithoutUri(FileController):
+    """A controller written before uri existed, as a third party one would be"""
+
+    def get(self) -> IO:
+        pass
+
+    def put(self, file: IO, **kwargs: Dict[str, Any]):
+        pass
+
+
+def test_a_controller_that_predates_uri_still_works():
+    """uri is deliberately not abstract: pydantic's ModelMetaclass extends
+    ABCMeta, so an abstract property would break every controller outside this
+    package that does not know about it yet."""
+    controller = ControllerWithoutUri(label=[model.Label(text="Unnamed file")])
+
+    assert controller.uri is None
 
 
 def test_local_uri_is_a_file_url(tmp_path):

@@ -15,7 +15,12 @@ class RemoteFileController(model.RemoteFile, FileController):
     @property
     def uri(self) -> str:
         """The url the file is stored at, e.g., 's3://' for S3FileController and
-        'https://' for WikiFileController"""
+        'https://' for WikiFileController
+
+        A remote controller keeps its location in 'url', either as a field of its
+        data model, as model.S3File does, or as a property, as WikiFileController
+        does. model.RemoteFile does not declare it, so this is a contract between
+        the subclasses rather than something the base class can enforce."""
         return self.url
 
     @abstractmethod

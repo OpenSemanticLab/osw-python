@@ -1,11 +1,21 @@
 from abc import abstractmethod
-from typing import IO, Any, Dict
+from typing import IO, Any, Dict, Optional
 
 from osw.core import model
 
 
 class FileController(model.File):
     """Base class for file controllers"""
+
+    @property
+    @abstractmethod
+    def uri(self) -> Optional[str]:
+        """The location of the file, in the URI scheme of its storage backend
+
+        Returns
+        -------
+            the URI, or None if the file is not stored anywhere addressable
+        """
 
     @abstractmethod
     def get(self) -> IO:

@@ -12,6 +12,12 @@ from osw.core import model
 # The data class must be the first base class, otherwise subclass controllers fall back
 #  to the data model of the controller superclass
 class RemoteFileController(model.RemoteFile, FileController):
+    @property
+    def uri(self) -> str:
+        """The url the file is stored at, e.g., 's3://' for S3FileController and
+        'https://' for WikiFileController"""
+        return self.url
+
     @abstractmethod
     def get(self) -> IO:
         pass

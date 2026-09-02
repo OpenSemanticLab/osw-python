@@ -10,6 +10,19 @@
 
 <!-- version list -->
 
+## v2.1.2 (2026-09-02)
+
+### Bug Fixes
+
+- **util**: Honour flush_at_end and progress_bar in parallelize
+  ([`2794c9b`](https://github.com/OpenSemanticLab/osw-python/commit/2794c9b0869963886c692947732ca910291e1b4f))
+
+### Testing
+
+- Cover osw.utils.util.parallelize
+  ([`fb73aaf`](https://github.com/OpenSemanticLab/osw-python/commit/fb73aafe410fa6c71f6b8f306061b2f02fd965df))
+
+
 ## v2.1.1 (2026-09-02)
 
 ### Bug Fixes

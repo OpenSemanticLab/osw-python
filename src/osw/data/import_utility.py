@@ -1,5 +1,6 @@
 import copy
 import inspect
+import logging
 import re
 import uuid as uuid_module
 import warnings
@@ -20,6 +21,8 @@ from osw.model import entity as model
 from osw.utils.regex import MatchResult, RegExPatternExtended
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.wtsite import WtPage, WtSite
+
+_logger = logging.getLogger(__name__)
 
 # Constants
 ENABLE_SORTING = True
@@ -206,7 +209,7 @@ def transform_attributes_and_merge(
                         del ent_as_dict[other_k]
                     del ent[other_k]
                     del_keys.append(other_k)
-    print(f"Merge operation complete. Deleted keys: {del_keys}")
+    _logger.info(f"Merge operation complete. Deleted keys: {del_keys}")
     return {"entities": ent, "entities_as_dict": ent_as_dict}
 
 
@@ -805,7 +808,7 @@ def get_entities_from_osw(
     wtsite_obj = osw_obj.site
     entities_from_osw = []
     if debug:
-        print(f"Searching for instances of {category_to_search} in OSW...")
+        _logger.debug(f"Searching for instances of {category_to_search} in OSW...")
     entities = wtsite_obj.semantic_search(
         query=(
             wt.SearchParam(

@@ -1,4 +1,5 @@
 import getpass
+import logging
 from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
@@ -7,6 +8,8 @@ from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import FilePath
 
 from osw.utils.util import parallelize
+
+_logger = logging.getLogger(__name__)
 
 # try import functions from wikitext.py (relies on the extra dependency osw[wikitext])
 try:
@@ -23,7 +26,7 @@ try:
     from osw.utils.wikitext import wikiJson2SchemaJsonRecursion  # noqa
 
 except ImportError:
-    print(
+    _logger.warning(
         "Hint: The extra dependency 'osw[wikitext]' "
         "is required for the full functionality of wiki_tools module."
     )
@@ -51,7 +54,7 @@ def read_domains_from_credentials_file(
                 raise ValueError("No domain found in accounts.pwd.yaml!")
             return domains_list, accounts_dict
         except yaml.YAMLError as exc_:
-            print(exc_)
+            _logger.error(exc_)
 
 
 def read_credentials_from_yaml(
@@ -85,7 +88,7 @@ def read_credentials_from_yaml(
                 user = accounts[domain]["username"]
                 password = accounts[domain]["password"]
             except yaml.YAMLError as exc:
-                print(exc)
+                _logger.error(exc)
     else:
         user = input("Enter bot username (username@botname)")
         password = getpass.getpass("Enter bot password")
@@ -185,14 +188,14 @@ def prefix_search(
             format="json",
         )
         if query.debug and len(result["query"]["prefixsearch"]) == 0:
-            print("No results")
+            _logger.debug("No results")
         if query.return_json:
             return result
 
         for page in result["query"]["prefixsearch"]:
             title = page["title"]
             if query.debug:
-                print(title)
+                _logger.debug(title)
             page_list.append(title)
         return page_list
 
@@ -244,9 +247,9 @@ def semantic_search(
         result = site.api("ask", query=single_query, format="json")
         if query.debug:
             if len(result["query"]["results"]) == 0:
-                print(f"Query '{single_query}' returned no results")
+                _logger.debug(f"Query '{single_query}' returned no results")
             else:
-                print(
+                _logger.debug(
                     "Query '{}' returned {} results".format(
                         single_query, len(result["query"]["results"])
                     )
@@ -258,7 +261,7 @@ def semantic_search(
             title = page["fulltext"]
             exists = page["exists"]
             if "#" not in title and query.debug:
-                print(title)
+                _logger.debug(title)
                 # original position of "page_list.append(title)" line
             if exists == "1":
                 page_list.append(title)
@@ -448,7 +451,7 @@ def get_file_info_and_usage(
 
         if len(api_request_result["query"]["pages"]) == 0:
             if query.debug:
-                print(f"Page not found: '{single_title}'!")
+                _logger.debug(f"Page not found: '{single_title}'!")
         else:
             image_info: List[Dict[str, str]] = []
             file_usage: List[Dict[str, Union[str, int]]] = []
@@ -469,7 +472,7 @@ def get_file_info_and_usage(
                 # todo: find out why this message is printed (sometimes) when using the
                 #  redirect,  which messes up the Progressbar
                 #  printed messages do not appear in the MessageBuffer
-                print(f"File info for '{single_title}' retrieved.")
+                _logger.debug(f"File info for '{single_title}' retrieved.")
         return {"info": file_info, "usage": using_pages}
 
     if query.parallel:
@@ -509,12 +512,12 @@ def search_redirection_sources(
     result = site.api("query", titles=target_title, prop="redirects", format="json")
     if len(result["query"]["pages"]) == 0:
         if debug:
-            print("No results")
+            _logger.debug("No results")
     else:
         for page in result["query"]["pages"]:
             if "redirects" not in result["query"]["pages"][page]:
                 if debug:
-                    print("No results")
+                    _logger.debug("No results")
             else:
                 for redirecting_source in result["query"]["pages"][page]["redirects"]:
                     title = redirecting_source["title"]

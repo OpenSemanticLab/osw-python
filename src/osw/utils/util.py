@@ -16,6 +16,8 @@ import dask
 from dask.diagnostics import ProgressBar
 from tqdm.asyncio import tqdm
 
+_logger = logging.getLogger(__name__)
+
 # dask.config.set(scheduler="threads")
 # with stdio_proxy.redirect_stdout(sys.stdout):
 # "processes" scheduler leads to no messages ending up in the buffer / no flushing
@@ -250,7 +252,7 @@ def redirect_print_explicitly(
                 buffer = MessageBuffer()
                 for line in lines:
                     print(line, file=buffer)
-                print("Printing buffered messages.")
+                _logger.debug("Printing buffered messages.")
                 buffer.flush()
             else:
                 for line in lines:
@@ -456,7 +458,9 @@ def parallelize(
             )
             for index, item in enumerate(items)
         ]
-        print(f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks).")
+        _logger.info(
+            f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks)."
+        )
         if return_exceptions:
             # tqdm.gather() re-raises the first exception (it has no
             # return_exceptions kwarg), which would abandon the remaining
@@ -570,7 +574,7 @@ def async_parallelize(func: Callable, iterable: Iterable, **kwargs):
                 dask.delayed(redirect_print_explicitly(func_, msg_buf))(item, **kwargs_)
                 for item in iterable_
             ]
-            print(
+            _logger.info(
                 f"Performing parallel execution of {func.__name__} "
                 f"({len(tasks)} tasks)."
             )

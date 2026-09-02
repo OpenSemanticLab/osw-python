@@ -3,6 +3,7 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 """
 
 import json
+import logging
 import os
 import shutil
 import threading
@@ -34,6 +35,8 @@ from osw.auth import CredentialManager
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.utils.util import parallelize
 from osw.utils.wiki import get_osw_id
+
+_logger = logging.getLogger(__name__)
 
 # Constants
 SLOTS = {
@@ -438,7 +441,7 @@ class WtSite:
                         retry = param.retries
                         if param.raise_exception:
                             raise
-                print(msg)
+                _logger.info(msg)
             self._clear_cookies()
             return wtpage
 
@@ -625,18 +628,18 @@ class WtSite:
         if limit:
             titles = titles[0:limit]
         if log:
-            print(f"Found: {titles}")
+            _logger.debug(f"Found: {titles}")
         for title in titles:
             wtpage = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
             modify_page(wtpage)
             if log:
-                print(f"\n======= {title} =======")
+                _logger.debug(f"\n======= {title} =======")
                 for slot in wtpage._slots:
                     content = wtpage.get_slot_content(slot)
                     # if isinstance(content, dict): content = json.dumps(content)
-                    print(f"   ==== {title}:{slot} ====   ")
+                    _logger.debug(f"   ==== {title}:{slot} ====   ")
                     pprint(content)
-                    print("\n")
+                    _logger.debug("\n")
             if not dryrun:
                 wtpage.edit(comment)
 
@@ -691,9 +694,11 @@ class WtSite:
             page.edit()
 
             if index is None:
-                print(f"Uploaded page to {page.get_url()}.")
+                _logger.info(f"Uploaded page to {page.get_url()}.")
             else:
-                print(f"({index + 1}/{max_index}): Uploaded page to {page.get_url()}.")
+                _logger.info(
+                    f"({index + 1}/{max_index}): Uploaded page to {page.get_url()}."
+                )
 
         if param.parallel:
             _ = parallelize(upload_page_, param.pages, flush_at_end=param.debug)
@@ -865,12 +870,12 @@ class WtSite:
         # Clear the content directory
         try:
             if debug:
-                print(f"Delete dir '{config.content_path}'")
+                _logger.debug(f"Delete dir '{config.content_path}'")
             if os.path.exists(config.content_path):
                 shutil.rmtree(config.content_path)
         except OSError as e:
             if debug:
-                print(f"Error: {e.filename} - {e.strerror}.")
+                _logger.error(f"Error: {e.filename} - {e.strerror}.")
         # Create a dump config
         if dump_config is None:
             dump_config = WtPage.PageDumpConfig(
@@ -885,7 +890,7 @@ class WtSite:
         added_titles = []  # keep track of added pages, prevent duplicates
 
         if config.name not in bundle.packages:
-            print(f"Error: package {config.name} does not exist in bundle")
+            _logger.error(f"Error: package {config.name} does not exist in bundle")
             return
         if not bundle.packages[config.name].pages:
             bundle.packages[config.name].pages = []
@@ -920,7 +925,7 @@ class WtSite:
             if config.include_files:
                 referenced_file_pages = page.find_file_page_refs_in_slots()
                 if debug and len(referenced_file_pages) > 0:
-                    print(
+                    _logger.debug(
                         f"File pages referenced in {page.title}: {referenced_file_pages}"
                     )
                 if param.config.ignore_titles is not None:
@@ -932,7 +937,7 @@ class WtSite:
                         set(referenced_file_pages) - set(included_file_pages)
                     )
                     if debug and len(ignored_files_pages) > 0:
-                        print(f"Ignored: {ignored_files_pages}")
+                        _logger.debug(f"Ignored: {ignored_files_pages}")
                     referenced_file_pages = included_file_pages
                 # find those files that are not already in the package
                 page_files[page.title] = list(
@@ -1047,10 +1052,10 @@ class WtSite:
         #  option or raise error
         if os.path.exists(pi_fp) and os.path.isfile(pi_fp):
             if debug:
-                print(f"Found packages info file at '{pi_fp}'.")
+                _logger.debug(f"Found packages info file at '{pi_fp}'.")
         else:
             if debug:
-                print(
+                _logger.debug(
                     f"Did not find packages info file at '{pi_fp}'. Trying default "
                     f"'packages.json'."
                 )
@@ -1066,7 +1071,9 @@ class WtSite:
                 pi_fp = json_in_top_level["file path"]
             elif len(top_level_json_files) > 0:
                 if debug:
-                    print(f"Found JSON files: {top_level_json_files}. Using first one.")
+                    _logger.debug(
+                        f"Found JSON files: {top_level_json_files}. Using first one."
+                    )
                 pi_fp = top_level_json_files[0]
             else:
                 raise FileNotFoundError(
@@ -1815,7 +1822,9 @@ class WtPage:
                 return self._edit(comment, mode, bot_edit)
             except Exception as e:
                 last_exc = e
-                print(f"Page edit failed: {e}. Retry ({attempt + 1}/{max_retry})")
+                _logger.warning(
+                    f"Page edit failed: {e}. Retry ({attempt + 1}/{max_retry})"
+                )
                 if attempt + 1 < max_retry:
                     # Attempt to recover the shared session before retrying.
                     # Guard the whole block: a recovery failure must never mask
@@ -1912,7 +1921,7 @@ class WtPage:
             whether to create a redirect from the old title to the new title
         """
         if new_title != self.title:
-            print(f"move '{self.title}' to '{new_title}'")
+            _logger.info(f"move '{self.title}' to '{new_title}'")
             self._page.move(
                 new_title=new_title, reason=comment, no_redirect=not redirect
             )
@@ -1973,13 +1982,13 @@ class WtPage:
                     if self.get_slot_content(slot) != slot_contents.get(slot, None):
                         changed_slots.append(slot)
                 if len(changed_slots) == 0:
-                    print(
+                    _logger.info(
                         f"Page '{self.title}' already has the same content. It will "
                         f"not be updated."
                     )
                     return WtPage.PageCopyResult(page=self, target_altered=False)
                 else:
-                    print(
+                    _logger.info(
                         f"Page '{self.title}' has different content in slots "
                         f"{changed_slots}."
                     )
@@ -1998,7 +2007,7 @@ class WtPage:
                     f"'https://{self.wtSite.mw_site.host}/w/index.php?title"
                     f"={self.title}&action=history'."
                 )
-            print(s2p)
+            _logger.info(s2p)
             return WtPage.PageCopyResult(page=self, target_altered=True)
 
     class PageDumpConfig(OswBaseModel):
@@ -2107,7 +2116,7 @@ class WtPage:
                 dump_slot_content(slot_key, content_type, content)
 
         if self.is_file_page():
-            print("download " + self.title)
+            _logger.info("download " + self.title)
             file = self.wtSite.mw_site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
             file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages
@@ -2182,7 +2191,9 @@ class WtPage:
                     if ft is not None:
                         file_page_refs.append(ft)
                 except ValueError:
-                    print("Warning: Error while parsing uuid in editor template")
+                    _logger.warning(
+                        "Warning: Error while parsing uuid in editor template"
+                    )
         return list(set(file_page_refs))
 
     @try_and_renew_token
@@ -2302,7 +2313,7 @@ class WtPage:
         config.xml = config.xml.replace(
             'xmlns="http://www.mediawiki.org', '_xmlns="http://www.mediawiki.org'
         )
-        print(config.xml)
+        _logger.debug(config.xml)
         tree = et.fromstring(config.xml)  # noqa: S314 parses our own exported XML
 
         # Replace title and namespace with the requested ones

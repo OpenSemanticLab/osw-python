@@ -39,6 +39,24 @@ More runnable scripts live in [examples/](examples/), and the
 [Basics tutorial](docs/tutorials/basics.ipynb) walks through the
 OpenSemanticLab data model.
 
+## Logging
+
+osw reports what it is doing through the standard `logging` module, on the
+`osw` logger, at INFO by default:
+
+```python
+import osw
+
+osw.set_log_level("WARNING")  # see less
+osw.set_log_level("DEBUG")    # see more
+osw.disable_logging()         # detach the handler osw attached
+```
+
+Set `OSW_LOG_LEVEL` to a level name, a level number, or `OFF` to choose the
+level before the package is imported. `disable_logging()` also restores
+propagation to the root logger, so an application that prefers to configure
+handlers itself can take over with `logging.basicConfig()`.
+
 ## Contributing
 
 Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).

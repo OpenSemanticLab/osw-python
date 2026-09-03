@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.3.0 (2026-09-03)
+
+### Features
+
+- **wtsite**: Parametrize and parallelize modify_search_results
+  ([`d2e2952`](https://github.com/OpenSemanticLab/osw-python/commit/d2e29522033d5f0e8658c318b0fd909406e0f49d))
+
+
 ## v2.2.1 (2026-09-03)
 
 ### Bug Fixes

@@ -372,7 +372,29 @@ class OSW(BaseModel):
                     else:
                         result_array.append(subschema)
                 match.full_path.update_or_create(schema, result_array)
-            if "definitions" in schema:
+
+            all_refs_resolved = True
+            bare_ref_jsonpath_expr = parse("$..dollarref")
+            # pydantic only wraps a $ref in allOf when the field carries extra
+            #  metadata (e.g. Field(description=...)). A plain nested-model
+            #  field produces a bare {"$ref": ...} that is not reachable via
+            #  the "$..allOf" jsonpath above, so replace those local
+            #  definitions (#/definitions/...) with embedded definitions too,
+            #  to prevent a dangling ref once "definitions" is removed below
+            for match in bare_ref_jsonpath_expr.find(schema):
+                value = match.value
+                if value.startswith("#"):
+                    definition_jsonpath_expr = parse(
+                        value.replace("#", "$").replace("/", ".")
+                    )
+                    def_matches = definition_jsonpath_expr.find(schema)
+                    for def_match in def_matches:
+                        match.context.full_path.update_or_create(
+                            schema, def_match.value
+                        )
+                    if not def_matches:
+                        all_refs_resolved = False
+            if "definitions" in schema and all_refs_resolved:
                 del schema["definitions"]
 
             if "allOf" not in schema:

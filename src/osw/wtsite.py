@@ -573,11 +573,11 @@ class WtSite:
         return wt.semantic_search(self._site, query)
 
     class ModifySearchResultsParam(OswBaseModel):
-        """Todo: should become param of modify_search_results"""
+        """Parameter object for modify_search_results method."""
 
         mode: str
         """The search mode. Either 'prefix' or 'semantic'."""
-        query: wt.SearchParam
+        query: Union[str, wt.SearchParam]
         """The search query."""
         comment: str = None
         """The comment for the edit."""
@@ -585,13 +585,15 @@ class WtSite:
         """Whether to log changes."""
         dryrun: bool = False
         """if True, no actual changes are made"""
+        parallel: Optional[bool] = False
+        """If True, processes the search results in parallel."""
 
     @try_and_renew_token
     def modify_search_results(
         self,
-        mode: str,
-        query: str,
-        modify_page,
+        param: Union[str, ModifySearchResultsParam],
+        query: str = None,
+        modify_page=None,
         limit=None,
         comment=None,
         log=False,
@@ -602,34 +604,47 @@ class WtSite:
 
         Parameters
         ----------
-        mode
-            The search mode. Either 'prefix' or 'semantic'.
+        param
+            ModifySearchResultsParam object. For backwards compatibility, the
+            search mode ('prefix' or 'semantic') can be passed directly instead,
+            together with the deprecated keyword arguments below.
         query
-            The search query.
+            Deprecated, use param.query instead. The search query.
         modify_page
             The callback that modifies the pages.
         limit
             query limit, by default None
         comment
-            edit comment, by default None
+            Deprecated, use param.comment instead. edit comment, by default None
         log
-            log changes, by default False
+            Deprecated, use param.log instead. log changes, by default False
         dryrun
-            if True, no actual changes are made, by default False
+            Deprecated, use param.dryrun instead. if True, no actual changes are
+            made, by default False
         """
+        if not isinstance(param, WtSite.ModifySearchResultsParam):
+            param = WtSite.ModifySearchResultsParam(
+                mode=param,
+                query=query,
+                comment=comment,
+                log=log,
+                dryrun=dryrun,
+            )
+
         titles = []
-        if mode == "prefix":
-            titles = wt.prefix_search(self._site, query)
-        elif mode == "semantic":
-            titles = wt.semantic_search(self._site, query)
+        if param.mode == "prefix":
+            titles = wt.prefix_search(self._site, param.query)
+        elif param.mode == "semantic":
+            titles = wt.semantic_search(self._site, param.query)
         if limit:
             titles = titles[0:limit]
-        if log:
+        if param.log:
             print(f"Found: {titles}")
-        for title in titles:
+
+        def modify_single_result(title: str):
             wtpage = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
             modify_page(wtpage)
-            if log:
+            if param.log:
                 print(f"\n======= {title} =======")
                 for slot in wtpage._slots:
                     content = wtpage.get_slot_content(slot)
@@ -637,8 +652,13 @@ class WtSite:
                     print(f"   ==== {title}:{slot} ====   ")
                     pprint(content)
                     print("\n")
-            if not dryrun:
-                wtpage.edit(comment)
+            if not param.dryrun:
+                wtpage.edit(param.comment)
+
+        if param.parallel:
+            _ = parallelize(modify_single_result, titles, flush_at_end=param.log)
+        else:
+            _ = [modify_single_result(title) for title in titles]
 
     class UploadPageParam(OswBaseModel):
         """Parameter object for upload_page method."""

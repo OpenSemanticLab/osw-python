@@ -2,11 +2,78 @@ import functools
 import os
 from typing import IO, Any, Dict, List, Optional
 
+import mwclient.errors
+
 from osw.controller.file.base import FileController
 from osw.controller.file.remote import RemoteFileController
 from osw.core import OSW, model
 from osw.utils.wiki import get_namespace, get_title
 from osw.wtsite import WtSite
+
+
+def format_allowed_extensions(allowed: WtSite.AllowedFileExtensionsResult) -> str:
+    """Renders the allowed-extensions hint for a rejected-upload error message"""
+    if not allowed.extensions or allowed.fetched_at is None:
+        return ""
+    ttl_hours = int(WtSite.ALLOWED_FILE_EXTENSIONS_TTL.total_seconds() // 3600)
+    return (
+        f" Extensions allowed there, read {allowed.fetched_at:%Y-%m-%d %H:%M:%S} and "
+        f"cached for {ttl_hours} h: {', '.join(sorted(allowed.extensions))}. "
+        "Call osw.site.clear_allowed_file_extensions_cache() to re-read the list "
+        "if the wiki configuration changed since."
+    )
+
+
+def reraise_upload_error(
+    error: mwclient.errors.APIError, site: WtSite, title: str, suffix: Optional[str]
+) -> None:
+    """Turns a rejected file extension into a readable error, re-raises the rest
+
+    MediaWiki reports a rejected extension as filetype-banned,
+    filetype-banned-type or filetype-badtype, depending on the version.
+    """
+    if "filetype" not in str(getattr(error, "code", "")):
+        raise error
+    allowed = site.get_allowed_file_extensions()
+    hint = format_allowed_extensions(allowed)
+    raise ValueError(
+        f"Upload of '{title}' was rejected because the file extension "
+        f"'{suffix}' is not allowed on {site.mw_site.host}.{hint}"
+    ) from error
+
+
+def assert_upload_success(result: Any, title: str, host: str) -> None:
+    """Raises unless the upload API reports that it stored the file
+
+    mwclient raises only when the response carries an 'error' key. A file that
+    MediaWiki declined for any other reason comes back as a normal return value
+    with a result other than 'Success', so without this check the upload would
+    fail silently.
+    """
+    status = result.get("result") if isinstance(result, dict) else None
+    if status == "Success":
+        return
+    warnings = result.get("warnings") if isinstance(result, dict) else None
+    detail = f" Warnings: {warnings}." if warnings else ""
+    raise ValueError(
+        f"Upload of '{title}' to {host} did not succeed (result: {status}).{detail}"
+    )
+
+
+def store_params_for_upload(
+    se_params: Dict[str, Any], page_existed: bool
+) -> Dict[str, Any]:
+    """Picks the overwrite policy for the entity that accompanies an upload
+
+    An upload creates the file page when it was not there yet. store_entity
+    would then see an existing page and, under the default 'keep existing',
+    leave the metadata unwritten. So the entity has to replace what the upload
+    put there. A page that was already there keeps whatever the caller asked
+    for.
+    """
+    if page_existed:
+        return se_params
+    return {**se_params, "overwrite": "replace remote"}
 
 
 class WikiFileController(model.WikiFile, RemoteFileController):
@@ -131,19 +198,28 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         }
         for key in ["entities", "namespace"]:
             se_params.pop(key, None)  # avoid duplicated kwargs
+        # Upload before storing the entity: MediaWiki offers no transaction
+        # across the two writes, so one of them can be left standing. A file
+        # page without metadata is visibly incomplete, while metadata without a
+        # file looks like a valid entity until someone tries to download it.
+        page_existed = self.osw.mw_site.pages[f"{self.namespace}:{self.title}"].exists
+        try:
+            result = self.osw.mw_site.upload(
+                file=file,
+                filename=self.title,
+                # comment="",
+                # description="",
+                ignore=True,
+            )
+        except mwclient.errors.APIError as e:
+            reraise_upload_error(e, self.osw.site, self.title, self.suffix)
+        assert_upload_success(result, self.title, self.osw.mw_site.host)
         self.osw.store_entity(
             OSW.StoreEntityParam(
                 entities=[self.cast(model.WikiFile, **wf_params)],
                 namespace=self.namespace,
-                **se_params,
+                **store_params_for_upload(se_params, page_existed),
             )
-        )
-        self.osw.mw_site.upload(
-            file=file,
-            filename=self.title,
-            # comment="",
-            # description="",
-            ignore=True,
         )
 
     def put_from(self, other: FileController, **kwargs: Dict[str, Any]):

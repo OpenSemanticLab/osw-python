@@ -162,6 +162,43 @@ def ensure_valid_python_source(content: str, path: str) -> None:
         raise SyntaxError(message) from e
 
 
+def reload_module_or_restore(module, path: str, previous_content: str = None) -> None:
+    """Reloads module, putting previous_content back if the import fails
+
+    ast.parse only proves the generated model is syntactically valid. It can
+    still fail at import time, e.g. on an undefined name or an error raised
+    while a class body is executed. Restoring the previous file content keeps
+    later imports of osw.model.entity working instead of leaving a module on
+    disk that raises for the rest of the installation's lifetime.
+    """
+    try:
+        importlib.reload(module)
+    except Exception as e:
+        _logger.error(f"Generated model at '{path}' failed to import: {e}")
+        if previous_content is not None:
+            _logger.error(f"Restoring the previous content of '{path}'")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(previous_content)
+            try:
+                importlib.reload(module)
+            except Exception as restore_error:
+                # do not mask the original failure, but make it obvious that
+                # the module is now broken in memory as well
+                _logger.error(
+                    f"Restoring '{path}' did not make it importable again: "
+                    f"{restore_error}"
+                )
+        raise
+
+
+def read_file_if_exists(path: str) -> str:
+    """Returns the content of path, or None if it does not exist yet"""
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
 # Reusable type definitions
 class OverwriteOptions(Enum):
     """Options for overwriting properties"""
@@ -1112,11 +1149,17 @@ class OSW(BaseModel):
             # place is strictly better than writing invalid syntax (#125)
             ensure_valid_python_source(content, result_model_path)
 
+            # keep the current file so that a model that parses but does not
+            # import can be rolled back below (#125)
+            previous_content = read_file_if_exists(result_model_path)
+
             with open(result_model_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             if fetchSchemaParam.final:
-                importlib.reload(model)  # reload the updated module
+                # reload the updated module, restoring the previous content if
+                # the generated model turns out not to be importable
+                reload_module_or_restore(model, result_model_path, previous_content)
                 if not site_cache_state:
                     self.site.disable_cache()  # restore original state
 

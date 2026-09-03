@@ -14,10 +14,30 @@ never call the real (wiki- and network-backed) `_fetch_schema`.
 """
 
 import ast
+import importlib
+import sys
 
 import pytest
 
-from osw.core import ensure_valid_python_source, remove_unserializable_default_sentinels
+from osw.core import (
+    ensure_valid_python_source,
+    reload_module_or_restore,
+    remove_unserializable_default_sentinels,
+)
+
+
+@pytest.fixture
+def throwaway_module(tmp_path):
+    """An importable module on disk, cleaned out of sys.modules afterwards"""
+    name = "osw_test_throwaway_model"
+    path = tmp_path / f"{name}.py"
+    path.write_text("VALUE = 1\n", encoding="utf-8")
+    sys.path.insert(0, str(tmp_path))
+    try:
+        yield importlib.import_module(name), path
+    finally:
+        sys.path.remove(str(tmp_path))
+        sys.modules.pop(name, None)
 
 
 def test_sentinel_default_is_rewritten_to_valid_python():
@@ -95,3 +115,43 @@ def test_validation_failure_leaves_an_existing_target_untouched(tmp_path):
         target.write_text("corrupted", encoding="utf-8")  # never reached
 
     assert target.read_text(encoding="utf-8") == "previous_valid_content = 1\n"
+
+
+def test_reload_restores_previous_content_when_the_new_model_cannot_import(
+    throwaway_module,
+):
+    """Syntactically valid content can still fail at import time. The file must
+    be rolled back so later imports keep working.
+    """
+    module, path = throwaway_module
+    previous_content = path.read_text(encoding="utf-8")
+    broken = "raise RuntimeError('not importable')\n"
+    ast.parse(broken)  # passes the syntax guard, so only the import catches it
+    path.write_text(broken, encoding="utf-8")
+
+    with pytest.raises(RuntimeError):
+        reload_module_or_restore(module, str(path), previous_content)
+
+    assert path.read_text(encoding="utf-8") == previous_content
+    assert module.VALUE == 1  # the in-memory module works again too
+
+
+def test_reload_keeps_the_new_model_when_it_imports(throwaway_module):
+    module, path = throwaway_module
+    # the length has to differ from the original source, otherwise the pyc
+    # cache (keyed on mtime and size) can survive the reload
+    path.write_text("VALUE = 222\n", encoding="utf-8")
+
+    reload_module_or_restore(module, str(path), "VALUE = 1\n")
+
+    assert path.read_text(encoding="utf-8") == "VALUE = 222\n"
+    assert module.VALUE == 222
+
+
+def test_reload_without_previous_content_still_raises(throwaway_module):
+    """First-ever write has nothing to roll back to, but must not fail silently."""
+    module, path = throwaway_module
+    path.write_text("raise RuntimeError('not importable')\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError):
+        reload_module_or_restore(module, str(path), None)

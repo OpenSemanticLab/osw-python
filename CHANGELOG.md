@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.2.1 (2026-09-03)
+
+### Bug Fixes
+
+- **core**: Honour per-property settings in the overwrite policy
+  ([`2ed0a1f`](https://github.com/OpenSemanticLab/osw-python/commit/2ed0a1fa027c7b4981a4c5955cbfe9e8d61b9976))
+
+
 ## v2.2.0 (2026-09-02)
 
 ### Features

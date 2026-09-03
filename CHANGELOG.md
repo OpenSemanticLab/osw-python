@@ -10,6 +10,17 @@
 
 <!-- version list -->
 
+## v2.3.1 (2026-09-03)
+
+### Bug Fixes
+
+- **search**: Keep a limit the caller wrote into the ask query
+  ([`0c75699`](https://github.com/OpenSemanticLab/osw-python/commit/0c756993bcf9a9114c3072ee03037757aaa5fcf5))
+
+- **search**: Treat a SearchParam limit of None as no limit
+  ([`6e94187`](https://github.com/OpenSemanticLab/osw-python/commit/6e94187c455942afdec2746a498c44c6fd5953e0))
+
+
 ## v2.3.0 (2026-09-03)
 
 ### Features

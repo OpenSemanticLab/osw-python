@@ -1782,7 +1782,7 @@ class OSW(BaseModel):
         skipped: Dict[str, WtPage] = {}
         """Existing pages that were not written because the applicable overwrite
         setting was 'keep existing', keyed by full page title. These also appear in
-        'pages', where they are indistinguishable from pages that were written."""
+        'pages'; subtract them to get the pages that were actually written."""
         failed: Dict[str, Exception] = {}
         """Entities that could not be stored, keyed by full page title and mapped to
         the exception that caused the failure. Empty on full success."""
@@ -1794,13 +1794,20 @@ class OSW(BaseModel):
         """Raised by store_entity() when one or more entities could not be stored.
 
         Carries the partial ``StoreEntityResult`` so callers can learn exactly which
-        entities were written (``stored`` / ``result.pages``) and which failed
-        (``failed`` / ``result.failed``) without a separate existence query.
+        entities were written (``stored``), which existed already and were left
+        untouched by 'keep existing' (``skipped``), and which failed (``failed`` /
+        ``result.failed``) without a separate existence query.
         """
 
         def __init__(self, result: OSW.StoreEntityResult):
             self.result = result
-            self.stored = list(result.pages.keys())
+            # a page kept by 'keep existing' was not written, so it does not
+            # belong in 'stored'. 'result.pages' still lists it, for callers
+            # that only care about which entities are on the wiki afterwards.
+            self.skipped = list(result.skipped.keys())
+            self.stored = [
+                title for title in result.pages if title not in result.skipped
+            ]
             self.failed = result.failed
             total = len(result.pages) + len(result.failed)
             failed_titles = ", ".join(result.failed.keys())

@@ -145,6 +145,46 @@ class AddOverwriteClassOptions(Enum):
 OVERWRITE_CLASS_OPTIONS = Union[OverwriteOptions, AddOverwriteClassOptions]
 
 
+def _explicitly_set_empty(entity: OswBaseModel, jsondata: dict) -> dict:
+    """Returns the top-level jsondata entries the caller set to an empty value.
+
+    remove_empty() cannot tell an empty value that was assigned on purpose from
+    one that is merely a default, so it strips both. Assigning an empty value is
+    how a property gets cleared, though: the merge in _apply_overwrite_policy()
+    starts from the remote content, so a local key that was stripped leaves the
+    remote value in place and the property can never be emptied. pydantic records
+    the fields that were explicitly supplied in __fields_set__, which is enough to
+    keep those and drop the rest.
+
+    Parameters
+    ----------
+    entity:
+        The entity the jsondata was serialized from
+    jsondata:
+        The serialized entity, before remove_empty() has been applied
+
+    Returns
+    -------
+    result:
+        The subset of jsondata that is empty but was explicitly set
+    """
+    fields_set = getattr(entity, "__fields_set__", None)
+    if not fields_set:
+        return {}
+    fields = getattr(entity, "__fields__", {})
+    keys = set()
+    for name in fields_set:
+        # json() is called without by_alias, so the key is the field name. Accept
+        # the alias too, so that a field declared with one (model.PrefectFlow
+        # names 'schema_' after 'schema') is matched either way.
+        keys.add(name)
+        if name in fields:
+            keys.add(fields[name].alias)
+    return {
+        key: value for key, value in jsondata.items() if key in keys and is_empty(value)
+    }
+
+
 class OSW(BaseModel):
     """Bundles core functionalities of OpenSemanticWorld (OSW)"""
 
@@ -1411,6 +1451,19 @@ class OSW(BaseModel):
                     f"'{self.overwrite.value}', which acts on the entity as a "
                     f"whole. Use an OverwriteOptions value for 'overwrite'."
                 )
+            if self.per_property:
+                unknown = [
+                    key for key in self.per_property if key not in self.model.__fields__
+                ]
+                if unknown:
+                    # validate_per_property() only runs at construction and when
+                    # 'per_property' itself is assigned. Reassigning 'model' would
+                    # otherwise just drop the now-unknown keys from the rebuilt
+                    # mapping, leaving a setting that silently never applies.
+                    raise ValueError(
+                        f"Property not found in model '{self.model.__name__}': "
+                        f"{', '.join(unknown)}"
+                    )
             per_property_ = self.per_property or {}
             self._per_property = {
                 field_name: per_property_.get(field_name, self.overwrite)
@@ -1553,7 +1606,14 @@ class OSW(BaseModel):
         # We want those not to be listed as keys
         local_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
         if param.remove_empty:
+            # an empty value the caller assigned on purpose is how a property gets
+            # cleared, so it has to survive remove_empty() and reach the merge
+            # below, where step c) can let it win over the remote value
+            explicitly_set_empty = _explicitly_set_empty(
+                param.entity, local_content["jsondata"]
+            )
             remove_empty(local_content["jsondata"])
+            local_content["jsondata"].update(explicitly_set_empty)
         if param.debug:
             print(f"'local_content': {local_content!s}")
         # Apply the overwrite logic
@@ -1622,9 +1682,28 @@ class OSW(BaseModel):
         overwrite_per_class: Optional[List[OSW.OverwriteClassParam]] = None
         """A list of OverwriteClassParam objects. If a class specific overwrite setting
         is set, this setting is used.
+
+        Each object is copied when it is validated into this parameter, so it is a
+        snapshot taken here: configure a policy fully before passing it, since
+        mutating it afterwards no longer affects this StoreEntityParam.
+
+        A class is identified by its OSW type. A subclass that does not redefine
+        'type' therefore shares its parent's policy and cannot be given one of its
+        own. Generated model classes always redefine it; hand-written subclasses
+        such as the file controllers do not.
         """
         remove_empty: Optional[bool] = True
-        """If true, remove key with an empty string value from the jsondata."""
+        """If true, remove key with an empty string value from the jsondata.
+
+        A top-level property that was explicitly assigned an empty value is kept
+        rather than stripped, so that '', [] or {} reaches the merge. Whether it
+        then clears the stored value still depends on the overwrite setting for
+        that property: 'true' clears it, 'only empty' clears it only if the stored
+        value is empty too, and 'false' (or 'keep existing', the default) leaves
+        the stored value in place.
+
+        Assign None instead of an empty value for 'not known', otherwise the
+        property is cleared on the wiki."""
         change_id: Optional[str] = None
         """ID to document the change. Entities within the same store_entity() call will
         share the same change_id. This parameter can also be used to link multiple
@@ -1639,11 +1718,9 @@ class OSW(BaseModel):
         offline: Optional[bool] = False
         """If set to True, the processed entities are not upload but only returned as WtPages.
         Can be used to create WtPage objects from entities without uploading them."""
-        _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
-            PrivateAttr()
-        )
-        """Private attribute, for internal use only. Use 'overwrite_per_class'
-        instead."""
+        _overwrite_per_class: Dict[str, OSW.OverwriteClassParam] = PrivateAttr()
+        """Private attribute, for internal use only. Maps the OSW type of a model
+        class to its policy. Use 'overwrite_per_class' instead."""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -1666,22 +1743,32 @@ class OSW(BaseModel):
                 )
             if self.overwrite is None:
                 self.overwrite = self.__fields__["overwrite"].get_default()
-            self._overwrite_per_class = {"by name": {}, "by type": {}}
+            self._overwrite_per_class = {}
             if self.overwrite_per_class is not None:
                 for param in self.overwrite_per_class:
-                    model_name = param.model.__name__
                     model_type = param.model.__fields__["type"].get_default()[0]
-                    if (
-                        model_name in self._overwrite_per_class["by name"].keys()
-                        or model_type in self._overwrite_per_class["by type"].keys()
-                    ):
+                    declared = self._overwrite_per_class.get(model_type)
+                    if declared is not None:
+                        other = declared.model
+                        detail = ""
+                        # issubclass(X, X) is True, so the same class declared
+                        # twice would otherwise be blamed on inheritance
+                        if param.model is not other and (
+                            issubclass(param.model, other)
+                            or issubclass(other, param.model)
+                        ):
+                            detail = (
+                                " A subclass that does not redefine 'type' inherits "
+                                "it, so store_entity() cannot tell the two apart. "
+                                "Declare a single OverwriteClassParam for both."
+                            )
                         raise ValueError(
-                            f"More than one OverwriteClassParam for the class "
-                            f"'{model_type}' ({model_name}) has been passed in the "
-                            f"list to 'overwrite_per_class'!"
+                            f"More than one OverwriteClassParam for the type "
+                            f"'{model_type}' has been passed in the list to "
+                            f"'overwrite_per_class': '{other.__name__}' and "
+                            f"'{param.model.__name__}'.{detail}"
                         )
-                    self._overwrite_per_class["by name"][model_name] = param
-                    self._overwrite_per_class["by type"][model_type] = param
+                    self._overwrite_per_class[model_type] = param
 
     class StoreEntityResult(OswBaseModel):
         """Result of store_entity()"""
@@ -1689,8 +1776,13 @@ class OSW(BaseModel):
         change_id: str
         """The ID of the change"""
         pages: Dict[str, WtPage]
-        """The pages that have been successfully stored, keyed by full page title.
-        On partial failure this contains only the successfully-stored pages."""
+        """The pages that have been successfully processed, keyed by full page title.
+        On partial failure this contains only the successfully-processed pages.
+        Includes the pages listed in 'skipped', which were left untouched."""
+        skipped: Dict[str, WtPage] = {}
+        """Existing pages that were not written because the applicable overwrite
+        setting was 'keep existing', keyed by full page title. These also appear in
+        'pages', where they are indistinguishable from pages that were written."""
         failed: Dict[str, Exception] = {}
         """Entities that could not be stored, keyed by full page title and mapped to
         the exception that caused the failure. Empty on full success."""
@@ -1739,6 +1831,7 @@ class OSW(BaseModel):
 
         max_index = len(param.entities)
         created_pages = {}
+        skipped_pages = {}
 
         meta_category_templates = {}
         if param.namespace == "Category":
@@ -1872,6 +1965,8 @@ class OSW(BaseModel):
                         f"'{page.get_url()}'."
                     )
             created_pages[page.title] = page
+            if kept_existing:
+                skipped_pages[page.title] = page
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
         print(
@@ -1894,7 +1989,7 @@ class OSW(BaseModel):
         upload_index = 0
         for class_type, entities in sorted_entities.by_type.items():
             # Try to get a class specific overwrite setting
-            class_param = param._overwrite_per_class["by type"].get(class_type, None)
+            class_param = param._overwrite_per_class.get(class_type, None)
             if class_param is None:
                 entity_model = entities[0].__class__
                 class_param = OSW.OverwriteClassParam(
@@ -1970,7 +2065,10 @@ class OSW(BaseModel):
                 failed[title] = result
 
         store_result = OSW.StoreEntityResult(
-            change_id=param.change_id, pages=created_pages, failed=failed
+            change_id=param.change_id,
+            pages=created_pages,
+            skipped=skipped_pages,
+            failed=failed,
         )
         if failed:
             # Surface partial/total failure so callers cannot mistake a dropped

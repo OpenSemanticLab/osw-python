@@ -13,6 +13,41 @@ def test_create_flat_content_structure_from_wikitext():
     assert result == expected
 
 
+def test_read_domains_from_credentials_file_empty_file_raises_value_error(tmp_path):
+    """An empty file is parsed as None by yaml.safe_load. Before the fix this
+    raised an unhandled AttributeError from accounts_dict.keys(); it must now
+    raise the same clear ValueError as an empty mapping."""
+    cred_file = tmp_path / "accounts.pwd.yaml"
+    cred_file.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="No domain found"):
+        wt.read_domains_from_credentials_file(cred_file)
+
+
+def test_read_domains_from_credentials_file_empty_mapping_raises_value_error(
+    tmp_path,
+):
+    cred_file = tmp_path / "accounts.pwd.yaml"
+    cred_file.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="No domain found"):
+        wt.read_domains_from_credentials_file(cred_file)
+
+
+def test_read_domains_from_credentials_file_valid_file_returns_domains_and_accounts(
+    tmp_path,
+):
+    cred_file = tmp_path / "accounts.pwd.yaml"
+    cred_file.write_text(
+        "example.org:\n  username: user\n  password: pass\n", encoding="utf-8"
+    )
+
+    domains, accounts = wt.read_domains_from_credentials_file(cred_file)
+
+    assert domains == ["example.org"]
+    assert accounts == {"example.org": {"username": "user", "password": "pass"}}
+
+
 def _ask_result(*titles):
     """Build a minimal SMW ``ask`` API result dict for the given page titles."""
     return {

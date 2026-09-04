@@ -41,11 +41,11 @@ OSW_USERNAME=your-user
 OSW_PASSWORD=your-password
 ```
 
-The CLI finds that file by searching upward from the working directory, so
-`osw status` now reports the instance and connection state. The MCP server does
-not search: its settings come from the `env` block of its registration, see
-[Registering a server](#registering-a-server). Everything that can be set is
-listed under [Configuration](#configuration).
+The CLI searches upward from the working directory for it, so `osw status` now
+reports the instance and connection state. The MCP server takes its settings
+from the `env` block of its registration instead, see
+[Registering a server](#registering-a-server). Every variable is listed under
+[Configuration](#configuration).
 
 ## Command line
 
@@ -111,27 +111,22 @@ For Claude Code, one command registers the server. Replace the domain and the
 credential file path with your own:
 
 ```bash
-claude mcp add osw \
+claude mcp add osw-dev \
   -e OSW_DOMAIN=wiki-dev.open-semantic-lab.org \
   -e OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml \
   -- uvx --from "osw[mcp]" osw-mcp
 ```
 
-Quote `osw[mcp]`, otherwise the shell tries to expand the square brackets. On
-Windows, write the path with forward slashes.
+Notes:
 
-Everything after `--` is the command Claude Code runs. `uvx` downloads and
-starts the server without installing it first. If osw is already installed in
-an environment, use that environment's `osw-mcp` instead of the `uvx` line.
-
-The entry is written for the current project only. Pass `-s user` to make it
-available in every project, or `-s project` to write it to a `.mcp.json` that
-is committed with the repository. With `-s project`, keep to `OSW_CRED_FILEPATH`
-and never put `OSW_PASSWORD` in the `env` block.
-
-Check the result with `claude mcp list` or `claude mcp get osw`, and remove the
-entry again with `claude mcp remove osw`. The next section explains what the
-entry contains, and how to point it at a `.env` file instead.
+- `osw-dev` is the server name and becomes the tool prefix, so every call site
+  reads `mcp__osw-dev__get_entity`. Pick one name per instance, e.g. `osw-prod`.
+- `osw-mcp` is the program `uvx` runs. It is the console script this package
+  installs, so it does not change.
+- On Windows, write the path with forward slashes.
+- The default scope is `local`: this project, your machine only. Use `-s user`
+  for every project, or `-s project` to write a shared `.mcp.json`.
+- List what is registered with `claude mcp list`.
 
 ### Registering a server
 
@@ -144,12 +139,9 @@ A server entry can carry its settings in two ways:
   several tools share one settings file, or when the client config is committed
   and the settings file is not.
 
-Prefer the `env` block naming `OSW_CRED_FILEPATH` and `OSW_DOMAIN`: the
-destination instance is spelled out in the entry itself, so it is visible at a
-glance and in a diff rather than one indirection away. The secret stays out of
-the client config either way, since a credential file contributes a path and an
-instance name and nothing else. Never put `OSW_PASSWORD` inline in a committed
-`.mcp.json`.
+Prefer the `env` block naming `OSW_CRED_FILEPATH` and `OSW_DOMAIN`, so the
+destination instance is visible in the entry itself. Never put `OSW_PASSWORD`
+in a committed `.mcp.json`.
 
 ```json
 {
@@ -168,8 +160,8 @@ instance name and nothing else. Never put `OSW_PASSWORD` inline in a committed
 ```
 
 At startup the server checks that the credential file has an entry matching
-`OSW_DOMAIN` and, if not, names the iris the file does contain (never their
-secrets), so a typo surfaces immediately rather than on the first tool call.
+`OSW_DOMAIN`. If it does not, the server stops and names the iris the file does
+contain, never their secrets.
 
 Registering the same entry from a shell is easiest with `add-json`, which takes
 it verbatim. Note that a Windows path needs forward slashes or doubled
@@ -244,93 +236,58 @@ Both adapters share the settings below.
 
 ### Where settings come from
 
-Settings are read from the process environment. A `.env` file is one optional
-way to fill it, and a real environment variable always wins over the same name
-in a file.
+Settings are read from the process environment. A `.env` file fills that
+environment; a real environment variable wins over the same name in a file.
 
-- `OSW_ENV_FILE` set: exactly that file is loaded, and nothing is searched for.
-- Unset, **CLI**: searches upward from the working directory, so a `.env` in a
-  project root applies to every `osw` command run anywhere inside it.
-- Unset, **MCP server**: searches nowhere. Its working directory is picked by
-  the MCP client, so an implicit search would tie the credentials it loads to
-  how the client happened to be launched.
+**Env file**
 
-The credential file is looked up separately, in this order:
+| `OSW_ENV_FILE` | CLI | MCP server |
+| --- | --- | --- |
+| set | loads that file, searches nowhere | loads that file, searches nowhere |
+| unset | searches upward from the working directory | searches nowhere |
 
-1. An explicit `OSW_CRED_FILEPATH` (or its aliases), whether it came from the
-   real environment or from a `.env` file, always wins. If this file has no
-   entry for the configured domain, that is an error. This check does not
-   apply when `OSW_USERNAME` and `OSW_PASSWORD` are both set, because osw
-   then builds credentials for any instance from those two variables.
-2. Otherwise, an `accounts.pwd.yaml` file in the working directory, if one
-   exists there. This lookup does not walk up to parent directories, and it
-   runs for the CLI only, never for the MCP server, for the same reason the
-   `.env` search does not: the server's working directory belongs to the
-   client, not to the operator. If this file has no entry for the configured
-   domain, it is ignored rather than treated as an error, since it was only
-   discovered, not configured.
-3. Otherwise, no credential file is used.
+**Credential file.** The first step that produces a file wins:
 
-The working-directory lookup is skipped entirely when either `OSW_USERNAME`
-or `OSW_PASSWORD` is already set, including their `OSL_USERNAME` /
-`OSL_PASSWORD` aliases, so it never displaces credentials configured
-explicitly.
+1. `OSW_CRED_FILEPATH` or an alias, set in the environment or the env file.
+   The run fails if this file has no entry for `OSW_DOMAIN`. That check is
+   skipped when `OSW_USERNAME` and `OSW_PASSWORD` are both set.
+2. CLI only: `accounts.pwd.yaml` in the working directory. Parent directories
+   are not searched. This step is skipped when `OSW_USERNAME` or
+   `OSW_PASSWORD` is set. If the file has no entry for `OSW_DOMAIN` it is
+   ignored and the run continues.
+3. No credential file.
 
-Both print the source they resolved to stderr before connecting, in one of
-these forms:
+**Source report.** Both adapters write to stderr before connecting. The first
+line is labelled `credential file` when a file was found:
 
-- `(from the OSW_CRED_FILEPATH environment variable)`
-- `(from OSW_CRED_FILEPATH in the env file)`
-- `(accounts.pwd.yaml found in the working directory)`
-- `(accounts.pwd.yaml found in the working directory, ignored: no entry for domain '<domain>')`, when the discovered file is rejected for the reason given in step 2 above.
+- `<path> (from the OSW_CRED_FILEPATH environment variable)`
+- `<path> (from OSW_CRED_FILEPATH in the env file)`
+- `<path> (accounts.pwd.yaml found in the working directory)`
+- `<path> (accounts.pwd.yaml found in the working directory, ignored: no entry for domain '<domain>')`
 
-Those four forms all belong to a line labelled `credential file`. When no
-credential file is used at all, the line is labelled `credentials` instead and
-takes one of these forms:
+and `credentials` when none was:
 
 - `OSW_USERNAME/OSW_PASSWORD (from the environment)`
 - `OSW_USERNAME/OSW_PASSWORD (from the env file)`
 - `not configured (set OSW_CRED_FILEPATH, or OSW_USERNAME/OSW_PASSWORD)`
 
-The MCP server always prints both lines, the credential one first, then the
-env-file one. The CLI prints one line by default, naming where the
-credential came from. Pass `--verbose` to also print the env-file line. A
-failing command prints both lines regardless of `--verbose`, so a report
-still names every source that was checked.
-
-For example, a verbose CLI run or the MCP server prints:
+The second line is labelled `env file`. The MCP server prints both lines. The
+CLI prints the first only, adding the second with `--verbose` or when the
+command fails:
 
 ```text
 [osw] credential file: /home/me/project/accounts.pwd.yaml (accounts.pwd.yaml found in the working directory)
 [osw] env file       : /home/me/project/.env (found from the working directory upward)
 ```
 
-A non-verbose, successful CLI run prints only the first of those two lines.
-
 ### Credentials
 
 Keep credentials in a gitignored file. They are read once per process, into that
-process only, and never written back to disk.
+process only, and never written back to disk. Set either `OSW_USERNAME` and
+`OSW_PASSWORD`, or `OSW_CRED_FILEPATH`.
 
-```dotenv
-OSW_DOMAIN=wiki-dev.open-semantic-lab.org
-OSW_USERNAME=your-user
-OSW_PASSWORD=your-password
-# optional
-OSW_SPARQL_ENDPOINT=https://.../sparql
-OSW_READ_ONLY=false          # true hides all mutating tools
-```
-
-Alternatively, authenticate from an osw credential file, so the password is not
-duplicated into a second plaintext file:
-
-```dotenv
-OSW_DOMAIN=wiki-dev.open-semantic-lab.org
-OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml
-```
-
-The file is the YAML format osw's `CredentialManager` already reads, keyed by
-iri, so deployments that configure it need no extra setup:
+A credential file uses the YAML format osw's `CredentialManager` reads, keyed
+by iri:
 
 ```yaml
 wiki-dev.open-semantic-lab.org:
@@ -339,9 +296,8 @@ wiki-dev.open-semantic-lab.org:
 ```
 
 A credential file may hold several iris. The CLI selects one automatically if it
-is the only one, and otherwise wants `osw --instance <iri>`. The MCP server
-never selects one, see
-[One server per instance](#mcp-server).
+is the only one, and otherwise requires `osw --instance <iri>`. The MCP server
+never selects one, see [One server per instance](#mcp-server).
 
 ### Variable reference
 

@@ -31,6 +31,7 @@ from oold.backend.interface import (
     set_resolver,
 )
 from oold.generator import Generator
+from oold.model.v1 import _types as oold_type_registry
 from oold.utils.codegen import OOLDJsonSchemaParser
 from opensemantic.v1 import OswBaseModel
 from pydantic import PydanticDeprecatedSince20
@@ -1234,6 +1235,10 @@ class OSW(BaseModel):
             entity = None
             schemas = []
             schemas_fetched = True
+            # maps a category (page title, e.g. "Category:OSW...") to the class
+            # to use for it, either an already registered class (e.g. a packaged
+            # model class) or a freshly compiled one
+            category_to_cls: Dict[str, Type[model.Entity]] = {}
             jsondata = page.get_slot_content("jsondata")
             if param.remove_empty:
                 remove_empty(jsondata)
@@ -1255,21 +1260,70 @@ class OSW(BaseModel):
                     # If a schema_to_use is provided, we do not need to check if the
                     #  model exists
                     if not param.model_to_use:
-                        if not hasattr(model, cls_name):
-                            if param.autofetch_schema:
-                                self.fetch_schema(
-                                    OSW.FetchSchemaParam(
-                                        schema_title=category,
-                                        mode="append",
-                                        offline_pages=param.offline_pages,
-                                    )
-                                )
-                        if not hasattr(model, cls_name):
-                            schemas_fetched = False
-                            print(
-                                f"Error: Model {cls_name} not found. Schema {category} "
-                                f"needs to be fetched first."
+                        # Prefer a class already registered for this category IRI
+                        # (e.g. a packaged model class) over compiling a new one.
+                        # Compiling one anyway would take over the oold type
+                        # registry entry for this category and hide the packaged
+                        # class' typed fields/helpers.
+                        registered_cls = oold_type_registry.get(category)
+                        # Controllers and result wrappers (e.g.
+                        #  WikiFileController, UploadFileResult) inherit their
+                        #  category IRI from the model class they extend, and
+                        #  the registry keeps whichever class was defined last.
+                        #  Such a specialization asks for fields a plain page's
+                        #  jsondata does not carry, so prefer the canonical
+                        #  class from osw.model.entity over a subclass of it.
+                        canonical_cls = getattr(model, cls_name, None)
+                        if (
+                            registered_cls is not None
+                            and canonical_cls is not None
+                            and registered_cls is not canonical_cls
+                            and issubclass(registered_cls, canonical_cls)
+                        ):
+                            _logger.debug(
+                                f"Ignoring '{registered_cls}' registered for "
+                                f"category '{category}': it specializes "
+                                f"'{canonical_cls}', which is used instead."
                             )
+                            registered_cls = None
+                        if registered_cls is not None:
+                            category_to_cls[category] = registered_cls
+                        else:
+                            if not hasattr(model, cls_name):
+                                if param.autofetch_schema:
+                                    self.fetch_schema(
+                                        OSW.FetchSchemaParam(
+                                            schema_title=category,
+                                            mode="append",
+                                            offline_pages=param.offline_pages,
+                                        )
+                                    )
+                            if not hasattr(model, cls_name):
+                                schemas_fetched = False
+                                print(
+                                    f"Error: Model {cls_name} not found. Schema "
+                                    f"{category} needs to be fetched first."
+                                )
+                            else:
+                                generated_cls = getattr(model, cls_name)
+                                # The class we are about to use may have just
+                                # claimed (or may already hold) the registry slot
+                                # for this category. If a different class is
+                                # registered for it, someone's registration was
+                                # silently overwritten - do not raise, but make
+                                # sure this does not pass silently.
+                                conflicting_cls = oold_type_registry.get(category)
+                                if (
+                                    conflicting_cls is not None
+                                    and conflicting_cls is not generated_cls
+                                ):
+                                    _logger.warning(
+                                        f"Class '{generated_cls}' generated for "
+                                        f"category '{category}' claims the oold "
+                                        f"type registry slot already held by a "
+                                        f"different class '{conflicting_cls}'."
+                                    )
+                                category_to_cls[category] = generated_cls
             if not schemas_fetched:
                 continue
 
@@ -1281,13 +1335,15 @@ class OSW(BaseModel):
                     _logger.error("Error: no schema defined")
 
                 elif len(schemas) == 1:
-                    cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
+                    # category_to_cls is fully populated for every category that
+                    # reached this point (see the loop above)
+                    cls: Type[model.Entity] = category_to_cls[jsondata["type"][0]]
                     entity: model.Entity = cls(**jsondata)
 
                 else:
                     bases = []
-                    for schema in schemas:
-                        bases.append(getattr(model, schema["title"]))
+                    for category in jsondata["type"]:
+                        bases.append(category_to_cls[category])
                     cls = create_model("Test", __base__=tuple(bases))
                     entity: model.Entity = cls(**jsondata)
             except Exception as e:

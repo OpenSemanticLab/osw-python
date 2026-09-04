@@ -10,6 +10,7 @@ These are fully offline: no network, no live wiki.
 from __future__ import annotations
 
 import asyncio
+import io
 
 import pytest
 import yaml
@@ -31,6 +32,8 @@ _ALL_VARS = [
     "OSW_READ_ONLY",
     "OSW_MCP_READ_ONLY",
     "OSW_MCP_ENV_FILE",
+    "OSW_VERBOSE",
+    "OSW_MCP_VERBOSE",
 ]
 
 
@@ -156,3 +159,39 @@ def test_create_server_does_not_auto_select_a_single_iri(monkeypatch, tmp_path):
 
     with pytest.raises(RuntimeError, match="No OSL instance configured"):
         server.create_server()
+
+
+def test_build_server_is_quiet_by_default(monkeypatch, capsys):
+    # The configuration source lines repeat what the MCP client's server entry
+    # already says, so a successful start says nothing without OSW_VERBOSE.
+    _configure(monkeypatch)
+
+    server.create_server()
+
+    assert "[osw]" not in capsys.readouterr().err
+
+
+def test_build_server_writes_the_report_into_the_given_buffer(monkeypatch, capsys):
+    _configure(monkeypatch)
+    buf = io.StringIO()
+
+    _mcp, ctx = server._build_server(buf)
+    ctx.close()
+
+    assert "[osw] credentials" in buf.getvalue()
+    assert capsys.readouterr().err == ""
+
+
+def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys):
+    # No OSW_DOMAIN: _build_server raises, and that is exactly when the
+    # configuration sources have to be visible, OSW_VERBOSE or not.
+    cred_file = _write_cred_file(tmp_path, ["wiki-a.example.org", "wiki-b.example.org"])
+    monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
+    config.reset()
+
+    with pytest.raises(SystemExit):
+        server.main()
+
+    err = capsys.readouterr().err
+    assert "[osw] " in err
+    assert "failed to start" in err

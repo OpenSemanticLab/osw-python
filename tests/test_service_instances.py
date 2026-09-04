@@ -28,6 +28,8 @@ _ALL_VARS = [
     "OSW_MCP_MAX_CHARS",
     "OSW_ENV_FILE",
     "OSW_MCP_ENV_FILE",
+    "OSW_VERBOSE",
+    "OSW_MCP_VERBOSE",
 ]
 
 

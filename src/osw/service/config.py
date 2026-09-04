@@ -39,6 +39,7 @@ ENV_STATE_DIR = ("OSW_STATE_DIR", "OSW_MCP_STATE_DIR")
 ENV_MAX_RESULTS = ("OSW_MAX_RESULTS", "OSW_MCP_MAX_RESULTS")
 ENV_MAX_CHARS = ("OSW_MAX_CHARS", "OSW_MCP_MAX_CHARS")
 ENV_FILE = ("OSW_ENV_FILE", "OSW_MCP_ENV_FILE")
+ENV_VERBOSE = ("OSW_VERBOSE", "OSW_MCP_VERBOSE")
 
 
 def _first_env(names: tuple[str, ...]) -> Optional[str]:
@@ -62,6 +63,7 @@ _ENV_BY_FIELD: dict[str, tuple[str, ...]] = {
     "state_dir": ENV_STATE_DIR,
     "max_results": ENV_MAX_RESULTS,
     "max_chars": ENV_MAX_CHARS,
+    "verbose": ENV_VERBOSE,
 }
 
 
@@ -100,6 +102,9 @@ class Settings(BaseModel):
     state_dir: Optional[str] = None
     max_results: int = Field(default=100, gt=0)
     max_chars: int = Field(default=100_000, gt=0)
+    # Only controls the startup configuration report. No tool or command
+    # reads it, and Settings.redacted() deliberately does not expose it.
+    verbose: bool = False
 
     @field_validator("domain")
     @classmethod
@@ -440,14 +445,16 @@ def log_config_sources(stream=None, verbose: bool = True) -> None:
     the CLI's failure path, which prints the env-file line (via
     :func:`log_env_file_source`) after this one has already run.
 
-    ``verbose`` defaults to ``True``, which keeps both lines and matches the
-    MCP server's behaviour (it never passes a value here). The CLI passes
+    ``verbose`` defaults to ``True``, which keeps both lines. The CLI passes
     ``verbose=False`` for a successful, non-verbose command, and prints the
     env-file line separately (via :func:`log_env_file_source`) on failure or
-    when the user passed ``--verbose``.
+    when the user passed ``--verbose``. The MCP server writes both lines to a
+    buffer instead of stderr and shows them only when ``OSW_VERBOSE`` is set
+    or the server fails to start.
 
-    Always writes to ``stderr``: under MCP ``stdout`` carries the JSON-RPC
-    stream, and under ``osw --json`` it carries the result payload.
+    Writes to ``stderr``, or to ``stream`` when one is given, and never to
+    ``stdout``: under MCP ``stdout`` carries the JSON-RPC stream, and under
+    ``osw --json`` it carries the result payload.
     """
     _load_env_file()
     # Every print below flushes: stderr is block-buffered whenever it is not a
@@ -638,6 +645,9 @@ def load(strict: bool = True) -> Settings:
     max_chars_raw = _first_env(ENV_MAX_CHARS)
     if max_chars_raw is not None and max_chars_raw.strip():
         kwargs["max_chars"] = max_chars_raw
+    verbose_raw = _first_env(ENV_VERBOSE)
+    if verbose_raw is not None and verbose_raw.strip():
+        kwargs["verbose"] = verbose_raw
 
     try:
         return Settings(**kwargs)

@@ -271,9 +271,15 @@ and `credentials` when none was:
 - `OSW_USERNAME/OSW_PASSWORD (from the env file)`
 - `not configured (set OSW_CRED_FILEPATH, or OSW_USERNAME/OSW_PASSWORD)`
 
-The second line is labelled `env file`. The MCP server prints both lines. The
-CLI prints the first only, adding the second with `--verbose` or when the
-command fails:
+The second line is labelled `env file`. Which lines appear depends on the
+adapter:
+
+- **CLI**: the first line only. `--verbose`, or a command that fails, adds
+  the second.
+- **MCP server**: neither, since its sources are fixed in the server entry.
+  `OSW_VERBOSE=true` prints both, and a failed start prints both regardless.
+
+A verbose run prints:
 
 ```text
 [osw] credential file: /home/me/project/accounts.pwd.yaml (accounts.pwd.yaml found in the working directory)
@@ -287,7 +293,7 @@ process only, and never written back to disk. Set either `OSW_USERNAME` and
 `OSW_PASSWORD`, or `OSW_CRED_FILEPATH`.
 
 A credential file uses the YAML format osw's `CredentialManager` reads, keyed
-by iri:
+by iri (default file name: `accounts.pwd.yaml`):
 
 ```yaml
 wiki-dev.open-semantic-lab.org:
@@ -317,6 +323,7 @@ set wins:
 | `OSW_STATE_DIR` | `OSW_MCP_STATE_DIR` | Where the provenance ledger is kept |
 | `OSW_MAX_RESULTS` | `OSW_MCP_MAX_RESULTS` | Default result cap (100) |
 | `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
+| `OSW_VERBOSE` | `OSW_MCP_VERBOSE` | `true` prints the configuration source report |
 
 ### Windows paths in a `.env` file
 

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import atexit
 import inspect
+import io
 import sys
-from typing import Any, Optional
+from typing import Any, Optional, TextIO
 
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
@@ -95,7 +96,7 @@ def tool_kwargs(op: Operation, settings: Settings) -> dict[str, Any]:
     }
 
 
-def _build_server() -> tuple[MCPServer, Context]:
+def _build_server(report: Optional[TextIO] = None) -> tuple[MCPServer, Context]:
     """Build the MCPServer and the Context its tools are bound to.
 
     Loads and validates settings first so a missing-credential misconfiguration
@@ -106,11 +107,16 @@ def _build_server() -> tuple[MCPServer, Context]:
     Deliberately stricter than :func:`config.get_active_domain`, which the CLI
     uses: there the instance is resolved per invocation and reported at
     startup, and ``--instance`` can override it per command.
+
+    ``report`` receives the configuration source lines instead of stderr, so
+    the caller decides whether to show them. With no ``report`` they are
+    discarded.
     """
     # Before get_settings(), so a misconfiguration that makes loading raise
-    # still reports which files were read. stderr, so it lands in the MCP
-    # client's server log without touching the JSON-RPC stream on stdout.
-    config.log_config_sources()
+    # still reports which files were read. Into `report` rather than stderr:
+    # these lines repeat the client's own server entry, so main() shows them
+    # only when asked or when the start fails.
+    config.log_config_sources(stream=report if report is not None else io.StringIO())
     settings = config.get_settings()
     domain = settings.domain
     if domain is None:
@@ -145,11 +151,19 @@ def create_server() -> MCPServer:
 
 def main() -> None:
     """Console-script entry point: build the server and serve over stdio."""
+    report = io.StringIO()
     try:
-        mcp, ctx = _build_server()
+        mcp, ctx = _build_server(report)
     except Exception as exc:
-        print(f"[osw-mcp] failed to start: {exc}", file=sys.stderr)
+        # A failed start is when the configuration sources matter most, so
+        # they are printed even with OSW_VERBOSE unset.
+        sys.stderr.write(report.getvalue())
+        print(f"[osw-mcp] failed to start: {exc}", file=sys.stderr, flush=True)
         raise SystemExit(1) from exc
+
+    if config.get_settings().verbose:
+        sys.stderr.write(report.getvalue())
+        sys.stderr.flush()
 
     atexit.register(ctx.close)
     try:

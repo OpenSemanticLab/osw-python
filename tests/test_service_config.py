@@ -31,6 +31,8 @@ _ALL_VARS = [
     "OSW_MCP_MAX_CHARS",
     "OSW_ENV_FILE",
     "OSW_MCP_ENV_FILE",
+    "OSW_VERBOSE",
+    "OSW_MCP_VERBOSE",
 ]
 
 
@@ -1010,6 +1012,26 @@ def test_blank_read_only_falls_back_to_default(monkeypatch):
     monkeypatch.setenv("OSW_PASSWORD", "secret")
     monkeypatch.setenv("OSW_READ_ONLY", "   ")
     assert config.load().read_only is False
+
+
+def test_verbose_defaults_to_false_and_is_set_by_the_env_variable(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    assert config.load().verbose is False
+
+    monkeypatch.setenv("OSW_VERBOSE", "true")
+    assert config.load().verbose is True
+
+
+def test_misspelled_verbose_raises(monkeypatch):
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_VERBOSE", "ture")
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_VERBOSE" in str(exc.value)
 
 
 def test_read_only_error_names_the_alias_that_was_set(monkeypatch):

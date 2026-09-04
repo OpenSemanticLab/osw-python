@@ -533,6 +533,21 @@ class WtSite:
         return wt.prefix_search(self._site, text)
 
     @try_and_renew_token
+    def content_search(self, text: Union[str, SearchParam]):
+        """Send a content (full-text) search request to the site.
+
+        Parameters
+        ----------
+        text
+            The search text or a SearchParam object
+
+        Returns
+        -------
+            A list of page titles
+        """
+        return wt.content_search(self._site, text)
+
+    @try_and_renew_token
     def semantic_search(self, query: Union[str, SearchParam]):
         """Send a swm ask query to the site.
 

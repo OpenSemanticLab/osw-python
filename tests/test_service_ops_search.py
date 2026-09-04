@@ -44,6 +44,19 @@ def test_search_titles_calls_prefix_search():
     osw.site.prefix_search.assert_called_once()
 
 
+def test_search_content_calls_content_search():
+    osw = MagicMock()
+    osw.site.content_search.return_value = ["Item:OSW1"]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = search.search_content(ctx, text="sensor")
+
+    assert result["titles"] == ["Item:OSW1"]
+    assert result["count"] == 1
+    assert result["truncated"] is False
+    osw.site.content_search.assert_called_once()
+
+
 def test_list_instances_of_category_calls_query_instances():
     osw = MagicMock()
     osw.query_instances.return_value = ["Item:OSW1", "Item:OSW2"]

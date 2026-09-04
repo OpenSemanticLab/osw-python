@@ -216,6 +216,70 @@ def prefix_search(
     #  return page_list  # original return
 
 
+def content_search(
+    site: mwclient.client.Site, text: Union[str, List[str], SearchParam]
+) -> Union[List[str], List[dict]]:
+    """Searches the content (wikitext) of pages. Equivalent to the following
+    mediawiki API call api.php?action=query&list=search&srsearch=Star Wars.
+
+    See https://www.mediawiki.org/wiki/API:Search for details.
+
+    Parameters
+    ----------
+    site :
+        Site object from mwclient lib
+    text :
+        Query text or instance of SearchParam
+
+    Returns
+    -------
+    result:
+        With ``return_json=False`` (default): a flat list of page titles. With
+        ``return_json=True``: a list of raw MediaWiki ``search`` API response
+        dicts, one per query (always a list, even for a single query).
+    """
+    if not isinstance(text, SearchParam):
+        query = SearchParam(query=text)
+    else:
+        query = text
+
+    def content_search_(single_text) -> Union[List[str], dict]:
+        page_list = list()
+        result = site.api(
+            "query",
+            list="search",
+            srsearch=single_text,
+            srlimit=query.limit,
+            format="json",
+        )
+        if query.debug and len(result["query"]["search"]) == 0:
+            print("No results")
+        if query.return_json:
+            return result
+
+        for page in result["query"]["search"]:
+            title = page["title"]
+            if query.debug:
+                print(title)
+            page_list.append(title)
+        return page_list
+
+    if query.parallel:
+        query_results = parallelize(
+            func=content_search_, iterable=query.query, flush_at_end=query.debug
+        )
+    else:
+        query_results = [content_search_(single_text=sq) for sq in query.query]
+
+    if query.return_json:
+        # Each entry of query_results is the raw API response dict for one query.
+        # Do not flatten dicts; always return the list of responses (one per query),
+        # even when only a single query was passed.
+        return query_results
+
+    return [item for sublist in query_results for item in sublist]
+
+
 def semantic_search(
     site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
 ) -> Union[List[str], List[dict]]:

@@ -1,4 +1,4 @@
-"""Search and query operations: semantic (SMW ask), titles, instances, SPARQL."""
+"""Search operations: semantic (SMW ask), titles, content, instances, SPARQL."""
 
 from __future__ import annotations
 
@@ -63,6 +63,7 @@ def search_titles(ctx: Context, text: str, limit: Optional[int] = None) -> dict:
     ``prefixsearch`` API. OSW pages are titled by OSW-ID, for example
     ``Item:OSW7ec...``, so an entity's name is not part of its title and
     cannot be found here. Use ``osw search ask`` to search by name.
+    Use ``osw search content`` to search the text of pages.
 
     Useful for the titles that are readable: categories, properties,
     templates and other schema pages.
@@ -73,6 +74,31 @@ def search_titles(ctx: Context, text: str, limit: Optional[int] = None) -> dict:
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.prefix_search(WtSite.SearchParam(query=text, limit=lim))
+    capped, total, truncated = cap_list(titles, lim)
+    return {"titles": capped, "count": total, "truncated": truncated}
+
+
+@operation(
+    group="search",
+    cli_name="content",
+    read_only_hint=True,
+    idempotent_hint=True,
+)
+def search_content(ctx: Context, text: str, limit: Optional[int] = None) -> dict:
+    """Search the text content of pages for ``text``.
+
+    Uses the MediaWiki ``search`` API, which reads page wikitext. On an OSW
+    instance an entity's data lives in JSON slots, so a value stored as
+    structured data may not be reachable here; ``osw search ask`` queries
+    that data directly and is the better tool for it.
+
+    Returns page titles, not the matching passages. ``limit`` defaults to
+    ``OSW_MAX_RESULTS`` (100 when that is unset). Returns
+    ``{titles, count, truncated}``, where ``titles`` are full page names
+    and ``count`` is how many the wiki returned.
+    """
+    lim = ctx.limit(limit)
+    titles = ctx.osw.site.content_search(WtSite.SearchParam(query=text, limit=lim))
     capped, total, truncated = cap_list(titles, lim)
     return {"titles": capped, "count": total, "truncated": truncated}
 

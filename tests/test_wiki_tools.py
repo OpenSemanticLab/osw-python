@@ -128,3 +128,42 @@ def test_prefix_search_returns_flat_list_of_titles():
 
     # return_json=False (the default) still yields a flat list of page titles
     assert out == ["Star Wars", "Star Trek"]
+
+
+def _search_result(*titles):
+    """Build a minimal MediaWiki ``search`` API result dict."""
+    return {
+        "batchcomplete": "",
+        "query": {
+            "search": [
+                {"ns": 0, "title": title, "pageid": idx}
+                for idx, title in enumerate(titles, start=1)
+            ]
+        },
+    }
+
+
+def test_content_search_returns_flat_list_of_titles():
+    result = _search_result("Star Wars", "Star Trek")
+    site = MagicMock()
+    site.api.return_value = result
+
+    out = wt.content_search(site, "Star")
+
+    # return_json=False (the default) still yields a flat list of page titles
+    assert out == ["Star Wars", "Star Trek"]
+
+
+def test_content_search_calls_the_search_api():
+    site = MagicMock()
+    site.api.return_value = _search_result("Star Wars", "Star Trek")
+
+    wt.content_search(site, wt.SearchParam(query="Star", limit=7))
+
+    # Pin the API contract: the content search must use list=search with its
+    # sr* parameters, not list=prefixsearch
+    args, kwargs = site.api.call_args
+    assert args == ("query",)
+    assert kwargs["list"] == "search"
+    assert kwargs["srsearch"] == "Star"
+    assert kwargs["srlimit"] == 7

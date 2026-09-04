@@ -63,7 +63,7 @@ Commands are grouped by subject:
 | --- | --- |
 | `entity` | `get`, `put`, `export`, `delete` |
 | `file` | `info`, `cat`, `write`, `download`, `upload` |
-| `search` | `ask`, `text`, `instances`, `sparql` |
+| `search` | `ask`, `titles`, `content`, `instances`, `sparql` |
 | `slot` | `list`, `get`, `set` |
 | `schema` | `get` |
 | `instance` | `list` |

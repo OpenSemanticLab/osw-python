@@ -33,10 +33,14 @@ def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -
       [[Category:Item]][[Keyword::sensor]]
       [[Category:Item]][[HasName::~*sensor*]]
 
-    ``~`` starts a wildcard comparison and ``*`` matches any text. Which
-    property holds the name depends on the instance's schema: ``HasName``,
-    ``Display_title_of`` and ``HasLabel`` are the usual candidates. Read the
-    category schema (``osw schema get``) if a name query returns nothing.
+    ``~`` starts a wildcard comparison and ``*`` matches any text.
+
+    Which property holds a name depends on the schema. The shipped base
+    schema maps the JSON field ``label`` to ``Property:HasLabel`` and
+    ``name`` to ``Property:HasName``, and stored queries read the displayed
+    label as ``Display_title_of``. A category declares this mapping in the
+    ``@context`` of its schema, so read it with ``osw schema get`` when a
+    name query returns nothing.
 
     ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
     Returns ``{titles, count, truncated}``, where ``titles`` are full page
@@ -52,7 +56,7 @@ def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -
 
 @operation(
     group="search",
-    cli_name="text",
+    cli_name="titles",
     read_only_hint=True,
     idempotent_hint=True,
 )
@@ -88,9 +92,9 @@ def search_content(ctx: Context, text: str, limit: Optional[int] = None) -> dict
     """Search the text content of pages for ``text``.
 
     Uses the MediaWiki ``search`` API, which reads page wikitext. On an OSW
-    instance an entity's data lives in JSON slots, so a value stored as
-    structured data may not be reachable here; ``osw search ask`` queries
-    that data directly and is the better tool for it.
+    instance an entity's values live in its ``jsondata`` slot, not in the
+    wikitext, so a stored value may not be reachable here; ``osw search ask``
+    queries that data directly and is the better tool for it.
 
     Returns page titles, not the matching passages. ``limit`` defaults to
     ``OSW_MAX_RESULTS`` (100 when that is unset). Returns

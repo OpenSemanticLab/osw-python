@@ -534,7 +534,7 @@ class WtSite:
 
     @try_and_renew_token
     def content_search(self, text: Union[str, SearchParam]):
-        """Send a content (full-text) search request to the site.
+        """Send a search request for the text content of pages to the site.
 
         Parameters
         ----------

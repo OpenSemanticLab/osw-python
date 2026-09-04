@@ -77,10 +77,15 @@ def runner():
 
 
 def _error_lines(stderr: str) -> list[str]:
-    """``stderr`` minus the ``[osw]`` config banner every command prints."""
+    """``stderr`` minus the ``[osw]`` configuration lines."""
     return [
         line for line in stderr.strip().splitlines() if not line.startswith("[osw] ")
     ]
+
+
+def _banner_lines(stderr: str) -> list[str]:
+    """The ``[osw]`` configuration lines of ``stderr``, in the order printed."""
+    return [line for line in stderr.strip().splitlines() if line.startswith("[osw] ")]
 
 
 def _fake_osw_with_page(exists=True):
@@ -424,6 +429,48 @@ def test_instance_flag_unknown_iri_exits_cleanly(runner, monkeypatch, tmp_path):
     result = runner.invoke(app, ["--instance", "nope.example.org", "instance", "list"])
 
     assert result.exit_code == 3  # UnknownInstance
-    assert result.stderr.strip().startswith("UnknownInstance:")
+    assert _error_lines(result.stderr)[0].startswith("UnknownInstance:")
     assert "wiki-a.example.org" in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def test_successful_command_reports_only_the_credential_source(
+    runner, configured_env, monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)  # no accounts.pwd.yaml to discover
+
+    result = runner.invoke(app, ["instance", "list"])
+
+    assert result.exit_code == 0, result.stderr
+    lines = _banner_lines(result.stderr)
+    assert len(lines) == 1
+    assert lines[0].startswith("[osw] credentials    :")
+
+
+def test_verbose_adds_the_env_file_line(runner, configured_env, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["--verbose", "instance", "list"])
+
+    assert result.exit_code == 0, result.stderr
+    lines = _banner_lines(result.stderr)
+    assert len(lines) == 2
+    assert lines[0].startswith("[osw] credentials    :")
+    assert lines[1].startswith("[osw] env file       :")
+
+
+def test_failing_command_reports_every_source_without_verbose(
+    runner, monkeypatch, tmp_path
+):
+    # No credentials at all, so the command fails inside the operation.
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["instance", "list"])
+
+    assert result.exit_code == 1
+    lines = _banner_lines(result.stderr)
+    assert len(lines) == 2
+    assert lines[0].startswith("[osw] credentials    :")
+    assert lines[1].startswith("[osw] env file       :")
+    # The stdio-hang rationale belongs to the MCP server, not to the CLI.
+    assert "stdio transport" not in result.stderr

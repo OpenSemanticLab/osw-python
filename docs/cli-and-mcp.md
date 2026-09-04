@@ -78,7 +78,9 @@ Global options apply to every command:
 - `--json` / `-j` writes machine-readable JSON to stdout and keeps osw's own
   progress output on stderr, so it pipes cleanly into `jq`.
 - `--read-only` refuses write operations.
-- `--verbose` / `-v` shows full tracebacks instead of a one-line message.
+- `--verbose` / `-v` shows full tracebacks instead of a one-line message, and
+  adds the env-file line to the source report described under
+  [Where settings come from](#where-settings-come-from).
 
 Failures exit non-zero with a short message on stderr and no traceback.
 
@@ -253,12 +255,28 @@ these forms:
 - `(accounts.pwd.yaml found in the working directory)`
 - `(accounts.pwd.yaml found in the working directory, ignored: no entry for domain '<domain>')`, when the discovered file is rejected for the reason given in step 2 above.
 
+Those four forms all belong to a line labelled `credential file`. When no
+credential file is used at all, the line is labelled `credentials` instead and
+takes one of these forms:
+
+- `OSW_USERNAME/OSW_PASSWORD (from the environment)`
+- `OSW_USERNAME/OSW_PASSWORD (from the env file)`
+- `not configured (set OSW_CRED_FILEPATH, or OSW_USERNAME/OSW_PASSWORD)`
+
+The MCP server always prints both lines, the credential one first, then the
+env-file one. The CLI prints one line by default, naming where the
+credential came from. Pass `--verbose` to also print the env-file line. A
+failing command prints both lines regardless of `--verbose`, so a report
+still names every source that was checked.
+
 For example, a verbose CLI run or the MCP server prints:
 
 ```text
 [osw] credential file: /home/me/project/accounts.pwd.yaml (accounts.pwd.yaml found in the working directory)
 [osw] env file       : /home/me/project/.env (found from the working directory upward)
 ```
+
+A non-verbose, successful CLI run prints only the first of those two lines.
 
 ### Credentials
 

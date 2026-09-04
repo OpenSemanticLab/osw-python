@@ -819,6 +819,108 @@ def test_log_config_sources_reports_cred_file_from_environment(
     assert "from the OSW_CRED_FILEPATH environment variable" in captured.err
 
 
+def test_log_config_sources_verbose_false_prints_only_credential_line(
+    monkeypatch, capsys
+):
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+
+    config.log_config_sources(verbose=False)
+
+    captured = capsys.readouterr()
+    lines = captured.err.splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("[osw] credentials    :")
+
+
+def test_log_config_sources_verbose_true_prints_both_lines_credential_first(
+    monkeypatch, capsys
+):
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    lines = captured.err.splitlines()
+    assert len(lines) == 2
+    assert lines[0].startswith("[osw] credentials    :")
+    assert lines[1].startswith("[osw] env file       :")
+
+
+def test_log_config_sources_reports_username_password_from_env_file(
+    monkeypatch, tmp_path, capsys
+):
+    env = tmp_path / "creds.env"
+    env.write_text("OSW_USERNAME=alice\nOSW_PASSWORD=secret\n", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "OSW_USERNAME/OSW_PASSWORD (from the env file)" in captured.err
+
+
+def test_log_config_sources_reports_username_password_from_environment(
+    monkeypatch, capsys
+):
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "OSW_USERNAME/OSW_PASSWORD (from the environment)" in captured.err
+
+
+def test_log_config_sources_reports_credentials_not_configured(monkeypatch, capsys):
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert (
+        "not configured (set OSW_CRED_FILEPATH, or OSW_USERNAME/OSW_PASSWORD)"
+        in captured.err
+    )
+
+
+def test_log_env_file_source_prints_only_env_file_line(monkeypatch, tmp_path, capsys):
+    env = tmp_path / "creds.env"
+    env.write_text("", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+    config._load_env_file()
+
+    config.log_env_file_source()
+
+    captured = capsys.readouterr()
+    lines = captured.err.splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("[osw] env file       :")
+    assert str(env) in lines[0]
+
+
+def test_missing_credentials_message_has_stdio_hint_when_discovery_disabled(
+    monkeypatch,
+):
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "stdio transport" in str(exc.value)
+
+
+def test_missing_credentials_message_omits_stdio_hint_when_discovery_enabled(
+    monkeypatch, tmp_path
+):
+    # chdir away from the repo root: it has its own accounts.pwd.yaml for local
+    # dev, which discovery would otherwise pick up and satisfy the check with.
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "stdio transport" not in str(exc.value)
+
+
 # -- Settings validation (pydantic) ------------------------------------------
 
 

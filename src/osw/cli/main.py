@@ -117,6 +117,13 @@ def _run(op: Operation, typer_ctx: typer.Context, kwargs: dict[str, Any]) -> Non
             kwargs["content"] = json_value(content)
 
     try:
+        verbose = bool(opts.get("verbose"))
+        # Before anything that can fail, so every error still reports which
+        # files were read. --instance is validated against the credential file
+        # this names, so the banner belongs above that check too. The env-file
+        # line is suppressed unless the command is verbose or fails.
+        config.log_config_sources(verbose=verbose)
+
         instance = opts.get("instance")
         if instance:
             try:
@@ -124,9 +131,6 @@ def _run(op: Operation, typer_ctx: typer.Context, kwargs: dict[str, Any]) -> Non
             except ValueError as exc:
                 raise errors.UnknownInstance(str(exc)) from exc
 
-        # Before load(), so a misconfiguration that makes loading raise still
-        # reports which files were read.
-        config.log_config_sources()
         settings = config.load(strict=False)
         policy = Policy(
             capture_stdout=bool(opts.get("as_json")),
@@ -138,11 +142,15 @@ def _run(op: Operation, typer_ctx: typer.Context, kwargs: dict[str, Any]) -> Non
         bound = bind(op, context)
         result = bound(**kwargs)
     except OpError as exc:
+        if not verbose:
+            config.log_env_file_source()
         typer.echo(f"{exc.type}: {exc}", err=True)
         raise typer.Exit(exc.exit_code)
     except Exception as exc:
         if opts.get("verbose"):
             raise
+        # A failing command still reports every source, even non-verbosely.
+        config.log_env_file_source()
         typer.echo(f"{type(exc).__name__}: {exc}", err=True)
         raise typer.Exit(1)
 

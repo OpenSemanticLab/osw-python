@@ -415,26 +415,45 @@ def _resolve_cred_file() -> Optional[str]:
     return None
 
 
-def log_config_sources(stream=None) -> None:
-    """Print where configuration was read from, one line per source.
+def _describe_env_file() -> str:
+    """Describe where the ``.env`` file came from, for the startup banner."""
+    return {
+        "explicit": f"{_env_file_path} (from {ENV_FILE[0]})",
+        "discovered": f"{_env_file_path} (found from the working directory upward)",
+        "none": "none found (searched from the working directory upward)",
+        "not searched": f"not configured (set {ENV_FILE[0]} to use one)",
+    }[_env_file_origin]
+
+
+def log_config_sources(stream=None, verbose: bool = True) -> None:
+    """Print where configuration was read from, to stderr.
 
     Loads the ``.env`` file first if that has not happened yet, and reads the
     environment directly rather than a ``Settings``. Both so this can run
     *before* settings are loaded: a misconfiguration makes loading raise, and
     that is exactly when knowing which files were read matters most.
 
+    The credential line is printed first, since it is the one line that
+    still appears when ``verbose`` is ``False``; the env-file line is then
+    printed after it, only when ``verbose`` is ``True``. This keeps the two
+    lines in the same relative order regardless of ``verbose``, including in
+    the CLI's failure path, which prints the env-file line (via
+    :func:`log_env_file_source`) after this one has already run.
+
+    ``verbose`` defaults to ``True``, which keeps both lines and matches the
+    MCP server's behaviour (it never passes a value here). The CLI passes
+    ``verbose=False`` for a successful, non-verbose command, and prints the
+    env-file line separately (via :func:`log_env_file_source`) on failure or
+    when the user passed ``--verbose``.
+
     Always writes to ``stderr``: under MCP ``stdout`` carries the JSON-RPC
     stream, and under ``osw --json`` it carries the result payload.
     """
     _load_env_file()
+    # Every print below flushes: stderr is block-buffered whenever it is not a
+    # terminal (a pipe, a file, or a test runner's capture buffer), and these
+    # lines must appear before the command's own output and before any error.
     out = sys.stderr if stream is None else stream
-    described = {
-        "explicit": f"{_env_file_path} (from {ENV_FILE[0]})",
-        "discovered": f"{_env_file_path} (found from the working directory upward)",
-        "none": "none found (searched from the working directory upward)",
-        "not searched": f"not configured (set {ENV_FILE[0]} to use one)",
-    }[_env_file_origin]
-    print(f"[osw] env file       : {described}", file=out)
     _resolve_cred_file()
     if _cred_file_path:
         cred_described = {
@@ -446,7 +465,42 @@ def log_config_sources(stream=None) -> None:
                 f"ignored: no entry for domain '{_first_env(ENV_DOMAIN)}')"
             ),
         }[_cred_file_origin]
-        print(f"[osw] credential file: {_cred_file_path} {cred_described}", file=out)
+        print(
+            f"[osw] credential file: {_cred_file_path} {cred_described}",
+            file=out,
+            flush=True,
+        )
+    else:
+        username = _first_env(ENV_USERNAME)
+        password = _first_env(ENV_PASSWORD)
+        if username or password:
+            username_name = next((n for n in ENV_USERNAME if os.getenv(n)), None)
+            password_name = next((n for n in ENV_PASSWORD if os.getenv(n)), None)
+            from_env_file = (
+                username_name in _env_file_supplied
+                or password_name in _env_file_supplied
+            )
+            source = "from the env file" if from_env_file else "from the environment"
+            cred_described = f"OSW_USERNAME/OSW_PASSWORD ({source})"
+        else:
+            cred_described = (
+                "not configured (set OSW_CRED_FILEPATH, or OSW_USERNAME/OSW_PASSWORD)"
+            )
+        print(f"[osw] credentials    : {cred_described}", file=out, flush=True)
+    if verbose:
+        print(f"[osw] env file       : {_describe_env_file()}", file=out, flush=True)
+
+
+def log_env_file_source(stream=None) -> None:
+    """Print only the env-file line, for the CLI's failure path.
+
+    Does *not* call :func:`_load_env_file`, so it is safe to call after
+    :func:`load` has already raised: prints the line that
+    ``log_config_sources(verbose=False)`` suppressed, using whatever
+    ``_env_file_origin`` that earlier call already recorded.
+    """
+    out = sys.stderr if stream is None else stream
+    print(f"[osw] env file       : {_describe_env_file()}", file=out, flush=True)
 
 
 def load(strict: bool = True) -> Settings:
@@ -542,15 +596,24 @@ def load(strict: bool = True) -> Settings:
             )
         else:
             fallback_hint = ""
+        # The stdio-hang rationale only applies to the MCP server: a CLI user
+        # is not running a stdio server, so it would only confuse them.
+        stdio_hint = (
+            ""
+            if _discover_env_file
+            else (
+                " The server refuses to start without them to avoid an "
+                "interactive credential prompt that would hang the stdio "
+                "transport."
+            )
+        )
         raise RuntimeError(
             "Missing required OSW credential environment variables: "
             + ", ".join(missing)
             + ". Set them in your environment or a .env file "
             "(pointed to by OSW_ENV_FILE / OSW_MCP_ENV_FILE), or configure a "
             "credential file via OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH "
-            "/ OSL_CRED_FILEPATH aliases)." + fallback_hint + " The server "
-            "refuses to start without them to avoid an interactive credential "
-            "prompt that would hang the stdio transport."
+            "/ OSL_CRED_FILEPATH aliases)." + fallback_hint + stdio_hint
         )
 
     kwargs: dict = dict(

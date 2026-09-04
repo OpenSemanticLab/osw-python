@@ -1266,6 +1266,26 @@ class OSW(BaseModel):
                         # registry entry for this category and hide the packaged
                         # class' typed fields/helpers.
                         registered_cls = oold_type_registry.get(category)
+                        # Controllers and result wrappers (e.g.
+                        #  WikiFileController, UploadFileResult) inherit their
+                        #  category IRI from the model class they extend, and
+                        #  the registry keeps whichever class was defined last.
+                        #  Such a specialization asks for fields a plain page's
+                        #  jsondata does not carry, so prefer the canonical
+                        #  class from osw.model.entity over a subclass of it.
+                        canonical_cls = getattr(model, cls_name, None)
+                        if (
+                            registered_cls is not None
+                            and canonical_cls is not None
+                            and registered_cls is not canonical_cls
+                            and issubclass(registered_cls, canonical_cls)
+                        ):
+                            _logger.debug(
+                                f"Ignoring '{registered_cls}' registered for "
+                                f"category '{category}': it specializes "
+                                f"'{canonical_cls}', which is used instead."
+                            )
+                            registered_cls = None
                         if registered_cls is not None:
                             category_to_cls[category] = registered_cls
                         else:

@@ -171,6 +171,59 @@ def test_load_entity_falls_back_to_generated_class_when_nothing_registered():
         delattr(model, cls_name)
 
 
+def test_load_entity_ignores_a_registered_subclass_of_the_model_class():
+    """osw's own controllers and result wrappers (WikiFileController,
+    UploadFileResult, ...) inherit the category IRI of the model class they
+    extend, and oold's registry keeps whichever class was defined last. Such a
+    specialization needs fields a plain page does not carry, so load_entity()
+    must fall back to the canonical class in osw.model.entity.
+    """
+    category = "Category:OSWSubclassTest000000000000000000000000"
+    cls_name = "SubclassTestBase"
+
+    base_cls = make_isolated_cls(cls_name)
+    # a controller-like specialization that additionally requires a field the
+    # page's jsondata does not provide, mirroring UploadFileResult.source
+    specialized_cls = type(base_cls)(
+        "SubclassTestController",
+        (base_cls,),
+        {"__annotations__": {"source": str}, "__qualname__": "SubclassTestController"},
+    )
+    setattr(model, cls_name, base_cls)
+    oold_type_registry[category] = specialized_cls
+    try:
+        entity_page = OfflineWtPage(
+            title="Item:OSWSubclassEntity0000000000000000000000000"
+        )
+        jsondata = {
+            "type": [category],
+            "uuid": "22222222-2222-2222-2222-222222222222",
+            "name": "x",
+            "label": [{"text": "x"}],
+        }
+        remove_empty(jsondata)
+        entity_page.set_slot_content("jsondata", jsondata)
+        schema_page = make_schema_page(category, cls_name)
+
+        osw_obj = OSW(site=make_offline_wtsite())
+
+        result = osw_obj.load_entity(
+            OSW.LoadEntityParam(
+                titles=[entity_page.title],
+                autofetch_schema=True,
+                offline_pages={
+                    entity_page.title: entity_page,
+                    category: schema_page,
+                },
+            )
+        )
+
+        assert type(result.entities[0]) is base_cls
+    finally:
+        delattr(model, cls_name)
+        oold_type_registry.pop(category, None)
+
+
 def test_load_entity_warns_on_registry_conflict(monkeypatch, caplog):
     """If the class about to be used for a category differs from whatever is
     now registered for that IRI, load_entity() logs a warning instead of

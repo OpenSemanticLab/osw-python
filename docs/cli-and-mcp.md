@@ -88,7 +88,7 @@ Failures exit non-zero with a short message on stderr and no traceback.
 
 `osw[mcp]` ships an [MCP](https://modelcontextprotocol.io) server that exposes a
 live OpenSemanticLab instance to MCP clients such as Claude Code. It wraps
-`OswExpress` and provides tools to search (semantic / SPARQL / full-text),
+`OswExpress` and provides tools to search (semantic / SPARQL / page titles),
 introspect category schemas, read entities and every page slot, create/update
 and delete entities, and read and write file pages as text. The transport is
 stdio; SSE and HTTP are not supported.

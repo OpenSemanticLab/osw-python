@@ -189,7 +189,8 @@ _GROUP_HELP = {
     "instance": "Inspect the OSL instances this process can connect to.",
     "ledger": "The local provenance ledger of pages written from here.",
     "schema": "Category JSON Schemas.",
-    "search": "Query the instance: semantic, full-text or SPARQL.",
+    "search": "Find pages. OSW pages are titled by OSW-ID, so use 'ask' "
+    "to search by name.",
     "slot": "Read and write individual page slots.",
 }
 

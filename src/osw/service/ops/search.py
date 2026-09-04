@@ -1,4 +1,4 @@
-"""Search and query operations: semantic (SMW ask), full-text, instances, SPARQL."""
+"""Search and query operations: semantic (SMW ask), titles, instances, SPARQL."""
 
 from __future__ import annotations
 
@@ -22,8 +22,25 @@ from osw.wtsite import WtSite
 def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -> dict:
     """Run a Semantic MediaWiki 'ask' query and return matching page titles.
 
-    The query uses SMW ask syntax, e.g. ``[[Category:Item]]`` or
-    ``[[Category:Item]][[Keyword::sensor]]``. Returns full page titles.
+    This is the only search that can find an entity by a property value, such
+    as its name. OSW pages are titled by OSW-ID, for example
+    ``Item:OSW7ec...``, so searching titles for a name finds nothing.
+
+    The query uses SMW ask syntax. Examples:
+
+    \b
+      [[Category:Item]]
+      [[Category:Item]][[Keyword::sensor]]
+      [[Category:Item]][[HasName::~*sensor*]]
+
+    ``~`` starts a wildcard comparison and ``*`` matches any text. Which
+    property holds the name depends on the instance's schema: ``HasName``,
+    ``Display_title_of`` and ``HasLabel`` are the usual candidates. Read the
+    category schema (``osw schema get``) if a name query returns nothing.
+
+    ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
+    Returns ``{titles, count, truncated}``, where ``titles`` are full page
+    names and ``count`` is how many the wiki returned.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.semantic_search(
@@ -39,8 +56,21 @@ def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -
     read_only_hint=True,
     idempotent_hint=True,
 )
-def full_text_search(ctx: Context, text: str, limit: Optional[int] = None) -> dict:
-    """Prefix/full-text search for pages whose title matches ``text``."""
+def search_titles(ctx: Context, text: str, limit: Optional[int] = None) -> dict:
+    """Search page titles by prefix. This does not search page content.
+
+    Matches pages whose title starts with ``text``, via the MediaWiki
+    ``prefixsearch`` API. OSW pages are titled by OSW-ID, for example
+    ``Item:OSW7ec...``, so an entity's name is not part of its title and
+    cannot be found here. Use ``osw search ask`` to search by name.
+
+    Useful for the titles that are readable: categories, properties,
+    templates and other schema pages.
+
+    ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
+    Returns ``{titles, count, truncated}``, where ``titles`` are full page
+    names and ``count`` is how many the wiki returned.
+    """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.prefix_search(WtSite.SearchParam(query=text, limit=lim))
     capped, total, truncated = cap_list(titles, lim)
@@ -58,7 +88,14 @@ def list_instances_of_category(
 ) -> dict:
     """List full page titles of all instances of a category.
 
-    ``category`` is a full category page name, e.g. ``Category:Item``.
+    ``category`` is a full category page name, e.g. ``Category:Item`` or
+    ``Category:OSW...``. This runs the ask query
+    ``[[HasType::Category:<category>]]``, so it lists the pages that declare
+    this exact category as their type.
+
+    ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
+    Returns ``{titles, count, truncated}``, where ``titles`` are full page
+    names and ``count`` is how many the wiki returned.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.query_instances(
@@ -82,7 +119,14 @@ def sparql_query(
     """Run a raw SPARQL query against the instance's SPARQL endpoint.
 
     The endpoint defaults to ``OSW_SPARQL_ENDPOINT``; pass ``endpoint`` to
-    override. Returns ``{vars, bindings, count, truncated}``.
+    override. If neither is set the command fails.
+
+    ``limit`` caps the returned bindings and defaults to 500. It is applied
+    to the response, not added to the query, so a large query still costs the
+    endpoint its full work.
+
+    Returns ``{vars, bindings, count, truncated}``, where ``count`` is how
+    many bindings the endpoint returned.
     """
     ep = endpoint or ctx.settings.sparql_endpoint
     if not ep:

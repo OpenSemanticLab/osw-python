@@ -31,12 +31,12 @@ def test_search_entities_calls_semantic_search():
     osw.site.semantic_search.assert_called_once()
 
 
-def test_full_text_search_calls_prefix_search():
+def test_search_titles_calls_prefix_search():
     osw = MagicMock()
     osw.site.prefix_search.return_value = ["Item:OSW1"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.full_text_search(ctx, text="OSW")
+    result = search.search_titles(ctx, text="OSW")
 
     assert result["titles"] == ["Item:OSW1"]
     assert result["count"] == 1

@@ -104,6 +104,34 @@ instance for its whole lifetime; there is no tool to switch at runtime.
 `.env` file that entry names. Without it the server refuses to start rather than
 register tools that would all fail.
 
+### Quick install
+
+For Claude Code, one command registers the server. Replace the domain and the
+credential file path with your own:
+
+```bash
+claude mcp add osw \
+  -e OSW_DOMAIN=wiki-dev.open-semantic-lab.org \
+  -e OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml \
+  -- uvx --from "osw[mcp]" osw-mcp
+```
+
+Quote `osw[mcp]`, otherwise the shell tries to expand the square brackets. On
+Windows, write the path with forward slashes.
+
+Everything after `--` is the command Claude Code runs. `uvx` downloads and
+starts the server without installing it first. If osw is already installed in
+an environment, use that environment's `osw-mcp` instead of the `uvx` line.
+
+The entry is written for the current project only. Pass `-s user` to make it
+available in every project, or `-s project` to write it to a `.mcp.json` that
+is committed with the repository. With `-s project`, keep to `OSW_CRED_FILEPATH`
+and never put `OSW_PASSWORD` in the `env` block.
+
+Check the result with `claude mcp list` or `claude mcp get osw`, and remove the
+entry again with `claude mcp remove osw`. The next section explains what the
+entry contains, and how to point it at a `.env` file instead.
+
 ### Registering a server
 
 A server entry can carry its settings in two ways:

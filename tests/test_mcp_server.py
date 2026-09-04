@@ -182,6 +182,34 @@ def test_build_server_writes_the_report_into_the_given_buffer(monkeypatch, capsy
     assert capsys.readouterr().err == ""
 
 
+def _serve_without_blocking(monkeypatch) -> None:
+    """Let main() return: no stdio loop, and no atexit handler left behind."""
+    monkeypatch.setattr(server.MCPServer, "run", lambda self, **kwargs: None)
+    monkeypatch.setattr(server.atexit, "register", lambda func: func)
+
+
+def test_main_is_quiet_on_a_successful_start(monkeypatch, capsys):
+    _configure(monkeypatch)
+    _serve_without_blocking(monkeypatch)
+
+    server.main()
+
+    assert "[osw]" not in capsys.readouterr().err
+
+
+def test_main_prints_the_report_when_osw_verbose_is_set(monkeypatch, capsys):
+    _configure(monkeypatch)
+    monkeypatch.setenv("OSW_VERBOSE", "true")
+    config.reset()
+    _serve_without_blocking(monkeypatch)
+
+    server.main()
+
+    err = capsys.readouterr().err
+    assert "[osw] credentials" in err
+    assert "[osw] env file" in err
+
+
 def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys):
     # No OSW_DOMAIN: _build_server raises, and that is exactly when the
     # configuration sources have to be visible, OSW_VERBOSE or not.

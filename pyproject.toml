@@ -47,6 +47,9 @@ dependencies = [
     "dask",
     "tqdm",
     "pybars3-wheel",
+    # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
+    # install osw` never ships a broken `osw` console script
+    "typer",
 ]
 
 [project.urls]
@@ -69,6 +72,13 @@ dataimport = [
     "openpyxl",
 ]
 UI = ["pysimplegui"]
+mcp = [
+    # official MCP Python SDK; provides MCPServer from mcp.server.
+    # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.
+    "mcp>=2",
+    # .env loading for the stdio server (OSW_DOMAIN/OSW_USERNAME/OSW_PASSWORD)
+    "python-dotenv>=1.0",
+]
 workflow = [
     "prefect>=2.20.25,<3.0",
     # prefect 2.20.25 is the final 2.x release (no backports). Its
@@ -81,7 +91,14 @@ workflow = [
     "anyio>=4.9,<4.14",
 ]
 tutorial = ["osw[dataimport]"]
-all = ["osw[dataimport,DB,UI,S3,wikitext]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
+
+[project.scripts]
+# command-line access to a live OSL instance, built from the same
+# osw.service.registry the MCP server uses
+osw = "osw.cli.main:app"
+# stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude Code)
+osw-mcp = "osw.mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -95,8 +112,10 @@ dev = [
     "pytest-mock",
     "pytest-asyncio",
     # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
-    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
-    "osw[workflow]",
+    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests.
+    # mcp is included so the MCP server and its tests run in the same
+    # environment as everything else.
+    "osw[workflow,mcp]",
     "geopy",
     "deepl",
     "sqlalchemy",
@@ -302,6 +321,9 @@ python-version = "3.10"
 #  - src/osw/model/entity.py: generated (datamodel-code-generator) models
 #  - examples, scripts: illustrative/maintenance code, not part of the package
 #  - tests: not yet type-clean, tightened in a follow-up
+#
+# src/osw/mcp, src/osw/service and src/osw/cli are checked: the mcp extra is
+# part of the dev group, so the SDK imports resolve.
 exclude = [
     "src/osw/model/entity.py",
     "examples",
@@ -340,11 +362,14 @@ opensemantic-core = "opensemantic"
 opensemantic-base = "opensemantic"
 pybars3-wheel = "pybars"
 "backports.strenum" = "backports"
-# extras packages not installed in the dev env, mapped explicitly so
-# deptry does not have to guess ("Assuming ..." warnings)
+# extras packages whose import name deptry would otherwise have to guess
+# ("Assuming ..." warnings)
 psycopg2 = "psycopg2"
 openpyxl = "openpyxl"
 pysimplegui = "PySimpleGUI"
+mcp = "mcp"
+# python-dotenv imports as `dotenv`
+python-dotenv = "dotenv"
 
 [tool.deptry.per_rule_ignores]
 # DEP002: declared but not imported anywhere in src

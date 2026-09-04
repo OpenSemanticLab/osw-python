@@ -30,6 +30,7 @@
 | `osw[S3]` | Interact with S3 stores per S3FileController |
 | `osw[dataimport]` | Additional tools to import data |
 | `osw[UI]` | To use a helper UI to work with entity slots |
+| `osw[mcp]` | [MCP server](cli-and-mcp.md#mcp-server) for agent clients |
 | `osw[all]` | All of the above |
 
 Install multiple extras with `pip install osw[opt1,opt2]`.

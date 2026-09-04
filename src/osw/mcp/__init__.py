@@ -5,7 +5,7 @@ Context Protocol (stdio) so MCP clients such as Claude Code can search, read,
 write and manage entities, page slots and files on a live OSL instance.
 
 ``main`` is imported lazily so ``import osw.mcp`` does not require the optional
-``mcp`` / ``python-dotenv`` dependencies unless the server is actually started.
+``mcp`` dependency unless the server is actually started.
 """
 
 from __future__ import annotations

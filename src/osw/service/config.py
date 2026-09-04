@@ -264,7 +264,8 @@ def set_env_file_discovery(enabled: bool) -> None:
 def _load_env_file() -> None:
     """Load a .env file if one is configured or (when enabled) discoverable.
 
-    dotenv is optional (it ships with the ``mcp`` extra). An *explicitly*
+    dotenv is a base dependency, so it is normally present. It is still
+    imported defensively, for an environment that stripped it: an *explicitly*
     configured env file with dotenv missing is an error, because the operator
     asked for something that cannot happen. An implicit search is skipped
     silently.
@@ -286,7 +287,7 @@ def _load_env_file() -> None:
         name = next((n for n in ENV_FILE if os.getenv(n) == path), ENV_FILE[0])
         raise RuntimeError(
             f"{name} is set (to '{path}') but python-dotenv is not installed. "
-            "Install the osw[mcp] extra to use an env file."
+            "Install python-dotenv (a dependency of osw) to use an env file."
         )
     if path:
         dotenv.load_dotenv(path)

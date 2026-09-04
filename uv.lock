@@ -2087,6 +2087,7 @@ dependencies = [
     { name = "pybars3-wheel" },
     { name = "pydantic", extra = ["email"] },
     { name = "pyld" },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "rdflib" },
     { name = "requests" },
@@ -2106,7 +2107,6 @@ all = [
     { name = "openpyxl" },
     { name = "psycopg2" },
     { name = "pysimplegui" },
-    { name = "python-dotenv" },
     { name = "sqlalchemy" },
 ]
 dataimport = [
@@ -2120,7 +2120,6 @@ db = [
 ]
 mcp = [
     { name = "mcp" },
-    { name = "python-dotenv" },
 ]
 s3 = [
     { name = "boto3" },
@@ -2196,7 +2195,7 @@ requires-dist = [
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.0" },
     { name = "pyld" },
     { name = "pysimplegui", marker = "extra == 'ui'" },
-    { name = "python-dotenv", marker = "extra == 'mcp'", specifier = ">=1.0" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml" },
     { name = "rdflib" },
     { name = "requests" },

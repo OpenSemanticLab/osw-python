@@ -50,6 +50,9 @@ dependencies = [
     # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
     # install osw` never ships a broken `osw` console script
     "typer",
+    # .env loading (osw.service.config). Also a base dependency: without it the
+    # CLI silently cannot find a .env file and reports missing credentials
+    "python-dotenv>=1.0",
 ]
 
 [project.urls]
@@ -76,8 +79,6 @@ mcp = [
     # official MCP Python SDK; provides MCPServer from mcp.server.
     # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.
     "mcp>=2",
-    # .env loading for the stdio server (OSW_DOMAIN/OSW_USERNAME/OSW_PASSWORD)
-    "python-dotenv>=1.0",
 ]
 workflow = [
     "prefect>=2.20.25,<3.0",

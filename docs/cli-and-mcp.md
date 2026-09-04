@@ -224,11 +224,40 @@ in a file.
   the MCP client, so an implicit search would tie the credentials it loads to
   how the client happened to be launched.
 
-Both print the sources they resolved to stderr before connecting:
+The credential file is looked up separately, in this order:
+
+1. An explicit `OSW_CRED_FILEPATH` (or its aliases), whether it came from the
+   real environment or from a `.env` file, always wins. If this file has no
+   entry for the configured domain, that is an error. This check does not
+   apply when `OSW_USERNAME` and `OSW_PASSWORD` are both set, because osw
+   then builds credentials for any instance from those two variables.
+2. Otherwise, an `accounts.pwd.yaml` file in the working directory, if one
+   exists there. This lookup does not walk up to parent directories, and it
+   runs for the CLI only, never for the MCP server, for the same reason the
+   `.env` search does not: the server's working directory belongs to the
+   client, not to the operator. If this file has no entry for the configured
+   domain, it is ignored rather than treated as an error, since it was only
+   discovered, not configured.
+3. Otherwise, no credential file is used.
+
+The working-directory lookup is skipped entirely when either `OSW_USERNAME`
+or `OSW_PASSWORD` is already set, including their `OSL_USERNAME` /
+`OSL_PASSWORD` aliases, so it never displaces credentials configured
+explicitly.
+
+Both print the source they resolved to stderr before connecting, in one of
+these forms:
+
+- `(from the OSW_CRED_FILEPATH environment variable)`
+- `(from OSW_CRED_FILEPATH in the env file)`
+- `(accounts.pwd.yaml found in the working directory)`
+- `(accounts.pwd.yaml found in the working directory, ignored: no entry for domain '<domain>')`, when the discovered file is rejected for the reason given in step 2 above.
+
+For example, a verbose CLI run or the MCP server prints:
 
 ```text
+[osw] credential file: /home/me/project/accounts.pwd.yaml (accounts.pwd.yaml found in the working directory)
 [osw] env file       : /home/me/project/.env (found from the working directory upward)
-[osw] credential file: /abs/path/to/accounts.pwd.yaml
 ```
 
 ### Credentials
@@ -278,7 +307,7 @@ set wins:
 | `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to |
 | `OSW_USERNAME` | `OSL_USERNAME` | Login user |
 | `OSW_PASSWORD` | `OSL_PASSWORD` | Login password |
-| `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri |
+| `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri (falls back to `accounts.pwd.yaml` in the working directory, CLI only) |
 | `OSW_ENV_FILE` | `OSW_MCP_ENV_FILE` | `.env` file to load |
 | `OSW_READ_ONLY` | `OSW_MCP_READ_ONLY` | `true` refuses every write |
 | `OSW_SPARQL_ENDPOINT` | | Endpoint for `sparql` queries |

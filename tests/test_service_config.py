@@ -1,5 +1,6 @@
 """Unit tests for osw.service.config (fail-fast credential validation)."""
 
+import os
 import sys
 
 import pytest
@@ -43,6 +44,12 @@ def _clean_env(monkeypatch, tmp_path):
     monkeypatch.setenv("OSW_MCP_ENV_FILE", str(empty))
     config.reset()
     yield
+    # dotenv writes into os.environ directly, so monkeypatch never learns about
+    # the variables a loaded .env file introduced and cannot undo them. Left in
+    # place they leak into every later test in the session, including other
+    # files whose own variable list is narrower than this one.
+    for var in _ALL_VARS:
+        os.environ.pop(var, None)
     config.reset()
 
 
@@ -214,6 +221,194 @@ def test_cred_file_without_domain_skips_domain_verification(monkeypatch, tmp_pat
     monkeypatch.setenv("OSW_MCP_CRED_FILEPATH", str(cred_file))
     settings = config.load()
     assert settings.domain is None
+
+
+# -- accounts.pwd.yaml fallback (CLI only) -----------------------------------
+
+
+def test_cred_file_fallback_in_working_directory(monkeypatch, tmp_path):
+    """With discovery enabled, an accounts.pwd.yaml in the working directory
+    is used when no credentials are otherwise configured."""
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    settings = config.load()
+
+    assert settings.cred_filepath == str(cred_file)
+    assert settings.username is None
+    assert settings.password is None
+
+
+def test_cred_file_fallback_skipped_when_discovery_disabled(monkeypatch, tmp_path):
+    """The MCP server never enables discovery, so an accounts.pwd.yaml in its
+    working directory (chosen by the MCP client) must not be picked up."""
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+    assert "OSW_USERNAME" in str(exc.value)
+    assert "OSW_PASSWORD" in str(exc.value)
+
+
+def test_explicit_cred_file_wins_over_fallback(monkeypatch, tmp_path):
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    explicit = _write_cred_file(
+        tmp_path / "explicit.yaml",
+        {"wiki.example.org": {"username": "bob", "password": "other"}},
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(explicit))
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    settings = config.load()
+
+    assert settings.cred_filepath == str(explicit)
+
+
+def test_cred_file_fallback_skipped_when_username_password_configured(
+    monkeypatch, tmp_path
+):
+    # The fallback only fills a gap; a credential file entry can carry a
+    # different user name, so it must never override explicit credentials.
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    settings = config.load()
+
+    assert settings.cred_filepath is None
+
+
+def test_cred_file_fallback_skipped_when_only_username_configured(
+    monkeypatch, tmp_path
+):
+    # Any explicitly named credential means the operator intends to
+    # authenticate that way; a half-configured pair must raise rather than
+    # silently switch to a different identity via the fallback file.
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "OSW_PASSWORD" in str(exc.value)
+
+
+def test_discovered_cred_file_wrong_domain_discarded_when_not_strict(
+    monkeypatch, tmp_path
+):
+    # A discovered accounts.pwd.yaml is a convenience, not something the
+    # operator configured, so a domain mismatch discards it instead of
+    # raising: load(strict=False) exists precisely so a status command can
+    # report "not configured" rather than crash.
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"other.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    settings = config.load(strict=False)
+
+    assert settings.cred_filepath is None
+
+
+def test_discovered_cred_file_wrong_domain_raises_when_strict(monkeypatch, tmp_path):
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"other.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "accounts.pwd.yaml" in str(exc.value)
+    assert "wiki.example.org" in str(exc.value)
+
+
+def test_discovered_cred_file_wrong_domain_records_rejected_origin(
+    monkeypatch, tmp_path
+):
+    # The rejection must be visible in the module state, not just discarded
+    # locally, so log_config_sources (which runs before load()) can report
+    # the same outcome load() then acts on.
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"other.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    config.load(strict=False)
+
+    assert config._cred_file_origin == "rejected"
+    assert config._cred_file_path == str(cred_file)
+
+
+def test_no_upward_walk_for_cred_file_fallback(monkeypatch, tmp_path):
+    """The accounts.pwd.yaml fallback must not walk to parent directories,
+    unlike the .env search, which does."""
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    child = tmp_path / "child"
+    child.mkdir()
+    monkeypatch.chdir(child)
+    config.set_env_file_discovery(True)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "OSW_USERNAME" in str(exc.value)
+    assert "OSW_PASSWORD" in str(exc.value)
+
+
+def test_missing_credentials_error_mentions_fallback_when_discovery_enabled(
+    monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "accounts.pwd.yaml" in str(exc.value)
+
+
+def test_missing_credentials_error_omits_fallback_when_discovery_disabled(monkeypatch):
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "accounts.pwd.yaml" not in str(exc.value)
 
 
 # -- canonical OSW_* names --------------------------------------------------
@@ -533,6 +728,95 @@ def test_log_config_sources_omits_cred_file_when_unconfigured(monkeypatch, capsy
     captured = capsys.readouterr()
     assert "env file" in captured.err
     assert "credential file" not in captured.err
+
+
+def test_log_config_sources_reports_fallback_cred_file(monkeypatch, tmp_path, capsys):
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "u", "password": "p"}},
+    )
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "accounts.pwd.yaml found in the working directory" in captured.err
+
+
+def test_log_config_sources_reports_rejected_cred_file(monkeypatch, tmp_path, capsys):
+    # The banner must name the rejection, not just the file: load() rejects
+    # this same file right after, so claiming it is "in use" would be wrong.
+    cred_file = _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"other.example.org": {"username": "u", "password": "p"}},
+    )
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert str(cred_file) in captured.err
+    assert "ignored: no entry for domain" in captured.err
+    assert "wiki.example.org" in captured.err
+
+
+def test_log_config_sources_reports_cred_file_from_env_file(
+    monkeypatch, tmp_path, capsys
+):
+    cred = tmp_path / "accounts.yaml"
+    cred.write_text(
+        yaml.safe_dump({"wiki.example.org": {"username": "u", "password": "p"}}),
+        encoding="utf-8",
+    )
+    env = tmp_path / "creds.env"
+    env.write_text(f"OSW_CRED_FILEPATH={cred}\n", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "from OSW_CRED_FILEPATH in the env file" in captured.err
+
+
+def test_env_file_attribution_survives_a_second_load(monkeypatch, tmp_path, capsys):
+    # A repeated _load_env_file() call within the same process must not erase
+    # the attribution of a name the file introduced on the first call: the
+    # name is already in os.environ by then, so a second before/after diff
+    # would otherwise come up empty.
+    cred = tmp_path / "accounts.yaml"
+    cred.write_text(
+        yaml.safe_dump({"wiki.example.org": {"username": "u", "password": "p"}}),
+        encoding="utf-8",
+    )
+    env = tmp_path / "creds.env"
+    env.write_text(f"OSW_CRED_FILEPATH={cred}\n", encoding="utf-8")
+    monkeypatch.setenv("OSW_ENV_FILE", str(env))
+
+    config._load_env_file()
+    config._load_env_file()
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "from OSW_CRED_FILEPATH in the env file" in captured.err
+
+
+def test_log_config_sources_reports_cred_file_from_environment(
+    monkeypatch, tmp_path, capsys
+):
+    cred = tmp_path / "accounts.yaml"
+    cred.write_text(
+        yaml.safe_dump({"wiki.example.org": {"username": "u", "password": "p"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred))
+
+    config.log_config_sources()
+
+    captured = capsys.readouterr()
+    assert "from the OSW_CRED_FILEPATH environment variable" in captured.err
 
 
 # -- Settings validation (pydantic) ------------------------------------------

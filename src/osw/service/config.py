@@ -20,6 +20,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from osw.auth import CredentialManager
+from osw.defaults import CRED_FILENAME_DEFAULT
 
 # Environment variable names. Each tuple lists the canonical ``OSW_*`` name
 # first, followed by every alias that must keep working. ``OSW_CRED_FILEPATH``
@@ -242,9 +243,32 @@ _discover_env_file: bool = False
 _env_file_path: Optional[str] = None
 _env_file_origin: str = "not searched"
 
+# Names that a .env file actually introduced (as opposed to names that were
+# already set in the real environment and therefore left untouched, since
+# load_dotenv() defaults to override=False). Used to tell the two apart in
+# the startup banner. Accumulates across calls within a process, so a
+# repeated _load_env_file() call cannot erase an earlier call's attribution;
+# reset() clears it.
+_env_file_supplied: set[str] = set()
+
+# Where the credential file actually came from, for the startup banner. One
+# of "environment", "env file", "default" (the accounts.pwd.yaml fallback),
+# "none" (searched, nothing found) or "not searched". See _resolve_cred_file().
+_cred_file_path: Optional[str] = None
+_cred_file_origin: str = "not searched"
+_cred_file_var: Optional[str] = None
+
 
 def set_env_file_discovery(enabled: bool) -> None:
-    """Enable or disable the implicit ``.env`` search (default: disabled).
+    """Enable or disable implicit discovery (default: disabled).
+
+    This governs two searches of the current working directory, both skipped
+    when disabled: the implicit ``.env`` search, and the ``accounts.pwd.yaml``
+    credential file fallback in :func:`_resolve_cred_file`. Both searches
+    depend on the working directory the process happens to run in, so both
+    are gated by the same flag: the CLI's working directory is the one the
+    user typed the command in, while the MCP server's is chosen by the MCP
+    client, which it does not control.
 
     Must be called before settings are first loaded, since the file is read
     exactly once per process; a call that would *change* the setting after
@@ -276,8 +300,17 @@ def _load_env_file() -> None:
     editable install that is the osw checkout and under a normal install it is
     site-packages. Neither is what a user standing in a project directory
     means by "the .env file", hence the explicit ``usecwd=True``.
+
+    Also records, in ``_env_file_supplied``, every environment variable name
+    that a ``.env`` file has introduced into this process (as opposed to
+    names already set in the real environment, which ``load_dotenv()``'s
+    default ``override=False`` leaves untouched). The set accumulates across
+    calls, so a repeated call within the same process cannot erase an
+    earlier call's attribution; :func:`reset` clears it.
+    :func:`_resolve_cred_file` uses it to report whether a resolved
+    credential path came from the file or from the real environment.
     """
-    global _env_file_path, _env_file_origin
+    global _env_file_path, _env_file_origin, _env_file_supplied
     path = _first_env(ENV_FILE)
     try:
         import dotenv
@@ -290,7 +323,9 @@ def _load_env_file() -> None:
             "Install python-dotenv (a dependency of osw) to use an env file."
         )
     if path:
+        before = set(os.environ)
         dotenv.load_dotenv(path)
+        _env_file_supplied |= set(os.environ) - before
         _env_file_path, _env_file_origin = path, "explicit"
         return
     if not _discover_env_file:
@@ -299,8 +334,85 @@ def _load_env_file() -> None:
     if not found:
         _env_file_origin = "none"
         return
+    before = set(os.environ)
     dotenv.load_dotenv(found)
+    _env_file_supplied |= set(os.environ) - before
     _env_file_path, _env_file_origin = found, "discovered"
+
+
+def _resolve_cred_file() -> Optional[str]:
+    """Resolve the credential file path, in this order, and record its origin.
+
+    1. An explicitly configured ``OSW_CRED_FILEPATH`` (or its
+       ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH`` aliases) always wins,
+       whether it came from the real environment or from a ``.env`` file.
+       Existence is not checked here; ``load()`` already reports a missing
+       configured file with a specific error message.
+    2. Otherwise, if implicit discovery is disabled (the MCP server; see
+       :func:`set_env_file_discovery`), nothing is resolved: origin
+       ``"not searched"``.
+    3. Otherwise, if either ``OSW_USERNAME`` or ``OSW_PASSWORD`` (or their
+       ``OSL_*`` aliases) is already configured, nothing is resolved either:
+       also ``"not searched"``. Any explicitly named credential means the
+       operator intends to authenticate that way; a half-configured pair
+       must produce a visible "missing variable" error rather than silently
+       switch to a different identity via the fallback file.
+    4. Otherwise, look for ``accounts.pwd.yaml`` in the current working
+       directory (no walk to parent directories). If present, and a domain is
+       configured, verify that the file has an entry for it
+       (:func:`_verify_cred_file_has_domain`): if that fails, origin
+       ``"rejected"`` and ``None`` is returned, but the path is kept in
+       ``_cred_file_path`` so callers can still report which file was
+       ignored. This is not fatal, unlike the same check for an explicitly
+       configured file: the operator never named this file, they only
+       happened to have one lying around, and :func:`load` accepts
+       ``strict=False`` precisely so a status command can report "not
+       configured" instead of crashing. If the file matches (or no domain is
+       configured yet to check against), origin ``"default"``. If no such
+       file exists, origin ``"none"``.
+
+    So ``"not searched"`` has two distinct causes: discovery disabled, or
+    username/password already configured. Safe to call more than once, like
+    :func:`_load_env_file`, which this assumes has already run.
+    """
+    global _cred_file_path, _cred_file_origin, _cred_file_var
+    path = _first_env(ENV_CRED_FILEPATH)
+    if path:
+        _cred_file_var = next(
+            (n for n in ENV_CRED_FILEPATH if os.getenv(n) == path), ENV_CRED_FILEPATH[0]
+        )
+        _cred_file_origin = (
+            "env file" if _cred_file_var in _env_file_supplied else "environment"
+        )
+        _cred_file_path = path
+        return path
+    if not _discover_env_file:
+        _cred_file_path, _cred_file_origin, _cred_file_var = None, "not searched", None
+        return None
+    if _first_env(ENV_USERNAME) or _first_env(ENV_PASSWORD):
+        _cred_file_path, _cred_file_origin, _cred_file_var = None, "not searched", None
+        return None
+    candidate = Path.cwd() / CRED_FILENAME_DEFAULT
+    if candidate.is_file():
+        domain = _first_env(ENV_DOMAIN)
+        if domain:
+            try:
+                _verify_cred_file_has_domain(str(candidate), domain)
+            except RuntimeError:
+                _cred_file_path, _cred_file_origin, _cred_file_var = (
+                    str(candidate),
+                    "rejected",
+                    None,
+                )
+                return None
+        _cred_file_path, _cred_file_origin, _cred_file_var = (
+            str(candidate),
+            "default",
+            None,
+        )
+        return str(candidate)
+    _cred_file_path, _cred_file_origin, _cred_file_var = None, "none", None
+    return None
 
 
 def log_config_sources(stream=None) -> None:
@@ -323,9 +435,18 @@ def log_config_sources(stream=None) -> None:
         "not searched": f"not configured (set {ENV_FILE[0]} to use one)",
     }[_env_file_origin]
     print(f"[osw] env file       : {described}", file=out)
-    cred_filepath = _first_env(ENV_CRED_FILEPATH)
-    if cred_filepath:
-        print(f"[osw] credential file: {cred_filepath}", file=out)
+    _resolve_cred_file()
+    if _cred_file_path:
+        cred_described = {
+            "environment": f"(from the {_cred_file_var} environment variable)",
+            "env file": f"(from {_cred_file_var} in the env file)",
+            "default": f"({CRED_FILENAME_DEFAULT} found in the working directory)",
+            "rejected": (
+                f"({CRED_FILENAME_DEFAULT} found in the working directory, "
+                f"ignored: no entry for domain '{_first_env(ENV_DOMAIN)}')"
+            ),
+        }[_cred_file_origin]
+        print(f"[osw] credential file: {_cred_file_path} {cred_described}", file=out)
 
 
 def load(strict: bool = True) -> Settings:
@@ -340,7 +461,11 @@ def load(strict: bool = True) -> Settings:
     their ``OSL_*`` aliases) or from a credential file configured via
     ``OSW_CRED_FILEPATH`` (or its ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH``
     aliases). When a credential file is configured, it is validated here to
-    actually contain an entry for the configured domain.
+    actually contain an entry for the configured domain. When no credential
+    file is configured, no username/password is set, and implicit discovery
+    is enabled, an ``accounts.pwd.yaml`` file in the current working directory
+    is used instead (see :func:`_resolve_cred_file`); this fallback never
+    fires for the MCP server.
 
     Parameters
     ----------
@@ -373,7 +498,7 @@ def load(strict: bool = True) -> Settings:
     domain = _first_env(ENV_DOMAIN)
     username = _first_env(ENV_USERNAME)
     password = _first_env(ENV_PASSWORD)
-    cred_filepath = _first_env(ENV_CRED_FILEPATH)
+    cred_filepath = _resolve_cred_file()
 
     cred_file_usable = False
     if cred_filepath:
@@ -387,6 +512,15 @@ def load(strict: bool = True) -> Settings:
             )
         cred_file_usable = True
 
+    # A discovered file (origin "default") was already checked against the
+    # domain inside _resolve_cred_file: a mismatch set origin "rejected" and
+    # cleared cred_filepath there, so cred_file_usable is already False in
+    # that case below. An explicitly configured file is different: the
+    # operator named it, so a mismatch is still a hard error, unconditionally.
+    discovered_file_discarded = _cred_file_origin == "rejected"
+    if cred_file_usable and domain and _cred_file_origin != "default":
+        _verify_cred_file_has_domain(cred_filepath, domain)
+
     # A usable credential file makes the domain optional: which instance to
     # use is then chosen later (auto-selected, or via the CLI's --instance).
     checks = []
@@ -396,19 +530,28 @@ def load(strict: bool = True) -> Settings:
         checks.append((ENV_PASSWORD, password))
     missing = [names[0] for names, value in checks if not value]
     if missing and strict:
+        if discovered_file_discarded:
+            fallback_hint = (
+                " A file named 'accounts.pwd.yaml' was found in the current "
+                f"working directory, but it has no entry for domain '{domain}'."
+            )
+        elif _discover_env_file:
+            fallback_hint = (
+                " Or place an 'accounts.pwd.yaml' file in the current working "
+                "directory."
+            )
+        else:
+            fallback_hint = ""
         raise RuntimeError(
             "Missing required OSW credential environment variables: "
             + ", ".join(missing)
             + ". Set them in your environment or a .env file "
             "(pointed to by OSW_ENV_FILE / OSW_MCP_ENV_FILE), or configure a "
             "credential file via OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH "
-            "/ OSL_CRED_FILEPATH aliases). The server refuses to start without "
-            "them to avoid an interactive credential prompt that would hang "
-            "the stdio transport."
+            "/ OSL_CRED_FILEPATH aliases)." + fallback_hint + " The server "
+            "refuses to start without them to avoid an interactive credential "
+            "prompt that would hang the stdio transport."
         )
-
-    if cred_file_usable and domain:
-        _verify_cred_file_has_domain(cred_filepath, domain)
 
     kwargs: dict = dict(
         domain=domain,
@@ -459,13 +602,18 @@ def get_settings() -> Settings:
 def reset() -> None:
     """Drop cached settings and the active-instance selection (used by tests)."""
     global _settings, _active_iri, _active_resolved
-    global _discover_env_file, _env_file_path, _env_file_origin
+    global _discover_env_file, _env_file_path, _env_file_origin, _env_file_supplied
+    global _cred_file_path, _cred_file_origin, _cred_file_var
     _settings = None
     _active_iri = None
     _active_resolved = False
     _discover_env_file = False
     _env_file_path = None
     _env_file_origin = "not searched"
+    _env_file_supplied = set()
+    _cred_file_path = None
+    _cred_file_origin = "not searched"
+    _cred_file_var = None
 
 
 # -- active-instance state ---------------------------------------------------

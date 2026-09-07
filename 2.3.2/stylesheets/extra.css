@@ -1,0 +1,102 @@
+/* ----------------------------------------------------------------------------
+   osw landing hero (docs/index.md)
+   Full-bleed, centered hero: logo + headline + short text passage +
+   call-to-action buttons over a soft accent gradient.
+   Adapted from the OO-LD/oold-python docs.
+---------------------------------------------------------------------------- */
+
+.osw-hero {
+  padding: 4.5rem 1rem 5rem;
+  text-align: center;
+}
+
+.osw-hero__logo {
+  width: 160px;
+  max-width: 45%;
+  height: auto;
+  border-radius: 16%;
+  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.18));
+}
+
+.osw-hero__title {
+  margin: 1.4rem 0 0.3rem;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.osw-hero__tagline {
+  margin: 0 auto 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--md-default-fg-color--light);
+}
+
+.osw-hero__text {
+  max-width: 42rem;
+  margin: 0 auto 2rem;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--md-default-fg-color--light);
+}
+
+.osw-hero__actions .md-button {
+  margin: 0.35rem 0.4rem;
+}
+
+/* The landing page is a short hero with no scrolling, so don't reserve the
+   scrollbar gutter (the theme sets `scrollbar-gutter: stable` globally). */
+html:has(.osw-hero) {
+  scrollbar-gutter: auto;
+}
+
+/* Accent color (matches the theme's deep-orange accent) + gradient end. */
+body:has(.osw-hero) {
+  --osw-hero-accent: #ff6f00;
+  --osw-hero-end: color-mix(in srgb, var(--osw-hero-accent) 35%, var(--md-default-bg-color));
+}
+
+/* One continuous gradient on the full-height content region: page background
+   at the top, fading to the accent at the very bottom. Scoped to .md-main so
+   the header, tabs and footer keep their own colors. */
+body:has(.osw-hero) .md-main {
+  background:
+    radial-gradient(
+      70% 55% at 50% 100%,
+      color-mix(in srgb, var(--osw-hero-accent) 25%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      var(--md-default-bg-color) 30%,
+      var(--osw-hero-end) 100%
+    );
+}
+
+/* Landing page: hero starts flush under the tabs bar and spans full width. */
+body:has(.osw-hero) .md-main__inner {
+  margin-top: 0;
+  max-width: none;
+}
+
+body:has(.osw-hero) .md-content__inner {
+  margin: 0;
+  padding: 0;
+}
+
+/* Hide the footer on the landing page only. */
+body:has(.osw-hero) .md-footer {
+  display: none;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .osw-hero {
+    padding: 3rem 1rem 3.5rem;
+  }
+  .osw-hero__title {
+    font-size: 2rem;
+  }
+  .osw-hero__tagline {
+    font-size: 1.1rem;
+  }
+}

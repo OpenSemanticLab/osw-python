@@ -57,8 +57,9 @@ def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -
     ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset). A
     ``limit=N`` written into the query itself wins over it.
     Returns ``{titles, count, truncated}``, where ``titles`` are full page
-    names, ``count`` is how many the wiki returned and ``truncated`` reports
-    that further matches may exist beyond them.
+    names, ``count`` is how many came back once hits whose page does not
+    exist were dropped, and ``truncated`` reports that further matches may
+    exist beyond them.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.semantic_search(

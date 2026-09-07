@@ -10,6 +10,110 @@
 
 <!-- version list -->
 
+## v2.3.1 (2026-09-03)
+
+### Bug Fixes
+
+- **search**: Keep a limit the caller wrote into the ask query
+  ([`0c75699`](https://github.com/OpenSemanticLab/osw-python/commit/0c756993bcf9a9114c3072ee03037757aaa5fcf5))
+
+- **search**: Treat a SearchParam limit of None as no limit
+  ([`6e94187`](https://github.com/OpenSemanticLab/osw-python/commit/6e94187c455942afdec2746a498c44c6fd5953e0))
+
+
+## v2.3.0 (2026-09-03)
+
+### Features
+
+- **wtsite**: Parametrize and parallelize modify_search_results
+  ([`d2e2952`](https://github.com/OpenSemanticLab/osw-python/commit/d2e29522033d5f0e8658c318b0fd909406e0f49d))
+
+
+## v2.2.1 (2026-09-03)
+
+### Bug Fixes
+
+- **core**: Honour per-property settings in the overwrite policy
+  ([`2ed0a1f`](https://github.com/OpenSemanticLab/osw-python/commit/2ed0a1fa027c7b4981a4c5955cbfe9e8d61b9976))
+
+
+## v2.2.0 (2026-09-02)
+
+### Features
+
+- **wtsite**: Allow an edit comment on upload_page
+  ([`0d3899c`](https://github.com/OpenSemanticLab/osw-python/commit/0d3899c782998c5750338dc11beea569207cb26c))
+
+
+## v2.1.5 (2026-09-02)
+
+### Bug Fixes
+
+- Handle empty SMW ask results in semantic_search
+  ([`e00ca8b`](https://github.com/OpenSemanticLab/osw-python/commit/e00ca8be80eb1575a520b609d5d988604ad59e24))
+
+
+## v2.1.4 (2026-09-02)
+
+### Bug Fixes
+
+- **page_package**: Apply the same search order to package scripts
+  ([`751a0e3`](https://github.com/OpenSemanticLab/osw-python/commit/751a0e3df80000e639349401b29a6ed311fb5f69))
+
+- **page_package**: Prefer the package found in the working dir
+  ([`6e58d9e`](https://github.com/OpenSemanticLab/osw-python/commit/6e58d9ea1fe9067326571356ef8de736c7938ab2))
+
+
+## v2.1.3 (2026-09-02)
+
+### Bug Fixes
+
+- **wtsite**: Repair the dangling combine_into reference
+  ([`707be40`](https://github.com/OpenSemanticLab/osw-python/commit/707be4030e9221e8180de0198e4282b4d0cb4fcc))
+
+
+## v2.1.2 (2026-09-02)
+
+### Bug Fixes
+
+- **util**: Honour flush_at_end and progress_bar in parallelize
+  ([`2794c9b`](https://github.com/OpenSemanticLab/osw-python/commit/2794c9b0869963886c692947732ca910291e1b4f))
+
+### Testing
+
+- Cover osw.utils.util.parallelize
+  ([`fb73aaf`](https://github.com/OpenSemanticLab/osw-python/commit/fb73aafe410fa6c71f6b8f306061b2f02fd965df))
+
+
+## v2.1.1 (2026-09-02)
+
+### Bug Fixes
+
+- **core**: Write a stub for a $ref whose page does not exist
+  ([`6c672dc`](https://github.com/OpenSemanticLab/osw-python/commit/6c672dc4c1e44cb559b817597fcd34f54df10768))
+
+
+## v2.1.0 (2026-09-02)
+
+### Features
+
+- **express**: Let a download keep the original file name
+  ([`d8c30c9`](https://github.com/OpenSemanticLab/osw-python/commit/d8c30c99414977c7a8ed6fb0f72118c0b7d3d595))
+
+
+## v2.0.3 (2026-09-02)
+
+### Bug Fixes
+
+- Allow uploading a file from an in-memory stream
+  ([`64d99d6`](https://github.com/OpenSemanticLab/osw-python/commit/64d99d66ea45bc56bdaa6d12f2502df0bbbaf88c))
+
+### Testing
+
+- Rename oold.py to oold_test.py so its tests are collected
+  ([`20072a9`](https://github.com/OpenSemanticLab/osw-python/commit/20072a9249cd97126a222c62a70f84e0433343ef))
+
+
 ## v2.0.2 (2026-08-28)
 
 ### Bug Fixes

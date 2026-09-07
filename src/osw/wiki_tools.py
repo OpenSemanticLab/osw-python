@@ -1,4 +1,6 @@
 import getpass
+import re
+import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
@@ -136,6 +138,9 @@ class SearchParam(OswBaseModel):
     parallel: Optional[bool] = None  # is set to true if query is a list longer than 5
     debug: Optional[bool] = False
     limit: Optional[int] = 1000
+    """the result limit to apply, None to apply none and leave it to the wiki.
+    Ignored by semantic_search for a query that sets 'limit=' itself, since SMW
+    honours the last limit in the query string"""
     return_json: Optional[bool] = False
 
     def __init__(self, **data):
@@ -280,6 +285,63 @@ def content_search(
     return [item for sublist in query_results for item in sublist]
 
 
+def _ask_results_as_dict(results: Union[dict, list]) -> dict:
+    """Normalise the ``results`` payload of an SMW ``ask`` response to a mapping.
+
+    SMW serialises a non-empty result set as a JSON object keyed by page title,
+    but an empty one as a JSON array, which would otherwise break attribute
+    access on the result.
+
+    Parameters
+    ----------
+    results :
+        The ``result["query"]["results"]`` payload of an SMW ``ask`` response.
+
+    Returns
+    -------
+    result:
+        The payload normalised to a dict, keyed by page title (or index if a
+        title is unavailable).
+    """
+    if isinstance(results, dict):
+        return results
+    if not results:
+        return {}
+    return {
+        page.get("fulltext", str(index)): page for index, page in enumerate(results)
+    }
+
+
+CONDITION_PATTERN = re.compile(r"\[\[.*?\]\]", re.DOTALL)
+"""matches an SMW query condition, which may contain '|' as the disjunction
+operator and must therefore be removed before the parameters are split"""
+LIMIT_PARAM_PATTERN = re.compile(r"^limit\s*=\s*(\d+)$", re.IGNORECASE)
+"""matches a limit parameter of an SMW query, e.g. 'limit=100'"""
+
+
+def get_query_limit(query: str) -> Optional[int]:
+    """Returns the limit an SMW ask query sets itself, None if it sets none
+
+    Parameters
+    ----------
+    query :
+        an SMW ask query string, e.g. '[[Category:Item]]|?Name|limit=2'
+
+    Returns
+    -------
+    result:
+        the limit the query asks for, or None if the query does not set one or
+        sets one that is not a number
+    """
+    limit = None
+    for parameter in CONDITION_PATTERN.sub("", query).split("|"):
+        match = LIMIT_PARAM_PATTERN.match(parameter.strip())
+        if match:
+            # SMW honours the last limit in the query string
+            limit = int(match.group(1))
+    return limit
+
+
 def semantic_search(
     site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
 ) -> Union[List[str], List[dict]]:
@@ -290,7 +352,9 @@ def semantic_search(
     site :
         Site object from mwclient lib
     query :
-        (List of) query text(s) or instance of SearchParam
+        (List of) query text(s) or instance of SearchParam. A query that sets
+        ``limit=`` itself keeps that limit; ``SearchParam.limit`` is only
+        appended to a query that does not, and only when it is not None.
 
     Returns
     -------
@@ -304,21 +368,37 @@ def semantic_search(
 
     def semantic_search_(single_query):
         page_list = list()
-        single_query += f"|limit={query.limit}"
+        # SMW honours the last limit in the query string, so appending the
+        # default would silently override a limit the caller wrote themselves.
+        # A SearchParam limit of None asks for no limit at all, leaving the
+        # wiki to apply its own default
+        limit = get_query_limit(single_query)
+        if limit is None and query.limit is not None:
+            limit = query.limit
+            single_query += f"|limit={limit}"
         result = site.api("ask", query=single_query, format="json")
+        results = _ask_results_as_dict(result["query"]["results"])
+        n = len(results)
         if query.debug:
-            if len(result["query"]["results"]) == 0:
+            if n == 0:
                 print(f"Query '{single_query}' returned no results")
             else:
-                print(
-                    "Query '{}' returned {} results".format(
-                        single_query, len(result["query"]["results"])
-                    )
-                )
+                print(f"Query '{single_query}' returned {n} results")
+        # No limit in force, or 'limit=0' asking for no results at all as a
+        # count format does, means the result count says nothing about
+        # truncation
+        if limit and n >= limit:
+            warnings.warn(
+                f"Query '{single_query}' returned {n} results, which meets the "
+                f"requested limit of {limit}. Results are truncated - raise "
+                f"the limit or page through with '|offset=' to retrieve the "
+                f"remainder."
+            )
         if query.return_json:
             return result
 
-        for page in result["query"]["results"].values():
+        dropped = 0
+        for page in results.values():
             title = page["fulltext"]
             exists = page["exists"]
             if "#" not in title and query.debug:
@@ -326,6 +406,13 @@ def semantic_search(
                 # original position of "page_list.append(title)" line
             if exists == "1":
                 page_list.append(title)
+            else:
+                dropped += 1
+        if dropped > 0:
+            warnings.warn(
+                f"Query '{single_query}': {dropped} of {n} results were dropped "
+                f"because the wiki reported them as non-existing pages."
+            )
         return page_list
 
     if query.parallel:

@@ -71,6 +71,46 @@ from osw.wtsite import WtPage, WtSite
 _logger = logging.getLogger(__name__)
 
 
+def get_model_dir_path() -> str:
+    """The directory the fetched json schemas are written to"""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
+
+
+def write_schema_stub(model_dir_path: str, schema_name: str) -> str:
+    """Writes an empty schema, so a $ref pointing at it still resolves
+
+    A $ref is rewritten to a local file name before the page it names is
+    fetched. When that page turns out not to exist, nothing writes the file,
+    and datamodel-code-generator later fails with FileNotFoundError far away
+    from the cause. An empty schema keeps generation going, and the reason is
+    reported in the FetchSchemaResult instead.
+    """
+    schema_path = os.path.join(model_dir_path, schema_name + ".json")
+    os.makedirs(os.path.dirname(schema_path), exist_ok=True)
+    with open(schema_path, "w", encoding="utf-8") as f:
+        f.write("{}")
+    return schema_path
+
+
+def collect_messages(
+    target: Optional[List[str]], source: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Adds the messages in source to target, skipping duplicates
+
+    _FetchSchemaParam is copied shallowly for a recursive fetch, so target and
+    source can be the very same list. That case is already merged and is left
+    alone rather than iterated while being appended to.
+    """
+    if not source or target is source:
+        return target
+    if target is None:
+        target = []
+    for message in source:
+        if message not in target:
+            target.append(message)
+    return target
+
+
 # Reusable type definitions
 class OverwriteOptions(Enum):
     """Options for overwriting properties"""
@@ -477,13 +517,15 @@ class OSW(BaseModel):
 
         # merge unique results and return
         merged_result = OSW.FetchSchemaResult(
-            fetched_schema_titles=[], error_messages=[]
+            fetched_schema_titles=[], error_messages=[], warning_messages=[]
         )
         for result in results:
             if result.fetched_schema_titles:
                 merged_result.fetched_schema_titles.extend(result.fetched_schema_titles)
             if result.error_messages:
                 merged_result.error_messages.extend(result.error_messages)
+            if result.warning_messages:
+                merged_result.warning_messages.extend(result.warning_messages)
         return OSW.FetchSchemaResult(
             fetched_schema_titles=(
                 list(set(merged_result.fetched_schema_titles))
@@ -493,6 +535,11 @@ class OSW(BaseModel):
             error_messages=(
                 list(set(merged_result.error_messages))
                 if len(merged_result.error_messages) > 0
+                else None
+            ),
+            warning_messages=(
+                list(set(merged_result.warning_messages))
+                if len(merged_result.warning_messages) > 0
                 else None
             ),
         )
@@ -569,6 +616,8 @@ class OSW(BaseModel):
             ]
             if not page.exists:
                 print(f"Error: Page {schema_title} does not exist")
+                # the $ref that led here was already rewritten to this file name
+                write_schema_stub(get_model_dir_path(), schema_name)
                 return OSW.FetchSchemaResult(
                     fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
                     warning_messages=fetchSchemaParam.warning_messages,
@@ -606,6 +655,7 @@ class OSW(BaseModel):
         schema = json.loads(schema_str.replace("$ref", "dollarref"))
 
         jsonpath_expr = parse("$..dollarref")
+        ref_error_messages = None
         for match in jsonpath_expr.find(schema):
             # value = "https://" + self.mw_site.host + match.value
             if match.value.startswith("#"):
@@ -628,11 +678,18 @@ class OSW(BaseModel):
                 _param = fetchSchemaParam.copy()
                 _param.root = False
                 _param.schema_title = ref_schema_title
-                self._fetch_schema(_param)  # resolve references recursive
+                ref_result = self._fetch_schema(_param)  # resolve refs recursive
+                # the recursive call is the only place that knows why a
+                # referenced schema could not be fetched, so its messages have
+                # to be carried up rather than dropped
+                ref_error_messages = collect_messages(
+                    ref_error_messages, ref_result.error_messages
+                )
+                fetchSchemaParam.warning_messages = collect_messages(
+                    fetchSchemaParam.warning_messages, ref_result.warning_messages
+                )
 
-        model_dir_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "model"
-        )  # src/model
+        model_dir_path = get_model_dir_path()  # src/model
         schema_path = os.path.join(model_dir_path, schema_name + ".json")
         os.makedirs(os.path.dirname(schema_path), exist_ok=True)
         with open(schema_path, "w", encoding="utf-8") as f:
@@ -1005,6 +1062,7 @@ class OSW(BaseModel):
         return OSW.FetchSchemaResult(
             fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
             warning_messages=fetchSchemaParam.warning_messages,
+            error_messages=ref_error_messages,
         )
 
     def install_dependencies(
@@ -1279,7 +1337,13 @@ class OSW(BaseModel):
 
         @validator("per_property")
         def validate_per_property(cls, per_property, values):
+            if per_property is None:  # nothing to check, the fallback applies
+                return per_property
             model_ = values.get("model")
+            if model_ is None:
+                # 'model' itself did not validate; without it the property names
+                # below cannot be checked at all
+                raise ValueError("'model' is required to validate 'per_property'")
             field_names = list(model_.__fields__.keys())
             keys = per_property.keys()
             if not all(key in field_names for key in keys):
@@ -1290,36 +1354,68 @@ class OSW(BaseModel):
 
             return per_property
 
+        @classmethod
+        def _normalize_overwrite(cls, value):
+            """Replace the two non-policy values by the default setting.
+
+            Neither ``None`` nor the ``none`` sentinel is a policy:
+            ``get_overwrite_setting()`` would hand them to the merge, where they
+            match no branch and silently behave like 'false'.
+            """
+            if value is None or value is AddOverwriteClassOptions.none:
+                return cls.__fields__["overwrite"].get_default()
+            return value
+
         def __setattr__(self, key, value):
             """Called when setting an attribute"""
+            if key == "overwrite":
+                value = self._normalize_overwrite(value)
+            # the effective settings are derived from these three, so any of them
+            # changing has to rebuild them
+            if key not in ("model", "overwrite", "per_property"):
+                super().__setattr__(key, value)
+                return
+            previous = getattr(self, key)
             super().__setattr__(key, value)
-            if key == "per_property":
-                # compare value and self.per_property
-                if value != self.per_property and value is not None:
-                    self._per_property = {
-                        field_name: value.get(field_name, self.overwrite)
-                        for field_name in self.model.__fields__.keys()
-                    }
-            elif key == "overwrite" or key == "model":
-                if self.per_property is not None:
-                    self._per_property = {
-                        field_name: self.per_property.get(field_name, self.overwrite)
-                        for field_name in self.model.__fields__.keys()
-                    }
+            try:
+                self._sync_per_property()
+            except ValueError:
+                # _sync_per_property() rejects before it touches _per_property,
+                # so restoring the field is enough to undo the assignment. Leaving
+                # a rejected value in place would let it take effect later, on the
+                # next assignment that happens to be accepted.
+                super().__setattr__(key, previous)
+                raise
 
         def __init__(self, **data):
             """Called after validation. Sets the fallback for every property that
             has not been specified in per_property."""
             super().__init__(**data)
-            per_property_ = {}
-            if self.per_property is not None:
-                per_property_ = self.per_property
+            # routed through __setattr__, which normalizes and rebuilds
+            self.overwrite = self.overwrite
+            # todo: from class definition get properties with hidden /
+            #  read_only option  #  those can be safely overwritten - set the to True
+
+        def _sync_per_property(self) -> None:
+            """Rebuild the effective overwrite setting of every model field."""
+            if self.per_property and isinstance(
+                self.overwrite, AddOverwriteClassOptions
+            ):
+                # _apply_overwrite_policy() short-circuits on 'replace remote'
+                # and 'keep existing' before it looks at a single property, so
+                # this combination would discard 'per_property' silently. Check
+                # it here rather than in a validator so that it also holds when
+                # either field is reassigned after construction.
+                raise ValueError(
+                    f"'per_property' cannot be combined with overwrite="
+                    f"'{self.overwrite.value}', which acts on the entity as a "
+                    f"whole. Use an OverwriteOptions value for 'overwrite'."
+                )
+            per_property_ = self.per_property or {}
             self._per_property = {
                 field_name: per_property_.get(field_name, self.overwrite)
                 for field_name in self.model.__fields__.keys()
             }
-            # todo: from class definition get properties with hidden /
-            #  read_only option  #  those can be safely overwritten - set the to True
 
         def get_overwrite_setting(self, property_name: str) -> OverwriteOptions:
             """Returns the fallback overwrite option for the given field name"""
@@ -1715,7 +1811,18 @@ class OSW(BaseModel):
                     offline=param.offline,
                 )
             )
-            if len(meta_category_templates.keys()) > 0:
+            # _apply_overwrite_policy() returned the remote page untouched. The
+            # schema regeneration below writes the jsonschema slot regardless of
+            # the policy, which would edit a page the caller asked to keep.
+            kept_existing = (
+                page.exists
+                # mirrors the branch order of _apply_overwrite_policy(), which
+                # tests 'offline is True' before it tests 'keep existing'
+                and param.offline is not True
+                and overwrite_class_param.overwrite
+                == AddOverwriteClassOptions.keep_existing
+            )
+            if not kept_existing and len(meta_category_templates.keys()) > 0:
                 generated_schemas = {}
                 try:
                     jsondata = page.get_slot_content("jsondata")
@@ -1752,7 +1859,7 @@ class OSW(BaseModel):
                     )
                 ).aggregated_schema
                 page.set_slot_content("jsonschema", new_schema)
-            if param.offline is False:
+            if param.offline is False and not kept_existing:
                 page.edit(
                     param.edit_comment, bot_edit=param.bot_edit
                 )  # will set page.changed if the content of the page has changed

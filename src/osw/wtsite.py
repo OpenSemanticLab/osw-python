@@ -50,6 +50,31 @@ SLOTS = {
 }
 
 
+def _combine_into(update: dict, combined: dict) -> None:
+    """Merges update into combined in place, recursing into nested dicts
+
+    A nested dict is merged key by key, so keys only present in combined
+    survive. Any other value replaces what is already there.
+
+    Parameters
+    ----------
+    update
+        The dict to take the new keys and values from.
+    combined
+        The dict to merge into. Modified in place.
+    """
+    for key, value in update.items():
+        target = combined.get(key)
+        if isinstance(value, dict):
+            if not isinstance(target, dict):
+                # nothing to merge with, so start from an empty dict rather
+                # than storing a reference to the one in update
+                target = combined[key] = {}
+            _combine_into(value, target)
+        else:
+            combined[key] = value
+
+
 # Classes
 class WtSite:
     """A wrapper class of mwclient.Site, mainly to provide multi-slot page handling and
@@ -563,11 +588,11 @@ class WtSite:
         return wt.semantic_search(self._site, query)
 
     class ModifySearchResultsParam(OswBaseModel):
-        """Todo: should become param of modify_search_results"""
+        """Parameter object for modify_search_results method."""
 
         mode: str
         """The search mode. Either 'prefix' or 'semantic'."""
-        query: wt.SearchParam
+        query: Union[str, wt.SearchParam]
         """The search query."""
         comment: str = None
         """The comment for the edit."""
@@ -575,13 +600,15 @@ class WtSite:
         """Whether to log changes."""
         dryrun: bool = False
         """if True, no actual changes are made"""
+        parallel: Optional[bool] = False
+        """If True, processes the search results in parallel."""
 
     @try_and_renew_token
     def modify_search_results(
         self,
-        mode: str,
-        query: str,
-        modify_page,
+        param: Union[str, ModifySearchResultsParam],
+        query: str = None,
+        modify_page=None,
         limit=None,
         comment=None,
         log=False,
@@ -592,34 +619,47 @@ class WtSite:
 
         Parameters
         ----------
-        mode
-            The search mode. Either 'prefix' or 'semantic'.
+        param
+            ModifySearchResultsParam object. For backwards compatibility, the
+            search mode ('prefix' or 'semantic') can be passed directly instead,
+            together with the deprecated keyword arguments below.
         query
-            The search query.
+            Deprecated, use param.query instead. The search query.
         modify_page
             The callback that modifies the pages.
         limit
             query limit, by default None
         comment
-            edit comment, by default None
+            Deprecated, use param.comment instead. edit comment, by default None
         log
-            log changes, by default False
+            Deprecated, use param.log instead. log changes, by default False
         dryrun
-            if True, no actual changes are made, by default False
+            Deprecated, use param.dryrun instead. if True, no actual changes are
+            made, by default False
         """
+        if not isinstance(param, WtSite.ModifySearchResultsParam):
+            param = WtSite.ModifySearchResultsParam(
+                mode=param,
+                query=query,
+                comment=comment,
+                log=log,
+                dryrun=dryrun,
+            )
+
         titles = []
-        if mode == "prefix":
-            titles = wt.prefix_search(self._site, query)
-        elif mode == "semantic":
-            titles = wt.semantic_search(self._site, query)
+        if param.mode == "prefix":
+            titles = wt.prefix_search(self._site, param.query)
+        elif param.mode == "semantic":
+            titles = wt.semantic_search(self._site, param.query)
         if limit:
             titles = titles[0:limit]
-        if log:
+        if param.log:
             print(f"Found: {titles}")
-        for title in titles:
+
+        def modify_single_result(title: str):
             wtpage = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
             modify_page(wtpage)
-            if log:
+            if param.log:
                 print(f"\n======= {title} =======")
                 for slot in wtpage._slots:
                     content = wtpage.get_slot_content(slot)
@@ -627,8 +667,13 @@ class WtSite:
                     print(f"   ==== {title}:{slot} ====   ")
                     pprint(content)
                     print("\n")
-            if not dryrun:
-                wtpage.edit(comment)
+            if not param.dryrun:
+                wtpage.edit(param.comment)
+
+        if param.parallel:
+            _ = parallelize(modify_single_result, titles, flush_at_end=param.log)
+        else:
+            _ = [modify_single_result(title) for title in titles]
 
     class UploadPageParam(OswBaseModel):
         """Parameter object for upload_page method."""
@@ -639,6 +684,8 @@ class WtSite:
         """If True, uploads the pages in parallel."""
         debug: Optional[bool] = False
         """If True, debug messages will be printed."""
+        comment: Optional[str] = None
+        """Edit comment for the page history, applied to every uploaded page."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -678,7 +725,7 @@ class WtSite:
                     f"WtSite from which this method is called from "
                     f"are not matching!"
                 )
-            page.edit()
+            page.edit(param.comment)
 
             if index is None:
                 print(f"Uploaded page to {page.get_url()}.")
@@ -1713,14 +1760,19 @@ class WtPage:
             res.append(match.value)
         return res
 
+    @staticmethod
     @deprecated("No longer supported")
-    def update_dict(self, combined: dict, update: dict) -> None:
-        for k, v in update.items():
-            if isinstance(v, dict):
-                # todo: fix reference for combine_into
-                wt.combine_into(v, combined.setdefault(k, {}))
-            else:
-                combined[k] = v
+    def update_dict(combined: dict, update: dict) -> None:
+        """Merges update into combined in place, recursing into nested dicts
+
+        Parameters
+        ----------
+        combined
+            The dict to merge into. Modified in place.
+        update
+            The dict to take the new keys and values from.
+        """
+        _combine_into(update, combined)
 
     @deprecated("No longer supported for replace=False")
     def set_value(self, jsonpath_match, value, replace=False):
@@ -1750,10 +1802,11 @@ class WtPage:
         # else: jsonpath_expr.update(d, value)
         matches = jsonpath_expr.find(d)
         for match in matches:
-            print(match.full_path)
+            # str(match.full_path) raises TypeError because the keys of d are the
+            # list indices, so this cannot be printed or logged as it stands
             # pprint(value)
             if not replace:
-                WtPage.update_dict(match.value, value)
+                _combine_into(value, match.value)
                 value = match.value
             # pprint(value)
             match.full_path.update_or_create(d, value)

@@ -13,6 +13,7 @@ directory, which is based on the current working directory
 import importlib.util
 import os
 import re
+from enum import Enum
 from io import TextIOWrapper
 from pathlib import Path
 from typing import overload
@@ -409,6 +410,74 @@ class FileResult(OswBaseModel):
         return data
 
 
+class FilenameMode(Enum):
+    """Options for the file name a download is saved under"""
+
+    osw_id = "osw_id"
+    """The OSW-ID and the suffixes, as the file is named on the wiki, e.g.,
+    'OSW02a0e8a917594129b3b8f2f48e2c3f7f.txt'"""
+    name = "name"
+    """The original file name and the suffixes, e.g., 'My_textfile.txt'"""
+    name_and_osw_id = "name_and_osw_id"
+    """Both, separated by an underscore, e.g.,
+    'My_textfile_OSW02a0e8a917594129b3b8f2f48e2c3f7f.txt'"""
+
+
+def build_target_fn(
+    mode: Union[FilenameMode, str], osw_id_fn: str, name: Optional[str]
+) -> str:
+    """Builds the file name a download is saved under
+
+    Parameters
+    ----------
+    mode
+        which of the forms listed in FilenameMode to build
+    osw_id_fn
+        the name of the file on the wiki, the OSW-ID and the suffixes, e.g.,
+        'OSW02a0e8a917594129b3b8f2f48e2c3f7f.drawio.png'
+    name
+        the original file name, stored in the JSON data of the file page. The
+        OSW-ID form is used if it is empty, since the other forms have nothing to
+        build on then.
+
+    Returns
+    -------
+        the file name, without a directory
+    """
+    mode = FilenameMode(mode)
+    if mode == FilenameMode.osw_id:
+        return osw_id_fn
+    if not name:
+        warn(
+            f"No name is stored for '{osw_id_fn}', falling back to the OSW-ID as "
+            f"the file name."
+        )
+        return osw_id_fn
+    # the OSW-ID itself carries no dot, so every dot in osw_id_fn opens a suffix
+    suffixes = "".join(Path(osw_id_fn).suffixes)
+    osw_id = osw_id_fn[: len(osw_id_fn) - len(suffixes)]
+    stem = Path(name).name
+    if suffixes and stem.endswith(suffixes):
+        # the name is stored without the suffixes, but does not have to be
+        stem = stem[: -len(suffixes)]
+    if mode == FilenameMode.name:
+        return f"{stem}{suffixes}"
+    return f"{stem}_{osw_id}{suffixes}"
+
+
+def _load_wiki_file(data: Dict[str, Any], url_or_title: str) -> WikiFileController:
+    """Loads the file page and returns it as a file controller, creating the
+    OswExpress instance in data if there is none yet"""
+    if data.get("osw_express") is None:
+        data["osw_express"] = OswExpress(
+            domain=data.get("domain"),
+            cred_mngr=data.get("cred_mngr"),
+        )
+    title: str = "File:" + url_or_title.split("File:")[-1]
+    file = data.get("osw_express").load_entity(title)
+    return file.cast(WikiFileController, osw=data.get("osw_express"))
+
+
 class DownloadFileResult(FileResult, LocalFileController):
     """A specific result object to describe the result of downloading a file from an
     OSL instance."""
@@ -419,8 +488,11 @@ class DownloadFileResult(FileResult, LocalFileController):
     """The target directory to download the file to. If None, the current working
     will be used."""
     target_fn: Optional[str] = None
-    """The target filename to save the file as. If None, the filename will be taken
-    from the URL or title."""
+    """The target filename to save the file as. If None, the filename will be built
+    according to 'target_fn_mode'."""
+    target_fn_mode: FilenameMode = FilenameMode.osw_id
+    """How to build the target filename if 'target_fn' is None. See FilenameMode.
+    Defaults to the OSW-ID, the name the file has on the wiki."""
     target_fp: Optional[Union[str, Path]] = None
     """The target filepath to save the file to. If None, the file will be saved to the
     target directory with the target filename."""
@@ -443,23 +515,6 @@ class DownloadFileResult(FileResult, LocalFileController):
         data["url_or_title"] = url_or_title
         # Do replacements
         data = self.process_init_data(data)
-        if data.get("target_fn") is None:
-            data["target_fn"] = url_or_title.split("File:")[-1]
-        if data.get("target_dir") is None:
-            # Take target_dir from environment variables
-            if os.getenv("OSW_DOWNLOAD_DIR") is not None:
-                data["target_dir"] = os.getenv("OSW_DOWNLOAD_DIR")
-            elif os.getenv("OSL_DOWNLOAD_DIR") is not None:
-                data["target_dir"] = os.getenv("OSL_DOWNLOAD_DIR")
-            # Fallback to the package default (based on CWD)
-            else:
-                data["target_dir"] = default_paths.download_dir
-        if isinstance(data.get("target_dir"), str):
-            data["target_dir"] = Path(data.get("target_dir"))
-        if data.get("target_fp") is None:
-            data["target_fp"] = data.get("target_dir") / data.get("target_fn")
-        # Setting path after all operations on target_fp are complete
-        data["path"] = data.get("target_fp")
         if data.get("domain") is None:
             match = re.search(
                 pattern=r"(?:(?:https?:\/\/)?(?:www\.)?([^\/]+))\/wiki",
@@ -477,6 +532,34 @@ class DownloadFileResult(FileResult, LocalFileController):
                     )
             else:
                 data["domain"] = match.group(1)
+        if data.get("target_dir") is None:
+            # Take target_dir from environment variables
+            if os.getenv("OSW_DOWNLOAD_DIR") is not None:
+                data["target_dir"] = os.getenv("OSW_DOWNLOAD_DIR")
+            elif os.getenv("OSL_DOWNLOAD_DIR") is not None:
+                data["target_dir"] = os.getenv("OSL_DOWNLOAD_DIR")
+            # Fallback to the package default (based on CWD)
+            else:
+                data["target_dir"] = default_paths.download_dir
+        if isinstance(data.get("target_dir"), str):
+            data["target_dir"] = Path(data.get("target_dir"))
+        wf: Optional[WikiFileController] = None
+        """The file controller, loaded early if the target filename depends on it"""
+        if data.get("target_fn") is None:
+            osw_id_fn = url_or_title.split("File:")[-1]
+            if FilenameMode(data.get("target_fn_mode")) == FilenameMode.osw_id:
+                data["target_fn"] = osw_id_fn
+            else:
+                # the original name is stored in the JSON data of the file page, so
+                # the page has to be loaded before the target path is known
+                wf = _load_wiki_file(data, url_or_title)
+                data["target_fn"] = build_target_fn(
+                    data.get("target_fn_mode"), osw_id_fn, wf.name
+                )
+        if data.get("target_fp") is None:
+            data["target_fp"] = data.get("target_dir") / data.get("target_fn")
+        # Setting path after all operations on target_fp are complete
+        data["path"] = data.get("target_fp")
         if data.get("use_cached") and data.get("target_fp").exists():
             # Here, no file needs to be downloaded, but self need to be initialized
             #  with the path to the file
@@ -484,17 +567,8 @@ class DownloadFileResult(FileResult, LocalFileController):
             data = {key: value for key, value in data.items() if value is not None}
             super().__init__(**data)  # data includes "path"
         else:
-            if data.get("osw_express") is None:
-                data["osw_express"] = OswExpress(
-                    domain=data.get("domain"),
-                    cred_mngr=data.get("cred_mngr"),
-                )
-            title: str = "File:" + url_or_title.split("File:")[-1]
-            file = data.get("osw_express").load_entity(title)
-            wf: WikiFileController = file.cast(
-                WikiFileController, osw=data.get("osw_express")
-            )
-            """The file controller"""
+            if wf is None:
+                wf = _load_wiki_file(data, url_or_title)
             if data.get("target_fp").exists() and not data.get("overwrite"):
                 raise FileExistsError(
                     f"File already exists: {data.get('target_fp')}. Set "
@@ -516,6 +590,7 @@ def osw_download_file(
     delete_after_use: bool = False,
     target_dir: Optional[Union[str, Path]] = None,
     target_fn: Optional[str] = None,
+    target_fn_mode: Union[FilenameMode, str] = FilenameMode.osw_id,
     target_fp: Optional[Union[str, Path]] = None,
     osw_express: Optional[OswExpress] = None,
     domain: Optional[str] = None,
@@ -538,8 +613,15 @@ def osw_download_file(
         The target directory to download the file to. If None, the current working
         will be used.
     target_fn
-        The target filename to save the file as. If None, the filename will be taken
-        from the URL or title.
+        The target filename to save the file as. If None, the filename will be built
+        according to target_fn_mode.
+    target_fn_mode
+        How to build the target filename if target_fn is None. One of
+        FilenameMode.osw_id ('OSW02a0e8a917594129b3b8f2f48e2c3f7f.txt', the default),
+        FilenameMode.name ('My_textfile.txt') or FilenameMode.name_and_osw_id
+        ('My_textfile_OSW02a0e8a917594129b3b8f2f48e2c3f7f.txt'). The latter two read
+        the original name from the file page, so they load it even when use_cached
+        is set.
     target_fp
         The target filepath to save the file to. If None, the file will be saved to the
         target directory with the target filename.
@@ -577,6 +659,7 @@ def osw_download_file(
         delete_after_use=delete_after_use,
         target_dir=target_dir,
         target_fn=target_fn,
+        target_fn_mode=target_fn_mode,
         target_fp=target_fp,
         osw_express=osw_express,
         domain=domain,

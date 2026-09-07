@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import sys
+import threading
 from asyncio import Queue
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout, suppress
@@ -269,6 +270,61 @@ def redirect_print_explicitly(
         return decorator(func_=func)
 
 
+class ThreadRoutedStdout:
+    """A stdout stand-in that routes each worker thread's writes to its own buffer
+
+    Threads that have not registered a buffer, the calling thread and tqdm among
+    them, write straight through to the wrapped stream. Installed once for the
+    duration of a parallelize() call, so unlike contextlib.redirect_stdout it
+    stays correct while several tasks print at the same time.
+    """
+
+    def __init__(self, stream: IO):
+        self.stream = stream
+        self._local = threading.local()
+
+    def register(self) -> List[str]:
+        """Gives the calling thread its own buffer and returns it"""
+        buffer = []
+        self._local.buffer = buffer
+        return buffer
+
+    def unregister(self):
+        """Sends the calling thread's writes back to the wrapped stream"""
+        self._local.buffer = None
+
+    def write(self, message):
+        buffer = getattr(self._local, "buffer", None)
+        if buffer is None:
+            return self.stream.write(message)
+        buffer.append(message)
+        return len(message)
+
+    def flush(self):
+        if getattr(self._local, "buffer", None) is None:
+            self.stream.flush()
+
+    def __getattr__(self, name):
+        # encoding, isatty, fileno and the like stay those of the wrapped stream
+        return getattr(self.stream, name)
+
+
+def capture_output(
+    call: Callable, stdout: ThreadRoutedStdout, sink: List[str], index: int
+) -> Callable:
+    """Wraps call so that what it prints ends up in sink[index] instead of stdout"""
+
+    def wrapper():
+        buffer = stdout.register()
+        try:
+            return call()
+        finally:
+            stdout.unregister()
+            sink[index] = "".join(buffer)
+
+    return wrapper
+
+
 def parallelize(
     func: Callable,
     iterable: Iterable,
@@ -286,8 +342,10 @@ def parallelize(
     iterable:
         The iterable, who's items are to be passed as singles to the function.
     flush_at_end:
-        If True, the message buffer will be printed (flushed) to stdout after parallel
-        execution.
+        If True, what the tasks print is written to stdout in the order of
+        ``iterable`` once the batch has finished. If False, it is discarded.
+        Either way it is captured while the tasks run, so that concurrent
+        printing cannot garble the progress bar.
     progress_bar:
         If True, a progress bar will be displayed.
     return_exceptions:
@@ -299,54 +357,46 @@ def parallelize(
         Keyword arguments to be passed to the function.z
     """
 
-    MODE = "asyncio"
-    if MODE == "dask":
-        # this mode can be removed if asyncio works as expected
-        with MessageBuffer(flush_at_end) as msg_buf:
-            tasks = [
-                dask.delayed(redirect_print_explicitly(func, msg_buf))(item, **kwargs)
-                for item in iterable
-            ]
-            print(
-                f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks)."
+    items = list(iterable)
+    # One slot per item, so the collected output can be replayed in input order
+    # even though the tasks finish in whatever order they finish.
+    outputs = [""] * len(items)
+    stdout = ThreadRoutedStdout(sys.stdout)
+
+    # run func concurrently with each item in iterable using asyncio
+    async def _run_tasks():
+        loop = asyncio.get_event_loop()
+        # ToDo: handle IO-bound different from CPU-bound tasks
+        # see https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor
+        # None => ThreadPoolExecutor for IO-bound tasks
+        tasks = [
+            loop.run_in_executor(
+                None,
+                capture_output(
+                    functools.partial(func, item, **kwargs), stdout, outputs, index
+                ),
             )
-            if progress_bar:
-                with ProgressBar():
-                    results = dask.compute(*tasks)
-            else:
-                results = dask.compute(*tasks)
+            for index, item in enumerate(items)
+        ]
+        print(f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks).")
+        if return_exceptions:
+            # tqdm.gather() re-raises the first exception (it has no
+            # return_exceptions kwarg), which would abandon the remaining
+            # results. Capture each task's exception instead so the batch
+            # completes and results stay aligned with the input order.
+            async def _capture(task):
+                try:
+                    return await task
+                except Exception as exc:
+                    return exc
 
-    if MODE == "asyncio":
-        # run func concurrently with each item in iterable using asyncio
-        async def _run_tasks():
-            loop = asyncio.get_event_loop()
-            # ToDo: handle IO-bound different from CPU-bound tasks
-            # see https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor
-            # None => ThreadPoolExecutor for IO-bound tasks
-            tasks = [
-                loop.run_in_executor(None, functools.partial(func, item, **kwargs))
-                for item in iterable
-            ]
-            print(
-                f"Performing parallel execution of {func.__name__} ({len(tasks)} tasks)."
-            )
-            if return_exceptions:
-                # tqdm.gather() re-raises the first exception (it has no
-                # return_exceptions kwarg), which would abandon the remaining
-                # results. Capture each task's exception instead so the batch
-                # completes and results stay aligned with the input order.
-                async def _capture(task):
-                    try:
-                        return await task
-                    except Exception as exc:
-                        return exc
+            tasks = [_capture(task) for task in tasks]
+        # tqdm.gather is asyncio.gather plus a progress bar
+        gather = tqdm.gather if progress_bar else asyncio.gather
+        return await gather(*tasks)
 
-                tasks = [_capture(task) for task in tasks]
-            res = await tqdm.gather(
-                *tasks
-            )  # like asyncio.gather, but with a progress bar
-            return res
-
+    sys.stdout = stdout
+    try:
         # Check if we are already in an event loop, e.g. in a Jupyter notebook
         try:
             loop = asyncio.get_running_loop()
@@ -362,6 +412,14 @@ def parallelize(
         else:
             # Starting new event loop
             results = asyncio.run(_run_tasks())
+    finally:
+        sys.stdout = stdout.stream
+        if flush_at_end:
+            # in the finally block, so a failed batch still reports what its
+            # tasks had to say
+            for output in outputs:
+                if output:
+                    print(output, end="")
 
     return results
 

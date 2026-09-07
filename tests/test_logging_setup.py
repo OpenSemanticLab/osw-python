@@ -289,6 +289,12 @@ def _log_item(item):
     return item
 
 
+def _warn_on_item(item):
+    logging.getLogger(WORKER).info(f"handled {item}")
+    logging.getLogger(WORKER).warning(f"trouble with {item}")
+    return item
+
+
 def test_worker_records_are_replayed_in_input_order(collected):
     """The tasks finish in whatever order they finish, so the replay is what
     puts the messages back in the order of the iterable."""
@@ -303,10 +309,62 @@ def test_worker_records_are_replayed_in_input_order(collected):
 
 
 def test_worker_records_are_dropped_without_flush_at_end(collected):
-    """flush_at_end=False means quiet, which is what debug=False asks for."""
+    """flush_at_end=False means quiet for progress, which is what debug=False
+    asks for."""
     parallelize(_log_item, [1, 2, 3], flush_at_end=False, progress_bar=False)
 
     assert collected.messages(WORKER) == []
+
+
+def test_worker_warnings_survive_a_quiet_batch(collected):
+    """A warning reports a problem rather than progress, so a batch asked to
+    stay quiet still passes it on. These call sites used warnings.warn before,
+    which parallelize never suppressed, so dropping them would lose output a
+    caller has today."""
+    parallelize(_warn_on_item, [1, 2], flush_at_end=False, progress_bar=False)
+
+    assert collected.messages(WORKER) == ["trouble with 1", "trouble with 2"]
+
+
+def test_worker_errors_survive_a_quiet_batch(collected):
+    """Errors are replayed on the same grounds as warnings. OSW.delete_entity
+    logs one from inside a worker it parallelizes, at src/osw/core.py."""
+
+    def _fail_quietly(item):
+        logging.getLogger(WORKER).error(f"could not handle {item}")
+
+    parallelize(_fail_quietly, [1], flush_at_end=False, progress_bar=False)
+
+    assert collected.messages(WORKER) == ["could not handle 1"]
+
+
+def test_worker_warnings_reach_pytests_caplog(caplog, osw_logger):
+    """caplog puts its handler on the root logger, so a replayed record has to
+    travel the same path as any other to be seen. The integration test
+    tests/integration/performance_test.py asserts on a warning from a parallel
+    get_page batch this way, and it needs wiki credentials to run."""
+    caplog.set_level(logging.WARNING, logger="osw")
+
+    parallelize(_warn_on_item, [1], flush_at_end=False, progress_bar=False)
+
+    assert any("trouble with 1" in record.message for record in caplog.records)
+
+
+def test_worker_warnings_are_replayed_in_input_order(collected):
+    """The tasks finish in whatever order they finish, so the warnings are put
+    back in the order of the iterable like everything else."""
+    parallelize(_warn_on_item, [1, 2, 3, 4], flush_at_end=True, progress_bar=False)
+
+    assert collected.messages(WORKER) == [
+        "handled 1",
+        "trouble with 1",
+        "handled 2",
+        "trouble with 2",
+        "handled 3",
+        "trouble with 3",
+        "handled 4",
+        "trouble with 4",
+    ]
 
 
 def test_worker_records_reach_the_application_handler(osw_logger):

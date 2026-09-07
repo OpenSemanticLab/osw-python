@@ -412,10 +412,12 @@ def parallelize(
     iterable:
         The iterable, who's items are to be passed as singles to the function.
     flush_at_end:
-        If True, what the tasks print is written to stdout in the order of
-        ``iterable`` once the batch has finished. If False, it is discarded.
-        Either way it is captured while the tasks run, so that concurrent
-        printing cannot garble the progress bar.
+        If True, what the tasks print and log is written out in the order of
+        ``iterable`` once the batch has finished. If False, it is discarded,
+        except for log records at WARNING and above. Those report a problem
+        rather than progress, so they are written out either way. Either way
+        the output is captured while the tasks run, so that concurrent writing
+        cannot garble the progress bar.
     progress_bar:
         If True, a progress bar will be displayed.
     return_exceptions:
@@ -502,13 +504,16 @@ def parallelize(
         sys.stdout = stdout.stream
         osw_logger.handlers = saved_handlers
         osw_logger.propagate = saved_propagate
-        if flush_at_end:
-            # in the finally block, so a failed batch still reports what its
-            # tasks had to say
-            for output, task_records in zip(outputs, records):
-                if output:
-                    print(output, end="")
-                for record in task_records:
+        # in the finally block, so a failed batch still reports what its
+        # tasks had to say
+        for output, task_records in zip(outputs, records):
+            if flush_at_end and output:
+                print(output, end="")
+            for record in task_records:
+                # A warning reports a problem, not progress, so a batch asked
+                # to stay quiet still passes it on. Discarding it would hide
+                # from the caller that something went wrong in a worker.
+                if flush_at_end or record.levelno >= logging.WARNING:
                     log_handler.replay(record)
 
     return results

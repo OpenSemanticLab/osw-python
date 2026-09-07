@@ -19,7 +19,6 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import overload
 from uuid import uuid4
-from warnings import warn
 
 import requests
 from opensemantic.v1 import OswBaseModel
@@ -451,7 +450,7 @@ def build_target_fn(
     if mode == FilenameMode.osw_id:
         return osw_id_fn
     if not name:
-        warn(
+        _logger.warning(
             f"No name is stored for '{osw_id_fn}', falling back to the OSW-ID as "
             f"the file name."
         )
@@ -1001,7 +1000,7 @@ def import_with_fallback(
     except Exception as e:
         if dependencies is None:
             dependencies = {}
-            warn(
+            _logger.warning(
                 "No 'dependencies' were passed to the function "
                 "import_with_fallback()! Trying to derive them from 'to_import'."
             )
@@ -1018,7 +1017,7 @@ def import_with_fallback(
                 "No 'dependencies' were passed to the function import_with_fallback() "
                 "and could not be derived from 'to_import'!"
             )
-        warn(
+        _logger.warning(
             f"An exception occurred while loading the module dependencies: \n"
             f'"{e}"\n'
             "A connection to an OSW instance, to fetch the dependencies from, "

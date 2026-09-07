@@ -8,7 +8,6 @@ import os
 import shutil
 import threading
 import urllib
-import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
 from datetime import datetime
@@ -17,7 +16,6 @@ from pathlib import Path
 from pprint import pformat
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
-from warnings import warn
 
 import mwclient
 import pyld
@@ -420,10 +418,8 @@ class WtSite:
                     pages.append(wtpage)
                     if not wtpage.exists:
                         if param.raise_warning:
-                            warnings.warn(
-                                f"WARNING: Page with title '{title}' does not exist.",
-                                RuntimeWarning,
-                                3,
+                            _logger.warning(
+                                f"Page with title '{title}' does not exist."
                             )
                         # throw argument value exception if page does not exist
                         raise ValueError(f"Page with title '{title}' does not exist.")
@@ -833,7 +829,7 @@ class WtSite:
                 try:
                     page_ = self._site.pages[page_]
                 except Exception as e:
-                    warn(
+                    _logger.warning(
                         f"Page '{page_}' could not be added to the list of "
                         f"to-be-deleted pages. The following Exception occurred:\n{e}"
                     )
@@ -842,7 +838,7 @@ class WtSite:
                     return page_.delete(comment=comment)
                 return page_.delete(reason=comment)
             except Exception as e:
-                warn(
+                _logger.warning(
                     f"Page '{page_}' could not be deleted. "
                     f"The following Exception occurred:\n{e}"
                 )

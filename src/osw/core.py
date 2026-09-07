@@ -11,7 +11,6 @@ from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Optional, Type, Union, overload
 from uuid import UUID, uuid4
-from warnings import warn
 
 import black
 import datamodel_code_generator
@@ -286,7 +285,7 @@ class OSW(BaseModel):
                         f"as the class does not define a field 'type'."
                     )
                 if exclude_typeless:
-                    warn(
+                    _logger.warning(
                         f"Skipping instance '{entity}' of class '{name}' as the class "
                         f"does not define a field 'type'."
                     )

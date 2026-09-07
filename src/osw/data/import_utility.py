@@ -3,7 +3,6 @@ import inspect
 import logging
 import re
 import uuid as uuid_module
-import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
@@ -412,9 +411,8 @@ def jsonpath_search_and_return_list(
             # Search in a dramatically reduced number of entries
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:
-            warnings.warn(
-                f"jsonpath_search_and_return_list() threw and exception:\n{e!s}",
-                stacklevel=2,
+            _logger.warning(
+                f"jsonpath_search_and_return_list() threw and exception:\n{e!s}"
             )
             result = jp_parse.find(search_tar)
     else:
@@ -434,10 +432,9 @@ def jsonpath_search_and_return_list(
                     list_.append(res.value[val_key])
 
     if len(list_) == 0 and warn:
-        warnings.warn(
+        _logger.warning(
             f"jsonpath_search_and_return_list() did not find any "
-            f"results for the jsonpath string '{jp_str}'",
-            stacklevel=3,
+            f"results for the jsonpath string '{jp_str}'"
         )
     return list(set(flatten_list(list_)))
 

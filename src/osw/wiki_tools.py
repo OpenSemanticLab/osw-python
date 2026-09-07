@@ -1,7 +1,6 @@
 import getpass
 import logging
 import re
-import warnings
 from typing import Dict, List, Optional, Tuple, Union
 
 import mwclient
@@ -327,7 +326,7 @@ def semantic_search(
         # count format does, means the result count says nothing about
         # truncation
         if limit and n >= limit:
-            warnings.warn(
+            _logger.warning(
                 f"Query '{single_query}' returned {n} results, which meets the "
                 f"requested limit of {limit}. Results are truncated - raise "
                 f"the limit or page through with '|offset=' to retrieve the "
@@ -348,7 +347,7 @@ def semantic_search(
             else:
                 dropped += 1
         if dropped > 0:
-            warnings.warn(
+            _logger.warning(
                 f"Query '{single_query}': {dropped} of {n} results were dropped "
                 f"because the wiki reported them as non-existing pages."
             )

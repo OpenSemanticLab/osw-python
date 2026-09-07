@@ -77,6 +77,12 @@ osw.set_log_level("DEBUG")    # see more
 osw.disable_logging()         # detach the handler osw attached
 ```
 
+Problems that osw can work around are WARNING records on the same logger, not
+Python `warnings`. A truncated query result and a page that does not exist are
+examples. A `warnings` filter or the `-W` option therefore has no effect on
+them. A message that repeats is also written out every time, where the warnings
+machinery would have shown it once. Use `set_log_level` to control them.
+
 The records go to `stderr`, which leaves `stdout` free for your program's own
 output. That matters for anything speaking a protocol over `stdout`, such as an
 MCP stdio server. Pass `osw.enable_logging(stream=...)` to send them elsewhere.

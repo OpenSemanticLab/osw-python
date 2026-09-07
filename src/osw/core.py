@@ -59,11 +59,13 @@ from osw.utils.wiki import (
     get_full_title,
     get_namespace,
     get_title,
-    get_uuid,
     is_empty,
     namespace_from_full_title,
     remove_empty,
     title_from_full_title,
+)
+from osw.utils.wiki import (
+    get_uuid as get_uuid_from_osw_id,
 )
 from osw.wiki_tools import SearchParam
 from osw.wtsite import WtPage, WtSite
@@ -237,18 +239,21 @@ class OSW(BaseModel):
 
     @staticmethod
     def get_uuid(osw_id: str) -> UUID:
-        """Returns the uuid for a given OSW-ID
+        """Returns the uuid for a given OSW-ID. Kept for backwards compatibility,
+        the implementation lives in osw.utils.wiki.get_uuid()
 
         Parameters
         ----------
         osw_id
-            OSW-ID string, e.g. OSW2ea5b605c91f4e5a95593dff79fdd4a5
+            OSW-ID string, e.g. OSW2ea5b605c91f4e5a95593dff79fdd4a5, with or
+            without file suffixes, e.g.
+            OSW2ea5b605c91f4e5a95593dff79fdd4a5.drawio.png
 
         Returns
         -------
             uuid object, e.g. UUID("2ea5b605-c91f-4e5a-9559-3dff79fdd4a5")
         """
-        return UUID(osw_id.replace("OSW", ""))
+        return get_uuid_from_osw_id(osw_id)
 
     class SortEntitiesResult(OswBaseModel):
         by_name: Dict[str, List[OswBaseModel]]
@@ -1444,7 +1449,7 @@ class OSW(BaseModel):
             if jsondata is None:  # Guard clause
                 title = title_from_full_title(page.title)
                 try:
-                    uuid_from_title = get_uuid(title)
+                    uuid_from_title = get_uuid_from_osw_id(title)
                 except ValueError:
                     print(
                         f"Error: UUID could not be determined from title: '{title}', "

@@ -22,7 +22,7 @@ pip install osw
 ```
 
 Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
-`osw[UI]`, `osw[all]`) are described in the
+`osw[UI]`, `osw[mcp]`, `osw[all]`) are described in the
 [Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
 
 ## Quickstart
@@ -38,6 +38,19 @@ print(instances)
 More runnable scripts live in [examples/](examples/), and the
 [Basics tutorial](docs/tutorials/basics.ipynb) walks through the
 OpenSemanticLab data model.
+
+## CLI and MCP tools
+
+Installing `osw` also installs an `osw` command line client, and the
+`osw[mcp]` extra adds an MCP server that exposes a live instance to agent
+clients such as Claude Code:
+
+```bash
+osw search ask '[[Category:Item]]' --limit 5
+```
+
+Commands, tools and their configuration are described in the
+[CLI and MCP guide](https://opensemanticlab.github.io/osw-python/cli-and-mcp/).
 
 ## Contributing
 

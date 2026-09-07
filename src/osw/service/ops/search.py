@@ -10,7 +10,19 @@ from osw.service.context import Context
 from osw.service.registry import operation
 from osw.service.serialization import cap_list, to_jsonable
 from osw.sparql_client_smw import SmwSparqlClient
+from osw.wiki_tools import get_query_limit
 from osw.wtsite import WtSite
+
+
+def _hit_limit(total: int, limit: Optional[int]) -> bool:
+    """Whether a result set is as large as the limit that produced it.
+
+    The wiki applies the limit itself, so ``cap_list`` never has to cut these
+    results and its own flag stays False. A full result set is then the only
+    signal left that the wiki may hold further matches. ``limit=0`` asks for
+    no results, so meeting it says nothing about truncation.
+    """
+    return bool(limit) and total >= limit
 
 
 @operation(
@@ -42,16 +54,28 @@ def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -
     ``@context`` of its schema, so read it with ``osw schema get`` when a
     name query returns nothing.
 
-    ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
+    ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset). A
+    ``limit=N`` written into the query itself wins over it.
     Returns ``{titles, count, truncated}``, where ``titles`` are full page
-    names and ``count`` is how many the wiki returned.
+    names, ``count`` is how many the wiki returned and ``truncated`` reports
+    that further matches may exist beyond them.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.semantic_search(
         WtSite.SearchParam(query=ask_query, limit=lim)
     )
+    # semantic_search lets a 'limit=' written into the query win over `lim`,
+    # so the flag has to compare against the limit that reached the wiki.
+    # `titles` excludes hits whose page does not exist, so a result set
+    # thinned that way reads as not truncated.
+    query_limit = get_query_limit(ask_query)
+    effective_limit = lim if query_limit is None else query_limit
     capped, total, truncated = cap_list(titles, lim)
-    return {"titles": capped, "count": total, "truncated": truncated}
+    return {
+        "titles": capped,
+        "count": total,
+        "truncated": truncated or _hit_limit(total, effective_limit),
+    }
 
 
 @operation(
@@ -74,12 +98,17 @@ def search_titles(ctx: Context, text: str, limit: Optional[int] = None) -> dict:
 
     ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
     Returns ``{titles, count, truncated}``, where ``titles`` are full page
-    names and ``count`` is how many the wiki returned.
+    names, ``count`` is how many the wiki returned and ``truncated`` reports
+    that further matches may exist beyond them.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.prefix_search(WtSite.SearchParam(query=text, limit=lim))
     capped, total, truncated = cap_list(titles, lim)
-    return {"titles": capped, "count": total, "truncated": truncated}
+    return {
+        "titles": capped,
+        "count": total,
+        "truncated": truncated or _hit_limit(total, lim),
+    }
 
 
 @operation(
@@ -98,13 +127,18 @@ def search_content(ctx: Context, text: str, limit: Optional[int] = None) -> dict
 
     Returns page titles, not the matching passages. ``limit`` defaults to
     ``OSW_MAX_RESULTS`` (100 when that is unset). Returns
-    ``{titles, count, truncated}``, where ``titles`` are full page names
-    and ``count`` is how many the wiki returned.
+    ``{titles, count, truncated}``, where ``titles`` are full page names,
+    ``count`` is how many the wiki returned and ``truncated`` reports that
+    further matches may exist beyond them.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.site.content_search(WtSite.SearchParam(query=text, limit=lim))
     capped, total, truncated = cap_list(titles, lim)
-    return {"titles": capped, "count": total, "truncated": truncated}
+    return {
+        "titles": capped,
+        "count": total,
+        "truncated": truncated or _hit_limit(total, lim),
+    }
 
 
 @operation(
@@ -125,14 +159,19 @@ def list_instances_of_category(
 
     ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).
     Returns ``{titles, count, truncated}``, where ``titles`` are full page
-    names and ``count`` is how many the wiki returned.
+    names, ``count`` is how many the wiki returned and ``truncated`` reports
+    that further matches may exist beyond them.
     """
     lim = ctx.limit(limit)
     titles = ctx.osw.query_instances(
         OSW.QueryInstancesParam(categories=category, limit=lim)
     )
     capped, total, truncated = cap_list(titles, lim)
-    return {"titles": capped, "count": total, "truncated": truncated}
+    return {
+        "titles": capped,
+        "count": total,
+        "truncated": truncated or _hit_limit(total, lim),
+    }
 
 
 @operation(

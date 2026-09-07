@@ -131,6 +131,26 @@ def create_site_object(
     return site
 
 
+class SemanticSearchResult(OswBaseModel):
+    """Result of a single semantic query, including whether the wiki truncated it"""
+
+    query: str
+    """the query as sent to the wiki, including any limit appended by
+    semantic_search"""
+    titles: List[str]
+    """the page-title fulltext strings of the results that exist"""
+    count: int
+    """the number of results this response carried, before dropping
+    non-existing pages, so it can be larger than len(titles). It is not the
+    total number of matching pages on the wiki, which SMW does not report"""
+    truncated: bool
+    """True if the wiki reported further results beyond those returned"""
+    next_offset: Optional[int] = None
+    """the absolute offset at which the remaining results start, to be passed
+    back as '|offset='. None for a complete result set. It says where to
+    continue, not how many results remain"""
+
+
 class SearchParam(OswBaseModel):
     """Search parameters for semantic and prefix search"""
 
@@ -142,6 +162,11 @@ class SearchParam(OswBaseModel):
     Ignored by semantic_search for a query that sets 'limit=' itself, since SMW
     honours the last limit in the query string"""
     return_json: Optional[bool] = False
+    return_meta: Optional[bool] = False
+    """If True, semantic_search returns one SemanticSearchResult per query instead
+    of a flat list of titles, so that a caller can report a truncated result set.
+    Ignored when return_json is True, since the raw wiki response already carries
+    the truncation signal"""
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -280,7 +305,7 @@ def get_query_limit(query: str) -> Optional[int]:
 
 def semantic_search(
     site: mwclient.client.Site, query: Union[str, List[str], SearchParam]
-) -> Union[List[str], List[dict]]:
+) -> Union[List[str], List[dict], List[SemanticSearchResult]]:
     """Semantic query
 
     Parameters
@@ -295,9 +320,12 @@ def semantic_search(
     Returns
     -------
     result:
-        With ``return_json=False`` (default): a flat list of page-title fulltext
-        strings. With ``return_json=True``: a list of raw SMW ``ask`` result dicts,
-        one per query (always a list, even for a single query).
+        With ``return_json=False`` and ``return_meta=False`` (default): a flat
+        list of page-title fulltext strings. With ``return_json=True``: a list of
+        raw SMW ``ask`` result dicts, one per query (always a list, even for a
+        single query). With ``return_meta=True``: a list of SemanticSearchResult,
+        one per query, which reports whether the wiki truncated the result set.
+        ``return_json`` takes precedence if both are set.
     """
     if not isinstance(query, SearchParam):
         query = SearchParam(query=query)
@@ -320,15 +348,21 @@ def semantic_search(
                 print(f"Query '{single_query}' returned no results")
             else:
                 print(f"Query '{single_query}' returned {n} results")
-        # No limit in force, or 'limit=0' asking for no results at all as a
-        # count format does, means the result count says nothing about
-        # truncation
-        if limit and n >= limit:
+        # SMW reports an incomplete result set with a top-level
+        # 'query-continue-offset' holding the offset the remainder starts at,
+        # and omits the key for a complete one. That replaces the earlier
+        # comparison of the result count against the limit, which was wrong in
+        # both directions: it could not see the wiki's own '$smwgQMaxLimit'
+        # cap, and it reported a complete set of exactly 'limit' results as
+        # truncated
+        next_offset = result.get("query-continue-offset")
+        truncated = next_offset is not None
+        if truncated:
             warnings.warn(
-                f"Query '{single_query}' returned {n} results, which meets the "
-                f"requested limit of {limit}. Results are truncated - raise "
-                f"the limit or page through with '|offset=' to retrieve the "
-                f"remainder."
+                f"Query '{single_query}' returned {n} results and the wiki "
+                f"reports further ones. Results are truncated - raise the "
+                f"limit or page through with '|offset={next_offset}' to "
+                f"retrieve the remainder."
             )
         if query.return_json:
             return result
@@ -349,6 +383,14 @@ def semantic_search(
                 f"Query '{single_query}': {dropped} of {n} results were dropped "
                 f"because the wiki reported them as non-existing pages."
             )
+        if query.return_meta:
+            return SemanticSearchResult(
+                query=single_query,
+                titles=page_list,
+                count=n,
+                truncated=truncated,
+                next_offset=next_offset,
+            )
         return page_list
 
     if query.parallel:
@@ -358,10 +400,10 @@ def semantic_search(
     else:
         query_results = [semantic_search_(single_query=sq) for sq in query.query]
 
-    if query.return_json:
-        # Each entry of query_results is the raw SMW result dict for one query.
-        # Do not flatten dicts; always return the list of result dicts (one per
-        # query), even when only a single query was passed.
+    if query.return_json or query.return_meta:
+        # Each entry of query_results is the raw SMW result dict, or the
+        # SemanticSearchResult, for one query. Do not flatten those; always
+        # return one entry per query, even when only a single query was passed.
         return query_results
 
     return [item for sublist in query_results for item in sublist]

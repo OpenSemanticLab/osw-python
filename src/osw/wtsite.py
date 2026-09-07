@@ -568,7 +568,9 @@ class WtSite:
 
         Returns
         -------
-            A list of page titles
+            A list of page titles, or, if the SearchParam sets return_json or
+            return_meta, one raw result dict or SemanticSearchResult per query.
+            See wiki_tools.semantic_search for details.
         """
         return wt.semantic_search(self._site, query)
 

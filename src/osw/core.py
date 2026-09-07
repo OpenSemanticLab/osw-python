@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib
 import json
 import logging
@@ -109,6 +110,93 @@ def collect_messages(
         if message not in target:
             target.append(message)
     return target
+
+
+def remove_unserializable_default_sentinels(content: str) -> str:
+    """Replaces defaults that repr a datamodel-code-generator sentinel object
+
+    datamodel-code-generator uses a bare `UNDEFINED = object()` sentinel with
+    `is` identity checks. oold's merge_deep deep-copies schema dicts during
+    allOf composition, which clones that sentinel into a look-alike object,
+    defeating the identity guard, so the generator reprs it into source as
+    `default_factory=lambda :Foo.parse_obj(<object object at 0x...>)`, which
+    is not valid Python.
+
+    Based on oold.generator.Generator.generate(), but matching the factory
+    expression itself rather than everything up to the next closing paren:
+    oold's pattern consumes the paren belonging to `parse_obj(`, which leaves
+    a dangling `)` behind whenever the sentinel is wrapped in a call.
+    """
+    return re.sub(
+        r"default_factory=lambda\s*:\s*"
+        r"(?:[\w.]+\(<object object at 0x[0-9a-fA-F]+>\)"
+        r"|<object object at 0x[0-9a-fA-F]+>)",
+        "default=None",
+        content,
+    )
+
+
+def ensure_valid_python_source(content: str, path: str) -> None:
+    """Raises a descriptive SyntaxError if content is not valid Python
+
+    _fetch_schema writes the generated model to a file that is imported right
+    after (or, for non-final calls, on the next process start). A corrupt
+    write poisons every later import of osw.model.entity, and there is
+    previously-valid content sitting at `path` that would otherwise still
+    work. Validating before opening the file for writing means a bad
+    generation leaves that previous, valid content in place instead.
+    """
+    try:
+        ast.parse(content)
+    except SyntaxError as e:
+        offending_line = ""
+        if e.lineno is not None:
+            lines = content.splitlines()
+            if 0 < e.lineno <= len(lines):
+                offending_line = lines[e.lineno - 1]
+        message = (
+            f"Generated model for '{path}' is not valid Python: "
+            f"{e.msg} (line {e.lineno}): {offending_line!r}"
+        )
+        _logger.error(message)
+        raise SyntaxError(message) from e
+
+
+def reload_module_or_restore(module, path: str, previous_content: str = None) -> None:
+    """Reloads module, putting previous_content back if the import fails
+
+    ast.parse only proves the generated model is syntactically valid. It can
+    still fail at import time, e.g. on an undefined name or an error raised
+    while a class body is executed. Restoring the previous file content keeps
+    later imports of osw.model.entity working instead of leaving a module on
+    disk that raises for the rest of the installation's lifetime.
+    """
+    try:
+        importlib.reload(module)
+    except Exception as e:
+        _logger.error(f"Generated model at '{path}' failed to import: {e}")
+        if previous_content is not None:
+            _logger.error(f"Restoring the previous content of '{path}'")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(previous_content)
+            try:
+                importlib.reload(module)
+            except Exception as restore_error:
+                # do not mask the original failure, but make it obvious that
+                # the module is now broken in memory as well
+                _logger.error(
+                    f"Restoring '{path}' did not make it importable again: "
+                    f"{restore_error}"
+                )
+        raise
+
+
+def read_file_if_exists(path: str) -> str:
+    """Returns the content of path, or None if it does not exist yet"""
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return f.read()
 
 
 # Reusable type definitions
@@ -840,6 +928,9 @@ class OSW(BaseModel):
             # are not v1 compatible mainly by using update_model()
             content = re.sub(r"(,?\s*unique_items=True\s*)", "", content)
 
+            # fix unserializable defaults from datamodel-code-generator (#125)
+            content = remove_unserializable_default_sentinels(content)
+
             # Detect empty subclasses, replaces their occurrences with base classes,
             # and removes the empty class definitions.
             # Only processes subclasses that follow naming patterns:
@@ -1048,14 +1139,27 @@ class OSW(BaseModel):
                     content = black.format_str(content, mode=black.Mode())
                     # run isort to sort imports using Vertical Hanging Indent style
                     content = isort.code(content, profile="black")
-                except Exception:
-                    pass  # black is optional, continue without formatting
+                except Exception as e:
+                    # black/isort are optional, continue without formatting, but
+                    # do not hide a signal that the generated content is broken
+                    _logger.warning(f"Failed to format generated model content: {e}")
+
+            # validate before writing: a corrupt write poisons every later
+            # import of this file, so leaving the previous valid content in
+            # place is strictly better than writing invalid syntax (#125)
+            ensure_valid_python_source(content, result_model_path)
+
+            # keep the current file so that a model that parses but does not
+            # import can be rolled back below (#125)
+            previous_content = read_file_if_exists(result_model_path)
 
             with open(result_model_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             if fetchSchemaParam.final:
-                importlib.reload(model)  # reload the updated module
+                # reload the updated module, restoring the previous content if
+                # the generated model turns out not to be importable
+                reload_module_or_restore(model, result_model_path, previous_content)
                 if not site_cache_state:
                     self.site.disable_cache()  # restore original state
 

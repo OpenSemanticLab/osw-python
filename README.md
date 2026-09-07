@@ -39,6 +39,13 @@ More runnable scripts live in [examples/](examples/), and the
 [Basics tutorial](docs/tutorials/basics.ipynb) walks through the
 OpenSemanticLab data model.
 
+## Logging
+
+osw reports what it is doing on the `osw` logger at INFO by default. Levels,
+the `OSW_LOG_LEVEL` environment variable and how to collect the records in your
+own logging setup are described in the
+[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/#logging).
+
 ## Contributing
 
 Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).

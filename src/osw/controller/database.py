@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Union
 
 from opensemantic.v1 import OswBaseModel
@@ -8,6 +9,8 @@ from sqlalchemy.engine import Engine
 import osw.model.entity as model
 from osw.auth import CredentialManager
 from osw.core import OSW
+
+_logger = logging.getLogger(__name__)
 
 
 class DatabaseController(model.Database):
@@ -130,4 +133,4 @@ class DatabaseController(model.Database):
         with self.engine.connect() as conn:
             result_set = conn.execute(sql_text(sql))
             for r in result_set:
-                print(r)
+                _logger.debug(f"{r}")

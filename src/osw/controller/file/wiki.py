@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 from typing import IO, Any, Dict, List, Optional
 
@@ -7,6 +8,8 @@ from osw.controller.file.remote import RemoteFileController
 from osw.core import OSW, model
 from osw.utils.wiki import get_namespace, get_title
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 
 class WikiFileController(model.WikiFile, RemoteFileController):
@@ -70,10 +73,9 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         if web_api_failed:
             # fallback: use direct download
             url = file.imageinfo["url"]
-            print(
-                "Extension FileApi not installed on the server. Fallback: use direct "
-                "download from ",
-                url,
+            _logger.warning(
+                f"Extension FileApi not installed on the server. Fallback: use "
+                f"direct download from {url}"
             )
             response = self.osw.mw_site.connection.get(url, stream=True)
 

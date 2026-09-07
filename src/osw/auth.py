@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import getpass
+import logging
 import os
 import warnings
 from enum import Enum
@@ -15,6 +16,8 @@ from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import PrivateAttr
 
 from osw.defaults import paths as default_paths
+
+_logger = logging.getLogger(__name__)
 
 
 def _secret_to_str(v):
@@ -131,7 +134,7 @@ class CredentialManager(OswBaseModel):
                     loaded = _load_credentials(fp, into_store=False)
                     all_creds.update(loaded)
                 except Exception as exc:
-                    print(exc)
+                    _logger.error(f"{exc}")
         return all_creds
 
     def get_credential(self, config: CredentialConfig) -> BaseCredential:
@@ -243,7 +246,7 @@ class CredentialManager(OswBaseModel):
                                     if iri_ == iri:
                                         return True
                             except yaml.YAMLError as exc:
-                                print(exc)
+                                _logger.error(f"{exc}")
         return False
 
     def save_credentials_to_file(
@@ -292,9 +295,9 @@ class CredentialManager(OswBaseModel):
             with open(fp, "w", encoding="utf-8") as stream:
                 yaml.dump(data, stream)
             if file_already_exists:
-                print(f"Credentials file updated at '{fp.resolve()}'.")
+                _logger.info(f"Credentials file updated at '{fp.resolve()}'.")
             else:
-                print(f"Credentials file created at '{fp.resolve()}'.")
+                _logger.info(f"Credentials file created at '{fp.resolve()}'.")
 
 
 CredentialManager.CredentialConfig.update_forward_refs()

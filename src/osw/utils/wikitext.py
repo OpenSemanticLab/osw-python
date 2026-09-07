@@ -1,8 +1,11 @@
 import copy
+import logging
 
 import mwparserfromhell
 import numpy as np
 from jsonpath_ng.ext import parse
+
+_logger = logging.getLogger(__name__)
 
 """
 Module to transform wikitext / templates.
@@ -241,10 +244,10 @@ def find_dependencies(wikitext, debug=False):
     for template in code.filter_templates(recursive=True):
         if template.name.split(":")[0].isupper():
             if debug:
-                print(f"MagicWord: {template.name}")
+                _logger.debug(f"MagicWord: {template.name}")
         elif template.name[0] == "#":
             if debug:
-                print(f"ParserFunction: {template.name}")
+                _logger.debug(f"ParserFunction: {template.name}")
             if "#set:" in template.name or "#declare:" in template.name:
                 if (
                     "=" in template.name.split(":")[1]
@@ -252,41 +255,41 @@ def find_dependencies(wikitext, debug=False):
                     property_ = "Property:" + template.name.split(":")[1].split("=")[0]
                     dependencies.append(property_)
                     if debug:
-                        print(f"=> {property_}")
+                        _logger.debug(f"=> {property_}")
                 for param in template.params:
                     property_ = "Property:" + param.split("=")[0]
                     dependencies.append(property_)
                     if debug:
-                        print(f"=> {property_}")
+                        _logger.debug(f"=> {property_}")
         else:
             if debug:
-                print(f"Template: {template.name}")
+                _logger.debug(f"Template: {template.name}")
             template_name = str(template.name)
             if ":" not in template.name:
                 template_name = "Template:" + template_name
             dependencies.append(template_name)
             if debug:
-                print(f"=> {template_name}")
+                _logger.debug(f"=> {template_name}")
     # for tag in code.filter_tags(recursive=True):
     #    if (debug): print("Tag: {}".format(tag))
     for link in code.filter_wikilinks(recursive=True):
         if "::" in link:
             if debug:
-                print(f"Annotation: {link}")
+                _logger.debug(f"Annotation: {link}")
             property_ = "Property:" + link.split("::")[0].split("[[")[-1]
             dependencies.append(property_)
             if debug:
-                print(f"=> {property_}")
+                _logger.debug(f"=> {property_}")
         if "Category:" in link:
             if debug:
-                print(f"Category: {link}")
+                _logger.debug(f"Category: {link}")
             category = link.replace("[[", "").replace("]]", "")
             dependencies.append(str(category))
             if debug:
-                print(f"=> {category}")
+                _logger.debug(f"=> {category}")
         else:
             if debug:
-                print(f"Link: {link}")
+                _logger.debug(f"Link: {link}")
     dependencies = np.unique(dependencies).tolist()  # remove duplicates
     filtered_dependencies = []  # do not manipulate the iterated object
     for dependency in dependencies:
@@ -297,7 +300,7 @@ def find_dependencies(wikitext, debug=False):
         # see https://www.semantic-mediawiki.org/wiki/Help:Special_properties
         if "Property:" in dependency and (" " in dependency or "_" in dependency):
             if debug:
-                print(f"Info: Remove presumptive built-in property {dependency}")
+                _logger.debug(f"Remove presumptive built-in property {dependency}")
         else:
             filtered_dependencies.append(dependency)
     return filtered_dependencies
@@ -331,7 +334,7 @@ def find_dependencies_recursively(title, site, dependencies=None, debug=False):
         if dependency not in dependencies:  # for circular dependencies
             dependencies.append(dependency)
             if debug:
-                print(f"Scan nested {dependency}")
+                _logger.debug(f"Scan nested {dependency}")
             find_dependencies_recursively(
                 dependency, site, dependencies=dependencies, debug=debug
             )
@@ -398,8 +401,8 @@ def get_wikitext_from_flat_content_dict(d: dict) -> str:
                     # wt += "\n}}"
                 else:
                     if string_index != index:
-                        print(
-                            f"Warning: template param '{key}' has mixed template/"
+                        _logger.warning(
+                            f"template param '{key}' has mixed template/"
                             f"string values: {value}"
                         )
                     if string_index > 0 and element and not element.strip().isspace():
@@ -435,7 +438,7 @@ def get_wikitext_from_flat_content_structure(content):
         elif isinstance(content_element, str):
             wt += content_element  # "\n" + content_element
         else:
-            print(f"Error: content element is not dict or string: {content_element}")
+            _logger.error(f"content element is not dict or string: {content_element}")
     return wt
 
 
@@ -466,7 +469,7 @@ def wikiJson2SchemaJson(schema, wikiJson):
         or not isinstance(wikiJson[1], str)
         or not isinstance(wikiJson[2], dict)
     ):
-        print("Error: Invalid wikiJson:", wikiJson)
+        _logger.error(f"Invalid wikiJson: {wikiJson}")
         return schemaJson
 
     schemaJson = wikiJson2SchemaJsonRecursion(schema, wikiJson[0], wikiJson[2])
@@ -615,9 +618,8 @@ def schemaJson2WikiJson(schemaJson, isRoot=True):
         template = schemaJson["osl_template"]
         wikiJson[0][template] = {}
     else:
-        print(
-            "Error: Mandatory property 'osl_template' not found in schemaJson",
-            schemaJson,
+        _logger.error(
+            f"Mandatory property 'osl_template' not found in schemaJson {schemaJson}"
         )
         return
 

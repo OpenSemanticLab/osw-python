@@ -1,8 +1,8 @@
 import copy
 import inspect
+import logging
 import re
 import uuid as uuid_module
-import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
@@ -20,6 +20,8 @@ from osw.model import entity as model
 from osw.utils.regex import MatchResult, RegExPatternExtended
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.wtsite import WtPage, WtSite
+
+_logger = logging.getLogger(__name__)
 
 # Constants
 ENABLE_SORTING = True
@@ -206,7 +208,7 @@ def transform_attributes_and_merge(
                         del ent_as_dict[other_k]
                     del ent[other_k]
                     del_keys.append(other_k)
-    print(f"Merge operation complete. Deleted keys: {del_keys}")
+    _logger.info(f"Merge operation complete. Deleted keys: {del_keys}")
     return {"entities": ent, "entities_as_dict": ent_as_dict}
 
 
@@ -409,9 +411,8 @@ def jsonpath_search_and_return_list(
             # Search in a dramatically reduced number of entries
             result = jp_parse.find(search_tar[str(cls_type)])
         except Exception as e:
-            warnings.warn(
-                f"jsonpath_search_and_return_list() threw and exception:\n{e!s}",
-                stacklevel=2,
+            _logger.warning(
+                f"jsonpath_search_and_return_list() threw and exception:\n{e!s}"
             )
             result = jp_parse.find(search_tar)
     else:
@@ -431,10 +432,9 @@ def jsonpath_search_and_return_list(
                     list_.append(res.value[val_key])
 
     if len(list_) == 0 and warn:
-        warnings.warn(
+        _logger.warning(
             f"jsonpath_search_and_return_list() did not find any "
-            f"results for the jsonpath string '{jp_str}'",
-            stacklevel=3,
+            f"results for the jsonpath string '{jp_str}'"
         )
     return list(set(flatten_list(list_)))
 
@@ -805,7 +805,7 @@ def get_entities_from_osw(
     wtsite_obj = osw_obj.site
     entities_from_osw = []
     if debug:
-        print(f"Searching for instances of {category_to_search} in OSW...")
+        _logger.debug(f"Searching for instances of {category_to_search} in OSW...")
     entities = wtsite_obj.semantic_search(
         query=(
             wt.SearchParam(

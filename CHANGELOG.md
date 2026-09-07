@@ -10,6 +10,41 @@
 
 <!-- version list -->
 
+## v2.3.2 (2026-09-07)
+
+### Bug Fixes
+
+- **workflow**: Scope _deploy cleanup to what it actually changed
+  ([`4f0593e`](https://github.com/OpenSemanticLab/osw-python/commit/4f0593e47b7a2dd42f304429f2ffb9b5eb5fe47c))
+
+
+## v2.3.1 (2026-09-03)
+
+### Bug Fixes
+
+- **search**: Keep a limit the caller wrote into the ask query
+  ([`0c75699`](https://github.com/OpenSemanticLab/osw-python/commit/0c756993bcf9a9114c3072ee03037757aaa5fcf5))
+
+- **search**: Treat a SearchParam limit of None as no limit
+  ([`6e94187`](https://github.com/OpenSemanticLab/osw-python/commit/6e94187c455942afdec2746a498c44c6fd5953e0))
+
+
+## v2.3.0 (2026-09-03)
+
+### Features
+
+- **wtsite**: Parametrize and parallelize modify_search_results
+  ([`d2e2952`](https://github.com/OpenSemanticLab/osw-python/commit/d2e29522033d5f0e8658c318b0fd909406e0f49d))
+
+
+## v2.2.1 (2026-09-03)
+
+### Bug Fixes
+
+- **core**: Honour per-property settings in the overwrite policy
+  ([`2ed0a1f`](https://github.com/OpenSemanticLab/osw-python/commit/2ed0a1fa027c7b4981a4c5955cbfe9e8d61b9976))
+
+
 ## v2.2.0 (2026-09-02)
 
 ### Features

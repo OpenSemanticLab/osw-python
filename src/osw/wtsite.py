@@ -14,7 +14,7 @@ from copy import deepcopy
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from pprint import pprint
+from pprint import pformat
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
 from warnings import warn
@@ -643,19 +643,21 @@ class WtSite:
             titles = titles[0:limit]
         if param.log:
             _logger.debug(f"Found: {titles}")
-        for title in titles:
+
+        def modify_single_result(title: str):
             wtpage = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
             modify_page(wtpage)
-            if log:
+            if param.log:
                 _logger.debug(f"\n======= {title} =======")
                 for slot in wtpage._slots:
                     content = wtpage.get_slot_content(slot)
                     # if isinstance(content, dict): content = json.dumps(content)
                     _logger.debug(f"   ==== {title}:{slot} ====   ")
-                    pprint(content)
+                    _logger.debug(pformat(content))
                     _logger.debug("\n")
             if not param.dryrun:
-                wtpage.edit(comment)
+                wtpage.edit(param.comment)
+
         if param.parallel:
             _ = parallelize(modify_single_result, titles, flush_at_end=param.log)
         else:

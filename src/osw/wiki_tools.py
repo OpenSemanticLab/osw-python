@@ -323,7 +323,10 @@ def semantic_search(
                 _logger.debug(f"Query '{single_query}' returned no results")
             else:
                 _logger.debug(f"Query '{single_query}' returned {n} results")
-        if n >= query.limit:
+        # No limit in force, or 'limit=0' asking for no results at all as a
+        # count format does, means the result count says nothing about
+        # truncation
+        if limit and n >= limit:
             warnings.warn(
                 f"Query '{single_query}' returned {n} results, which meets the "
                 f"requested limit of {limit}. Results are truncated - raise "

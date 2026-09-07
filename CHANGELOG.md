@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.3.2 (2026-09-07)
+
+### Bug Fixes
+
+- **workflow**: Scope _deploy cleanup to what it actually changed
+  ([`4f0593e`](https://github.com/OpenSemanticLab/osw-python/commit/4f0593e47b7a2dd42f304429f2ffb9b5eb5fe47c))
+
+
 ## v2.3.1 (2026-09-03)
 
 ### Bug Fixes

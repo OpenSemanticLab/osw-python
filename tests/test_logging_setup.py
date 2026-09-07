@@ -6,6 +6,7 @@ worker thread so a parallel batch does not garble its own progress bar.
 """
 
 import logging
+import sys
 from contextlib import contextmanager
 
 import pytest
@@ -134,6 +135,14 @@ def test_enable_logging_does_not_stack_handlers(osw_logger):
     osw.enable_logging()
 
     assert len(osw_default_handlers(osw_logger)) == 1
+
+
+def test_the_default_handler_writes_to_stderr(osw_logger):
+    """stdout carries a program's own output, and a protocol for anything that
+    speaks one over it, e.g. an MCP stdio server, so osw keeps off it."""
+    handler = osw.enable_logging()
+
+    assert handler.stream is sys.stderr
 
 
 def test_the_osw_logger_always_propagates(osw_logger):

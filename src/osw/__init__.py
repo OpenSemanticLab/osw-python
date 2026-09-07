@@ -133,8 +133,9 @@ def enable_logging(level=None, stream=None) -> logging.Handler:
         a level name or number. Defaults to the environment variable, then to
         DEFAULT_LOG_LEVEL.
     stream
-        where to write. Defaults to sys.stdout, which is where the print calls
-        this replaced used to go.
+        where to write. Defaults to sys.stderr, so stdout stays free for a
+        program's own output. Anything speaking a protocol over stdout, such as
+        an MCP stdio server, depends on that.
 
     Returns
     -------
@@ -145,7 +146,7 @@ def enable_logging(level=None, stream=None) -> logging.Handler:
     if level is None:
         level = _parse_level(os.environ.get(LOG_LEVEL_ENV_VAR, ""))
     _detach()
-    handler = _DefaultHandler(sys.stdout if stream is None else stream)
+    handler = _DefaultHandler(sys.stderr if stream is None else stream)
     handler.setFormatter(logging.Formatter(LOG_FORMAT))
     handler.set_name(_DEFAULT_HANDLER_NAME)
     _logger.addHandler(handler)

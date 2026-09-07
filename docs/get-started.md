@@ -77,6 +77,10 @@ osw.set_log_level("DEBUG")    # see more
 osw.disable_logging()         # detach the handler osw attached
 ```
 
+The records go to `stderr`, which leaves `stdout` free for your program's own
+output. That matters for anything speaking a protocol over `stdout`, such as an
+MCP stdio server. Pass `osw.enable_logging(stream=...)` to send them elsewhere.
+
 Set `OSW_LOG_LEVEL` to a level name, a level number, or `OFF` to choose the
 level before the package is imported. `OFF` silences osw everywhere, including
 in your own handlers.

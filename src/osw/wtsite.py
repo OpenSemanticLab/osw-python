@@ -623,6 +623,12 @@ class WtSite:
         dryrun
             Deprecated, use param.dryrun instead. if True, no actual changes are
             made, by default False
+
+        Raises
+        ------
+        ValueError
+            If param.query is a SearchParam asking for anything other than page
+            titles, meaning return_json or return_meta.
         """
         if not isinstance(param, WtSite.ModifySearchResultsParam):
             param = WtSite.ModifySearchResultsParam(
@@ -632,6 +638,23 @@ class WtSite:
                 log=log,
                 dryrun=dryrun,
             )
+
+        # Both searches can be asked for the raw API response, and the semantic
+        #  one for SemanticSearchResult objects. This method looks up and edits
+        #  a page per result, so it needs the titles themselves. Reject the
+        #  other options here rather than failing further down on a dict where
+        #  a title is expected
+        if isinstance(param.query, wt.SearchParam):
+            unsupported = [
+                name
+                for name in ("return_json", "return_meta")
+                if getattr(param.query, name)
+            ]
+            if unsupported:
+                raise ValueError(
+                    f"modify_search_results edits a page per search result, so "
+                    f"the query must not set {' or '.join(unsupported)}."
+                )
 
         titles = []
         if param.mode == "prefix":

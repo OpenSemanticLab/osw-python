@@ -2098,7 +2098,7 @@ requires-dist = [
     { name = "pybars3-wheel" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.0" },
     { name = "pyld" },
-    { name = "pysimplegui", marker = "extra == 'ui'" },
+    { name = "pysimplegui", marker = "extra == 'ui'", specifier = ">=6" },
     { name = "pyyaml" },
     { name = "rdflib" },
     { name = "requests" },
@@ -2610,10 +2610,11 @@ wheels = [
 
 [[package]]
 name = "pysimplegui"
-version = "6.2"
+version = "6.3.0.1"
 source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/99/58/bb2d530bfc597e1a86378b508a96bc57ff588af7b37ebd68fb4eec62a871/pysimplegui-6.3.0.1.tar.gz", hash = "sha256:d711ac856a8c03382ecc13e58468c8d6b02c580881fc4115c770691b0db680ea", size = 498434, upload-time = "2026-08-16T19:09:14.019Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/6d/62c502ed8cdbd13588b492f27c8728933c95be144bcbc431c1cb0d83947a/pysimplegui-6.2-py3-none-any.whl", hash = "sha256:6e60bd390b370bfdf35a2507576317a93674cfacd52d21d07c5a40867e14779f", size = 487911, upload-time = "2026-06-17T13:42:43.377Z" },
+    { url = "https://files.pythonhosted.org/packages/45/69/dcff3a6f9c8b411b967a56cf34eafac2d50a14d5ea4efa15e2aa774c28cf/pysimplegui-6.3.0.1-py3-none-any.whl", hash = "sha256:937da4ae6dd6a93b8239aefc76f717e1f4861d4fb64cd4e9b3a5df88865520a5", size = 494935, upload-time = "2026-08-16T19:09:12.644Z" },
 ]
 
 [[package]]

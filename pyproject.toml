@@ -68,7 +68,11 @@ dataimport = [
     "deepl",
     "openpyxl",
 ]
-UI = ["pysimplegui"]
+UI = [
+    # PySimpleGUI 5 was commercial and its releases are yanked from PyPI.
+    # The LGPLv3 line resumed at version 6, which the GUI examples target.
+    "pysimplegui>=6",
+]
 workflow = [
     "prefect>=2.20.25,<3.0",
     # prefect 2.20.25 is the final 2.x release (no backports). Its

@@ -48,6 +48,10 @@ def read_domains_from_credentials_file(
     with open(cred_filepath, encoding="utf-8") as stream_:
         try:
             accounts_dict = yaml.safe_load(stream_)
+            # An empty file is parsed as None by yaml.safe_load, which would
+            #  otherwise raise an AttributeError on the .keys() call below
+            if accounts_dict is None:
+                accounts_dict = {}
             domains_list = list(accounts_dict.keys())
             if len(domains_list) == 0:
                 raise ValueError("No domain found in accounts.pwd.yaml!")

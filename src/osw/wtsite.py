@@ -885,14 +885,15 @@ class WtSite:
         config = param.config
 
         # Clear the content directory
-        try:
-            if debug:
-                print(f"Delete dir '{config.content_path}'")
-            if os.path.exists(config.content_path):
-                shutil.rmtree(config.content_path)
-        except OSError as e:
-            if debug:
-                print(f"Error: {e.filename} - {e.strerror}.")
+        if config.clear_content_dir:
+            try:
+                if debug:
+                    print(f"Delete dir '{config.content_path}'")
+                if os.path.exists(config.content_path):
+                    shutil.rmtree(config.content_path)
+            except OSError as e:
+                if debug:
+                    print(f"Error: {e.filename} - {e.strerror}.")
         # Create a dump config
         if dump_config is None:
             dump_config = WtPage.PageDumpConfig(
@@ -1096,7 +1097,12 @@ class WtSite:
                 )
         # Read packages info file
         with open(pi_fp, encoding="utf-8") as f:
-            packages_json = json.load(f)
+            try:
+                packages_json = json.load(f)
+            except json.JSONDecodeError as e:
+                raise json.JSONDecodeError(
+                    f"Malformed JSON in '{pi_fp}': {e.msg}", e.doc, e.pos
+                ) from e
         # Assume that the pages files are located in the subdir
         storage_path_content = ut.list_files_and_directories(
             search_path=storage_path, recursive=True
@@ -1130,7 +1136,14 @@ class WtSite:
                     if len(file_content) > 0:
                         if url_path.endswith(".json"):
                             with open(slot_path, encoding="utf-8") as f:
-                                slot_data = json.load(f)
+                                try:
+                                    slot_data = json.load(f)
+                                except json.JSONDecodeError as e:
+                                    raise json.JSONDecodeError(
+                                        f"Malformed JSON in '{slot_path}': {e.msg}",
+                                        e.doc,
+                                        e.pos,
+                                    ) from e
                             return slot_data
                         elif url_path.endswith(".wikitext"):
                             slot_data = file_content

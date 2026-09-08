@@ -12,7 +12,12 @@ from contextlib import contextmanager
 import pytest
 
 import osw
-from osw.utils.util import ThreadRoutedLogHandler, handler_chain, parallelize
+from osw.utils.util import (
+    TASK_OUTPUT_LOGGER,
+    ThreadRoutedLogHandler,
+    handler_chain,
+    parallelize,
+)
 
 
 class ListHandler(logging.Handler):
@@ -403,3 +408,45 @@ def test_a_failed_batch_still_replays_and_restores(collected, osw_logger):
     assert collected.messages(WORKER) == ["about to fail on 7"]
     assert collected in osw_logger.handlers
     assert not [h for h in osw_logger.handlers if isinstance(h, ThreadRoutedLogHandler)]
+
+
+def _print_item(item):
+    print(f"printed {item}")
+    return item
+
+
+def _print_two_lines(item):
+    print("first line")
+    print("second line")
+    return item
+
+
+def test_task_output_is_logged_on_its_own_logger(collected):
+    """Captured print output carries its own logger name, distinct from
+    osw.utils.util where parallelize itself logs from, so a caller can filter
+    it apart from osw's own records."""
+    parallelize(_print_item, [1], flush_at_end=True, progress_bar=False)
+
+    record = next(r for r in collected.records if "printed 1" in r.getMessage())
+    assert record.name == TASK_OUTPUT_LOGGER
+    assert record.name != "osw.utils.util"
+
+
+def test_task_output_is_split_into_one_record_per_line(collected):
+    """A block of printed text arrives as a run of lines, each with its own
+    record, rather than one record holding the whole block."""
+    parallelize(_print_two_lines, [1], flush_at_end=True, progress_bar=False)
+
+    messages = [
+        r.getMessage() for r in collected.records if r.name == TASK_OUTPUT_LOGGER
+    ]
+    assert messages == ["first line", "second line"]
+
+
+def test_task_output_no_longer_reaches_real_stdout(capsys):
+    """Printed output is replayed through logging now, not written back to the
+    process's own stdout, which an MCP stdio server needs kept clear for the
+    JSON-RPC channel it carries."""
+    parallelize(_print_item, [1], flush_at_end=True, progress_bar=False)
+
+    assert "printed 1" not in capsys.readouterr().out

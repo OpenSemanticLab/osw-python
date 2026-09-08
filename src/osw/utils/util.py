@@ -18,6 +18,12 @@ from tqdm.asyncio import tqdm
 
 _logger = logging.getLogger(__name__)
 
+# What a parallelized task printed rather than logged. It gets a name of its own
+# so a caller can filter the output of foreign code apart from osw's own records,
+# and so the name describes what the records carry rather than which function
+# replayed them.
+TASK_OUTPUT_LOGGER = "osw.parallel.output"
+
 # dask.config.set(scheduler="threads")
 # with stdio_proxy.redirect_stdout(sys.stdout):
 # "processes" scheduler leads to no messages ending up in the buffer / no flushing
@@ -413,11 +419,14 @@ def parallelize(
         The iterable, who's items are to be passed as singles to the function.
     flush_at_end:
         If True, what the tasks print and log is written out in the order of
-        ``iterable`` once the batch has finished. If False, it is discarded,
-        except for log records at WARNING and above. Those report a problem
-        rather than progress, so they are written out either way. Either way
-        the output is captured while the tasks run, so that concurrent writing
-        cannot garble the progress bar.
+        ``iterable`` once the batch has finished. What a task printed is
+        replayed one line at a time as INFO records on the ``osw.parallel.output``
+        logger, so it reaches the caller's handlers like everything else rather
+        than going straight to stdout. If False, both are discarded, except for
+        log records at WARNING and above. Those report a problem rather than
+        progress, so they are written out either way. Either way the output is
+        captured while the tasks run, so that concurrent writing cannot garble
+        the progress bar.
     progress_bar:
         If True, a progress bar will be displayed.
     return_exceptions:
@@ -506,9 +515,14 @@ def parallelize(
         osw_logger.propagate = saved_propagate
         # in the finally block, so a failed batch still reports what its
         # tasks had to say
+        task_output = logging.getLogger(TASK_OUTPUT_LOGGER)
         for output, task_records in zip(outputs, records):
-            if flush_at_end and output:
-                print(output, end="")
+            if flush_at_end:
+                # One record per line, so each carries its own level and name
+                # instead of one prefix followed by a block of text
+                for line in output.splitlines():
+                    if line:
+                        task_output.info(line)
             for record in task_records:
                 # A warning reports a problem, not progress, so a batch asked
                 # to stay quiet still passes it on. Discarding it would hide

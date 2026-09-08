@@ -117,6 +117,16 @@ One case osw cannot detect is a handler added to the `osw` logger itself, since
 that is indistinguishable from one of its own. Call `disable_logging()` first if
 you do that.
 
+### Output from parallel batches
+
+Several osw calls process their input in parallel. What such a task prints, as
+opposed to logs, is collected while the batch runs and replayed afterwards, so
+that concurrent writing cannot garble the progress bar. That text arrives on the
+`osw.parallel.output` logger, one record per line, at INFO. Give that logger its
+own level or handler to keep the output of third-party code apart from osw's own
+records. Most osw calls replay it only when you pass `debug=True`; `copy_pages`
+always replays.
+
 ## Examples and tutorials
 
 - Runnable scripts in

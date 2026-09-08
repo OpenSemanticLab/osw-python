@@ -3,7 +3,7 @@ name = "osw"
 description = "Python toolset for data processing, queries, wikicode generation and page manipulation"
 authors = [{ name = "OpenSemanticWorld", email = "team@opensemantic.world" }]
 readme = "README.md"
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not

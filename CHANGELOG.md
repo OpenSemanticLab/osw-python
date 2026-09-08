@@ -10,6 +10,19 @@
 
 <!-- version list -->
 
+## v2.3.3 (2026-09-08)
+
+### Bug Fixes
+
+- **gui**: Improvements to gui_local_slot_editing
+  ([`a84e73a`](https://github.com/OpenSemanticLab/osw-python/commit/a84e73ad1e2f3a3f7c20eabce748d288bbb531a8))
+
+### Build System
+
+- **deps**: Require pysimplegui>=6 for the UI extra
+  ([`4ca7ab9`](https://github.com/OpenSemanticLab/osw-python/commit/4ca7ab97ad94ad53629db2db513769af648acf5a))
+
+
 ## v2.3.2 (2026-09-07)
 
 ### Bug Fixes

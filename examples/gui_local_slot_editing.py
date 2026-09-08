@@ -3,6 +3,7 @@ them locally and uploading them again."""
 
 import json
 import os
+import re
 
 # import yaml
 from pathlib import Path
@@ -52,6 +53,33 @@ def str_or_none(value):
         return str(value)
 
 
+def compute_page_storage_path(
+    working_dir: str,
+    domain_str: str,
+    page_name_as_filename: bool,
+    label_str: str = None,
+    top_level: str = None,
+) -> str:
+    """Compute the folder that a page's slots are downloaded to / uploaded from.
+
+    Mirrors the folder-naming logic previously inlined in save_as_page_package: the
+    page label is used when 'page_name_as_filename' is set and a label is known,
+    otherwise the top-level page title is used. A domain sub folder is inserted so
+    that pages from different OSW instances don't collide inside the same local
+    working directory.
+
+    Both the '-DL-' (download) and '-UL-' (upload) event handlers call this helper
+    so they always agree on where a given page's content is stored on disk.
+    """
+    if page_name_as_filename and label_str is not None:
+        page_dir_name = label_str
+    else:
+        page_dir_name = top_level
+    # Sanitize the domain for use as a directory name (invalid on Windows: \/:*?"<>|)
+    domain_dir = re.sub(r'[\\/:*?"<>|]', "_", domain_str)
+    return os.path.join(working_dir, domain_dir, page_dir_name)
+
+
 def create_config_from_setting(settings_: dict) -> WtPage.PageDumpConfig:
     config_ = WtPage.PageDumpConfig(
         target_dir=settings_["local_working_directory"],
@@ -66,6 +94,7 @@ def save_as_page_package(
     full_page_name_str,
     wtsite_inst: WtSite,
     dump_config_inst: WtPage.PageDumpConfig,
+    domain_str: str,
     label_str: str = None,
     top_level: str = None,
     sub_level: str = None,  # "content"
@@ -81,10 +110,13 @@ def save_as_page_package(
     package_branch = "deleteme"
     publisher = "Open Semantic World"
     working_dir = dump_config_inst.target_dir
-    if dump_config_inst.page_name_as_filename and label_str is not None:
-        target_dir = os.path.join(working_dir, label_str)
-    else:
-        target_dir = os.path.join(working_dir, top_level)
+    target_dir = compute_page_storage_path(
+        working_dir,
+        domain_str,
+        dump_config_inst.page_name_as_filename,
+        label_str,
+        top_level,
+    )
     if isinstance(author, list):
         author_list = author
     elif isinstance(author, str):
@@ -156,24 +188,46 @@ if __name__ == "__main__":
         }
         settings_read_from_file = False
 
-    domains, accounts = read_domains_from_credentials_file(settings["cred_filepath"])
-    if "wiki-dev.open-semantic-lab.org" in domains:
-        domain = "wiki-dev.open-semantic-lab.org"
+    # An empty/missing accounts.pwd.yaml must not prevent the window from opening.
+    #  The user can still type/select a domain once the window is up.
+    domains, accounts, cred_load_error = [], {}, None
+    try:
+        domains, accounts = read_domains_from_credentials_file(
+            settings["cred_filepath"]
+        )
+    except (FileNotFoundError, ValueError) as e:
+        cred_load_error = f"{type(e).__name__}: {e}"
+
+    if domains:
+        if "wiki-dev.open-semantic-lab.org" in domains:
+            domain = "wiki-dev.open-semantic-lab.org"
+        else:
+            domain = domains[0]
+        if settings_read_from_file:
+            settings["domain"] = domain
     else:
-        domain = domains[0]
-    if settings_read_from_file:
-        settings["domain"] = domain
+        domain = settings.get("domain", "")
 
     cm = CredentialManager(cred_filepath=settings["cred_filepath"])
-    osw_obj = OswExpress(domain=domain, cred_mngr=cm)
-    wtsite_obj = osw_obj.site
+    osw_obj = None
+    wtsite_obj = None
+    if domain:
+        osw_obj = OswExpress(domain=domain, cred_mngr=cm)
+        wtsite_obj = osw_obj.site
 
     full_page_name = settings["target_page"].split("/")[-1].replace("_", " ")
-    page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[full_page_name])).pages[0]
+    page = None
+    if wtsite_obj is not None:
+        page = wtsite_obj.get_page(WtSite.GetPageParam(titles=[full_page_name])).pages[
+            0
+        ]
     label_set = False
     label = None
     slots_downloaded = False
     dump_config = create_config_from_setting(settings)
+    label_default_text = ""
+    if cred_load_error is not None:
+        label_default_text = f"Could not load credentials: {cred_load_error}"
 
     # ----- GUI Definition -----
     # Setting the theme of the GUI
@@ -253,7 +307,12 @@ if __name__ == "__main__":
                 ],
                 [
                     # A display element that will show the label of the OSW page
-                    psg.Multiline(size=(50, 1), key="-LABEL-", no_scrollbar=True)
+                    psg.Multiline(
+                        size=(50, 1),
+                        key="-LABEL-",
+                        no_scrollbar=True,
+                        default_text=label_default_text,
+                    )
                 ],
             ]),
         ],
@@ -354,10 +413,17 @@ if __name__ == "__main__":
                 json.dump(settings, f, indent=4)
         elif event == "-CREDENTIALS-":
             settings["cred_filepath"] = values["-CREDENTIALS-"]
-            domains, accounts = read_domains_from_credentials_file(
-                settings["cred_filepath"]
-            )
-            window["-DOMAIN-"].update(values=domains)
+            try:
+                domains, accounts = read_domains_from_credentials_file(
+                    settings["cred_filepath"]
+                )
+                window["-DOMAIN-"].update(values=domains)
+            except (FileNotFoundError, ValueError) as e:
+                # Keep the previously loaded domains/accounts, the user can retry
+                #  with a different file.
+                window["-LABEL-"].update(
+                    f"Could not load credentials: {type(e).__name__}: {e}"
+                )
         elif event == "-LWD-":
             settings["local_working_directory"] = values["-LWD-"]
         elif event == "-DOMAIN-":
@@ -368,51 +434,82 @@ if __name__ == "__main__":
         elif event == "Load page":
             window["-LABEL-"].update("Loading page...")
             window["-DL_RES-"].update("")
-            full_page_name = values["-ADDRESS-"].split("/")[-1].replace("_", " ")
-            if (values["-ADDRESS-"].find("/wiki/") != -1) or (
-                values["-ADDRESS-"].find("/w/") != -1
-            ):
-                settings["target_page"] = values["-ADDRESS-"]
-            else:
-                settings["target_page"] = (
-                    "https://" + domain + "/wiki/" + full_page_name
+            if wtsite_obj is None:
+                window["-LABEL-"].update(
+                    "No domain selected. Load a credentials file or select a "
+                    "domain first."
                 )
-            if values["-ADDRESS-"].find(settings["domain"]) == -1:
-                window["-LABEL-"].update("Page not on selected domain!")
                 label_set = False
             else:
-                # use connection
-                page = wtsite_obj.get_page(
-                    WtSite.GetPageParam(titles=[full_page_name])
-                ).pages[0]
-                if page.exists:
-                    jsondata = page.get_slot_content("jsondata")
-                    if jsondata is None:
-                        window["-LABEL-"].update("Slot 'jsondata' is empty!")
-                        label_set = False
-                    else:
-                        label = jsondata["label"][0]["text"]
-                        window["-LABEL-"].update(label)
-                        label_set = True
+                full_page_name = values["-ADDRESS-"].split("/")[-1].replace("_", " ")
+                if (values["-ADDRESS-"].find("/wiki/") != -1) or (
+                    values["-ADDRESS-"].find("/w/") != -1
+                ):
+                    settings["target_page"] = values["-ADDRESS-"]
                 else:
-                    window["-LABEL-"].update("Page does not exist!")
+                    settings["target_page"] = (
+                        "https://" + domain + "/wiki/" + full_page_name
+                    )
+                if values["-ADDRESS-"].find(settings["domain"]) == -1:
+                    window["-LABEL-"].update("Page not on selected domain!")
                     label_set = False
+                else:
+                    # use connection
+                    page = wtsite_obj.get_page(
+                        WtSite.GetPageParam(titles=[full_page_name])
+                    ).pages[0]
+                    if page.exists:
+                        jsondata = page.get_slot_content("jsondata")
+                        if jsondata is None:
+                            window["-LABEL-"].update("Slot 'jsondata' is empty!")
+                            label_set = False
+                        else:
+                            label = jsondata["label"][0]["text"]
+                            window["-LABEL-"].update(label)
+                            label_set = True
+                    else:
+                        window["-LABEL-"].update("Page does not exist!")
+                        label_set = False
         elif event == "-EXC_EMPTY-" or event == "-INC_EMPTY-":
             settings["dump_empty_slots"] = values["-INC_EMPTY-"]
         elif event == "-DL-":
             window["-DL_RES-"].update("Downloading slots...")
             if label_set:
-                dump_config = create_config_from_setting(settings)
-                _ = save_as_page_package(
-                    full_page_name_str=full_page_name,
-                    wtsite_inst=wtsite_obj,
-                    dump_config_inst=dump_config,
-                    label_str=label,
-                    sub_level=SUB_LEVEL,
-                    author=accounts[domains[0]]["username"],
-                )
-                slots_downloaded = True
-                window["-DL_RES-"].update("Slots downloaded!")
+                try:
+                    dump_config = create_config_from_setting(settings)
+                    target_dir = compute_page_storage_path(
+                        settings["local_working_directory"],
+                        domain,
+                        settings["page_name_as_filename"],
+                        label,
+                        full_page_name.split(":")[-1],
+                    )
+                    window["-DL_RES-"].update(
+                        f"Clearing '{target_dir}' and downloading slots..."
+                    )
+                    # Look up the author for the selected domain, not the first
+                    #  one in the list, and degrade gracefully if there is no
+                    #  credential entry for it (e.g. empty accounts.pwd.yaml).
+                    author = accounts.get(domain, {}).get("username")
+                    if author is None:
+                        window["-DL_RES-"].update(
+                            f"No credentials found for domain '{domain}'; "
+                            "using default author."
+                        )
+                        author = "Open Semantic World"
+                    _ = save_as_page_package(
+                        full_page_name_str=full_page_name,
+                        wtsite_inst=wtsite_obj,
+                        dump_config_inst=dump_config,
+                        domain_str=domain,
+                        label_str=label,
+                        sub_level=SUB_LEVEL,
+                        author=author,
+                    )
+                    slots_downloaded = True
+                    window["-DL_RES-"].update("Slots downloaded!")
+                except Exception as e:
+                    window["-DL_RES-"].update(f"{type(e).__name__}: {e}")
             else:
                 window["-DL_RES-"].update("No page loaded!")
         elif event == "-UL_SEL-":
@@ -434,29 +531,45 @@ if __name__ == "__main__":
             elif len(slots_to_upload) == 0:
                 window["-UL_RES-"].update("No slots selected!")
             else:
-                if not slots_downloaded:
-                    window["-UL_RES-"].update("No slots downloaded!")
-                    dump_config = create_config_from_setting(settings)
-                window["-UL_RES-"].update("Uploading slots...")
-                if SUB_LEVEL is None:
-                    storage_path = Path(dump_config.target_dir)
-                else:
-                    storage_path = Path(dump_config.target_dir).parent
-                pages = wtsite_obj.read_page_package(
-                    WtSite.ReadPagePackageParam(
-                        storage_path=storage_path,
-                        packages_info_file_name=PACKAGE_INFO_FILE_NAME,
-                        selected_slots=slots_to_upload,
-                        debug=False,
+                try:
+                    # Recompute the storage path the same way the download path
+                    #  does, instead of trusting a possibly stale dump_config.
+                    #  This also makes upload work against a folder written by a
+                    #  previous run, even if no download happened this session.
+                    storage_path = Path(
+                        compute_page_storage_path(
+                            settings["local_working_directory"],
+                            domain,
+                            settings["page_name_as_filename"],
+                            label,
+                            full_page_name.split(":")[-1],
+                        )
                     )
-                ).pages
-                param = wtsite_obj.UploadPageParam(pages=pages, parallel=False)
-                wtsite_obj.upload_page(param)
-                # Success:
-                window["-UL_RES-"].update("Slots uploaded!")
-                # Report in the download section that the slots have been uploaded to
-                #  remind the user that he eventually has to re-download the slots
-                window["-DL_RES-"].update("Slots uploaded!")
+                    if not slots_downloaded:
+                        window["-UL_RES-"].update(
+                            "No slots downloaded this session, trying folder from a "
+                            f"previous run at '{storage_path}'..."
+                        )
+                    else:
+                        window["-UL_RES-"].update("Uploading slots...")
+                    pages = wtsite_obj.read_page_package(
+                        WtSite.ReadPagePackageParam(
+                            storage_path=storage_path,
+                            packages_info_file_name=PACKAGE_INFO_FILE_NAME,
+                            selected_slots=slots_to_upload,
+                            debug=False,
+                        )
+                    ).pages
+                    param = wtsite_obj.UploadPageParam(pages=pages, parallel=False)
+                    wtsite_obj.upload_page(param)
+                    # Success:
+                    window["-UL_RES-"].update("Slots uploaded!")
+                    # Report in the download section that the slots have been
+                    #  uploaded to remind the user that he eventually has to
+                    #  re-download the slots
+                    window["-DL_RES-"].update("Slots uploaded!")
+                except Exception as e:
+                    window["-UL_RES-"].update(f"{type(e).__name__}: {e}")
 
         # Some debugging output functionality
         if DEBUG:

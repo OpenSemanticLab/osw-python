@@ -8,7 +8,7 @@ fails for selected page titles.
 import pytest
 
 import osw.model.entity as model
-from osw.core import OSW
+from osw.core import OSW, AddOverwriteClassOptions
 from osw.utils.wiki import get_namespace, get_title
 from osw.wtsite import WtPage
 
@@ -84,6 +84,37 @@ def test_store_entity_all_success_returns_result(offline_osw, monkeypatch):
 
     assert set(result.pages.keys()) == set(titles)
     assert result.failed == {}
+
+
+def test_partial_error_does_not_count_a_skipped_page_as_stored(
+    offline_osw, monkeypatch
+):
+    """'keep existing' leaves a page untouched, so it was not stored."""
+    keep, ok, boom = (
+        model.Item(label=[model.Label(text=text)]) for text in ("Keep", "Ok", "Boom")
+    )
+    keep_title, ok_title, boom_title = (_title(it) for it in (keep, ok, boom))
+    # only the kept entity is already on the wiki; the other two are created
+    monkeypatch.setattr(
+        WtPage, "init", lambda self: setattr(self, "exists", self.title == keep_title)
+    )
+    _install_edit(monkeypatch, {boom_title})
+
+    with pytest.raises(OSW.StoreEntityPartialError) as exc_info:
+        offline_osw.store_entity(
+            OSW.StoreEntityParam(
+                entities=[keep, ok, boom],
+                overwrite=AddOverwriteClassOptions.keep_existing,
+                parallel=False,
+            )
+        )
+
+    err = exc_info.value
+    assert err.stored == [ok_title]
+    assert err.skipped == [keep_title]
+    assert set(err.failed) == {boom_title}
+    # the kept page is still on the wiki, so it stays in 'pages'
+    assert keep_title in err.result.pages
 
 
 def test_store_entity_serial_all_success_returns_result(offline_osw, monkeypatch):

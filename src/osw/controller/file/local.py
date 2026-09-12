@@ -11,6 +11,9 @@ from osw.core import model
 class LocalFileController(FileController, model.LocalFile):
     """File controller for local files"""
 
+    type: Optional[List[str]] = model.LocalFile.__fields__["type"].get_default()
+    """LocalFile's category. FileController precedes model.LocalFile in the MRO, so
+    without this the field would resolve to model.File's category instead."""
     label: Optional[List[model.Label]] = [model.Label(text="Unnamed file")]
     """The label of the file, defaults to 'Unnamed file'"""
     path: Path

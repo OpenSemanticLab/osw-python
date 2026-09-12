@@ -21,6 +21,11 @@ class InMemoryController(FileController, model.LocalFile):
     class Config:
         arbitrary_types_allowed = True
 
+    @property
+    def uri(self) -> None:
+        """None, a stream in memory has no location to address"""
+        return None
+
     def get(self) -> IO:
         return self.stream
 

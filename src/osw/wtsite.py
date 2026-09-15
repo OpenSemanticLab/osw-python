@@ -10,7 +10,7 @@ import urllib
 import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from pprint import pprint
@@ -104,6 +104,9 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+    ALLOWED_FILE_EXTENSIONS_TTL = timedelta(hours=24)
+    """how long a fetched list of accepted file extensions stays valid"""
+
     def __init__(self, config: Union[WtSiteConfig, WtSiteLegacyConfig]):
         """creates a new WtSite instance from a WtSiteConfig
 
@@ -185,6 +188,10 @@ class WtSite:
         #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
+
+        # The file extensions the wiki accepts, read on demand and reused for
+        #  ALLOWED_FILE_EXTENSIONS_TTL
+        self._allowed_file_extensions = None
 
     def _get_session_lock(self) -> threading.RLock:
         """Return the session lock, lazily creating it if absent.
@@ -516,6 +523,68 @@ class WtSite:
         """
         del self._page_cache
         self._page_cache = {}
+
+    class AllowedFileExtensionsResult(OswBaseModel):
+        """The file extensions a wiki accepts and when that list was read"""
+
+        extensions: Optional[List[str]]
+        """the accepted extensions, None if the lookup failed"""
+        fetched_at: Optional[datetime]
+        """when the list was read from the wiki, None if the lookup failed"""
+
+    def get_allowed_file_extensions(
+        self, refresh: bool = False
+    ) -> AllowedFileExtensionsResult:
+        """Returns the file extensions the wiki accepts, from cache if possible
+
+        The list only changes when the wiki configuration changes, so it is
+        cached for ALLOWED_FILE_EXTENSIONS_TTL instead of being read on every
+        call. A failed lookup is never cached, so the next call retries; a
+        failed refresh leaves any previously cached list in place.
+
+        Parameters
+        ----------
+        refresh:
+            if True, bypasses the cache and re-reads the list from the wiki
+
+        Returns
+        -------
+            an AllowedFileExtensionsResult with the accepted extensions and
+            when they were read, or with both fields None if the lookup failed
+        """
+        cached = getattr(self, "_allowed_file_extensions", None)
+        if (
+            cached is not None
+            and not refresh
+            and cached.fetched_at is not None
+            and datetime.now() - cached.fetched_at < self.ALLOWED_FILE_EXTENSIONS_TTL
+        ):
+            return cached
+        try:
+            result = self.mw_site.api(
+                "query", meta="siteinfo", siprop="fileextensions", formatversion=2
+            )
+            extensions = [
+                entry["ext"]
+                for entry in result.get("query", {}).get("fileextensions", [])
+                if "ext" in entry
+            ]
+        except Exception:
+            # only used to enrich an error message, never worth failing over
+            return WtSite.AllowedFileExtensionsResult(extensions=None, fetched_at=None)
+        self._allowed_file_extensions = WtSite.AllowedFileExtensionsResult(
+            extensions=extensions, fetched_at=datetime.now()
+        )
+        return self._allowed_file_extensions
+
+    def clear_allowed_file_extensions_cache(self):
+        """Clears the cached list of file extensions the wiki accepts
+
+        The next get_allowed_file_extensions() call reads the list from the
+        wiki again. Use this when the wiki's upload configuration changed
+        within ALLOWED_FILE_EXTENSIONS_TTL.
+        """
+        self._allowed_file_extensions = None
 
     def _clear_cookies(self):
         # see https://github.com/mwclient/mwclient/issues/221

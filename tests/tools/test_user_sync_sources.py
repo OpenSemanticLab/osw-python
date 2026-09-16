@@ -94,6 +94,22 @@ def test_enumerate_orcid_only_and_limit():
     assert len(limited) == 1
 
 
+def test_enumerate_excludes_privileged_groups_and_reserved_names():
+    site = FakeSite([
+        _page([
+            {"name": "0000-0002-6374-9831", "groups": ["user"]},
+            {"name": "Admin", "groups": ["user", "sysop", "bureaucrat"]},
+            {"name": "Maintenance script", "groups": ["user"]},
+        ])
+    ])
+    users = enumerate_mw_users(
+        site,
+        excluded_groups=("bot", "sysop", "bureaucrat"),
+        excluded_usernames={"Maintenance script"},
+    )
+    assert [u.name for u in users] == ["0000-0002-6374-9831"]
+
+
 def test_partition_by_orcid():
     users = [
         MwUser(name="0000-0002-6374-9831"),

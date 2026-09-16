@@ -29,10 +29,10 @@ class FakeWtPage:
         self.written = None
         self.edited = False
 
-    def get_content(self):
+    def get_slot_content(self, slot_key):
         return self._content
 
-    def set_content(self, content):
+    def set_slot_content(self, slot_key, content):
         self.written = content
 
     def edit(self, comment=None):
@@ -66,4 +66,11 @@ def test_ensure_redirect_skips_real_page(monkeypatch):
     title = "User:bob"
     _patch(monkeypatch, {title: True}, {title: "This is my real user page."})
     written = ensure_redirect(FakeOsw(), "bob", "Item:OSW1")
+    assert written is None
+
+
+def test_ensure_redirect_skips_when_already_correct(monkeypatch):
+    title = "User:carol"
+    _patch(monkeypatch, {title: True}, {title: "#REDIRECT [[Item:OSW1]]"})
+    written = ensure_redirect(FakeOsw(), "carol", "Item:OSW1")
     assert written is None

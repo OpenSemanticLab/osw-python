@@ -58,6 +58,24 @@ def _existing_label(entity: Any) -> Optional[str]:
     return None
 
 
+def _existing_orgs(entity: Any) -> Any:
+    """Read organization page-title refs without resolving the relation.
+
+    Loaded entities keep relation targets as IRIs in ``__iris__``; reading the
+    attribute itself would make oold resolve (and fail on) the linked items.
+    """
+    iris = getattr(entity, "__iris__", None)
+    if isinstance(iris, dict):
+        value = iris.get("organization")
+        if value is None:
+            return None
+        return value if isinstance(value, (list, tuple, set)) else [value]
+    try:
+        return getattr(entity, "organization", None)
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+
 def existing_fields(entity: Any) -> Dict[str, Any]:
     """Normalized comparable field view of a loaded User entity."""
     return {
@@ -67,9 +85,7 @@ def existing_fields(entity: Any) -> Dict[str, Any]:
         "orcid": _norm_scalar("orcid", getattr(entity, "orcid", None)),
         "emails": _norm_set("emails", getattr(entity, "email", None)),
         "websites": _norm_set("websites", getattr(entity, "website", None)),
-        "organizations": _norm_set(
-            "organizations", getattr(entity, "organization", None)
-        ),
+        "organizations": _norm_set("organizations", _existing_orgs(entity)),
     }
 
 

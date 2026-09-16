@@ -20,6 +20,24 @@ ORCID_RE = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 
 _ALLUSERS_PROPS = "registration|editcount|groups|centralids|blockinfo"
 
+# MediaWiki default reserved system usernames. These ship with MediaWiki and are
+# the same across instances, so skipping them is not a per-instance skip-list.
+RESERVED_USERNAMES = frozenset({
+    "MediaWiki default",
+    "Maintenance script",
+    "Conversion script",
+    "Template namespace initialisation script",
+    "ScriptImporter",
+    "Delete page script",
+    "Move page script",
+    "Command line script",
+    "Unknown user",
+    "MediaWiki message delivery",
+    "Flow talk page manager",
+    "Abuse filter",
+    "New user message",
+})
+
 
 def is_orcid_username(name: str) -> bool:
     """True if a MediaWiki username is an ORCID iD (whitelisted ORCID login)."""
@@ -77,6 +95,7 @@ def _iter_allusers(site: Any, batch: Any = "max") -> Iterator[Dict[str, Any]]:
 def enumerate_mw_users(
     site: Any,
     excluded_groups: Sequence[str] = ("bot",),
+    excluded_usernames: Sequence[str] = (),
     include_non_orcid: bool = True,
     limit: Optional[int] = None,
     batch: Any = "max",
@@ -85,15 +104,19 @@ def enumerate_mw_users(
 
     Args:
         site: An object exposing ``api("query", ...)`` (an mwclient Site).
-        excluded_groups: Accounts in any of these groups are skipped (bots).
+        excluded_groups: Accounts in any of these groups are skipped (bots, admins).
+        excluded_usernames: Exact usernames to skip (reserved system accounts).
         include_non_orcid: If False, keep only ORCID-username accounts.
         limit: Keep at most this many accounts after filtering.
         batch: ``aulimit`` value passed to the API.
     """
     excluded = set(excluded_groups)
+    excluded_names = set(excluded_usernames)
     users: List[MwUser] = []
     for raw in _iter_allusers(site, batch=batch):
         user = MwUser.from_api(raw)
+        if user.name in excluded_names:
+            continue
         if excluded.intersection(user.groups):
             continue
         if not include_non_orcid and not user.is_orcid:

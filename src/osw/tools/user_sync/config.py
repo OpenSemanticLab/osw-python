@@ -13,8 +13,9 @@ ORGANIZATION_CATEGORY = "Category:OSW1969007d5acf40539642877659a02c23"
 # Public ORCID API used to enrich ORCID users.
 ORCID_API_BASE_DEFAULT = "https://pub.orcid.org/v3.0"
 
-# MediaWiki group whose members are excluded from the sync (bots).
-BOT_GROUP = "bot"
+# MediaWiki groups whose members are treated as bot/system accounts and skipped.
+# All are standard MediaWiki groups, so this is not a per-instance skip-list.
+SYSTEM_GROUPS = ["bot", "sysop", "bureaucrat", "interface-admin"]
 
 
 @dataclass
@@ -28,10 +29,11 @@ class SyncConfig:
     limit: Optional[int] = None
     include_non_orcid: bool = True
     exclude_bot_group: bool = True
+    exclude_system_usernames: bool = True
     create_redirects: bool = True
     link_organizations: bool = True
     orcid_api_base: str = ORCID_API_BASE_DEFAULT
-    excluded_groups: List[str] = field(default_factory=lambda: [BOT_GROUP])
+    excluded_groups: List[str] = field(default_factory=lambda: list(SYSTEM_GROUPS))
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -86,6 +88,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Sync only accounts whose username is an ORCID iD.",
     )
+    parser.add_argument(
+        "--include-system",
+        dest="exclude_system_usernames",
+        action="store_false",
+        help="Do not skip MediaWiki reserved system accounts (Maintenance script etc.).",
+    )
     return parser
 
 
@@ -99,6 +107,7 @@ def config_from_args(argv: Optional[List[str]] = None) -> SyncConfig:
         assume_yes=args.assume_yes,
         limit=args.limit,
         include_non_orcid=args.include_non_orcid,
+        exclude_system_usernames=args.exclude_system_usernames,
         create_redirects=args.create_redirects,
         link_organizations=args.link_organizations,
     )

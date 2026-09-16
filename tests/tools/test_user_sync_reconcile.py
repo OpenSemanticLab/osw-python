@@ -119,6 +119,29 @@ def test_missing_label_is_gap_fill():
     assert change.diffs[0].name == "label"
 
 
+class _OrgTrap:
+    """A loaded-entity stand-in whose organization attribute must never be read."""
+
+    __iris__ = {"organization": ["Item:OSWa", "Item:OSWb"]}
+    label = [SimpleNamespace(text="X Y")]
+    first_name = "X"
+    surname = "Y"
+    orcid = None
+    email: set = set()
+    website: set = set()
+
+    @property
+    def organization(self):
+        raise RuntimeError("relation must not be resolved during reconcile")
+
+
+def test_existing_orgs_read_from_iris_without_resolving():
+    from osw.tools.user_sync.reconcile import existing_fields
+
+    ef = existing_fields(_OrgTrap())
+    assert ef["organizations"] == {"Item:OSWa", "Item:OSWb"}
+
+
 def test_reconcile_plan_counts():
     proposed = [
         _proposed(username="new-user"),

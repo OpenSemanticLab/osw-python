@@ -15,9 +15,16 @@ def test_defaults():
     assert cfg.include_non_orcid is True
     assert cfg.create_redirects is True
     assert cfg.link_organizations is True
-    assert cfg.excluded_groups == ["bot"]
+    assert cfg.exclude_system_usernames is True
+    assert "bot" in cfg.excluded_groups
+    assert "sysop" in cfg.excluded_groups
     assert USER_CATEGORY.startswith("Category:OSW")
     assert ORGANIZATION_CATEGORY.startswith("Category:OSW")
+
+
+def test_include_system_flag():
+    cfg = config_from_args(["--include-system"])
+    assert cfg.exclude_system_usernames is False
 
 
 def test_config_from_args_parses_flags():

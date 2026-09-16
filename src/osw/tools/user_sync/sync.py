@@ -21,6 +21,7 @@ from .mapping import ProposedOrganization, map_user
 from .reconcile import reconcile
 from .redirects import ensure_redirect
 from .sources import (
+    RESERVED_USERNAMES,
     OrcidRateLimitError,
     enumerate_mw_users,
     fetch_orcid_record,
@@ -51,9 +52,11 @@ class SyncReport:
 def _build_proposals(config: SyncConfig, osw: Any, session: Any):
     """Enumerate MediaWiki users, enrich ORCID users and map to proposals."""
     excluded = tuple(config.excluded_groups) if config.exclude_bot_group else ()
+    reserved = RESERVED_USERNAMES if config.exclude_system_usernames else ()
     mw_users = enumerate_mw_users(
         osw.mw_site,
         excluded_groups=excluded,
+        excluded_usernames=reserved,
         include_non_orcid=config.include_non_orcid,
         limit=config.limit,
     )
@@ -98,28 +101,36 @@ def _store_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
     entities = []
     for resolved in resolution.resolved:
         proposed = resolved.change.proposed
-        if resolved.action == "create":
-            entities.append(build_user(proposed))
-            report.created.append(proposed.full_page_title)
-        elif resolved.action == "update":
-            entities.append(
-                apply_update(resolved.change.existing, proposed, resolved.apply_fields)
-            )
-            report.updated.append(proposed.full_page_title)
-        else:
-            report.skipped.append(proposed.full_page_title)
+        try:
+            if resolved.action == "create":
+                entities.append(build_user(proposed))
+                report.created.append(proposed.full_page_title)
+            elif resolved.action == "update":
+                entities.append(
+                    apply_update(
+                        resolved.change.existing, proposed, resolved.apply_fields
+                    )
+                )
+                report.updated.append(proposed.full_page_title)
+            else:
+                report.skipped.append(proposed.full_page_title)
+        except Exception as exc:  # pragma: no cover - build failure path
+            report.failed[f"build:{proposed.username}"] = str(exc)
     if entities:
-        osw.store_entity(
-            OSW.StoreEntityParam(
-                entities=entities, overwrite=True, edit_comment="user-sync"
+        try:
+            osw.store_entity(
+                OSW.StoreEntityParam(
+                    entities=entities, overwrite=True, edit_comment="user-sync"
+                )
             )
-        )
+        except Exception as exc:  # pragma: no cover - network failure path
+            report.failed["store"] = str(exc)
 
 
 def _create_redirects(osw: Any, resolution: Resolution, report: SyncReport) -> None:
+    # Every in-scope user has an item (created or pre-existing), so ensure the
+    # redirect for all of them; a re-run repairs any missing redirect.
     for resolved in resolution.resolved:
-        if resolved.action not in ("create", "update"):
-            continue
         proposed = resolved.change.proposed
         try:
             written = ensure_redirect(osw, proposed.username, proposed.full_page_title)

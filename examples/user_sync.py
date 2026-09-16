@@ -16,6 +16,12 @@ def main() -> None:
     osw = OswExpress(domain=config.domain, cred_filepath=config.cred_filepath)
     report = run_user_sync(config, osw=osw)
     print(report.summary())
+    for title in report.created:
+        print(f"  created: {title}")
+    for title in report.updated:
+        print(f"  updated: {title}")
+    for key, error in report.failed.items():
+        print(f"  FAILED {key}: {error}")
 
 
 if __name__ == "__main__":

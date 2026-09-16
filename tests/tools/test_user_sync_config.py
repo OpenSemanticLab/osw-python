@@ -41,8 +41,8 @@ def test_report_summary():
     assert "updated=1" in report.summary()
 
 
-def test_run_user_sync_is_stub():
+def test_run_user_sync_requires_connection():
     import pytest
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="connection"):
         run_user_sync(SyncConfig())

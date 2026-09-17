@@ -24,11 +24,17 @@ def _labels(text: str) -> List[Any]:
 
 
 def _strip_protected(entity: Any) -> None:
-    """Remove protected relation defaults (e.g. employment_contract_status)."""
+    """Clear protected relations (e.g. employment_contract_status).
+
+    Set to an empty list rather than removed: the model re-applies its default
+    when the field is absent, and the store only overwrites a relation that is
+    present as an explicit empty value (with ``remove_empty=False``).
+    """
     iris = getattr(entity, "__iris__", None)
     if isinstance(iris, dict):
         for name in PROTECTED_FIELDS:
-            iris.pop(name, None)
+            if name in iris:
+                iris[name] = []
 
 
 def build_organization(proposed: ProposedOrganization) -> Organization:
@@ -76,10 +82,8 @@ def apply_update(entity: Any, proposed: ProposedUser, apply_fields: Set[str]) ->
     if "websites" in apply_fields:
         entity.website = set(proposed.websites)
     if "organizations" in apply_fields:
-        if proposed.organizations:
-            entity.__iris__["organization"] = list(proposed.organizations)
-        else:
-            entity.__iris__.pop("organization", None)
+        # Empty list both links (non-empty) and clears (empty, on removal).
+        entity.__iris__["organization"] = list(proposed.organizations)
     if any(name in apply_fields for name in PROTECTED_FIELDS):
         _strip_protected(entity)
     return entity

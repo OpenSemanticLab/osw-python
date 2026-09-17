@@ -38,17 +38,17 @@ def _entity():
     )
 
 
-def test_strip_protected_removes_only_protected():
+def test_strip_protected_empties_only_protected():
     entity = _entity()
     _strip_protected(entity)
-    assert "employment_contract_status" not in entity.__iris__
-    assert "organization" in entity.__iris__
+    assert entity.__iris__["employment_contract_status"] == []
+    assert entity.__iris__["organization"] == ["Item:OSWa"]
 
 
 def test_apply_update_strips_protected_when_in_fields():
     entity = _entity()
     apply_update(entity, _proposed(), {"employment_contract_status"})
-    assert "employment_contract_status" not in entity.__iris__
+    assert entity.__iris__["employment_contract_status"] == []
 
 
 def test_apply_update_keeps_protected_when_not_in_fields():
@@ -61,7 +61,7 @@ def test_apply_update_keeps_protected_when_not_in_fields():
 def test_apply_update_clears_organization_when_empty():
     entity = _entity()
     apply_update(entity, _proposed(organizations=[]), {"organizations"})
-    assert "organization" not in entity.__iris__
+    assert entity.__iris__["organization"] == []
 
 
 def test_apply_update_sets_organization_when_present():

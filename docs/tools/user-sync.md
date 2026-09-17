@@ -20,6 +20,16 @@ Credentials are read from `accounts.pwd.yaml` (or `--cred-filepath`), the same
 mechanism as `OswExpress`. Start with `--dry-run` to preview, then run without
 it to write after confirming at the prompt.
 
+To also remove data no longer wanted (disabled optional fields and
+`employment_contract_status`) from existing items, add `--prune`:
+
+```bash
+uv run python examples/user_sync.py --domain your-instance.example.org --prune --dry-run
+```
+
+Users whose ORCID record exposes no email are listed in a warning at the end of
+the run; a missing email never fails the sync.
+
 ### Options
 
 By default the tool syncs both ORCID and MediaWiki-native accounts and writes

@@ -103,7 +103,9 @@ def _store_organizations(osw: Any, org_map, report: SyncReport) -> None:
         report.failed["organizations"] = str(exc)
 
 
-def _store_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
+def _store_users(
+    osw: Any, resolution: Resolution, report: SyncReport, remove_empty: bool = True
+) -> None:
     entities = []
     for resolved in resolution.resolved:
         proposed = resolved.change.proposed
@@ -126,7 +128,10 @@ def _store_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
         try:
             osw.store_entity(
                 OSW.StoreEntityParam(
-                    entities=entities, overwrite=True, edit_comment="user-sync"
+                    entities=entities,
+                    overwrite=True,
+                    remove_empty=remove_empty,
+                    edit_comment="user-sync",
                 )
             )
         except Exception as exc:  # pragma: no cover - network failure path
@@ -215,7 +220,8 @@ def run_user_sync(
 
     if config.link_organizations:
         _store_organizations(osw, org_map, report)
-    _store_users(osw, resolution, report)
+    # When pruning, keep emptied fields in the payload so they overwrite (delete).
+    _store_users(osw, resolution, report, remove_empty=not config.prune)
     if config.create_redirects:
         _create_redirects(osw, resolution, report)
     _verify(osw, report)

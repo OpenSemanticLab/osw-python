@@ -1,0 +1,15 @@
+{
+  "name": "osw-python",
+  "description": "Skills for working with OpenSemanticLab wikis through the osw CLI and MCP server.",
+  "owner": {
+    "name": "OpenSemanticLab",
+    "url": "https://github.com/OpenSemanticLab"
+  },
+  "plugins": [
+    {
+      "name": "osl-tasks",
+      "source": "./",
+      "description": "Task and project management for OpenSemanticLab, driven by the osw CLI and MCP server."
+    }
+  ]
+}

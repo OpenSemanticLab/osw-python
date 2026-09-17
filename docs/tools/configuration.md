@@ -111,6 +111,10 @@ set wins:
 | `OSW_MAX_RESULTS` | `OSW_MCP_MAX_RESULTS` | Default result cap (100) |
 | `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
 | `OSW_VERBOSE` | `OSW_MCP_VERBOSE` | `true` prints the configuration source report |
+| `OSW_PERSON_IRI` | | Page name of the operator's own Person entity, used by `list_tasks(mine=True)` |
+| `OSW_TASK_CATEGORY` | | Category a newly created task is written to |
+| `OSW_PERSON_CATEGORY` | | Category a newly created person is written to |
+| `OSW_PROJECT_CATEGORY` | | Category used when resolving a project by name |
 
 ## Windows paths in a `.env` file
 

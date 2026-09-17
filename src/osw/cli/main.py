@@ -323,7 +323,9 @@ _GROUP_HELP = {
     "schema": "Category JSON Schemas.",
     "search": "Find pages. OSW pages are titled by OSW-ID, so use 'ask' "
     "to search by name.",
+    "skill": "Install the Claude Code skills that ship with this package.",
     "slot": "Read and write individual page slots.",
+    "task": "Create, find and update tasks, projects and persons.",
 }
 
 for _op in iter_operations(surface="cli"):

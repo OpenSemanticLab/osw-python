@@ -1,0 +1,14 @@
+{
+  "name": "osl-tasks",
+  "displayName": "OSL task management",
+  "description": "Task and project management for OpenSemanticLab, driven by the osw CLI and MCP server.",
+  "version": "0.1.0",
+  "author": {
+    "name": "OpenSemanticLab"
+  },
+  "homepage": "https://github.com/OpenSemanticLab/osw-python",
+  "repository": "https://github.com/OpenSemanticLab/osw-python",
+  "license": "Apache-2.0",
+  "keywords": ["opensemanticlab", "osl", "tasks", "wiki", "semantic-mediawiki"],
+  "skills": ["./src/osw/skills/"]
+}

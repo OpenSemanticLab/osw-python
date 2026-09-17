@@ -113,9 +113,14 @@ def _derive_names(
 def map_user(
     mw_user: MwUser,
     profile: Optional[OrcidProfile] = None,
-    link_organizations: bool = True,
+    include_websites: bool = False,
+    link_organizations: bool = False,
 ) -> Tuple[ProposedUser, List[ProposedOrganization]]:
-    """Build a ProposedUser (and any linked organizations) from the sources."""
+    """Build a ProposedUser (and any linked organizations) from the sources.
+
+    Email and names are always taken from the profile (core). Websites and
+    organizations are populated only when their flag is enabled.
+    """
     orcid_uri = f"https://orcid.org/{mw_user.orcid_id}" if mw_user.orcid_id else None
     first, surname, label, placeholder = _derive_names(profile, mw_user.name)
 
@@ -139,7 +144,7 @@ def map_user(
         label=label,
         orcid=orcid_uri,
         emails=list(profile.emails) if profile else [],
-        websites=list(profile.urls) if profile else [],
+        websites=list(profile.urls) if (profile and include_websites) else [],
         organizations=org_titles,
         placeholder_name=placeholder,
     )

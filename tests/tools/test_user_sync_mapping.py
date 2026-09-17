@@ -29,7 +29,9 @@ def test_map_orcid_user_full_profile():
         urls=["https://example.org"],
         affiliations=[OrcidAffiliation(organization="Example University")],
     )
-    proposed, orgs = map_user(mw, profile)
+    proposed, orgs = map_user(
+        mw, profile, include_websites=True, link_organizations=True
+    )
     assert isinstance(proposed, ProposedUser)
     assert proposed.username == ORCID
     assert proposed.orcid == f"https://orcid.org/{ORCID}"
@@ -99,7 +101,7 @@ def test_duplicate_affiliations_deduped():
             OrcidAffiliation(organization="example   university"),
         ]
     )
-    proposed, orgs = map_user(mw, profile)
+    proposed, orgs = map_user(mw, profile, link_organizations=True)
     assert len(orgs) == 1
     assert len(proposed.organizations) == 1
 
@@ -110,3 +112,17 @@ def test_link_organizations_disabled():
     proposed, orgs = map_user(mw, profile, link_organizations=False)
     assert orgs == []
     assert proposed.organizations == []
+
+
+def test_email_always_included_but_extras_gated_by_default():
+    mw = MwUser(name=ORCID)
+    profile = _profile(
+        emails=["l@example.org"],
+        urls=["https://example.org"],
+        affiliations=[OrcidAffiliation(organization="Example U")],
+    )
+    proposed, orgs = map_user(mw, profile)  # defaults: websites/orgs off
+    assert proposed.emails == ["l@example.org"]
+    assert proposed.websites == []
+    assert proposed.organizations == []
+    assert orgs == []

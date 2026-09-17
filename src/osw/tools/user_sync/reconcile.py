@@ -1,7 +1,8 @@
 """Reconcile proposed User items against the ones already stored.
 
 Pure logic: given proposed users and an index of existing items, classify each
-into NEW, GAP_FILL, CONFLICT or UNCHANGED and record the per-field differences.
+into NEW, GAP_FILL, CONFLICT or UNCHANGED and record the per-field differences
+(including REMOVE diffs for disabled optional fields and protected fields).
 The interactive layer consumes this plan; nothing here does IO.
 """
 
@@ -9,14 +10,16 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, FrozenSet, List, Optional
 
+from .config import PROTECTED_FIELDS
 from .existing import ExistingUsers
 from .mapping import ProposedUser
 
 NEW = "new"
 GAP_FILL = "gap_fill"
 CONFLICT = "conflict"
+REMOVE = "remove"
 UNCHANGED = "unchanged"
 
 # username is the match key and is never reconciled as a value.
@@ -24,6 +27,8 @@ SCALAR_FIELDS = ("label", "first_name", "surname", "orcid")
 SET_FIELDS = ("emails", "websites", "organizations")
 URL_FIELDS = ("orcid", "websites")
 RECONCILED_FIELDS = SCALAR_FIELDS + SET_FIELDS
+# Fields that are only written when opted in; removed from existing when disabled.
+OPTIONAL_FIELDS = ("websites", "organizations")
 
 
 def _is_empty(value: Any) -> bool:
@@ -76,6 +81,12 @@ def _existing_orgs(entity: Any) -> Any:
         return None
 
 
+def _existing_has_iri(entity: Any, name: str) -> bool:
+    """True if the loaded entity carries a relation IRI for ``name``."""
+    iris = getattr(entity, "__iris__", None)
+    return isinstance(iris, dict) and bool(iris.get(name))
+
+
 def existing_fields(entity: Any) -> Dict[str, Any]:
     """Normalized comparable field view of a loaded User entity."""
     return {
@@ -109,7 +120,7 @@ class FieldDiff:
     name: str
     existing: Any
     proposed: Any
-    status: str  # GAP_FILL or CONFLICT
+    status: str  # GAP_FILL, CONFLICT or REMOVE
 
 
 @dataclass
@@ -131,20 +142,37 @@ def _compare(existing_val: Any, proposed_val: Any) -> Optional[str]:
     return UNCHANGED if existing_val == proposed_val else CONFLICT
 
 
-def reconcile_user(proposed: ProposedUser, existing: Optional[Any]) -> UserChange:
+def reconcile_user(
+    proposed: ProposedUser,
+    existing: Optional[Any],
+    enabled_fields: FrozenSet[str] = frozenset(),
+    prune: bool = False,
+) -> UserChange:
     if existing is None:
         return UserChange(proposed=proposed, existing=None, category=NEW)
     ef = existing_fields(existing)
     pf = proposed_fields(proposed)
     diffs: List[FieldDiff] = []
-    has_conflict = has_gap = False
+    has_conflict = has_change = False
     for name in RECONCILED_FIELDS:
+        if name in OPTIONAL_FIELDS and name not in enabled_fields:
+            # Disabled optional field: remove any existing value only when pruning.
+            if prune and not _is_empty(ef[name]):
+                diffs.append(FieldDiff(name, ef[name], None, REMOVE))
+                has_change = True
+            continue
         status = _compare(ef[name], pf[name])
         if status in (GAP_FILL, CONFLICT):
             diffs.append(FieldDiff(name, ef[name], pf[name], status))
             has_conflict = has_conflict or status == CONFLICT
-            has_gap = has_gap or status == GAP_FILL
-    category = CONFLICT if has_conflict else GAP_FILL if has_gap else UNCHANGED
+            has_change = has_change or status == GAP_FILL
+    # Protected fields are stripped from existing items only when pruning.
+    if prune:
+        for name in PROTECTED_FIELDS:
+            if _existing_has_iri(existing, name):
+                diffs.append(FieldDiff(name, "set", None, REMOVE))
+                has_change = True
+    category = CONFLICT if has_conflict else GAP_FILL if has_change else UNCHANGED
     return UserChange(
         proposed=proposed, existing=existing, category=category, diffs=diffs
     )
@@ -171,7 +199,13 @@ class ReconcilePlan:
 
 
 def reconcile(
-    proposed_users: List[ProposedUser], existing: ExistingUsers
+    proposed_users: List[ProposedUser],
+    existing: ExistingUsers,
+    enabled_fields: FrozenSet[str] = frozenset(),
+    prune: bool = False,
 ) -> ReconcilePlan:
-    changes = [reconcile_user(p, existing.get(p.username)) for p in proposed_users]
+    changes = [
+        reconcile_user(p, existing.get(p.username), enabled_fields, prune)
+        for p in proposed_users
+    ]
     return ReconcilePlan(changes=changes)

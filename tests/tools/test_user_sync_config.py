@@ -17,6 +17,7 @@ def test_defaults():
     # Websites and organizations are opt-in (off by default); email is standard.
     assert cfg.include_websites is False
     assert cfg.link_organizations is False
+    assert cfg.prune is False  # removals are opt-in
     assert cfg.enabled_optional_fields() == set()
     assert cfg.exclude_system_usernames is True
     assert "bot" in cfg.excluded_groups
@@ -40,6 +41,11 @@ def test_optional_field_flags():
 def test_with_extras_enables_all():
     cfg = config_from_args(["--with-extras"])
     assert cfg.enabled_optional_fields() == {"websites", "organizations"}
+
+
+def test_prune_flag():
+    assert config_from_args([]).prune is False
+    assert config_from_args(["--prune"]).prune is True
 
 
 def test_config_from_args_parses_flags():

@@ -15,6 +15,7 @@ from .reconcile import (
     GAP_FILL,
     NEW,
     RECONCILED_FIELDS,
+    REMOVE,
     UNCHANGED,
     ReconcilePlan,
     UserChange,
@@ -48,7 +49,10 @@ def render_preview(plan: ReconcilePlan) -> List[str]:
         marker = _MARKERS[change.category]
         detail = ""
         if change.diffs:
-            detail = " (" + ", ".join(d.name for d in change.diffs) + ")"
+            names = [
+                ("-" + d.name if d.status == REMOVE else d.name) for d in change.diffs
+            ]
+            detail = " (" + ", ".join(names) + ")"
         placeholder = " [placeholder name]" if change.proposed.placeholder_name else ""
         lines.append(
             f"  {marker} {change.proposed.username} {change.category}{detail}{placeholder}"
@@ -178,7 +182,7 @@ def resolve_plan(
                 ResolvedChange(change, "update", {d.name for d in change.diffs})
             )
         else:  # CONFLICT
-            accepted = {d.name for d in change.diffs if d.status == GAP_FILL}
+            accepted = {d.name for d in change.diffs if d.status in (GAP_FILL, REMOVE)}
             if conflict_mode == "all":
                 accepted |= {d.name for d in change.diffs if d.status == CONFLICT}
             elif conflict_mode == "review":

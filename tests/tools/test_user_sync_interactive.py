@@ -13,6 +13,7 @@ from osw.tools.user_sync.reconcile import (
     CONFLICT,
     GAP_FILL,
     NEW,
+    REMOVE,
     UNCHANGED,
     FieldDiff,
     ReconcilePlan,
@@ -188,6 +189,41 @@ def test_final_confirm_no():
     res = resolve_plan(plan, prompter)
     assert res.accepted is False
     assert res.creates()[0].change.proposed.username == "new1"
+
+
+def test_removals_auto_apply_and_marked_in_preview():
+    plan = ReconcilePlan(
+        changes=[
+            _change(
+                GAP_FILL,
+                "u1",
+                [FieldDiff("organizations", {"x"}, None, REMOVE)],
+            )
+        ]
+    )
+    assert any("-organizations" in ln for ln in render_preview(plan))
+    prompter, _ = _prompter(["y"])  # only the final confirm
+    res = resolve_plan(plan, prompter)
+    assert res.updates()[0].apply_fields == {"organizations"}
+    assert res.accepted is True
+
+
+def test_conflict_user_still_auto_applies_removal():
+    plan = ReconcilePlan(
+        changes=[
+            _change(
+                CONFLICT,
+                "u1",
+                [
+                    FieldDiff("surname", "Old", "New", CONFLICT),
+                    FieldDiff("organizations", {"x"}, None, REMOVE),
+                ],
+            )
+        ]
+    )
+    prompter, _ = _prompter(["k", "y"])  # keep existing on conflict, final yes
+    res = resolve_plan(plan, prompter)
+    assert res.updates()[0].apply_fields == {"organizations"}
 
 
 def test_prompter_reprompts_on_invalid():

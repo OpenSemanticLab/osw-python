@@ -77,7 +77,10 @@ def _build_proposals(config: SyncConfig, osw: Any, session: Any):
             except OrcidRateLimitError:
                 profile = None
         proposed, orgs = map_user(
-            mw_user, profile, link_organizations=config.link_organizations
+            mw_user,
+            profile,
+            include_websites=config.include_websites,
+            link_organizations=config.link_organizations,
         )
         proposed_users.append(proposed)
         for org in orgs:
@@ -173,7 +176,12 @@ def run_user_sync(
 
     proposed_users, org_map = _build_proposals(config, osw, session)
     existing = load_existing_users(osw)
-    plan = reconcile(proposed_users, existing)
+    plan = reconcile(
+        proposed_users,
+        existing,
+        enabled_fields=frozenset(config.enabled_optional_fields()),
+        prune=config.prune,
+    )
 
     summary_lines = []
     if config.link_organizations and org_map:

@@ -41,6 +41,8 @@ class SyncConfig:
     # reported as warnings rather than failing the run.
     include_websites: bool = False
     link_organizations: bool = False
+    # Remove disabled optional fields and protected fields from existing items.
+    prune: bool = False
     orcid_api_base: str = ORCID_API_BASE_DEFAULT
     excluded_groups: List[str] = field(default_factory=lambda: list(SYSTEM_GROUPS))
 
@@ -105,6 +107,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable all optional data: websites and organizations.",
     )
+    parser.add_argument(
+        "--prune",
+        dest="prune",
+        action="store_true",
+        help="Remove disabled optional fields and employment_contract_status from "
+        "existing items (data cleanup). Off by default; a normal run only adds.",
+    )
     account_scope = parser.add_mutually_exclusive_group()
     account_scope.add_argument(
         "--orcid-only",
@@ -142,4 +151,5 @@ def config_from_args(argv: Optional[List[str]] = None) -> SyncConfig:
         create_redirects=args.create_redirects,
         include_websites=args.include_websites or args.with_extras,
         link_organizations=args.link_organizations or args.with_extras,
+        prune=args.prune,
     )

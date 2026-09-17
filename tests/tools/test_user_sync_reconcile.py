@@ -9,6 +9,7 @@ from osw.tools.user_sync.reconcile import (
     CONFLICT,
     GAP_FILL,
     NEW,
+    REMOVE,
     UNCHANGED,
     reconcile,
     reconcile_user,
@@ -109,8 +110,49 @@ def test_set_order_independent():
     change = reconcile_user(
         _proposed(organizations=["Item:OSWb", "Item:OSWa"]),
         _entity(organization=["Item:OSWa", "Item:OSWb"]),
+        enabled_fields=frozenset({"organizations"}),
     )
     assert change.category == UNCHANGED
+
+
+def test_disabled_optional_field_removed_when_pruning():
+    # organizations disabled + existing value + prune -> REMOVE
+    change = reconcile_user(
+        _proposed(), _entity(organization=["Item:OSWa"]), prune=True
+    )
+    assert change.category == GAP_FILL
+    removes = [d for d in change.diffs if d.status == REMOVE]
+    assert [d.name for d in removes] == ["organizations"]
+    assert removes[0].proposed is None
+
+
+def test_prune_off_keeps_disabled_and_protected():
+    entity = _entity()
+    entity.__iris__ = {
+        "organization": ["Item:OSWa"],
+        "employment_contract_status": "Item:OSWx",
+    }
+    change = reconcile_user(_proposed(), entity)  # prune off (default)
+    assert change.category == UNCHANGED
+    assert change.diffs == []
+
+
+def test_enabled_optional_field_not_removed():
+    change = reconcile_user(
+        _proposed(organizations=["Item:OSWa"]),
+        _entity(organization=["Item:OSWa"]),
+        enabled_fields=frozenset({"organizations"}),
+    )
+    assert change.category == UNCHANGED
+
+
+def test_protected_field_removed_when_pruning():
+    entity = _entity()
+    entity.__iris__ = {"employment_contract_status": "Item:OSWx"}
+    change = reconcile_user(_proposed(), entity, prune=True)
+    removes = [d.name for d in change.diffs if d.status == REMOVE]
+    assert "employment_contract_status" in removes
+    assert change.category == GAP_FILL
 
 
 def test_missing_label_is_gap_fill():

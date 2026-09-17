@@ -3,12 +3,12 @@ name = "osw"
 description = "Python toolset for data processing, queries, wikicode generation and page manipulation"
 authors = [{ name = "OpenSemanticWorld", email = "team@opensemantic.world" }]
 readme = "README.md"
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not
 # edit by hand; it is bumped automatically on merge to main.
-version = "2.3.1"
+version = "2.3.4"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -74,7 +74,11 @@ dataimport = [
     "deepl",
     "openpyxl",
 ]
-UI = ["pysimplegui"]
+UI = [
+    # PySimpleGUI 5 was commercial and its releases are yanked from PyPI.
+    # The LGPLv3 line resumed at version 6, which the GUI examples target.
+    "pysimplegui>=6",
+]
 mcp = [
     # official MCP Python SDK; provides MCPServer from mcp.server.
     # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.

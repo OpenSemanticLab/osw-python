@@ -39,6 +39,7 @@ only core identity plus email.
 | `--with-websites` | Also store ORCID researcher URLs (opt-in). |
 | `--with-organizations` | Also create and link Organization items from ORCID affiliations (opt-in). |
 | `--with-extras` | Enable both websites and organizations. |
+| `--prune` | Remove disabled optional fields and `employment_contract_status` from existing items (default off; a normal run only adds). |
 
 ## What it does
 
@@ -50,8 +51,9 @@ only core identity plus email.
 3. Map each account to a proposed `User` item with a deterministic id
    (uuid5 on the ORCID iD, else the username), so re-runs are idempotent.
 4. Reconcile against existing items by `username` into NEW, GAP_FILL, CONFLICT,
-   REMOVE or UNCHANGED, then preview; gap-fills and removals apply
-   automatically, conflicts are resolved interactively.
+   REMOVE or UNCHANGED, then preview; gap-fills apply automatically and conflicts
+   are resolved interactively. Removals only appear with `--prune`; a normal run
+   never removes anything.
 5. Store items, create `User:<username>` redirects to each item, ensure any
    linked Organization items, verify by reloading, and warn about users with no
    email.
@@ -62,9 +64,9 @@ only core identity plus email.
 | --- | --- |
 | `username`, `first_name`, `surname`, `label`, `orcid` | Always (core identity). |
 | `email` | Standard: always attempted; missing email is warned, not fatal; never removed. |
-| `website` | Opt-in (`--with-websites`); removed from existing items when disabled. |
-| `organization` | Opt-in (`--with-organizations`); removed from existing items when disabled. |
-| `employment_contract_status` | Never written; removed from existing items (data protection). |
+| `website` | Opt-in (`--with-websites`); removed from existing only with `--prune`. |
+| `organization` | Opt-in (`--with-organizations`); removed from existing only with `--prune`. |
+| `employment_contract_status` | Never written; removed from existing only with `--prune`. |
 
 ## Notes
 

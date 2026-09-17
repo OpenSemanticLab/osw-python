@@ -96,6 +96,8 @@ def test_dry_run_previews_without_writing():
     joined = "\n".join(io.outputs)
     assert ORCID in joined
     assert "new=1" in joined  # bot excluded, only the ORCID user
+    assert report.missing_email == [ORCID]  # record has no email
+    assert "no ORCID email" in joined
 
 
 def test_requires_connection():

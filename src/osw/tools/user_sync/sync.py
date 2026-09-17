@@ -38,6 +38,7 @@ class SyncReport:
     failed: Dict[str, str] = field(default_factory=dict)
     redirects_created: List[str] = field(default_factory=list)
     organizations: List[str] = field(default_factory=list)
+    missing_email: List[str] = field(default_factory=list)
     accepted: bool = False
 
     def summary(self) -> str:
@@ -45,7 +46,8 @@ class SyncReport:
         return (
             f"{state}: created={len(self.created)} updated={len(self.updated)} "
             f"skipped={len(self.skipped)} failed={len(self.failed)} "
-            f"redirects={len(self.redirects_created)} orgs={len(self.organizations)}"
+            f"redirects={len(self.redirects_created)} orgs={len(self.organizations)} "
+            f"missing_email={len(self.missing_email)}"
         )
 
 
@@ -144,6 +146,14 @@ def _create_redirects(osw: Any, resolution: Resolution, report: SyncReport) -> N
             report.failed[f"redirect:{proposed.username}"] = str(exc)
 
 
+def _warn_missing_email(prompter: Prompter, missing: List[str]) -> None:
+    if missing:
+        prompter.write(
+            f"WARNING: {len(missing)} user(s) have no ORCID email: "
+            + ", ".join(missing)
+        )
+
+
 def _verify(osw: Any, report: SyncReport) -> None:
     titles = report.created + report.updated
     if not titles:
@@ -175,6 +185,7 @@ def run_user_sync(
     prompter = prompter or Prompter()
 
     proposed_users, org_map = _build_proposals(config, osw, session)
+    missing_email = [p.username for p in proposed_users if not p.emails]
     existing = load_existing_users(osw)
     plan = reconcile(
         proposed_users,
@@ -197,8 +208,9 @@ def run_user_sync(
         summary_lines=summary_lines,
     )
 
-    report = SyncReport(accepted=resolution.accepted)
+    report = SyncReport(accepted=resolution.accepted, missing_email=missing_email)
     if not resolution.accepted:
+        _warn_missing_email(prompter, missing_email)
         return report
 
     if config.link_organizations:
@@ -207,4 +219,5 @@ def run_user_sync(
     if config.create_redirects:
         _create_redirects(osw, resolution, report)
     _verify(osw, report)
+    _warn_missing_email(prompter, missing_email)
     return report

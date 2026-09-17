@@ -12,6 +12,7 @@ from typing import Any, List, Set
 
 from opensemantic.base.v1 import Organization, User
 
+from .config import PROTECTED_FIELDS
 from .mapping import ProposedOrganization, ProposedUser
 
 # The concrete DisplayName type used by the label field.
@@ -22,12 +23,20 @@ def _labels(text: str) -> List[Any]:
     return [_DISPLAY_NAME(text=text)]
 
 
+def _strip_protected(entity: Any) -> None:
+    """Remove protected relation defaults (e.g. employment_contract_status)."""
+    iris = getattr(entity, "__iris__", None)
+    if isinstance(iris, dict):
+        for name in PROTECTED_FIELDS:
+            iris.pop(name, None)
+
+
 def build_organization(proposed: ProposedOrganization) -> Organization:
     return Organization(uuid=proposed.uuid, label=_labels(proposed.name))
 
 
 def build_user(proposed: ProposedUser) -> User:
-    """Build a full User entity for creation."""
+    """Build a full User entity for creation (never carries protected fields)."""
     args: dict = {
         "uuid": proposed.uuid,
         "username": proposed.username,
@@ -43,11 +52,17 @@ def build_user(proposed: ProposedUser) -> User:
         args["website"] = set(proposed.websites)
     if proposed.organizations:
         args["organization"] = list(proposed.organizations)
-    return User(**args)
+    entity = User(**args)
+    _strip_protected(entity)
+    return entity
 
 
 def apply_update(entity: Any, proposed: ProposedUser, apply_fields: Set[str]) -> Any:
-    """Apply the accepted fields onto a loaded existing entity, in place."""
+    """Apply the accepted fields onto a loaded existing entity, in place.
+
+    Fields whose proposal is empty (REMOVE) are cleared; protected fields in
+    ``apply_fields`` are stripped from the entity's ``__iris__`` map.
+    """
     if "label" in apply_fields:
         entity.label = _labels(proposed.label)
     if "first_name" in apply_fields:
@@ -61,5 +76,10 @@ def apply_update(entity: Any, proposed: ProposedUser, apply_fields: Set[str]) ->
     if "websites" in apply_fields:
         entity.website = set(proposed.websites)
     if "organizations" in apply_fields:
-        entity.__iris__["organization"] = list(proposed.organizations)
+        if proposed.organizations:
+            entity.__iris__["organization"] = list(proposed.organizations)
+        else:
+            entity.__iris__.pop("organization", None)
+    if any(name in apply_fields for name in PROTECTED_FIELDS):
+        _strip_protected(entity)
     return entity

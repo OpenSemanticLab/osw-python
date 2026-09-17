@@ -22,31 +22,49 @@ it to write after confirming at the prompt.
 
 ### Options
 
+By default the tool syncs both ORCID and MediaWiki-native accounts and writes
+only core identity plus email.
+
 | Flag | Effect |
 | --- | --- |
 | `--domain` | Target OSL domain. |
 | `--cred-filepath` | Path to `accounts.pwd.yaml`. |
 | `--dry-run` | Preview only; never writes. |
-| `--yes` | Non-interactive: create and gap-fill, keep existing on conflicts. |
+| `--auto-apply` | Non-interactive: apply creates, gap-fills and removals; keep existing on conflicts. |
 | `--limit N` | Process at most N accounts (testing). |
-| `--orcid-only` | Only accounts whose username is an ORCID iD. |
+| `--orcid-only` | Only ORCID-username accounts (excludes `--mw-only`). |
+| `--mw-only` | Only non-ORCID (MediaWiki-native) accounts (excludes `--orcid-only`). |
 | `--include-system` | Do not skip MediaWiki reserved system accounts. |
 | `--no-redirects` | Do not create `User:` redirect pages. |
-| `--no-organizations` | Do not link ORCID affiliations to Organization items. |
+| `--with-websites` | Also store ORCID researcher URLs (opt-in). |
+| `--with-organizations` | Also create and link Organization items from ORCID affiliations (opt-in). |
+| `--with-extras` | Enable both websites and organizations. |
 
 ## What it does
 
 1. Enumerate MediaWiki accounts, skipping bots and privileged groups
    (`bot`, `sysop`, `bureaucrat`, `interface-admin`) and MediaWiki reserved
    system usernames.
-2. Enrich ORCID users from `https://pub.orcid.org/v3.0/<id>` (names, public
-   email, websites, employment or affiliation).
+2. Enrich ORCID users from `https://pub.orcid.org/v3.0/<id>`: names and email
+   always; researcher URLs and affiliations only when their flag is enabled.
 3. Map each account to a proposed `User` item with a deterministic id
    (uuid5 on the ORCID iD, else the username), so re-runs are idempotent.
-4. Reconcile against existing items by `username` into NEW, GAP_FILL, CONFLICT
-   or UNCHANGED, then preview and resolve conflicts interactively.
-5. Store items, create `User:<username>` redirects to each item, ensure linked
-   Organization items, and verify by reloading.
+4. Reconcile against existing items by `username` into NEW, GAP_FILL, CONFLICT,
+   REMOVE or UNCHANGED, then preview; gap-fills and removals apply
+   automatically, conflicts are resolved interactively.
+5. Store items, create `User:<username>` redirects to each item, ensure any
+   linked Organization items, verify by reloading, and warn about users with no
+   email.
+
+## Data written
+
+| Field | Policy |
+| --- | --- |
+| `username`, `first_name`, `surname`, `label`, `orcid` | Always (core identity). |
+| `email` | Standard: always attempted; missing email is warned, not fatal; never removed. |
+| `website` | Opt-in (`--with-websites`); removed from existing items when disabled. |
+| `organization` | Opt-in (`--with-organizations`); removed from existing items when disabled. |
+| `employment_contract_status` | Never written; removed from existing items (data protection). |
 
 ## Notes
 

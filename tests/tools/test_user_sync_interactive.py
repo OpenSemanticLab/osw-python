@@ -136,9 +136,9 @@ def test_resolve_dry_run_makes_no_writes_and_no_prompts():
     assert io.answers == []  # nothing was asked
 
 
-def test_resolve_assume_yes_keeps_conflicts():
+def test_resolve_auto_apply_keeps_conflicts():
     prompter, io = _prompter([])
-    res = resolve_plan(_mixed_plan(), prompter, assume_yes=True)
+    res = resolve_plan(_mixed_plan(), prompter, auto_apply=True)
     assert res.accepted is True
     updates = {r.change.proposed.username: r.apply_fields for r in res.updates()}
     assert updates == {"gap1": {"emails"}, "mix1": {"emails"}}

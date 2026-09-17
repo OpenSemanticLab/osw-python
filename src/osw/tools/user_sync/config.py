@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Set
 
 # Category page titles of the target item types (see opensemantic.base.v1).
 USER_CATEGORY = "Category:OSWd9aa0bca9b0040d8af6f5c091bf9eec7"
@@ -17,6 +17,10 @@ ORCID_API_BASE_DEFAULT = "https://pub.orcid.org/v3.0"
 # All are standard MediaWiki groups, so this is not a per-instance skip-list.
 SYSTEM_GROUPS = ["bot", "sysop", "bureaucrat", "interface-admin"]
 
+# User fields the script must never write and must remove from existing items
+# (data protection).
+PROTECTED_FIELDS = ("employment_contract_status",)
+
 
 @dataclass
 class SyncConfig:
@@ -25,15 +29,29 @@ class SyncConfig:
     domain: Optional[str] = None
     cred_filepath: Optional[str] = None
     dry_run: bool = False
-    assume_yes: bool = False
+    auto_apply: bool = False
     limit: Optional[int] = None
+    include_orcid: bool = True
     include_non_orcid: bool = True
     exclude_bot_group: bool = True
     exclude_system_usernames: bool = True
     create_redirects: bool = True
-    link_organizations: bool = True
+    # Optional enrichment beyond core identity, opt-in (off by default).
+    # Email is not optional: it is always attempted, and missing emails are
+    # reported as warnings rather than failing the run.
+    include_websites: bool = False
+    link_organizations: bool = False
     orcid_api_base: str = ORCID_API_BASE_DEFAULT
     excluded_groups: List[str] = field(default_factory=lambda: list(SYSTEM_GROUPS))
+
+    def enabled_optional_fields(self) -> Set[str]:
+        """Reconcile field names for the enabled optional data."""
+        enabled: Set[str] = set()
+        if self.include_websites:
+            enabled.add("websites")
+        if self.link_organizations:
+            enabled.add("organizations")
+        return enabled
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -53,10 +71,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Show the preview only; do not write anything.",
     )
     parser.add_argument(
-        "--yes",
-        dest="assume_yes",
+        "--auto-apply",
+        dest="auto_apply",
         action="store_true",
-        help="Non-interactive: apply new items and gap-fills, keep existing on conflicts.",
+        help="Non-interactive: apply creates, gap-fills and removals; keep existing on conflicts.",
     )
     parser.add_argument(
         "--limit",
@@ -70,23 +88,35 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Do not create User: redirect pages.",
     )
     parser.add_argument(
-        "--no-organizations",
-        dest="link_organizations",
-        action="store_false",
-        help="Do not resolve or link ORCID affiliations to Organization items.",
-    )
-    parser.add_argument(
-        "--include-non-orcid",
-        dest="include_non_orcid",
+        "--with-websites",
+        dest="include_websites",
         action="store_true",
-        default=True,
-        help="Also sync non-bot accounts without an ORCID username (default).",
+        help="Also store ORCID researcher URLs on the user item (opt-in).",
     )
     parser.add_argument(
+        "--with-organizations",
+        dest="link_organizations",
+        action="store_true",
+        help="Also resolve ORCID affiliations to Organization items and link them.",
+    )
+    parser.add_argument(
+        "--with-extras",
+        dest="with_extras",
+        action="store_true",
+        help="Enable all optional data: websites and organizations.",
+    )
+    account_scope = parser.add_mutually_exclusive_group()
+    account_scope.add_argument(
         "--orcid-only",
         dest="include_non_orcid",
         action="store_false",
         help="Sync only accounts whose username is an ORCID iD.",
+    )
+    account_scope.add_argument(
+        "--mw-only",
+        dest="include_orcid",
+        action="store_false",
+        help="Sync only non-ORCID (MediaWiki-native) accounts.",
     )
     parser.add_argument(
         "--include-system",
@@ -104,10 +134,12 @@ def config_from_args(argv: Optional[List[str]] = None) -> SyncConfig:
         domain=args.domain,
         cred_filepath=args.cred_filepath,
         dry_run=args.dry_run,
-        assume_yes=args.assume_yes,
+        auto_apply=args.auto_apply,
         limit=args.limit,
+        include_orcid=args.include_orcid,
         include_non_orcid=args.include_non_orcid,
         exclude_system_usernames=args.exclude_system_usernames,
         create_redirects=args.create_redirects,
-        link_organizations=args.link_organizations,
+        include_websites=args.include_websites or args.with_extras,
+        link_organizations=args.link_organizations or args.with_extras,
     )

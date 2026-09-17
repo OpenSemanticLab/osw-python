@@ -96,6 +96,7 @@ def enumerate_mw_users(
     site: Any,
     excluded_groups: Sequence[str] = ("bot",),
     excluded_usernames: Sequence[str] = (),
+    include_orcid: bool = True,
     include_non_orcid: bool = True,
     limit: Optional[int] = None,
     batch: Any = "max",
@@ -106,6 +107,7 @@ def enumerate_mw_users(
         site: An object exposing ``api("query", ...)`` (an mwclient Site).
         excluded_groups: Accounts in any of these groups are skipped (bots, admins).
         excluded_usernames: Exact usernames to skip (reserved system accounts).
+        include_orcid: If False, skip ORCID-username accounts.
         include_non_orcid: If False, keep only ORCID-username accounts.
         limit: Keep at most this many accounts after filtering.
         batch: ``aulimit`` value passed to the API.
@@ -120,6 +122,8 @@ def enumerate_mw_users(
         if excluded.intersection(user.groups):
             continue
         if not include_non_orcid and not user.is_orcid:
+            continue
+        if not include_orcid and user.is_orcid:
             continue
         users.append(user)
         if limit is not None and len(users) >= limit:

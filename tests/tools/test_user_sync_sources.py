@@ -110,6 +110,17 @@ def test_enumerate_excludes_privileged_groups_and_reserved_names():
     assert [u.name for u in users] == ["0000-0002-6374-9831"]
 
 
+def test_enumerate_mw_only_skips_orcid():
+    site = FakeSite([
+        _page([
+            {"name": "0000-0002-6374-9831", "groups": ["user"]},
+            {"name": "Alice", "groups": ["user"]},
+        ])
+    ])
+    users = enumerate_mw_users(site, include_orcid=False)
+    assert [u.name for u in users] == ["Alice"]
+
+
 def test_partition_by_orcid():
     users = [
         MwUser(name="0000-0002-6374-9831"),

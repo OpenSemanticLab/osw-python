@@ -143,7 +143,7 @@ def resolve_plan(
     plan: ReconcilePlan,
     prompter: Prompter,
     dry_run: bool = False,
-    assume_yes: bool = False,
+    auto_apply: bool = False,
     summary_lines: Optional[Sequence[str]] = None,
 ) -> Resolution:
     """Preview the plan and resolve conflicts into a write decision."""
@@ -154,7 +154,7 @@ def resolve_plan(
 
     conflict_mode: Optional[str] = None
     if plan.conflicts and not dry_run:
-        if assume_yes:
+        if auto_apply:
             conflict_mode = "keep"
         else:
             choice = prompter.ask(
@@ -188,7 +188,7 @@ def resolve_plan(
 
     if dry_run:
         accepted_run = False
-    elif assume_yes:
+    elif auto_apply:
         accepted_run = True
     else:
         n_create = sum(1 for r in resolved if r.action == "create")

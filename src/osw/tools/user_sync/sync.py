@@ -57,6 +57,7 @@ def _build_proposals(config: SyncConfig, osw: Any, session: Any):
         osw.mw_site,
         excluded_groups=excluded,
         excluded_usernames=reserved,
+        include_orcid=config.include_orcid,
         include_non_orcid=config.include_non_orcid,
         limit=config.limit,
     )
@@ -184,7 +185,7 @@ def run_user_sync(
         plan,
         prompter,
         dry_run=config.dry_run,
-        assume_yes=config.assume_yes,
+        auto_apply=config.auto_apply,
         summary_lines=summary_lines,
     )
 

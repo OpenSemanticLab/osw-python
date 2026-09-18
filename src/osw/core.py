@@ -496,24 +496,36 @@ class OSW(BaseModel):
         first = True
         last = False
         results = []
-        for schema_title in fetchSchemaParam.schema_title:
-            last = schema_title == fetchSchemaParam.schema_title[-1]
-            mode = fetchSchemaParam.mode
-            if not first:  # 'replace' makes only sense for the first schema
-                mode = "append"
-            res = self._fetch_schema(
-                OSW._FetchSchemaParam(
-                    schema_title=schema_title,
-                    mode=mode,
-                    final=last,
-                    generate_annotations=fetchSchemaParam.generate_annotations,
-                    generator_options=fetchSchemaParam.generator_options,
-                    offline_pages=fetchSchemaParam.offline_pages,
-                    result_model_path=fetchSchemaParam.result_model_path,
+        # the page cache is enabled once for the whole operation, because the same
+        # schema pages are read repeatedly while $refs are resolved. The state is
+        # taken and restored here and not per schema title: _fetch_schema would
+        # snapshot the state its own predecessor has already changed. The restore
+        # runs in a finally block so that an early return or an exception in
+        # _fetch_schema cannot leave the cache enabled for the rest of the process.
+        site_cache_state = self.site.get_cache_enabled()
+        self.site.enable_cache()
+        try:
+            for schema_title in fetchSchemaParam.schema_title:
+                last = schema_title == fetchSchemaParam.schema_title[-1]
+                mode = fetchSchemaParam.mode
+                if not first:  # 'replace' makes only sense for the first schema
+                    mode = "append"
+                res = self._fetch_schema(
+                    OSW._FetchSchemaParam(
+                        schema_title=schema_title,
+                        mode=mode,
+                        final=last,
+                        generate_annotations=fetchSchemaParam.generate_annotations,
+                        generator_options=fetchSchemaParam.generator_options,
+                        offline_pages=fetchSchemaParam.offline_pages,
+                        result_model_path=fetchSchemaParam.result_model_path,
+                    )
                 )
-            )
-            results.append(res)
-            first = False
+                results.append(res)
+                first = False
+        finally:
+            if not site_cache_state:
+                self.site.disable_cache()  # restore original state
 
         # merge unique results and return
         merged_result = OSW.FetchSchemaResult(
@@ -594,9 +606,13 @@ class OSW(BaseModel):
         ----------
         fetchSchemaParam
             See FetchSchemaParam, by default None
+
+        Notes
+        -----
+        The page cache is enabled and restored by the calling fetch_schema(), not
+        here. This method is called once per schema title and recursively per $ref,
+        so a snapshot taken here would read the state a previous call has set.
         """
-        site_cache_state = self.site.get_cache_enabled()
-        self.site.enable_cache()
         if fetchSchemaParam is None:
             fetchSchemaParam = OSW._FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
@@ -1056,8 +1072,6 @@ class OSW(BaseModel):
 
             if fetchSchemaParam.final:
                 importlib.reload(model)  # reload the updated module
-                if not site_cache_state:
-                    self.site.disable_cache()  # restore original state
 
         return OSW.FetchSchemaResult(
             fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,

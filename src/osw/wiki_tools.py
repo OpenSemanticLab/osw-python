@@ -592,7 +592,7 @@ def search_redirection_sources(
     target_title :
         Title of the target wiki page
     debug:
-        Whether to print debugging messages
+        Whether to log debugging messages
 
     Returns
     -------

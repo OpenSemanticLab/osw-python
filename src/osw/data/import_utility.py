@@ -779,7 +779,7 @@ def get_entities_from_osw(
     osw_obj:
         OSW instance to use. If None, a new instance is created.
     debug:
-        If True, prints debug information.
+        If True, logs debug information.
 
     Returns
     -------

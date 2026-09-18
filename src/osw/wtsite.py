@@ -352,7 +352,7 @@ class WtSite:
         retry_delay_s: Optional[int] = 5
         """Retry delay in seconds"""
         debug: Optional[bool] = False
-        """Whether to print debug messages"""
+        """Whether to log debug messages"""
         raise_exception: Optional[bool] = False
         """Whether to raise an exception if an error occurs"""
         raise_warning: Optional[bool] = True
@@ -667,7 +667,7 @@ class WtSite:
         parallel: Optional[bool] = False
         """If True, uploads the pages in parallel."""
         debug: Optional[bool] = False
-        """If True, debug messages will be printed."""
+        """If True, debug messages will be logged."""
         comment: Optional[str] = None
         """Edit comment for the page history, applied to every uploaded page."""
 
@@ -783,7 +783,7 @@ class WtSite:
         page: Union["WtPage", List["WtPage"], str, List[str]]
         comment: Optional[str] = None
         debug: Optional[bool] = True
-        """If True, debug messages will be printed."""
+        """If True, debug messages will be logged."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
 
@@ -861,7 +861,7 @@ class WtSite:
         dump_config: Optional["WtPage.PageDumpConfig"] = None
         """Configuration object for the page dump"""
         debug: Optional[bool] = True
-        """If True, debug messages will be printed."""
+        """If True, debug messages will be logged."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
         offline_pages: Optional[Dict[str, "WtPage"]] = None
@@ -1021,7 +1021,7 @@ class WtSite:
         selected_slots: Optional[List[str]] = None
         """A list of slots that should be read. If None, all slots are read."""
         debug: Optional[bool] = False
-        """If True, debug information is printed to the console."""
+        """If True, debug information is logged."""
         offline: Optional[bool] = True
         """Skip reading the page content from the webserver
         before reading the local content, if True."""
@@ -1214,7 +1214,7 @@ class WtSite:
         """A list of WtPage objects.
         If 'pages' is not given, 'storage_path' must be given."""
         debug: Optional[bool] = False
-        """If True, prints debug information."""
+        """If True, logs debug information."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -2167,7 +2167,7 @@ class WtPage:
         Parameters
         ----------
         debug
-            Whether to print debug information, by default False
+            Whether to log debug information, by default False
 
         Returns
         -------

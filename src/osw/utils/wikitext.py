@@ -233,7 +233,7 @@ def find_dependencies(wikitext, debug=False):
     ----------
     wikitext : str
     debug : bool
-        Whether to print debugging messages
+        Whether to log debugging messages
 
     Returns
     -------
@@ -318,7 +318,7 @@ def find_dependencies_recursively(title, site, dependencies=None, debug=False):
     dependencies
         List of already found dependent titles
     debug : bool
-        Whether to print debugging messages
+        Whether to log debugging messages
 
     Returns
     -------

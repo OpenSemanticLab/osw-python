@@ -528,8 +528,12 @@ def test_create_task_returns_the_page_names_its_labels_resolved_to(monkeypatch):
     assert result["actionees"] == ["Item:OSWper9"]
 
 
-def test_create_task_reference_list_survives_the_store_step_clearing_it(monkeypatch):
-    """Storing empties these lists in the dict it is given; the copy must hold."""
+def test_create_task_reference_list_survives_being_cleared_by_the_model(monkeypatch):
+    """oold's LinkedBaseModel empties these lists in the dict it is given.
+
+    The real model is not used here, so the clearing is simulated around
+    ``_store``; the point is that the returned value is a copy taken before.
+    """
     real_store = tasks._store
 
     def clearing_store(ctx_, category, jsondata, comment):

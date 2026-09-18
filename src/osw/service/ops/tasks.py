@@ -288,11 +288,12 @@ def _render_markdown(tasks: list[dict]) -> str:
 def _resolved_refs(jsondata: dict) -> dict:
     """Copy the page-reference lists out of ``jsondata`` before it is stored.
 
-    ``_store`` empties ``related_to`` and ``actionees`` in the dict it is
-    given: building the pydantic model shares the list objects, and storing
-    the entity clears them in place. The page itself is written correctly, so
-    only a caller reading the dict afterwards is affected. Measured on
-    osl.dev.afin-data.de, 2026-09-17.
+    Building the model empties ``related_to`` and ``actionees`` in the dict
+    it is given. ``cls(**jsondata)`` passes the list objects by reference, and
+    ``oold.model.v1.LinkedBaseModel.__init__`` moves each page name into
+    ``__iris__`` by calling ``list.remove`` on that shared object. The entity
+    and the page it writes are both correct; only a caller reading its own
+    dict afterwards sees an empty list. Measured with oold 0.16.2.
     """
     return {
         "related_to": list(jsondata.get("related_to") or []),

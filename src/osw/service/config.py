@@ -753,6 +753,11 @@ def get_active_domain() -> Optional[str]:
     iri = get_active_iri()
     if iri is None:
         return None
+    return derive_domain(iri)
+
+
+def derive_domain(iri: str) -> str:
+    """Return the bare domain of ``iri``, stripping a scheme and path if present."""
     return _derive_domain(iri)
 
 
@@ -776,12 +781,12 @@ def set_active_instance(iri: str) -> None:
     _active_resolved = True
 
 
-def get_active_credentials() -> tuple[Optional[str], Optional[str]]:
-    """Return the username/password to use for the currently active instance.
+def get_credentials_for(iri: str) -> tuple[Optional[str], Optional[str]]:
+    """Return the username/password to use for ``iri``.
 
     Resolution order:
 
-    1. If a credential file is configured, look up the active iri via
+    1. If a credential file is configured, look up ``iri`` via
        ``CredentialManager.get_credential`` with ``fallback=CredentialFallback.none``
        (never prompts interactively, never performs a network login). A
        ``UserPwdCredential`` match yields its username/password. A match of any
@@ -795,12 +800,11 @@ def get_active_credentials() -> tuple[Optional[str], Optional[str]]:
     stdio MCP tool.
     """
     settings = get_settings()
-    active_iri = get_active_iri()
-    if settings.cred_filepath and active_iri:
+    if settings.cred_filepath and iri:
         cred_mngr = CredentialManager(cred_filepath=settings.cred_filepath)
         credential = cred_mngr.get_credential(
             CredentialManager.CredentialConfig(
-                iri=active_iri, fallback=CredentialManager.CredentialFallback.none
+                iri=iri, fallback=CredentialManager.CredentialFallback.none
             )
         )
         if credential is not None:
@@ -808,3 +812,16 @@ def get_active_credentials() -> tuple[Optional[str], Optional[str]]:
                 return credential.username, credential.password
             return None, None
     return settings.username, settings.password
+
+
+def get_active_credentials() -> tuple[Optional[str], Optional[str]]:
+    """Return the username/password to use for the currently active instance.
+
+    See :func:`get_credentials_for` for the resolution order. Never raises
+    and never prompts, so this is always safe to call from a stdio MCP tool.
+    """
+    settings = get_settings()
+    active_iri = get_active_iri()
+    if active_iri is None:
+        return settings.username, settings.password
+    return get_credentials_for(active_iri)

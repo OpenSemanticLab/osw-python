@@ -13,7 +13,9 @@ from __future__ import annotations
 import inspect
 from typing import Any, Optional, get_type_hints
 
+import click
 import typer
+from typer.core import TyperCommand, TyperGroup
 
 # Registers the CLI-only, path-taking operations (file download/upload, ledger
 # path). Imported here -- and nowhere in osw.mcp -- so a path-taking operation
@@ -70,6 +72,64 @@ def _callback(
         "read_only": read_only,
         "verbose": verbose,
     }
+
+
+# These belong to ``osw`` itself (the root callback above) and, like git and
+# docker, must come before the command name; typer/click reject them after
+# it. The mapping and the classes below turn that rejection into a message
+# that names the correct form instead of a bare "No such option".
+_ROOT_OPTIONS = {
+    "--instance": "--instance <iri>",
+    "--json": "--json",
+    "-j": "-j",
+    "--read-only": "--read-only",
+    "--verbose": "--verbose",
+    "-v": "-v",
+}
+
+
+def _root_option_hint(ctx, exc):
+    """Turn a root option typed after the command into an actionable error.
+
+    Returns ``exc`` unchanged when it does not name one of ``_ROOT_OPTIONS``,
+    and also when click already found a close match on the command itself:
+    ``osw entity put --json ...`` is a misspelling of that command's own
+    ``--jsondata``, and click's "Did you mean" is the better message there.
+    """
+    usage = _ROOT_OPTIONS.get(exc.option_name)
+    if usage is None or exc.possibilities:
+        return exc
+    prog = ctx.command_path.split()[0]
+    rest = " ".join(ctx.command_path.split()[1:])
+    return click.NoSuchOption(
+        exc.option_name,
+        message=(
+            f"No such option: {exc.option_name}. It is an option of "
+            f"'{prog}', not of '{ctx.command_path}', so it has to come "
+            f"before the command: {prog} {usage} {rest}"
+        ),
+        ctx=ctx,
+    )
+
+
+class _RootOptionHintCommand(TyperCommand):
+    """A command whose unknown-option errors get the root-option hint."""
+
+    def parse_args(self, ctx, args):
+        try:
+            return super().parse_args(ctx, args)
+        except click.NoSuchOption as exc:
+            raise _root_option_hint(ctx, exc) from None
+
+
+class _RootOptionHintGroup(TyperGroup):
+    """A group whose unknown-option errors get the root-option hint."""
+
+    def parse_args(self, ctx, args):
+        try:
+            return super().parse_args(ctx, args)
+        except click.NoSuchOption as exc:
+            raise _root_option_hint(ctx, exc) from None
 
 
 def _op_params(op: Operation) -> list[inspect.Parameter]:
@@ -186,7 +246,8 @@ _groups: dict[str, typer.Typer] = {}
 _GROUP_HELP = {
     "entity": "Read, write, export and delete entities.",
     "file": "Wiki file pages: metadata, inline text, and local transfer.",
-    "instance": "Inspect the OSL instances this process can connect to.",
+    "instances": "The OSL instances this process can connect to: list them, "
+    "or check each one.",
     "ledger": "The local provenance ledger of pages written from here.",
     "schema": "Category JSON Schemas.",
     "search": "Find pages. OSW pages are titled by OSW-ID, so use 'ask' "
@@ -197,14 +258,14 @@ _GROUP_HELP = {
 for _op in iter_operations(surface="cli"):
     _command = _make_command(_op)
     if _op.group is None:
-        app.command(name=_op.command)(_command)
+        app.command(name=_op.command, cls=_RootOptionHintCommand)(_command)
     else:
         _sub = _groups.get(_op.group)
         if _sub is None:
-            _sub = typer.Typer()
+            _sub = typer.Typer(cls=_RootOptionHintGroup)
             _groups[_op.group] = _sub
             app.add_typer(_sub, name=_op.group, help=_GROUP_HELP.get(_op.group))
-        _sub.command(name=_op.command)(_command)
+        _sub.command(name=_op.command, cls=_RootOptionHintCommand)(_command)
 
 
 if __name__ == "__main__":

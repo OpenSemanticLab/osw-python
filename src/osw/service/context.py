@@ -73,6 +73,25 @@ class Context:
             )
         return domain
 
+    def osw_for(self, domain: str) -> OswExpress:
+        """Build an ``OswExpress`` for ``domain``.
+
+        Not cached and does not touch the active instance (see ``osw``): use
+        this for operations that connect to several instances in one call.
+
+        Credentials come from either of two sources, both already validated
+        by :func:`osw.service.config.load`:
+
+        * ``OSW_USERNAME`` / ``OSW_PASSWORD`` (or their ``OSL_*`` aliases),
+          read by osw from the environment; or
+        * a credential file (``settings.cred_filepath``), wrapped in a
+          ``CredentialManager`` and passed to ``OswExpress`` explicitly.
+        """
+        if self.settings.cred_filepath:
+            cred_mngr = CredentialManager(cred_filepath=self.settings.cred_filepath)
+            return OswExpress(domain=domain, cred_mngr=cred_mngr)
+        return OswExpress(domain=domain)
+
     @property
     def osw(self) -> OswExpress:
         """The shared ``OswExpress``, connecting on first use.
@@ -86,12 +105,7 @@ class Context:
           ``CredentialManager`` and passed to ``OswExpress`` explicitly.
         """
         if self._osw is None:
-            domain = self._require_active_domain()
-            if self.settings.cred_filepath:
-                cred_mngr = CredentialManager(cred_filepath=self.settings.cred_filepath)
-                self._osw = OswExpress(domain=domain, cred_mngr=cred_mngr)
-            else:
-                self._osw = OswExpress(domain=domain)
+            self._osw = self.osw_for(self._require_active_domain())
         return self._osw
 
     @osw.setter

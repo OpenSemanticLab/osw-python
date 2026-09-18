@@ -17,6 +17,7 @@ module.
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -146,7 +147,7 @@ def ledger_path(ctx: Context) -> dict:
 
 
 @operation(
-    group="instance",
+    group="instances",
     cli_name="list",
     surfaces=frozenset({"cli"}),
     read_only_hint=True,
@@ -165,3 +166,74 @@ def list_instances(ctx: Context) -> dict:
         "active_iri": config.get_active_iri(),
         "active_domain": config.get_active_domain(),
     }
+
+
+def _close_quietly(connection, iri: str) -> None:
+    """Close a throwaway connection, reporting a failure without raising.
+
+    Mirrors :meth:`osw.service.context.Context.reset`. Failing to close a
+    connection says nothing about whether it was reachable, so it must not
+    turn a successful check into a reported connection error.
+    """
+    try:
+        connection.close_connection()
+    except Exception as exc:
+        print(f"[osw] error closing connection to {iri}: {exc!r}", file=sys.stderr)
+
+
+@operation(
+    group="instances",
+    cli_name="status",
+    surfaces=frozenset({"cli"}),
+    read_only_hint=True,
+    idempotent_hint=True,
+)
+def status_instances(ctx: Context) -> dict:
+    """Report connection status for every configured OSL instance.
+
+    Iterates every iri from :func:`osw.service.config.available_iris` (the
+    env-configured domain plus every iri in a configured credential file) and
+    checks each one independently, so a user with several endpoints in a
+    credential file can check them all in one command. One failing instance
+    does not stop the check of the others. Never returns passwords, or any
+    other credential value.
+
+    The instances are checked one after another and a single check has no
+    timeout (see the probe in :mod:`osw.express`), so an unreachable instance
+    holds the command up for as long as its connection attempt takes.
+    """
+    iris = config.available_iris()
+    if not iris:
+        return {
+            "instances": [],
+            "count": 0,
+            "message": (
+                "No OSL instance configured. For a server process, set "
+                "OSW_DOMAIN (or OSW_ENV_FILE to point at a .env file that "
+                "sets it); for the CLI, pass --instance <iri>."
+            ),
+        }
+    active_iri = config.get_active_iri()
+    instances = []
+    for iri in iris:
+        entry = {
+            "iri": iri,
+            "active": iri == active_iri,
+            "username": None,
+            "connected": False,
+        }
+        # Everything that can fail for one instance stays inside this try, so
+        # the remaining instances are still checked.
+        try:
+            entry["username"] = config.get_credentials_for(iri)[0]
+            with ctx.guard():
+                # Not ctx.osw: that one is cached and bound to the active
+                # instance. These connections are ours alone, so we close each
+                # one instead of leaving it open for the rest of the command.
+                connection = ctx.osw_for(config.derive_domain(iri))
+                entry["connected"] = True
+                _close_quietly(connection, iri)
+        except Exception as exc:
+            entry["error"] = str(exc)
+        instances.append(entry)
+    return {"instances": instances, "count": len(instances)}

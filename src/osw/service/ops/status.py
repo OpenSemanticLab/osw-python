@@ -33,6 +33,14 @@ def status(ctx: Context) -> dict:
         "active_iri": active_iri,
         "active_domain": active_domain,
     }
+    # settings.username only reflects OSW_USERNAME/OSL_USERNAME, so it is None
+    # whenever the username comes from a credential file instead. Report what
+    # the connection will actually use: get_active_credentials applies the same
+    # precedence as the login path (credential file first, environment second),
+    # and it never prompts and never raises, so this is safe on the MCP stdio
+    # surface too.
+    if active_iri is not None:
+        info["username"] = config.get_active_credentials()[0]
     if active_iri is None:
         available = ", ".join(config.available_iris()) or "(none)"
         info["connected"] = False

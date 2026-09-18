@@ -11,6 +11,7 @@ import io
 import json
 from unittest.mock import MagicMock
 
+import click
 import pytest
 import typer
 import yaml
@@ -377,7 +378,7 @@ def test_ledger_path_prints_the_ledger_file_path(runner, configured_env):
     assert "path" in result.stdout
 
 
-# -- instance list / --instance ---------------------------------------------------
+# -- instances list / --instance ---------------------------------------------------
 def test_instance_list_never_leaks_credentials(runner, monkeypatch, tmp_path):
     cred_file = tmp_path / "accounts.yaml"
     cred_file.write_text(
@@ -389,7 +390,7 @@ def test_instance_list_never_leaks_credentials(runner, monkeypatch, tmp_path):
     monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
     config.reset()
 
-    result = runner.invoke(app, ["instance", "list"])
+    result = runner.invoke(app, ["instances", "list"])
 
     assert result.exit_code == 0, result.stderr
     assert "wiki-a.example.org" in result.stdout
@@ -410,7 +411,7 @@ def test_instance_flag_sets_active_instance(runner, monkeypatch, tmp_path):
     config.reset()
 
     result = runner.invoke(
-        app, ["--instance", "wiki-b.example.org", "--json", "instance", "list"]
+        app, ["--instance", "wiki-b.example.org", "--json", "instances", "list"]
     )
 
     assert result.exit_code == 0, result.stderr
@@ -428,7 +429,7 @@ def test_instance_flag_unknown_iri_exits_cleanly(runner, monkeypatch, tmp_path):
     monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
     config.reset()
 
-    result = runner.invoke(app, ["--instance", "nope.example.org", "instance", "list"])
+    result = runner.invoke(app, ["--instance", "nope.example.org", "instances", "list"])
 
     assert result.exit_code == 3  # UnknownInstance
     assert _error_lines(result.stderr)[0].startswith("UnknownInstance:")
@@ -441,7 +442,7 @@ def test_successful_command_reports_only_the_credential_source(
 ):
     monkeypatch.chdir(tmp_path)  # no accounts.pwd.yaml to discover
 
-    result = runner.invoke(app, ["instance", "list"])
+    result = runner.invoke(app, ["instances", "list"])
 
     assert result.exit_code == 0, result.stderr
     lines = _banner_lines(result.stderr)
@@ -452,7 +453,7 @@ def test_successful_command_reports_only_the_credential_source(
 def test_verbose_adds_the_env_file_line(runner, configured_env, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(app, ["--verbose", "instance", "list"])
+    result = runner.invoke(app, ["--verbose", "instances", "list"])
 
     assert result.exit_code == 0, result.stderr
     lines = _banner_lines(result.stderr)
@@ -467,7 +468,7 @@ def test_failing_command_reports_every_source_without_verbose(
     # No credentials at all, so the command fails inside the operation.
     monkeypatch.chdir(tmp_path)
 
-    result = runner.invoke(app, ["instance", "list"])
+    result = runner.invoke(app, ["instances", "list"])
 
     assert result.exit_code == 1
     lines = _banner_lines(result.stderr)
@@ -476,3 +477,167 @@ def test_failing_command_reports_every_source_without_verbose(
     assert lines[1].startswith("[osw] env file       :")
     # The stdio-hang rationale belongs to the MCP server, not to the CLI.
     assert "stdio transport" not in result.stderr
+
+
+# -- status reports a credential-file username too (regression, Change 2) -------
+def test_status_reports_username_from_credential_file(runner, monkeypatch, tmp_path):
+    """settings.redacted() only sees OSW_USERNAME/OSL_USERNAME; a username
+    configured only via a credential file must still show up in status."""
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "alice", "password": "supersecret"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    config.reset()
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: MagicMock())
+
+    result = runner.invoke(app, ["--json", "status"])
+
+    assert result.exit_code == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["username"] == "alice"
+    assert "supersecret" not in result.stdout
+
+
+def test_status_username_matches_the_one_the_login_uses(runner, monkeypatch, tmp_path):
+    """With both sources configured, report the one the connection will use.
+
+    CredentialManager.get_credential consults the credential file first and
+    only falls back to OSW_USERNAME, so status must do the same. Reporting the
+    environment name here would name an account the session does not log in as.
+    """
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "from-file", "password": "secret"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    monkeypatch.setenv("OSW_USERNAME", "from-env")
+    monkeypatch.setenv("OSW_PASSWORD", "env-secret")
+    monkeypatch.setenv("OSW_DOMAIN", "wiki-a.example.org")
+    config.reset()
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: MagicMock())
+
+    result = runner.invoke(app, ["--json", "status"])
+
+    assert result.exit_code == 0, result.stderr
+    assert json.loads(result.stdout)["username"] == "from-file"
+
+
+# -- instances status --------------------------------------------------------------
+def test_instances_status_reports_each_configured_instance(
+    runner, monkeypatch, tmp_path
+):
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "alice", "password": "secreta"},
+            "wiki-b.example.org": {"username": "bob", "password": "secretb"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    config.reset()
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: MagicMock())
+
+    result = runner.invoke(app, ["--json", "instances", "status"])
+
+    assert result.exit_code == 0, result.stderr
+    payload = json.loads(result.stdout)
+    by_iri = {entry["iri"]: entry for entry in payload["instances"]}
+    assert set(by_iri) == {"wiki-a.example.org", "wiki-b.example.org"}
+    assert by_iri["wiki-a.example.org"]["username"] == "alice"
+    assert by_iri["wiki-b.example.org"]["username"] == "bob"
+    assert by_iri["wiki-a.example.org"]["connected"] is True
+    assert by_iri["wiki-b.example.org"]["connected"] is True
+    assert "secreta" not in result.stdout
+    assert "secretb" not in result.stdout
+
+
+def test_instances_status_reports_a_failing_instance_without_stopping(
+    runner, monkeypatch, tmp_path
+):
+    cred_file = tmp_path / "accounts.yaml"
+    cred_file.write_text(
+        yaml.safe_dump({
+            "wiki-a.example.org": {"username": "alice", "password": "secreta"},
+            "wiki-b.example.org": {"username": "bob", "password": "secretb"},
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("OSW_CRED_FILEPATH", str(cred_file))
+    config.reset()
+
+    def fake_osw_express(*, domain, **kwargs):
+        if domain == "wiki-a.example.org":
+            raise RuntimeError("connection refused")
+        return MagicMock()
+
+    monkeypatch.setattr("osw.service.context.OswExpress", fake_osw_express)
+
+    result = runner.invoke(app, ["--json", "instances", "status"])
+
+    assert result.exit_code == 0, result.stderr
+    payload = json.loads(result.stdout)
+    by_iri = {entry["iri"]: entry for entry in payload["instances"]}
+    assert by_iri["wiki-a.example.org"]["connected"] is False
+    assert "error" in by_iri["wiki-a.example.org"]
+    assert by_iri["wiki-b.example.org"]["connected"] is True
+    assert "error" not in by_iri["wiki-b.example.org"]
+
+
+# -- a root option typed after the command names the correct form (Change 5) ----
+def test_root_option_after_command_names_the_correct_form(runner):
+    result = runner.invoke(app, ["status", "--instance", "wiki-dev.example.org"])
+
+    assert result.exit_code != 0
+    combined = result.stdout + result.stderr
+    assert "--instance <iri>" in combined
+    assert "before the command" in combined
+
+
+def test_root_option_after_grouped_command_names_the_correct_form(runner):
+    result = runner.invoke(app, ["entity", "--instance", "x", "get", "T"])
+
+    assert result.exit_code != 0
+    combined = result.stdout + result.stderr
+    assert "--instance <iri>" in combined
+    assert "before the command" in combined
+
+
+def test_root_options_mapping_covers_every_root_option():
+    """_ROOT_OPTIONS is maintained by hand, next to but apart from _callback.
+
+    Without this check, adding or renaming a root option would silently stop
+    the hint from firing for it, and the user would be back to click's bare
+    "No such option".
+    """
+    root = typer.main.get_command(app)
+    declared = {
+        opt
+        for param in root.params
+        if isinstance(param, click.Option)
+        for opt in [*param.opts, *param.secondary_opts]
+        if opt != "--help"
+    }
+
+    assert declared == set(cli_main._ROOT_OPTIONS)
+
+
+def test_misspelled_command_option_keeps_clicks_suggestion(runner):
+    """--json is a root option, but here it is a misspelling of --jsondata.
+
+    The hint must not displace click's "Did you mean", which names the option
+    the user actually wanted.
+    """
+    result = runner.invoke(app, ["entity", "put", "--json", "{}"])
+
+    assert result.exit_code != 0
+    combined = result.stdout + result.stderr
+    assert "--jsondata" in combined
+    assert "before the command" not in combined

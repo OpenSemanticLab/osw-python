@@ -1321,19 +1321,43 @@ class WtSite:
         handle string, list and dict values
         handle mappings direct to iri as well as
         {"@id": "http://example.org/property", @type": "@id"} and scoped contexts
+        the given context is not modified: dicts are copied before rewriting
+        values of an unhandled type are returned unchanged
         """
         if isinstance(context, str):
             return context
         if isinstance(context, list):
             return [self._replace_jsonld_context_mapping(e, config) for e in context]
-        if isinstance(context, dict):
-            context_iter = context.copy()
-            for key in context_iter:
-                value = context[key]
-                if key == "wiki":
-                    context[key] = f"https://{self._site.host}/id/"
-                    # print(f"apply https://{self._site.host}/id/ to {key}")
-                if isinstance(value, str):
+        if not isinstance(context, dict):
+            return context
+        context = deepcopy(context)
+        context_iter = context.copy()
+        for key in context_iter:
+            value = context[key]
+            if key == "wiki":
+                context[key] = f"https://{self._site.host}/id/"
+                # print(f"apply https://{self._site.host}/id/ to {key}")
+            if isinstance(value, str):
+                base_key = key.split("*")[0]
+                if base_key not in context:
+                    context[base_key] = value
+                    # print(f"apply {key} to {base_key}")
+                if config.prefer_external_vocal is False:
+                    base_mapping = context[base_key]
+                    if isinstance(base_mapping, dict):
+                        base_mapping = base_mapping["@id"]
+                    mapping = value
+                    if mapping.startswith("Property:") and not base_mapping.startswith(
+                        "Property:"
+                    ):
+                        context[base_key] = value
+                        # print(f"apply {key} to {base_key}")
+            elif isinstance(value, list):
+                context[key] = [
+                    self._replace_jsonld_context_mapping(e, config) for e in value
+                ]
+            elif isinstance(value, dict):
+                if "@id" in value:
                     base_key = key.split("*")[0]
                     if base_key not in context:
                         context[base_key] = value
@@ -1342,37 +1366,17 @@ class WtSite:
                         base_mapping = context[base_key]
                         if isinstance(base_mapping, dict):
                             base_mapping = base_mapping["@id"]
-                        mapping = value
+                        mapping = value["@id"]
                         if mapping.startswith(
                             "Property:"
                         ) and not base_mapping.startswith("Property:"):
                             context[base_key] = value
                             # print(f"apply {key} to {base_key}")
-                elif isinstance(value, list):
-                    context[key] = [
-                        self._replace_jsonld_context_mapping(e, config) for e in value
-                    ]
-                elif isinstance(value, dict):
-                    if "@id" in value:
-                        base_key = key.split("*")[0]
-                        if base_key not in context:
-                            context[base_key] = value
-                            # print(f"apply {key} to {base_key}")
-                        if config.prefer_external_vocal is False:
-                            base_mapping = context[base_key]
-                            if isinstance(base_mapping, dict):
-                                base_mapping = base_mapping["@id"]
-                            mapping = value["@id"]
-                            if mapping.startswith(
-                                "Property:"
-                            ) and not base_mapping.startswith("Property:"):
-                                context[base_key] = value
-                                # print(f"apply {key} to {base_key}")
-                    elif "@context" in value:
-                        context[key] = self._replace_jsonld_context_mapping(
-                            value["@context"], config
-                        )
-            return context
+                elif "@context" in value:
+                    context[key] = self._replace_jsonld_context_mapping(
+                        value["@context"], config
+                    )
+        return context
 
     @try_and_renew_token
     def get_jsonld_context_loader(self, params: JsonLdContextLoaderParams = None):

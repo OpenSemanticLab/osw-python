@@ -9,6 +9,7 @@ import re
 import warnings
 from copy import deepcopy
 from enum import Enum
+from time import sleep
 from typing import Any, Dict, List, Optional, Type, Union, overload
 from uuid import UUID, uuid4
 from warnings import warn
@@ -1639,6 +1640,14 @@ class OSW(BaseModel):
         offline: Optional[bool] = False
         """If set to True, the processed entities are not upload but only returned as WtPages.
         Can be used to create WtPage objects from entities without uploading them."""
+        verify_write: Optional[bool] = True
+        """If set to True, the existence of every edited page is queried after the
+        upload. A page that does not exist afterwards is reported in
+        StoreEntityResult.failed instead of StoreEntityResult.pages. This costs one
+        additional API request per 50 edited pages, and one further request some
+        seconds later if a page is reported as missing. If the query itself fails,
+        the pages are reported as stored and an error is logged. Has no effect if
+        'offline' is True."""
         _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
             PrivateAttr()
         )
@@ -1717,6 +1726,73 @@ class OSW(BaseModel):
                 f"entities: {failed_titles}"
             )
 
+    class PageNotCreatedError(Exception):
+        """Raised for a page that does not exist after store_entity() edited it.
+
+        The edit was sent and no exception was raised, but the page is absent when
+        the wiki is asked afterwards. A form or template driven creation step on
+        the category can reject the content server-side without reporting an error
+        to the API client.
+        """
+
+        def __init__(self, title: str):
+            self.title = title
+            super().__init__(
+                f"Page '{title}' does not exist after the edit. The write was "
+                f"rejected by the wiki without an error response."
+            )
+
+    def _get_missing_page_titles(
+        self, titles: List[str], confirm_delay_s: int = 5
+    ) -> List[str]:
+        """Returns those of the given page titles that do not exist on the wiki.
+
+        A title the wiki reports as missing is queried a second time after
+        confirm_delay_s seconds. A read can be answered by a database replica that
+        does not have the write yet, and a title that is still absent seconds later
+        is not explained by that lag.
+
+        Parameters
+        ----------
+        titles:
+            Full page titles to check.
+        confirm_delay_s:
+            Seconds to wait before the second query. Set to 0 to query only once.
+        """
+        missing = self._query_missing_page_titles(titles)
+        if missing and confirm_delay_s:
+            sleep(confirm_delay_s)
+            missing = self._query_missing_page_titles(missing)
+        return missing
+
+    def _query_missing_page_titles(self, titles: List[str]) -> List[str]:
+        """Asks the wiki once which of the given page titles do not exist.
+
+        The query goes to the MediaWiki API directly and not through
+        WtSite.get_page(), because the page cache would answer with the state from
+        before the write.
+
+        Parameters
+        ----------
+        titles:
+            Full page titles to check.
+        """
+        missing = []
+        batch_size = 50  # maximum number of titles per API query
+        for start in range(0, len(titles), batch_size):
+            batch = titles[start : start + batch_size]
+            result = self.mw_site.api(
+                "query", titles="|".join(batch), prop="info", format="json"
+            )
+            query = result.get("query", {})
+            # the API normalizes titles, map them back to what was requested
+            normalized = {n["to"]: n["from"] for n in query.get("normalized", [])}
+            for page_info in query.get("pages", {}).values():
+                if "missing" in page_info:
+                    title = page_info.get("title")
+                    missing.append(normalized.get(title, title))
+        return missing
+
     def store_entity(
         self, param: Union[StoreEntityParam, OswBaseModel, List[OswBaseModel]]
     ) -> StoreEntityResult:
@@ -1739,6 +1815,8 @@ class OSW(BaseModel):
 
         max_index = len(param.entities)
         created_pages = {}
+        edited_titles = set()
+        """Titles of the pages an edit was sent for, to be verified below."""
 
         meta_category_templates = {}
         if param.namespace == "Category":
@@ -1863,6 +1941,7 @@ class OSW(BaseModel):
                 page.edit(
                     param.edit_comment, bot_edit=param.bot_edit
                 )  # will set page.changed if the content of the page has changed
+                edited_titles.add(page.title)
             if not param.offline and page.changed:
                 if index is None:
                     print(f"Entity stored at '{page.get_url()}'.")
@@ -1922,7 +2001,10 @@ class OSW(BaseModel):
         def handle_upload_object_(upload_object: UploadObject) -> None:
             # Let exceptions propagate: the caller collects them per entity below,
             # so a single failure neither aborts the batch nor is silently
-            # swallowed (store_entity_ only records created_pages on success).
+            # swallowed. store_entity_ records a page in created_pages whenever it
+            # reaches its last statement, which only means that nothing raised.
+            # Whether the page exists afterwards is checked by the verification
+            # step below.
             store_entity_(
                 upload_object.entity,
                 upload_object.namespace,
@@ -1968,6 +2050,30 @@ class OSW(BaseModel):
                 title = failure_title_(upload_object)
                 _logger.error(f"Error storing entity '{title}': {result}")
                 failed[title] = result
+
+        if param.verify_write and not param.offline and edited_titles:
+            # An edit that raised no exception is not proof that the page exists:
+            # a form or template driven creation step can reject the content
+            # server-side. page.changed is no help either, it is True in that case.
+            titles_to_verify = [
+                title for title in edited_titles if title in created_pages
+            ]
+            try:
+                missing_titles = self._get_missing_page_titles(titles_to_verify)
+            except Exception as e:
+                # A failed query is no evidence that the writes failed. Report it
+                # and keep the pages, instead of discarding everything this call
+                # has collected so far.
+                missing_titles = []
+                _logger.error(
+                    f"Could not verify {len(titles_to_verify)} stored pages, they "
+                    f"are reported as stored without being checked: {e}"
+                )
+            for title in missing_titles:
+                error = OSW.PageNotCreatedError(title)
+                _logger.error(f"Error storing entity '{title}': {error}")
+                failed[title] = error
+                del created_pages[title]
 
         store_result = OSW.StoreEntityResult(
             change_id=param.change_id, pages=created_pages, failed=failed

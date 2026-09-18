@@ -38,6 +38,9 @@ dependencies = [
     "PyLD",
     "SPARQLWrapper",
     "jsonpath-ng",
+    # validates jsondata against a resolved JSON Schema in
+    # osw.service.ops.entities.validate_entity
+    "jsonschema>=4.0",
     "numpy",
     "pyyaml",
     "typing_extensions",

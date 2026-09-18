@@ -5,8 +5,12 @@ Importing ``osw.service.ops.schema`` registers its operations in
 clear the registry the way ``test_service_registry.py`` does.
 """
 
+import json
 from unittest.mock import MagicMock
 
+import pytest
+
+from osw.service import errors
 from osw.service.config import Settings
 from osw.service.context import Context, Policy
 from osw.service.ops import schema
@@ -49,3 +53,269 @@ def test_get_category_schema_returns_not_exists_for_missing_page():
         "exists": False,
         "schema": None,
     }
+
+
+def test_get_category_schema_resolve_false_is_unchanged():
+    page = MagicMock()
+    page.exists = True
+    page.get_slot_content.return_value = {"type": "object"}
+    osw = MagicMock()
+    osw.site.get_page.return_value.pages = [page]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Item", resolve=False)
+
+    assert result == {
+        "category": "Category:Item",
+        "exists": True,
+        "schema": {"type": "object"},
+        "truncated": False,
+    }
+
+
+def _page(slot_content, exists=True):
+    page = MagicMock()
+    page.exists = exists
+    page.get_slot_content.return_value = slot_content
+    return page
+
+
+def _site_with_pages(pages_by_title):
+    def get_page(param):
+        title = param.titles[0]
+        page = pages_by_title.get(title) or _page(None, exists=False)
+        result = MagicMock()
+        result.pages = [page]
+        return result
+
+    site = MagicMock()
+    site.get_page.side_effect = get_page
+    return site
+
+
+def test_get_category_schema_resolve_true_merges_two_level_chain():
+    pages = {
+        "Category:Child": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:Parent"
+                "?action=raw&slot=jsonschema"
+            ],
+            "properties": {"child_field": {"type": "string"}},
+            "required": ["child_field"],
+        }),
+        "Category:Parent": _page({
+            "properties": {"parent_field": {"type": "string"}},
+            "required": ["parent_field"],
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Child", resolve=True)
+
+    assert result["resolved"] is True
+    assert result["schema"]["properties"]["parent_field"] == {"type": "string"}
+    assert result["schema"]["properties"]["child_field"] == {"type": "string"}
+    assert result["schema"]["required"] == ["parent_field", "child_field"]
+    assert result["sources"] == ["Category:Child", "Category:Parent"]
+
+
+def test_get_category_schema_resolve_true_child_property_overrides_parent():
+    pages = {
+        "Category:Child": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:Parent"
+                "?action=raw&slot=jsonschema"
+            ],
+            "properties": {"shared": {"type": "string", "title": "child"}},
+        }),
+        "Category:Parent": _page({
+            "properties": {"shared": {"type": "string", "title": "parent"}},
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Child", resolve=True)
+
+    assert result["schema"]["properties"]["shared"]["title"] == "child"
+
+
+def test_get_category_schema_resolve_true_reads_jsonschema_parent_from_main_slot():
+    pages = {
+        "Category:Child": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/JsonSchema:Parent?action=raw&slot=main"
+            ],
+            "properties": {"child_field": {"type": "string"}},
+        }),
+        "JsonSchema:Parent": _page({
+            "properties": {"parent_field": {"type": "string"}},
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Child", resolve=True)
+
+    assert "parent_field" in result["schema"]["properties"]
+    pages["Category:Child"].get_slot_content.assert_called_with("jsonschema")
+    pages["JsonSchema:Parent"].get_slot_content.assert_called_with("main")
+
+
+def test_get_category_schema_resolve_true_skips_a_missing_parent():
+    pages = {
+        "Category:Child": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:MissingParent"
+                "?action=raw&slot=jsonschema"
+            ],
+            "properties": {"child_field": {"type": "string"}},
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Child", resolve=True)
+
+    assert result["schema"]["properties"] == {"child_field": {"type": "string"}}
+    assert result["sources"] == ["Category:Child"]
+
+
+def test_get_category_schema_resolve_true_terminates_on_a_cycle():
+    pages = {
+        "Category:A": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:B?action=raw&slot=jsonschema"
+            ],
+            "properties": {"a_field": {"type": "string"}},
+        }),
+        "Category:B": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:A?action=raw&slot=jsonschema"
+            ],
+            "properties": {"b_field": {"type": "string"}},
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:A", resolve=True)
+
+    assert result["schema"]["properties"] == {
+        "a_field": {"type": "string"},
+        "b_field": {"type": "string"},
+    }
+    assert result["sources"] == ["Category:A", "Category:B"]
+
+
+def test_get_category_schema_resolve_true_follows_allof_ref_as_only_parent_link():
+    """The parent is reachable only through allOf's $ref, with no @context
+    entry pointing at it, so this exercises the allOf branch on its own."""
+    pages = {
+        "Category:Child": _page({
+            "allOf": [
+                {
+                    "$ref": (
+                        "https://wiki.example.org/wiki/Category:Parent"
+                        "?action=raw&slot=jsonschema"
+                    )
+                }
+            ],
+            "properties": {"child_field": {"type": "string"}},
+        }),
+        "Category:Parent": _page({
+            "properties": {"parent_field": {"type": "string"}},
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Child", resolve=True)
+
+    assert result["schema"]["properties"] == {
+        "child_field": {"type": "string"},
+        "parent_field": {"type": "string"},
+    }
+    assert result["sources"] == ["Category:Child", "Category:Parent"]
+
+
+def test_get_category_schema_resolve_true_parses_a_string_slot():
+    """A real wiki returns slot content as a JSON string, not a dict."""
+    pages = {
+        "Category:Child": _page(
+            json.dumps({
+                "properties": {"child_field": {"type": "string"}},
+            })
+        ),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_schema(ctx, category="Category:Child", resolve=True)
+
+    assert result["schema"]["properties"] == {"child_field": {"type": "string"}}
+    assert result["sources"] == ["Category:Child"]
+
+
+def test_resolve_schema_stops_at_max_depth():
+    pages = {
+        "Category:L1": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:L2?action=raw&slot=jsonschema"
+            ],
+            "properties": {"l1_field": {"type": "string"}},
+        }),
+        "Category:L2": _page({
+            "@context": [
+                "https://wiki.example.org/wiki/Category:L3?action=raw&slot=jsonschema"
+            ],
+            "properties": {"l2_field": {"type": "string"}},
+        }),
+        "Category:L3": _page({
+            "properties": {"l3_field": {"type": "string"}},
+        }),
+    }
+    osw = MagicMock()
+    osw.site = _site_with_pages(pages)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    merged, sources = schema._resolve_schema(ctx, "Category:L1", max_depth=2)
+
+    assert sources == ["Category:L1", "Category:L2"]
+    assert "l3_field" not in merged["properties"]
+    assert merged["properties"] == {
+        "l1_field": {"type": "string"},
+        "l2_field": {"type": "string"},
+    }
+
+
+def test_get_category_property_map_returns_the_smw_property_map():
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {"status": "HasStatus"}
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = schema.get_category_property_map(ctx, category="Category:Task")
+
+    assert result == {
+        "category": "Category:Task",
+        "properties": {"status": "HasStatus"},
+        "count": 1,
+    }
+    osw.site.get_smw_property_map.assert_called_once_with("Category:Task")
+
+
+def test_get_category_property_map_raises_schema_error_when_empty():
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {}
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.SchemaError):
+        schema.get_category_property_map(ctx, category="Category:Missing")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from osw.core import OSW
 from osw.service import config, errors
@@ -10,7 +10,7 @@ from osw.service.context import Context
 from osw.service.registry import operation
 from osw.service.serialization import cap_list, to_jsonable
 from osw.sparql_client_smw import SmwSparqlClient
-from osw.wiki_tools import get_query_limit
+from osw.wiki_tools import _ask_results_as_dict, get_query_limit
 from osw.wtsite import WtSite
 
 
@@ -25,13 +25,25 @@ def _hit_limit(total: int, limit: Optional[int]) -> bool:
     return bool(limit) and total >= limit
 
 
+def _check_injection(value: str, field: str) -> None:
+    """Reject a value that could change an ask query's structure."""
+    if "]]" in value or "[[" in value or "|" in value:
+        raise errors.ValidationError(f"{field} must not contain ']]', '[[' or '|'.")
+
+
 @operation(
     group="search",
     cli_name="ask",
     read_only_hint=True,
     idempotent_hint=True,
+    max_result_size_chars=200_000,
 )
-def search_ask(ctx: Context, ask_query: str, limit: Optional[int] = None) -> dict:
+def search_ask(
+    ctx: Context,
+    ask_query: str,
+    limit: Optional[int] = None,
+    printouts: Optional[List[str]] = None,
+) -> dict:
     """Run a Semantic MediaWiki 'ask' query and return matching page titles.
 
     This is the only search that can find an entity by a property value, such
@@ -56,26 +68,71 @@ def search_ask(ctx: Context, ask_query: str, limit: Optional[int] = None) -> dic
 
     ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset). A
     ``limit=N`` written into the query itself wins over it.
+
+    ``printouts`` requests SMW property values alongside each hit, so a
+    caller does not have to follow up with one ``entity get`` per title.
+    Give bare property names, such as ``HasStatus``, without the
+    ``Property:`` prefix; use ``osw schema props`` to discover a category's
+    property names. Requesting a property the category does not define does
+    not raise - the row simply carries that key set to ``null``.
+    ``Display_title_of`` does not work as a printout: its printout key comes
+    back translated into the wiki's content language regardless of the
+    alias, so it always resolves to ``null`` here - read an entity's label
+    from its title or with ``entity get`` instead. When ``printouts`` is
+    omitted or empty, the query and result are exactly as without it.
+
     Returns ``{titles, count, truncated}``, where ``titles`` are full page
     names, ``count`` is how many came back once hits whose page does not
     exist were dropped, and ``truncated`` reports that further matches may
-    exist beyond them.
+    exist beyond them. When ``printouts`` is given, the result also carries
+    ``rows``: a list of ``{title, printouts}`` in the same order as
+    ``titles``, where ``printouts`` maps each requested name to the raw
+    value SMW returned for it - a page reference keeps its ``fulltext`` and
+    ``fullurl`` rather than being flattened to a string.
     """
     lim = ctx.limit(limit)
-    titles = ctx.osw.site.semantic_search(
-        WtSite.SearchParam(query=ask_query, limit=lim)
-    )
     # semantic_search lets a 'limit=' written into the query win over `lim`,
     # so the flag has to compare against the limit that reached the wiki.
-    # `titles` excludes hits whose page does not exist, so a result set
-    # thinned that way reads as not truncated.
     query_limit = get_query_limit(ask_query)
     effective_limit = lim if query_limit is None else query_limit
-    capped, total, truncated = cap_list(titles, lim)
+
+    if not printouts:
+        titles = ctx.osw.site.semantic_search(
+            WtSite.SearchParam(query=ask_query, limit=lim)
+        )
+        # `titles` excludes hits whose page does not exist, so a result set
+        # thinned that way reads as not truncated.
+        capped, total, truncated = cap_list(titles, lim)
+        return {
+            "titles": capped,
+            "count": total,
+            "truncated": truncated or _hit_limit(total, effective_limit),
+        }
+
+    # The '=name' alias forces the printout key in the result to the property
+    # name; without it, SMW keys the result by the property's display label,
+    # which need not equal the property name, and the row values below are
+    # looked up by name.
+    full_query = ask_query + "".join(f"|?{p}={p}" for p in printouts)
+    raw = ctx.osw.site.semantic_search(
+        WtSite.SearchParam(query=full_query, limit=lim, return_json=True)
+    )
+    response = raw[0] if raw else {}
+    payload = _ask_results_as_dict(response.get("query", {}).get("results", {}))
+    hits = [p for p in payload.values() if p.get("exists") == "1"]
+    capped_hits, total, truncated = cap_list(hits, lim)
+    rows = [
+        {
+            "title": hit["fulltext"],
+            "printouts": {p: hit.get("printouts", {}).get(p) for p in printouts},
+        }
+        for hit in capped_hits
+    ]
     return {
-        "titles": capped,
+        "titles": [row["title"] for row in rows],
         "count": total,
         "truncated": truncated or _hit_limit(total, effective_limit),
+        "rows": rows,
     }
 
 
@@ -219,4 +276,47 @@ def sparql_query(
         "bindings": to_jsonable(capped),
         "count": total,
         "truncated": truncated,
+    }
+
+
+@operation(
+    group="search",
+    cli_name="label",
+    read_only_hint=True,
+    idempotent_hint=True,
+)
+def search_by_label(
+    ctx: Context,
+    label: str,
+    category: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> dict:
+    """Find an entity by its exact display label.
+
+    Runs the ask query ``[[Display_title_of::<label>]]``, matching the page's
+    displayed title exactly - not a substring or fuzzy match. Works for
+    ``Category:`` pages too, since a category is displayed under its own
+    OSW-ID title like any other entity; this is the way to find a category's
+    OSW-ID from its human-readable name. Pass ``category`` (with or without
+    the ``Category:`` prefix) to narrow the search to instances of one
+    category.
+
+    Returns titles only, the same ``{titles, count, truncated}`` shape as
+    the other search operations. Pair this with ``search ask --printouts``
+    (or ``entity get``) when you need property values, not just the title.
+    """
+    _check_injection(label, "label")
+    query = f"[[Display_title_of::{label}]]"
+    if category is not None:
+        _check_injection(category, "category")
+        cat = category if category.startswith("Category:") else f"Category:{category}"
+        query = f"[[{cat}]]" + query
+
+    lim = ctx.limit(limit)
+    titles = ctx.osw.site.semantic_search(WtSite.SearchParam(query=query, limit=lim))
+    capped, total, truncated = cap_list(titles, lim)
+    return {
+        "titles": capped,
+        "count": total,
+        "truncated": truncated or _hit_limit(total, lim),
     }

@@ -35,8 +35,10 @@ more than one.
 Entity and page titles are full MediaWiki page names, e.g. "Item:OSW1234...",
 never a bare id or label.
 
-Before creating or updating an entity, fetch its category's JSON Schema
-(get_category_schema) so the written jsondata validates against it.
+Before creating or updating an entity, get its category's JSON Schema with
+get_category_schema(resolve=True) - the unresolved schema alone is usually
+missing inherited properties - then check the payload with validate_entity
+before writing it.
 
 This server has no filesystem access: file content moves inline as text, not
 as a path. For anything path-based (uploading/downloading a local file, the

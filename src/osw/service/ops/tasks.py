@@ -9,6 +9,7 @@ tokens; no JSON Schema is ever handed to the caller.
 from __future__ import annotations
 
 import re
+import warnings
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
@@ -57,14 +58,24 @@ STATUS_ALIASES = {
     "finished": "done",
 }
 
-# SMW property names, read from the @context of the Process and Task schemas
-# on arkeve. The JSON field name and the SMW property name differ, so
-# queries must use the property name.
+# These are fallbacks used only when the category @context cannot be read;
+# the property names are normally derived from the wiki with
+# WtSite.get_smw_property_map, so an instance that remaps a property is
+# followed automatically.
 PROP_STATUS = "HasStatus"
 PROP_PRIO = "HasPriority"
 PROP_RELATED_TO = "IsRelatedTo"
 PROP_ACTIONEE = "HasActionee"
 PROP_LABEL = "HasLabel"
+
+# Maps a JSON field name to its fallback SMW property constant.
+_PROP_FALLBACK = {
+    "status": PROP_STATUS,
+    "prio": PROP_PRIO,
+    "related_to": PROP_RELATED_TO,
+    "actionees": PROP_ACTIONEE,
+    "label": PROP_LABEL,
+}
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -144,12 +155,72 @@ def _get_page_uncached(ctx: Context, title: str):
             ctx.osw.site.enable_cache()
 
 
+def _fallback_props(category: str, fields: list[str]) -> dict:
+    """Return the fallback SMW property names for ``fields``.
+
+    Raises ``errors.OpError`` instead of silently guessing when a field has
+    no entry in ``_PROP_FALLBACK``, since a field name is not a valid
+    property name and would build a query that returns nothing and reports
+    no error.
+    """
+    missing = [f for f in fields if f not in _PROP_FALLBACK]
+    if missing:
+        raise errors.OpError(
+            f"No built-in fallback Semantic MediaWiki property name for "
+            f"field(s) {', '.join(missing)} of '{category}'; this operation "
+            "cannot continue without reading the wiki's @context."
+        )
+    return {f: _PROP_FALLBACK[f] for f in fields}
+
+
+def _smw_props(ctx: Context, category: str, fields: list[str]) -> dict:
+    """Resolve the SMW property name of each field for a category.
+
+    Reads the names from the category's ``@context``, via
+    ``WtSite.get_smw_property_map``. That chain is resolved and cached in
+    ``WtSite``, so it costs one read per category per process, not per call.
+    If the schema pages cannot be read but the query API can, the fallback in
+    ``_PROP_FALLBACK`` keeps a read working.
+    """
+    try:
+        mapping = ctx.osw.site.get_smw_property_map(category)
+    except Exception as exc:
+        warnings.warn(
+            f"Could not read the SMW property map for '{category}': {exc}. "
+            "Using the built-in property names instead; a query will return "
+            "nothing if the wiki remapped them."
+        )
+        return _fallback_props(category, fields)
+    if not mapping:
+        warnings.warn(
+            f"The @context of '{category}' resolved to no Semantic MediaWiki "
+            "properties; the category page is probably missing or "
+            "unreadable. Using the built-in property names instead; a query "
+            "will return nothing if the wiki remapped them."
+        )
+        return _fallback_props(category, fields)
+    result = {}
+    for field in fields:
+        if field not in mapping:
+            raise errors.OpError(
+                f"The @context of '{category}' declares no Semantic MediaWiki "
+                f"property for field '{field}', so this operation cannot query "
+                "it. The field may have been renamed in the wiki's data model."
+            )
+        result[field] = mapping[field]
+    return result
+
+
 def _ask_rows(
     ctx: Context, query: str, printouts: list[str], limit: Optional[int] = None
 ) -> tuple[list[dict], bool]:
     """Run an SMW ask query that returns property values, not only titles."""
     lim = ctx.limit(limit)
-    full = query + "".join(f"|?{p}" for p in printouts)
+    # The '=name' alias forces the printout key in the result to the property
+    # name; without it, SMW keys the result by the property's display label,
+    # which need not equal the property name, and the read-back below looks
+    # the value up by name.
+    full = query + "".join(f"|?{p}={p}" for p in printouts)
     raw = ctx.osw.site.semantic_search(
         WtSite.SearchParam(query=full, limit=lim, return_json=True)
     )
@@ -221,8 +292,9 @@ def _resolve_ref(ctx: Context, value: str, category: str, kind: str) -> str:
     if value.startswith("Item:"):
         return value
     _check_injection(value, kind)
+    prop_label = _smw_props(ctx, category, ["label"])["label"]
     rows, _ = _ask_rows(
-        ctx, f"[[{category}]][[{PROP_LABEL}::~*{value}*]]", [], limit=10
+        ctx, f"[[{category}]][[{prop_label}::~*{value}*]]", [], limit=10
     )
     if len(rows) == 1:
         return rows[0]["fulltext"]
@@ -567,11 +639,9 @@ def list_tasks(
     if mine and actionee is not None:
         raise errors.ValidationError("Pass either 'mine' or 'actionee', not both.")
 
-    query = f"[[{CATEGORY_TASK}]]"
+    # Check the setting first, so a missing configuration does not first pay
+    # for a schema read.
     person_iri = None
-    if project is not None:
-        project_title = _resolve_ref(ctx, project, CATEGORY_PROJECT, "project")
-        query += f"[[{PROP_RELATED_TO}::{project_title}]]"
     if mine:
         settings = config.get_settings()
         if not settings.person_iri:
@@ -580,19 +650,32 @@ def list_tasks(
                 "tasks assigned to you."
             )
         person_iri = settings.person_iri
-        query += f"[[{PROP_ACTIONEE}::{person_iri}]]"
+
+    props = _smw_props(
+        ctx, CATEGORY_TASK, ["status", "prio", "related_to", "actionees", "label"]
+    )
+
+    query = f"[[{CATEGORY_TASK}]]"
+    if project is not None:
+        project_title = _resolve_ref(ctx, project, CATEGORY_PROJECT, "project")
+        query += f"[[{props['related_to']}::{project_title}]]"
+    if person_iri:
+        query += f"[[{props['actionees']}::{person_iri}]]"
     elif actionee is not None:
         actionee_title = _resolve_ref(ctx, actionee, CATEGORY_PERSON, "person")
-        query += f"[[{PROP_ACTIONEE}::{actionee_title}]]"
+        query += f"[[{props['actionees']}::{actionee_title}]]"
     if status is not None:
         status_title = _resolve_vocab(status, STATUS_ITEMS, STATUS_ALIASES, "status")
-        query += f"[[{PROP_STATUS}::{status_title}]]"
+        query += f"[[{props['status']}::{status_title}]]"
     if text is not None:
         _check_injection(text, "text")
-        query += f"[[{PROP_LABEL}::~*{text}*]]"
+        query += f"[[{props['label']}::~*{text}*]]"
 
     rows, truncated = _ask_rows(
-        ctx, query, [PROP_STATUS, PROP_PRIO, PROP_RELATED_TO, PROP_ACTIONEE], limit
+        ctx,
+        query,
+        [props["status"], props["prio"], props["related_to"], props["actionees"]],
+        limit,
     )
     # A typo in the configured page name gives the same empty result as having
     # no tasks, so tell the two apart. The extra read only happens when the
@@ -605,16 +688,16 @@ def list_tasks(
         )
     tasks = []
     for row in rows:
-        status_value = _first_page_value(row, PROP_STATUS)
-        prio_value = _first_page_value(row, PROP_PRIO)
+        status_value = _first_page_value(row, props["status"])
+        prio_value = _first_page_value(row, props["prio"])
         tasks.append({
             "title": row["fulltext"],
             "url": row["fullurl"],
             "label": _label_of(row),
             "status": status_value["label"] if status_value else None,
             "prio": prio_value["label"] if prio_value else None,
-            "related_to": _page_values(row, PROP_RELATED_TO),
-            "actionees": _page_values(row, PROP_ACTIONEE),
+            "related_to": _page_values(row, props["related_to"]),
+            "actionees": _page_values(row, props["actionees"]),
         })
     result = {"tasks": tasks, "count": len(tasks), "truncated": truncated}
     if markdown:
@@ -639,10 +722,11 @@ def list_projects(
     Returns ``{projects, count, truncated}`` where each entry is
     ``{title, url, label}``.
     """
+    prop_label = _smw_props(ctx, CATEGORY_PROJECT, ["label"])["label"]
     query = f"[[{CATEGORY_PROJECT}]]"
     if text is not None:
         _check_injection(text, "text")
-        query += f"[[{PROP_LABEL}::~*{text}*]]"
+        query += f"[[{prop_label}::~*{text}*]]"
     rows, truncated = _ask_rows(ctx, query, [], limit)
     projects = [
         {"title": r["fulltext"], "url": r["fullurl"], "label": _label_of(r)}
@@ -669,10 +753,11 @@ def list_persons(
     Returns ``{persons, count, truncated}`` where each entry is
     ``{title, url, label}``.
     """
+    prop_label = _smw_props(ctx, CATEGORY_PERSON, ["label"])["label"]
     query = f"[[{CATEGORY_PERSON}]]"
     if text is not None:
         _check_injection(text, "text")
-        query += f"[[{PROP_LABEL}::~*{text}*]]"
+        query += f"[[{prop_label}::~*{text}*]]"
     rows, truncated = _ask_rows(ctx, query, [], limit)
     persons = [
         {"title": r["fulltext"], "url": r["fullurl"], "label": _label_of(r)}

@@ -38,7 +38,8 @@ never a bare id or label.
 Before creating or updating an entity, get its category's JSON Schema with
 get_category_schema(resolve=True) - the unresolved schema alone is usually
 missing inherited properties - then check the payload with validate_entity
-before writing it.
+before writing it. A new entity does not need "uuid" or "type" in its
+payload, since create_or_update_entity generates both itself.
 
 This server has no filesystem access: file content moves inline as text, not
 as a path. For anything path-based (uploading/downloading a local file, the

@@ -5,6 +5,7 @@ Importing ``osw.service.ops.entities`` registers its operations in
 clear the registry the way ``test_service_registry.py`` does.
 """
 
+import copy
 from unittest.mock import MagicMock
 
 import pytest
@@ -178,9 +179,11 @@ def test_create_or_update_entity_schema_error_does_not_reach_bind_records():
 
 
 # -- validate_entity -----------------------------------------------------------
-def _stub_resolve_schema(monkeypatch, schema, sources=None):
+def _stub_resolve_schema(monkeypatch, schema, sources=None, skipped=None):
     monkeypatch.setattr(
-        entities, "_resolve_schema", lambda ctx, category: (schema, sources or [])
+        entities,
+        "_resolve_schema",
+        lambda ctx, category: (schema, sources or [], skipped or []),
     )
 
 
@@ -203,6 +206,30 @@ def test_validate_entity_returns_valid_true_for_good_payload(monkeypatch):
     assert result["errors"] == []
     assert result["unknown_fields"] == []
     assert result["sources"] == ["Category:Item"]
+    assert result["skipped"] == []
+
+
+def test_validate_entity_includes_skipped_from_resolve_schema(monkeypatch):
+    schema = {
+        "type": "object",
+        "properties": {"label": {"type": "string"}},
+    }
+    _stub_resolve_schema(
+        monkeypatch,
+        schema,
+        sources=["Category:Item"],
+        skipped=[{"title": "Category:Missing", "reason": "page does not exist"}],
+    )
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test"}
+    )
+
+    assert result["skipped"] == [
+        {"title": "Category:Missing", "reason": "page does not exist"}
+    ]
 
 
 def test_validate_entity_returns_valid_false_for_missing_required_field(monkeypatch):
@@ -400,6 +427,143 @@ def test_validate_entity_raises_schema_error_when_category_has_no_schema_slot():
 
     with pytest.raises(errors.SchemaError):
         entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+
+def test_validate_entity_exempts_auto_filled_fields_from_required(monkeypatch):
+    schema = {
+        "type": "object",
+        "properties": {
+            "uuid": {"type": "string"},
+            "label": {"type": "string"},
+            "type": {"type": "array"},
+        },
+        "required": ["uuid", "label", "type"],
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test"}
+    )
+
+    assert result["valid"] is True
+    assert result["errors"] == []
+    assert result["auto_filled"] == ["type", "uuid"]
+
+
+def test_validate_entity_does_not_exempt_a_genuinely_required_field(monkeypatch):
+    schema = {
+        "type": "object",
+        "properties": {
+            "uuid": {"type": "string"},
+            "label": {"type": "string"},
+            "type": {"type": "array"},
+        },
+        "required": ["uuid", "label", "type"],
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+    assert result["valid"] is False
+    assert any("label" in err for err in result["errors"])
+    assert result["auto_filled"] == ["type", "uuid"]
+
+
+def test_validate_entity_auto_filled_is_empty_when_schema_has_no_required(
+    monkeypatch,
+):
+    schema = {"type": "object", "properties": {"label": {"type": "string"}}}
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test"}
+    )
+
+    assert result["valid"] is True
+    assert result["auto_filled"] == []
+
+
+def test_auto_filled_fields_is_exactly_uuid_and_type():
+    """A real assertion against the installed base model, not a stub: it
+    fails loudly if the base model ever stops defaulting exactly these two,
+    for example if a change widens or narrows the set."""
+    assert entities._auto_filled_fields() == {"uuid", "type"}
+
+
+def test_validate_entity_malformed_required_raises_schema_error_not_typeerror(
+    monkeypatch,
+):
+    """An unhashable entry in 'required' (a nested list) must not blow up
+    the auto_filled computation with a raw TypeError; it should reach
+    check_schema and come back as the usual SchemaError."""
+    schema = {
+        "type": "object",
+        "properties": {"label": {"type": "string"}},
+        "required": ["label", ["nested"]],
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.SchemaError):
+        entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+
+def test_validate_entity_does_not_mutate_nested_required(monkeypatch):
+    """Only the top-level 'required' list may be stripped of auto-filled
+    fields; a 'required' nested inside a subschema is untouched."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string"},
+            "child": {
+                "type": "object",
+                "properties": {"uuid": {"type": "string"}},
+                "required": ["uuid"],
+            },
+        },
+        "required": ["label", "uuid"],
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx,
+        category="Category:Item",
+        jsondata={"label": "Test", "child": {}},
+    )
+
+    assert result["auto_filled"] == ["uuid"]
+    assert result["valid"] is False
+    assert any("uuid" in err for err in result["errors"])
+
+
+def test_validate_entity_does_not_mutate_resolved_schema(monkeypatch):
+    """The dict _resolve_schema returned must come back unchanged; only the
+    deep copy validate_entity builds from it may be modified."""
+    schema = {
+        "type": "object",
+        "properties": {"uuid": {"type": "string"}, "label": {"type": "string"}},
+        "required": ["uuid", "label"],
+    }
+    original = copy.deepcopy(schema)
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test"}
+    )
+
+    assert result["valid"] is True
+    assert schema == original
 
 
 # -- delete_entity --------------------------------------------------------

@@ -169,6 +169,30 @@ def create_or_update_entity(
     }
 
 
+def _auto_filled_fields() -> set:
+    """Field names the osw base model actually supplies a value for.
+
+    ``create_or_update_entity`` validates by constructing the category's
+    generated subclass, and every generated class inherits from ``Entity``.
+    A field counts here only when the base model gives it a value on
+    construction, through a default factory or a non-``None`` default -
+    ``uuid`` (a fresh ``uuid4``) and ``type`` (the category default) are the
+    two this matters for in practice. Most other fields are merely optional
+    on ``Entity`` and default to ``None``, which is not a supplied value: a
+    category subclass may still declare one of them required, in which case
+    omitting it from the payload does make ``create_or_update_entity`` fail,
+    so it must stay required here too. Reading the field set off the base
+    class rather than naming the fields keeps this correct if the base model
+    changes.
+    """
+    return {
+        name
+        for name, field in model_entity.Entity.__fields__.items()
+        if field.required is False
+        and (field.default_factory is not None or field.default is not None)
+    }
+
+
 def _strip_remote_refs(node, path: str, unchecked_refs: list) -> object:
     """Return a copy of ``node`` with every remote ``$ref`` replaced by ``{}``.
 
@@ -229,21 +253,32 @@ def validate_entity(
     call, so that part of the payload is left unchecked instead.
 
     Returns ``{category, valid, errors, unknown_fields, unchecked_refs,
-    sources}``, where ``sources`` are the page titles read while resolving
-    the schema. An invalid payload is this operation's normal, successful
-    answer: ``valid`` is False and ``errors`` holds one message per
-    validation error, each including its JSON path; this never raises for a
-    bad payload. Raises ``errors.NotFound`` if ``category`` does not exist,
-    and ``errors.SchemaError`` if the resolved schema could not actually be
-    read (its ``jsonschema`` slot is missing, empty or unparsable, or
-    ``category`` is not a category page at all) or is not itself a valid
-    JSON Schema - in both cases the payload was not checked.
+    sources, skipped, auto_filled}``, where ``sources`` are the page titles
+    successfully read while resolving the schema and ``skipped`` names every
+    page the walk visited and could not use, and why - the walk's depth
+    limit was reached, the page does not exist, it has no schema slot, it
+    could not be read, or its slot did not parse. A non-empty ``skipped``
+    means part of the category's inherited schema could not be read, so the
+    check was made against less than the full schema and ``valid: true`` is
+    weaker than it looks. ``auto_filled`` lists fields the category's schema
+    marks required but the osw model supplies by itself, so they were not
+    required here; ``uuid`` and ``type`` are the usual ones - omitting them
+    from a payload is fine, since ``create_or_update_entity`` generates a
+    uuid and sets the type from the category. An invalid payload is this
+    operation's normal, successful answer: ``valid`` is False and ``errors``
+    holds one message per validation error, each including its JSON path;
+    this never raises for a bad payload. Raises ``errors.NotFound`` if
+    ``category`` does not exist, and ``errors.SchemaError`` if the resolved
+    schema could not actually be read (its ``jsonschema`` slot is missing,
+    empty or unparsable, or ``category`` is not a category page at all) or
+    is not itself a valid JSON Schema - in both cases the payload was not
+    checked.
     """
     page = ctx.osw.site.get_page(WtSite.GetPageParam(titles=[category])).pages[0]
     if not page.exists:
         raise errors.NotFound(f"Category '{category}' does not exist.")
 
-    merged_schema, sources = _resolve_schema(ctx, category)
+    merged_schema, sources, skipped = _resolve_schema(ctx, category)
     if not merged_schema or not merged_schema.get("properties"):
         raise errors.SchemaError(
             f"Could not read a JSON Schema for '{category}': its "
@@ -255,6 +290,24 @@ def validate_entity(
     # mutates the schema _resolve_schema built.
     unchecked_refs: list = []
     schema = _strip_remote_refs(copy.deepcopy(merged_schema), "$", unchecked_refs)
+
+    # Drop the required fields the model fills in itself, so a payload that
+    # create_or_update_entity would accept is not reported invalid here. A
+    # malformed 'required' (not a list, or holding an unhashable item) is
+    # left alone here and surfaces as a SchemaError below, from check_schema,
+    # rather than raising a raw TypeError from this step.
+    required = schema.get("required")
+    auto_filled = (
+        sorted(
+            {name for name in required if isinstance(name, str)} & _auto_filled_fields()
+        )
+        if isinstance(required, list)
+        else []
+    )
+    if auto_filled:
+        schema["required"] = [
+            name for name in schema["required"] if name not in auto_filled
+        ]
 
     try:
         validator_cls = validator_for(schema)
@@ -284,6 +337,8 @@ def validate_entity(
         "unknown_fields": unknown_fields,
         "unchecked_refs": unchecked_refs,
         "sources": sources,
+        "skipped": skipped,
+        "auto_filled": auto_filled,
     }
 
 

@@ -39,7 +39,7 @@ More runnable scripts live in [examples/](examples/), and the
 [Basics tutorial](docs/tutorials/basics.ipynb) walks through the
 OpenSemanticLab data model.
 
-## CLI and MCP tools
+## Tools
 
 Installing `osw` also installs an `osw` command line client, and the
 `osw[mcp]` extra adds an MCP server that exposes a live instance to agent
@@ -50,7 +50,7 @@ osw search ask '[[Category:Item]]' --limit 5
 ```
 
 Commands, tools and their configuration are described in the
-[CLI and MCP guide](https://opensemanticlab.github.io/osw-python/cli-and-mcp/).
+[Tools guide](https://opensemanticlab.github.io/osw-python/tools/).
 
 ## Contributing
 

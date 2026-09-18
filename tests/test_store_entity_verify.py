@@ -12,6 +12,7 @@ query are stubbed, so no network is required.
 
 import pytest
 
+import osw.core as core_mod
 import osw.model.entity as model
 from osw.core import OSW
 from osw.utils.wiki import get_namespace, get_title
@@ -23,21 +24,33 @@ def _title(entity):
 
 
 class _FakeMwSite:
-    """Records the API queries and answers them from a set of missing titles."""
+    """Records the API queries and answers them from a set of missing titles.
 
-    def __init__(self, missing_titles=(), normalized=None):
+    missing_once holds titles that are reported as missing by the first query
+    only, which is what a read from a lagging database replica looks like.
+    """
+
+    def __init__(
+        self, missing_titles=(), normalized=None, missing_once=(), fails=False
+    ):
         self.missing_titles = set(missing_titles)
+        self.missing_once = set(missing_once)
         self.normalized = normalized or {}
+        self.fails = fails
         self.queries = []
 
     def api(self, action, **kwargs):
         assert action == "query"
+        if self.fails:
+            raise RuntimeError("the API is not reachable")
         titles = kwargs["titles"].split("|")
         self.queries.append(titles)
+        missing_now = self.missing_titles | self.missing_once
+        self.missing_once = set()
         pages = {}
         for i, title in enumerate(titles):
             reported = self.normalized.get(title, title)
-            if title in self.missing_titles:
+            if title in missing_now:
                 pages[str(-(i + 1))] = {"title": reported, "missing": ""}
             else:
                 pages[str(i + 1)] = {"title": reported, "pageid": i + 1}
@@ -62,9 +75,11 @@ def offline_osw(monkeypatch):
         OSW, "_apply_overwrite_policy", staticmethod(lambda param: param.page)
     )
     monkeypatch.setattr(WtPage, "edit", lambda self, *a, **kw: None)
+    # the delay before the confirmation query, not worth waiting for in a test
+    monkeypatch.setattr(core_mod, "sleep", lambda *a, **kw: None)
 
-    def _make(missing_titles=(), normalized=None):
-        mw_site = _FakeMwSite(missing_titles, normalized)
+    def _make(missing_titles=(), normalized=None, missing_once=(), fails=False):
+        mw_site = _FakeMwSite(missing_titles, normalized, missing_once, fails)
         return OSW.construct(site=_FakeSite(mw_site)), mw_site
 
     return _make
@@ -135,6 +150,42 @@ def test_verification_is_skipped_offline(offline_osw):
 
     assert mw_site.queries == []
     assert set(result.pages.keys()) == {title}
+
+
+def test_a_missing_page_is_confirmed_by_a_second_query(offline_osw):
+    item = model.Item(label=[model.Label(text="Ghost")])
+    title = _title(item)
+    osw_obj, mw_site = offline_osw(missing_titles=[title])
+
+    with pytest.raises(OSW.StoreEntityPartialError):
+        osw_obj.store_entity(OSW.StoreEntityParam(entities=[item], parallel=False))
+
+    assert mw_site.queries == [[title], [title]]
+
+
+def test_a_page_that_appears_on_the_second_query_is_not_reported(offline_osw):
+    """A read answered by a lagging database replica must not fail the store."""
+    items = [model.Item(label=[model.Label(text=f"Lag{i}")]) for i in range(2)]
+    titles = [_title(it) for it in items]
+    osw_obj, mw_site = offline_osw(missing_once=[titles[0]])
+
+    result = osw_obj.store_entity(OSW.StoreEntityParam(entities=items, parallel=False))
+
+    assert set(result.pages.keys()) == set(titles)
+    assert result.failed == {}
+    # the second query asks only for the title the first one reported as missing
+    assert mw_site.queries[1] == [titles[0]]
+
+
+def test_a_failing_query_keeps_the_pages_and_does_not_raise(offline_osw):
+    items = [model.Item(label=[model.Label(text=f"Unverified{i}")]) for i in range(2)]
+    titles = [_title(it) for it in items]
+    osw_obj, _mw_site = offline_osw(fails=True)
+
+    result = osw_obj.store_entity(OSW.StoreEntityParam(entities=items, parallel=False))
+
+    assert set(result.pages.keys()) == set(titles)
+    assert result.failed == {}
 
 
 def test_titles_are_queried_in_batches_of_fifty(offline_osw):

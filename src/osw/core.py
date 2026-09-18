@@ -9,6 +9,7 @@ import re
 import warnings
 from copy import deepcopy
 from enum import Enum
+from time import sleep
 from typing import Any, Dict, List, Optional, Type, Union, overload
 from uuid import UUID, uuid4
 from warnings import warn
@@ -1643,8 +1644,10 @@ class OSW(BaseModel):
         """If set to True, the existence of every edited page is queried after the
         upload. A page that does not exist afterwards is reported in
         StoreEntityResult.failed instead of StoreEntityResult.pages. This costs one
-        additional API request per 50 edited pages. Has no effect if 'offline' is
-        True."""
+        additional API request per 50 edited pages, and one further request some
+        seconds later if a page is reported as missing. If the query itself fails,
+        the pages are reported as stored and an error is logged. Has no effect if
+        'offline' is True."""
         _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
             PrivateAttr()
         )
@@ -1739,8 +1742,31 @@ class OSW(BaseModel):
                 f"rejected by the wiki without an error response."
             )
 
-    def _get_missing_page_titles(self, titles: List[str]) -> List[str]:
+    def _get_missing_page_titles(
+        self, titles: List[str], confirm_delay_s: int = 5
+    ) -> List[str]:
         """Returns those of the given page titles that do not exist on the wiki.
+
+        A title the wiki reports as missing is queried a second time after
+        confirm_delay_s seconds. A read can be answered by a database replica that
+        does not have the write yet, and a title that is still absent seconds later
+        is not explained by that lag.
+
+        Parameters
+        ----------
+        titles:
+            Full page titles to check.
+        confirm_delay_s:
+            Seconds to wait before the second query. Set to 0 to query only once.
+        """
+        missing = self._query_missing_page_titles(titles)
+        if missing and confirm_delay_s:
+            sleep(confirm_delay_s)
+            missing = self._query_missing_page_titles(missing)
+        return missing
+
+    def _query_missing_page_titles(self, titles: List[str]) -> List[str]:
+        """Asks the wiki once which of the given page titles do not exist.
 
         The query goes to the MediaWiki API directly and not through
         WtSite.get_page(), because the page cache would answer with the state from
@@ -2032,7 +2058,18 @@ class OSW(BaseModel):
             titles_to_verify = [
                 title for title in edited_titles if title in created_pages
             ]
-            for title in self._get_missing_page_titles(titles_to_verify):
+            try:
+                missing_titles = self._get_missing_page_titles(titles_to_verify)
+            except Exception as e:
+                # A failed query is no evidence that the writes failed. Report it
+                # and keep the pages, instead of discarding everything this call
+                # has collected so far.
+                missing_titles = []
+                _logger.error(
+                    f"Could not verify {len(titles_to_verify)} stored pages, they "
+                    f"are reported as stored without being checked: {e}"
+                )
+            for title in missing_titles:
                 error = OSW.PageNotCreatedError(title)
                 _logger.error(f"Error storing entity '{title}': {error}")
                 failed[title] = error

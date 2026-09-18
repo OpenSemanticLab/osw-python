@@ -32,11 +32,11 @@ Commands are grouped by subject:
 
 | Group | Commands |
 | --- | --- |
-| `entity` | `get`, `put`, `export`, `delete` |
+| `entity` | `get`, `put`, `export`, `delete`, `validate` |
 | `file` | `info`, `cat`, `write`, `download`, `upload` |
-| `search` | `ask`, `titles`, `content`, `entities`, `sparql` |
+| `search` | `ask`, `titles`, `content`, `entities`, `sparql`, `label` |
 | `slot` | `list`, `get`, `set` |
-| `schema` | `get` |
+| `schema` | `get`, `props` |
 | `task` | `create`, `update`, `list`, `list-projects`, `list-persons`, `create-person`, `render` |
 | `skill` | `install` |
 | `instances` | `list`, `status` |

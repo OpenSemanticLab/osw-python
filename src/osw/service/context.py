@@ -155,6 +155,27 @@ class Context:
             raise errors.NotFound(f"Page '{title}' does not exist.")
         return page
 
+    def get_page_uncached(self, title: str):
+        """Return the page for ``title``, bypassing the site page cache.
+
+        The page cache is off by default, but ``OSW.fetch_schema`` turns it
+        on and only restores the previous state itself when its own call
+        finishes; a caller that does not save and restore the cache state
+        around ``fetch_schema`` (e.g. ``create_or_update_entity``) can leave
+        it on for the rest of a long-running process. A later read through
+        the plain cached path could then return a page revision from before
+        a write made earlier in the same process. Mirrors
+        ``osw.service.ops.tasks._get_page_uncached``. Does not raise for a
+        missing page; the caller branches on ``page.exists``.
+        """
+        cache_state = self.osw.site.get_cache_enabled()
+        self.osw.site.disable_cache()
+        try:
+            return self.osw.site.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
+        finally:
+            if cache_state:
+                self.osw.site.enable_cache()
+
     def require_write(self, op_name: str) -> None:
         """Raise if this context's policy disallows writes."""
         if not self.policy.allow_writes:

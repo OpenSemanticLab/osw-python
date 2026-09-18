@@ -177,6 +177,231 @@ def test_create_or_update_entity_schema_error_does_not_reach_bind_records():
     fake_ledger.record.assert_not_called()
 
 
+# -- validate_entity -----------------------------------------------------------
+def _stub_resolve_schema(monkeypatch, schema, sources=None):
+    monkeypatch.setattr(
+        entities, "_resolve_schema", lambda ctx, category: (schema, sources or [])
+    )
+
+
+def test_validate_entity_returns_valid_true_for_good_payload(monkeypatch):
+    schema = {
+        "type": "object",
+        "properties": {"label": {"type": "string"}},
+        "required": ["label"],
+    }
+    _stub_resolve_schema(monkeypatch, schema, sources=["Category:Item"])
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test"}
+    )
+
+    assert result["category"] == "Category:Item"
+    assert result["valid"] is True
+    assert result["errors"] == []
+    assert result["unknown_fields"] == []
+    assert result["sources"] == ["Category:Item"]
+
+
+def test_validate_entity_returns_valid_false_for_missing_required_field(monkeypatch):
+    schema = {
+        "type": "object",
+        "properties": {"label": {"type": "string"}},
+        "required": ["label"],
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+    assert result["valid"] is False
+    assert result["errors"]
+
+
+def test_validate_entity_reports_unknown_field_but_stays_valid(monkeypatch):
+    schema = {"type": "object", "properties": {"label": {"type": "string"}}}
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test", "bogus_field": 1}
+    )
+
+    assert result["valid"] is True
+    assert result["unknown_fields"] == ["bogus_field"]
+
+
+def test_validate_entity_strips_remote_ref_and_lists_it_unchecked(monkeypatch):
+    schema = {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string"},
+            "parent": {
+                "$ref": (
+                    "https://wiki.example.org/wiki/Category:Parent"
+                    "?action=raw&slot=jsonschema"
+                )
+            },
+        },
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx,
+        category="Category:Item",
+        jsondata={"label": "Test", "parent": {"anything": "goes"}},
+    )
+
+    assert result["valid"] is True
+    assert result["unchecked_refs"] == ["$.properties.parent"]
+
+
+def test_validate_entity_does_not_mutate_jsondata(monkeypatch):
+    schema = {"type": "object", "properties": {"tags": {"type": "array"}}}
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+    jsondata = {"tags": ["a", "b"]}
+
+    result = entities.validate_entity(ctx, category="Category:Item", jsondata=jsondata)
+
+    assert result["valid"] is True
+    assert jsondata == {"tags": ["a", "b"]}
+    assert jsondata["tags"] == ["a", "b"]
+
+
+def test_validate_entity_missing_category_raises_not_found():
+    osw, _ = _osw_with_page(exists=False)
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.NotFound):
+        entities.validate_entity(ctx, category="Category:Missing", jsondata={})
+
+
+def test_validate_entity_malformed_schema_raises_schema_error(monkeypatch):
+    # 'properties' must be non-empty so this trips the check_schema/
+    # validator_for failure below, not the "no schema was read" guard above it
+    # (FIX 1), which a bare {"type": 12345} would hit first.
+    _stub_resolve_schema(
+        monkeypatch, {"type": 12345, "properties": {"label": {"type": "string"}}}
+    )
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.SchemaError):
+        entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+
+def test_validate_entity_collects_every_validation_error(monkeypatch):
+    """A first-error-only implementation would satisfy a check that only
+    asserts ``errors`` is truthy, so assert both specific messages appear."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string"},
+            "prio": {"type": "string"},
+        },
+        "required": ["label", "prio"],
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+    assert result["valid"] is False
+    joined = " ".join(result["errors"])
+    assert "label" in joined
+    assert "prio" in joined
+    assert len(result["errors"]) == 2
+
+
+def test_validate_entity_does_not_strip_a_local_ref(monkeypatch):
+    schema = {
+        "type": "object",
+        "definitions": {"Name": {"type": "string"}},
+        "properties": {
+            "label": {"$ref": "#/definitions/Name"},
+        },
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": 5}
+    )
+
+    # The $ref was followed (not stripped to {}), so the referenced
+    # 'string' constraint is still enforced against the bad value.
+    assert result["unchecked_refs"] == []
+    assert result["valid"] is False
+    assert result["errors"]
+
+
+def test_validate_entity_unresolvable_local_ref_raises_schema_error(monkeypatch):
+    """An unresolvable local $ref (no matching 'definitions' entry) makes
+    iter_errors raise instead of yielding; FIX 3(b) must turn that into a
+    SchemaError, not let it escape unmapped and not report valid: False."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "label": {"$ref": "#/definitions/Missing"},
+        },
+    }
+    _stub_resolve_schema(monkeypatch, schema)
+    osw, _ = _osw_with_page()
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.SchemaError) as exc_info:
+        entities.validate_entity(ctx, category="Category:Item", jsondata={"label": "x"})
+
+    assert "Category:Item" in str(exc_info.value)
+
+
+def test_validate_entity_end_to_end_via_mocked_page_reads():
+    """Drives the merge-then-validate path through mocked page reads,
+    instead of stubbing ``_resolve_schema`` like every other test here."""
+    schema_dict = {
+        "type": "object",
+        "properties": {"label": {"type": "string"}},
+        "required": ["label"],
+    }
+    page = MagicMock()
+    page.exists = True
+    page.get_slot_content.return_value = schema_dict
+    osw = MagicMock()
+    osw.site.get_page.return_value.pages = [page]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.validate_entity(
+        ctx, category="Category:Item", jsondata={"label": "Test"}
+    )
+
+    assert result["valid"] is True
+    assert result["sources"] == ["Category:Item"]
+
+
+def test_validate_entity_raises_schema_error_when_category_has_no_schema_slot():
+    """FIX 1: a category page that exists but has no 'jsonschema' slot must
+    raise, not silently report 'valid: True' against an empty schema."""
+    page = MagicMock()
+    page.exists = True
+    page.get_slot_content.return_value = None
+    osw = MagicMock()
+    osw.site.get_page.return_value.pages = [page]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.SchemaError):
+        entities.validate_entity(ctx, category="Category:Item", jsondata={})
+
+
 # -- delete_entity --------------------------------------------------------
 def test_delete_untracked_is_blocked():
     osw, page = _osw_with_page()

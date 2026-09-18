@@ -21,12 +21,26 @@ def _settings(**overrides) -> Settings:
     return Settings(domain="wiki.example.org", username="u", password="p", **overrides)
 
 
+def _smw_prop_map() -> dict:
+    """The identity SMW property map used by tests that do not target
+    ``_smw_props`` itself, matching the constants the existing fixtures
+    already assert against."""
+    return {
+        "status": tasks.PROP_STATUS,
+        "prio": tasks.PROP_PRIO,
+        "related_to": tasks.PROP_RELATED_TO,
+        "actionees": tasks.PROP_ACTIONEE,
+        "label": tasks.PROP_LABEL,
+    }
+
+
 def _osw_with_page(jsondata, exists=True):
     page = MagicMock()
     page.exists = exists
     page.get_slot_content.return_value = jsondata
     osw = MagicMock()
     osw.site.get_page.return_value.pages = [page]
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     return osw, page
 
 
@@ -123,6 +137,7 @@ def test_create_task_unknown_status_raises(monkeypatch):
 
 def test_create_task_writes_project_into_related_to(monkeypatch):
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = _ask_response({
         "Item:OSWproj1": _ask_row(
             "Item:OSWproj1",
@@ -151,6 +166,7 @@ def test_create_task_writes_project_into_related_to(monkeypatch):
 def test_create_person_uses_configured_category_list_persons_uses_core(monkeypatch):
     settings = _settings(person_category="Category:OSWoverride")
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.store_entity.return_value = MagicMock(
         pages={"Item:OSWp1": MagicMock()}, change_id="c4"
     )
@@ -176,6 +192,7 @@ def test_create_person_uses_configured_category_list_persons_uses_core(monkeypat
 # -- _resolve_ref ----------------------------------------------------------
 def test_resolve_ref_multiple_matches_raises():
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = _ask_response({
         "Item:OSWa": _ask_row(
             "Item:OSWa", "https://wiki.example.org/wiki/Item:OSWa", "Alpha"
@@ -196,6 +213,7 @@ def test_resolve_ref_multiple_matches_raises():
 
 def test_resolve_ref_no_matches_raises_not_found():
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = [{"query": {"results": []}}]
     ctx = Context(_settings(), Policy(), osw=osw)
 
@@ -213,9 +231,29 @@ def test_resolve_ref_rejects_injection_value():
     osw.site.semantic_search.assert_not_called()
 
 
+def test_resolve_ref_queries_the_renamed_label_property_not_the_fallback():
+    """Rename the label property to prove the lookup query follows the
+    ``@context`` of the category rather than ``tasks.PROP_LABEL``."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {"label": "WikiLabel"}
+    osw.site.semantic_search.return_value = _ask_response({
+        "Item:OSWa": _ask_row(
+            "Item:OSWa", "https://wiki.example.org/wiki/Item:OSWa", "Alpha"
+        )
+    })
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    tasks._resolve_ref(ctx, "a", tasks.CATEGORY_PROJECT, "project")
+
+    query = osw.site.semantic_search.call_args[0][0].query[0]
+    assert "WikiLabel" in query
+    assert tasks.PROP_LABEL not in query
+
+
 # -- list_tasks -------------------------------------------------------------
 def test_list_tasks_builds_query_and_parses_fixture_row():
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     project_response = _ask_response({
         "Item:OSWproj1": _ask_row(
             "Item:OSWproj1",
@@ -254,13 +292,101 @@ def test_list_tasks_builds_query_and_parses_fixture_row():
         f"[[{tasks.CATEGORY_TASK}]]"
         f"[[{tasks.PROP_RELATED_TO}::Item:OSWproj1]]"
         f"[[{tasks.PROP_STATUS}::{tasks.STATUS_ITEMS['in work']}]]"
-        f"|?{tasks.PROP_STATUS}|?{tasks.PROP_PRIO}"
-        f"|?{tasks.PROP_RELATED_TO}|?{tasks.PROP_ACTIONEE}"
+        f"|?{tasks.PROP_STATUS}={tasks.PROP_STATUS}|?{tasks.PROP_PRIO}={tasks.PROP_PRIO}"
+        f"|?{tasks.PROP_RELATED_TO}={tasks.PROP_RELATED_TO}"
+        f"|?{tasks.PROP_ACTIONEE}={tasks.PROP_ACTIONEE}"
     )
+
+
+def test_list_tasks_queries_the_renamed_properties_not_the_fallbacks():
+    """The fixtures above map every field to its fallback name, so they pass
+    either way. Rename the properties to prove the query follows the
+    ``@context`` of the category rather than the constants."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {
+        "status": "WikiStatus",
+        "prio": "WikiPrio",
+        "related_to": "WikiRelated",
+        "actionees": "WikiActionee",
+        "label": "WikiLabel",
+    }
+    osw.site.semantic_search.return_value = [{"query": {"results": []}}]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    tasks.list_tasks(ctx, status="in work", text="editor")
+
+    query = osw.site.semantic_search.call_args_list[0][0][0].query[0]
+    assert query == (
+        f"[[{tasks.CATEGORY_TASK}]]"
+        f"[[WikiStatus::{tasks.STATUS_ITEMS['in work']}]]"
+        "[[WikiLabel::~*editor*]]"
+        "|?WikiStatus=WikiStatus|?WikiPrio=WikiPrio"
+        "|?WikiRelated=WikiRelated|?WikiActionee=WikiActionee"
+    )
+    for fallback in (
+        tasks.PROP_STATUS,
+        tasks.PROP_PRIO,
+        tasks.PROP_RELATED_TO,
+        tasks.PROP_ACTIONEE,
+        tasks.PROP_LABEL,
+    ):
+        assert fallback not in query
+
+
+def test_list_tasks_printouts_are_aliased_to_the_property_name():
+    """SMW keys a printout by the property's display label, not by the name
+    written in the query. Measured on osl.dev.afin-data.de: Property:HasLabel
+    carries the display label 'Label', so an unaliased '|?HasLabel' comes
+    back keyed 'Label' instead of 'HasLabel'. The '=name' alias forces the
+    key back to the property name that ``_page_values``/``_first_page_value``
+    look up by."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
+    osw.site.semantic_search.return_value = [{"query": {"results": []}}]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    tasks.list_tasks(ctx)
+
+    query = osw.site.semantic_search.call_args_list[0][0][0].query[0]
+    assert f"|?{tasks.PROP_STATUS}={tasks.PROP_STATUS}" in query
+    assert f"|?{tasks.PROP_PRIO}={tasks.PROP_PRIO}" in query
+    assert f"|?{tasks.PROP_RELATED_TO}={tasks.PROP_RELATED_TO}" in query
+    assert f"|?{tasks.PROP_ACTIONEE}={tasks.PROP_ACTIONEE}" in query
+
+
+def test_list_projects_queries_the_renamed_property_not_the_fallback():
+    """Rename the label property to prove the query follows the ``@context``
+    of the category rather than ``tasks.PROP_LABEL``."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {"label": "WikiLabel"}
+    osw.site.semantic_search.return_value = [{"query": {"results": []}}]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    tasks.list_projects(ctx, text="arkeve")
+
+    query = osw.site.semantic_search.call_args_list[0][0][0].query[0]
+    assert query == f"[[{tasks.CATEGORY_PROJECT}]][[WikiLabel::~*arkeve*]]"
+    assert tasks.PROP_LABEL not in query
+
+
+def test_list_persons_queries_the_renamed_property_not_the_fallback():
+    """Rename the label property to prove the query follows the ``@context``
+    of the category rather than ``tasks.PROP_LABEL``."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {"label": "WikiLabel"}
+    osw.site.semantic_search.return_value = [{"query": {"results": []}}]
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    tasks.list_persons(ctx, text="ada")
+
+    query = osw.site.semantic_search.call_args_list[0][0][0].query[0]
+    assert query == f"[[{tasks.CATEGORY_PERSON}]][[WikiLabel::~*ada*]]"
+    assert tasks.PROP_LABEL not in query
 
 
 def test_list_tasks_handles_empty_result_shape():
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = [{"query": {"results": []}}]
     ctx = Context(_settings(), Policy(), osw=osw)
 
@@ -271,10 +397,16 @@ def test_list_tasks_handles_empty_result_shape():
 
 def test_list_tasks_mine_without_person_iri_raises_not_configured(monkeypatch):
     monkeypatch.setattr(tasks.config, "get_settings", lambda: _settings())
-    ctx = Context(_settings(), Policy(), osw=MagicMock())
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
+    ctx = Context(_settings(), Policy(), osw=osw)
 
     with pytest.raises(errors.NotConfigured):
         tasks.list_tasks(ctx, mine=True)
+
+    # The missing setting must be caught before the schema read that
+    # resolves the SMW property names.
+    osw.site.get_smw_property_map.assert_not_called()
 
 
 # -- update_task -------------------------------------------------------------
@@ -464,11 +596,13 @@ def test_list_tasks_reports_truncation_only_when_smw_sends_a_continue_offset(
     monkeypatch.setattr(tasks.config, "get_settings", lambda: _settings())
 
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = [{"query": {"results": rows}}]
     ctx = Context(_settings(), Policy(), osw=osw)
     assert tasks.list_tasks(ctx, limit=2)["truncated"] is False
 
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = [
         {"query": {"results": rows}, "query-continue-offset": 2}
     ]
@@ -508,6 +642,7 @@ def test_list_tasks_mine_does_not_read_the_person_page_when_tasks_are_found(
 def test_create_task_returns_the_page_names_its_labels_resolved_to(monkeypatch):
     """A label search matches a substring, so the caller must see the choice."""
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.side_effect = [
         _ask_response({"Item:OSWproj9": _ask_row("Item:OSWproj9", "u", "ArkEve")}),
         _ask_response({"Item:OSWper9": _ask_row("Item:OSWper9", "u", "Ada Lovelace")}),
@@ -544,6 +679,7 @@ def test_create_task_reference_list_survives_being_cleared_by_the_model(monkeypa
         return result
 
     osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = _smw_prop_map()
     osw.site.semantic_search.return_value = _ask_response({
         "Item:OSWper9": _ask_row("Item:OSWper9", "u", "Ada Lovelace")
     })
@@ -561,3 +697,69 @@ def test_create_task_reference_list_survives_being_cleared_by_the_model(monkeypa
     result = tasks.create_task(ctx, label="Fix it", actionees=["Ada"])
 
     assert result["actionees"] == ["Item:OSWper9"]
+
+
+# -- _smw_props --------------------------------------------------------------
+def test_smw_props_uses_values_from_get_smw_property_map():
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {
+        "status": "HasStatus",
+        "label": "HasLabel",
+    }
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = tasks._smw_props(ctx, tasks.CATEGORY_TASK, ["status", "label"])
+
+    assert result == {"status": "HasStatus", "label": "HasLabel"}
+    osw.site.get_smw_property_map.assert_called_once_with(tasks.CATEGORY_TASK)
+
+
+def test_smw_props_missing_field_raises_op_error():
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {"status": "HasStatus"}
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.OpError) as exc_info:
+        tasks._smw_props(ctx, tasks.CATEGORY_TASK, ["status", "label"])
+
+    message = str(exc_info.value)
+    assert "label" in message
+    assert tasks.CATEGORY_TASK in message
+
+
+def test_smw_props_falls_back_and_warns_when_get_smw_property_map_fails():
+    osw = MagicMock()
+    osw.site.get_smw_property_map.side_effect = RuntimeError("boom")
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.warns(UserWarning, match=tasks.CATEGORY_TASK):
+        result = tasks._smw_props(ctx, tasks.CATEGORY_TASK, ["status", "label"])
+
+    assert result == {"status": tasks.PROP_STATUS, "label": tasks.PROP_LABEL}
+
+
+def test_smw_props_falls_back_and_warns_when_get_smw_property_map_is_empty():
+    """An empty mapping means the category page is probably missing or
+    unreadable, not that the data model dropped every field, so this must
+    fall back rather than raise ``errors.OpError``."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.return_value = {}
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.warns(UserWarning, match=tasks.CATEGORY_TASK):
+        result = tasks._smw_props(ctx, tasks.CATEGORY_TASK, ["status", "label"])
+
+    assert result == {"status": tasks.PROP_STATUS, "label": tasks.PROP_LABEL}
+
+
+def test_smw_props_raises_op_error_for_a_field_without_a_fallback():
+    """A field outside ``_PROP_FALLBACK`` must not be silently guessed; that
+    would build a query that returns nothing and reports no error."""
+    osw = MagicMock()
+    osw.site.get_smw_property_map.side_effect = RuntimeError("boom")
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    with pytest.raises(errors.OpError) as exc_info:
+        tasks._smw_props(ctx, tasks.CATEGORY_TASK, ["status", "not_a_real_field"])
+
+    assert "not_a_real_field" in str(exc_info.value)

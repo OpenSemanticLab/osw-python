@@ -1227,93 +1227,101 @@ class OSW(BaseModel):
             # enable cache to speed up loading
             self.site.enable_cache()
 
-        entities = []
-        pages = self.site.get_page(
-            WtSite.GetPageParam(titles=param.titles, offline_pages=param.offline_pages)
-        ).pages
-        for page in pages:
-            entity = None
-            schemas = []
-            schemas_fetched = True
-            jsondata = page.get_slot_content("jsondata")
-            if param.remove_empty:
-                remove_empty(jsondata)
-            if jsondata:
-                for category in jsondata["type"]:
-                    schema = (
-                        self.site
-                        .get_page(
-                            WtSite.GetPageParam(
-                                titles=[category], offline_pages=param.offline_pages
-                            )
-                        )
-                        .pages[0]
-                        .get_slot_content("jsonschema")
-                    )
-                    schemas.append(schema)
-                    # generate model if not already exists
-                    cls_name: str = schema["title"]
-                    # If a schema_to_use is provided, we do not need to check if the
-                    #  model exists
-                    if not param.model_to_use:
-                        if not hasattr(model, cls_name):
-                            if param.autofetch_schema:
-                                self.fetch_schema(
-                                    OSW.FetchSchemaParam(
-                                        schema_title=category,
-                                        mode="append",
-                                        offline_pages=param.offline_pages,
-                                    )
+        # the restore runs in a finally block so that an exception from any of the
+        # calls below cannot leave the cache enabled for the rest of the process
+        try:
+            entities = []
+            pages = self.site.get_page(
+                WtSite.GetPageParam(
+                    titles=param.titles, offline_pages=param.offline_pages
+                )
+            ).pages
+            for page in pages:
+                entity = None
+                schemas = []
+                schemas_fetched = True
+                jsondata = page.get_slot_content("jsondata")
+                if param.remove_empty:
+                    remove_empty(jsondata)
+                if jsondata:
+                    for category in jsondata["type"]:
+                        schema = (
+                            self.site
+                            .get_page(
+                                WtSite.GetPageParam(
+                                    titles=[category], offline_pages=param.offline_pages
                                 )
-                        if not hasattr(model, cls_name):
-                            schemas_fetched = False
-                            print(
-                                f"Error: Model {cls_name} not found. Schema {category} "
-                                f"needs to be fetched first."
                             )
-            if not schemas_fetched:
-                continue
+                            .pages[0]
+                            .get_slot_content("jsonschema")
+                        )
+                        schemas.append(schema)
+                        # generate model if not already exists
+                        cls_name: str = schema["title"]
+                        # If a schema_to_use is provided, we do not need to check if
+                        #  the model exists
+                        if not param.model_to_use:
+                            if not hasattr(model, cls_name):
+                                if param.autofetch_schema:
+                                    self.fetch_schema(
+                                        OSW.FetchSchemaParam(
+                                            schema_title=category,
+                                            mode="append",
+                                            offline_pages=param.offline_pages,
+                                        )
+                                    )
+                            if not hasattr(model, cls_name):
+                                schemas_fetched = False
+                                print(
+                                    f"Error: Model {cls_name} not found. Schema {category} "
+                                    f"needs to be fetched first."
+                                )
+                if not schemas_fetched:
+                    continue
 
-            try:
-                if param.model_to_use:
-                    entity: model.OswBaseModel = param.model_to_use(**jsondata)
+                try:
+                    if param.model_to_use:
+                        entity: model.OswBaseModel = param.model_to_use(**jsondata)
 
-                elif len(schemas) == 0:
-                    _logger.error("Error: no schema defined")
+                    elif len(schemas) == 0:
+                        _logger.error("Error: no schema defined")
 
-                elif len(schemas) == 1:
-                    cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
-                    entity: model.Entity = cls(**jsondata)
+                    elif len(schemas) == 1:
+                        cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
+                        entity: model.Entity = cls(**jsondata)
 
-                else:
-                    bases = []
-                    for schema in schemas:
-                        bases.append(getattr(model, schema["title"]))
-                    cls = create_model("Test", __base__=tuple(bases))
-                    entity: model.Entity = cls(**jsondata)
-            except Exception as e:
-                _logger.error(f"Error creating entity from page {page.title}: {e}")
-                # legacy: `entity` is annotated as OswBaseModel and Entity above
-                entity = None  # ty: ignore[conflicting-declarations]
+                    else:
+                        bases = []
+                        for schema in schemas:
+                            bases.append(getattr(model, schema["title"]))
+                        cls = create_model("Test", __base__=tuple(bases))
+                        entity: model.Entity = cls(**jsondata)
+                except Exception as e:
+                    _logger.error(f"Error creating entity from page {page.title}: {e}")
+                    # legacy: `entity` is annotated as OswBaseModel and Entity above
+                    entity = None  # ty: ignore[conflicting-declarations]
 
-            if entity is not None:
-                # make sure we do not override existing metadata
-                if not hasattr(entity, "meta") or entity.meta is None:
-                    entity.meta = model.Meta()
-                if (
-                    not hasattr(entity.meta, "wiki_page")
-                    or entity.meta.wiki_page is None
-                ):
-                    entity.meta.wiki_page = model.WikiPage()
-                entity.meta.wiki_page.namespace = namespace_from_full_title(page.title)
-                entity.meta.wiki_page.title = title_from_full_title(page.title)
+                if entity is not None:
+                    # make sure we do not override existing metadata
+                    if not hasattr(entity, "meta") or entity.meta is None:
+                        entity.meta = model.Meta()
+                    if (
+                        not hasattr(entity.meta, "wiki_page")
+                        or entity.meta.wiki_page is None
+                    ):
+                        entity.meta.wiki_page = model.WikiPage()
+                    entity.meta.wiki_page.namespace = namespace_from_full_title(
+                        page.title
+                    )
+                    entity.meta.wiki_page.title = title_from_full_title(page.title)
 
-                entities.append(entity)
-        # restore original cache state
-        if cache_state:
-            self.site.enable_cache()
-        else:
-            self.site.disable_cache()
+                    entities.append(entity)
+        finally:
+            # restore original cache state
+            if cache_state:
+                self.site.enable_cache()
+            else:
+                self.site.disable_cache()
 
         if isinstance(entity_title, str):  # single title
             if len(entities) >= 1:
@@ -1859,20 +1867,23 @@ class OSW(BaseModel):
                 entity_name = getattr(entity_, "name", None) or getattr(
                     entity_, "uuid", "unknown"
                 )
-                _logger.error(f"Error getting title for entity '{entity_name}': {e}")
-                return
+                # raise instead of returning: a plain return is not an exception,
+                # so the collector loop below would record the entity in neither
+                # created_pages nor failed and store_entity would report success
+                raise ValueError(
+                    f"Error getting title for entity '{entity_name}': {e}"
+                ) from e
             if namespace_ is None:
                 namespace_ = get_namespace(entity_)
             if namespace_ is None or title_ is None:
                 entity_name = getattr(entity_, "name", None) or getattr(
                     entity_, "uuid", "unknown"
                 )
-                _logger.error(
+                raise TypeError(
                     f"Unsupported entity type: namespace={namespace_}, "
                     f"title={title_}, entity name='{entity_name}', "
                     f"type={type(entity_).__name__}"
                 )
-                return
             if overwrite_class_param is None:
                 raise TypeError("'overwrite_class_param' must not be None!")
             entity_title = namespace_ + ":" + title_

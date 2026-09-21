@@ -10,6 +10,24 @@
 
 <!-- version list -->
 
+## v2.3.5 (2026-09-21)
+
+### Bug Fixes
+
+- **core**: Report dropped entities and restore the cache on error
+  ([`870adb8`](https://github.com/OpenSemanticLab/osw-python/commit/870adb876b890c8df97d6545fe2ff113940d4b5b))
+
+### Documentation
+
+- **core**: State that a failed key is not always a page title
+  ([`7297ca6`](https://github.com/OpenSemanticLab/osw-python/commit/7297ca6250292493697cbf8746b492f9a97e188e))
+
+### Testing
+
+- **core**: Cover a raise inside the load_entity page loop
+  ([`88be481`](https://github.com/OpenSemanticLab/osw-python/commit/88be4810807db103af965d9f812952875c4589c7))
+
+
 ## v2.3.4 (2026-09-21)
 
 ### Bug Fixes

@@ -100,7 +100,7 @@ set wins:
 
 | Canonical | Also accepted | Meaning |
 | --- | --- | --- |
-| `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to. A bare host (`wiki.example.org`) or a full URL (`https://wiki.example.org/w/`); the host is taken from either |
+| `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to. A bare host (`wiki.example.org`) or a full URL (`https://wiki.example.org/w/`); the host is taken from either, and a value no host can be read from (`https://`, `/w/index.php`) is rejected at startup |
 | `OSW_USERNAME` | `OSL_USERNAME` | Login user |
 | `OSW_PASSWORD` | `OSL_PASSWORD` | Login password |
 | `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri (falls back to `accounts.pwd.yaml` in the working directory, CLI only) |

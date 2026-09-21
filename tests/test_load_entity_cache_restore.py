@@ -64,6 +64,32 @@ def test_cache_stays_enabled_when_get_page_raises(disable_cache):
     assert site.get_cache_enabled() is True
 
 
+class _FailingPage:
+    """A page whose slot content cannot be read.
+
+    Raises from inside the per-page loop rather than from get_page, so that the
+    try block is shown to cover the whole body and not only its first call.
+    """
+
+    title = "Item:Foo"
+
+    def get_slot_content(self, slot):
+        raise RuntimeError("the slot content is not readable")
+
+
+@pytest.mark.parametrize("cache_enabled", [False, True])
+def test_cache_is_restored_when_the_page_loop_raises(cache_enabled):
+    site = _FakeSite(cache_enabled=cache_enabled, pages=[_FailingPage()])
+    osw_obj = OSW.construct(site=site)
+
+    with pytest.raises(RuntimeError):
+        osw_obj.load_entity(
+            OSW.LoadEntityParam(titles=["Item:Foo"], disable_cache=True)
+        )
+
+    assert site.get_cache_enabled() is cache_enabled
+
+
 def test_cache_state_is_restored_after_normal_path_disabled():
     site = _FakeSite(cache_enabled=False)
     osw_obj = OSW.construct(site=site)

@@ -19,12 +19,12 @@ def _settings() -> Settings:
     return Settings(domain="wiki.example.org", username="u", password="p")
 
 
-def test_search_entities_calls_semantic_search():
+def test_search_ask_calls_semantic_search():
     osw = MagicMock()
     osw.site.semantic_search.return_value = ["Item:OSW1", "Item:OSW2"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.search_entities(ctx, ask_query="[[Category:Item]]")
+    result = search.search_ask(ctx, ask_query="[[Category:Item]]")
 
     assert result["titles"] == ["Item:OSW1", "Item:OSW2"]
     assert result["count"] == 2
@@ -57,12 +57,12 @@ def test_search_content_calls_content_search():
     osw.site.content_search.assert_called_once()
 
 
-def test_list_instances_of_category_calls_query_instances():
+def test_search_entities_calls_query_instances():
     osw = MagicMock()
     osw.query_instances.return_value = ["Item:OSW1", "Item:OSW2"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.list_instances_of_category(ctx, category="Category:Item")
+    result = search.search_entities(ctx, category="Category:Item")
 
     assert result["titles"] == ["Item:OSW1", "Item:OSW2"]
     assert result["count"] == 2
@@ -76,49 +76,45 @@ def test_sparql_query_without_endpoint_raises_not_configured():
         search.sparql_query(ctx, query="SELECT * WHERE {?s ?p ?o}")
 
 
-def test_search_entities_flags_truncation_at_the_requested_limit():
+def test_search_ask_flags_truncation_at_the_requested_limit():
     osw = MagicMock()
     osw.site.semantic_search.return_value = ["Item:OSW1", "Item:OSW2"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.search_entities(ctx, ask_query="[[Category:Item]]", limit=2)
+    result = search.search_ask(ctx, ask_query="[[Category:Item]]", limit=2)
 
     assert result["count"] == 2
     assert result["truncated"] is True
 
 
-def test_search_entities_flags_truncation_at_a_limit_inside_the_query():
+def test_search_ask_flags_truncation_at_a_limit_inside_the_query():
     """The query's own limit reaches the wiki, so it decides truncation."""
     osw = MagicMock()
     osw.site.semantic_search.return_value = ["Item:OSW1", "Item:OSW2"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.search_entities(
-        ctx, ask_query="[[Category:Item]]|limit=2", limit=100
-    )
+    result = search.search_ask(ctx, ask_query="[[Category:Item]]|limit=2", limit=100)
 
     assert result["truncated"] is True
 
 
-def test_search_entities_below_the_limit_is_not_truncated():
+def test_search_ask_below_the_limit_is_not_truncated():
     osw = MagicMock()
     osw.site.semantic_search.return_value = ["Item:OSW1"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.search_entities(ctx, ask_query="[[Category:Item]]", limit=2)
+    result = search.search_ask(ctx, ask_query="[[Category:Item]]", limit=2)
 
     assert result["truncated"] is False
 
 
-def test_search_entities_with_limit_zero_in_the_query_is_not_truncated():
+def test_search_ask_with_limit_zero_in_the_query_is_not_truncated():
     """'limit=0' asks for no results, so meeting it is not truncation."""
     osw = MagicMock()
     osw.site.semantic_search.return_value = []
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.search_entities(
-        ctx, ask_query="[[Category:Item]]|limit=0", limit=100
-    )
+    result = search.search_ask(ctx, ask_query="[[Category:Item]]|limit=0", limit=100)
 
     assert result["truncated"] is False
 
@@ -143,11 +139,11 @@ def test_search_content_flags_truncation_at_the_limit():
     assert result["truncated"] is True
 
 
-def test_list_instances_of_category_flags_truncation_at_the_limit():
+def test_search_entities_flags_truncation_at_the_limit():
     osw = MagicMock()
     osw.query_instances.return_value = ["Item:OSW1", "Item:OSW2"]
     ctx = Context(_settings(), Policy(), osw=osw)
 
-    result = search.list_instances_of_category(ctx, category="Category:Item", limit=2)
+    result = search.search_entities(ctx, category="Category:Item", limit=2)
 
     assert result["truncated"] is True

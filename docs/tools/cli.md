@@ -34,12 +34,16 @@ Commands are grouped by subject:
 | --- | --- |
 | `entity` | `get`, `put`, `export`, `delete` |
 | `file` | `info`, `cat`, `write`, `download`, `upload` |
-| `search` | `ask`, `titles`, `content`, `instances`, `sparql` |
+| `search` | `ask`, `titles`, `content`, `entities`, `sparql` |
 | `slot` | `list`, `get`, `set` |
 | `schema` | `get` |
 | `instances` | `list`, `status` |
 | `ledger` | `path` |
 | top level | `status` |
+
+`osw search entities` finds pages in the wiki that are instances of a
+category, while `osw instances` is about the OSL servers this process can
+connect to.
 
 `osw instances list` lists the iris the process can connect to: the
 env-configured domain plus every entry of a configured credential file.

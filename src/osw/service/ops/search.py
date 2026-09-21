@@ -1,4 +1,4 @@
-"""Search operations: semantic (SMW ask), titles, content, instances, SPARQL."""
+"""Search operations: semantic (SMW ask), titles, content, entities, SPARQL."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _hit_limit(total: int, limit: Optional[int]) -> bool:
     read_only_hint=True,
     idempotent_hint=True,
 )
-def search_entities(ctx: Context, ask_query: str, limit: Optional[int] = None) -> dict:
+def search_ask(ctx: Context, ask_query: str, limit: Optional[int] = None) -> dict:
     """Run a Semantic MediaWiki 'ask' query and return matching page titles.
 
     This is the only search that can find an entity by a property value, such
@@ -144,18 +144,16 @@ def search_content(ctx: Context, text: str, limit: Optional[int] = None) -> dict
 
 @operation(
     group="search",
-    cli_name="instances",
+    cli_name="entities",
     read_only_hint=True,
     idempotent_hint=True,
 )
-def list_instances_of_category(
-    ctx: Context, category: str, limit: Optional[int] = None
-) -> dict:
+def search_entities(ctx: Context, category: str, limit: Optional[int] = None) -> dict:
     """List full page titles of all instances of a category.
 
     ``category`` is a full category page name, e.g. ``Category:Item`` or
     ``Category:OSW...``. This runs the ask query
-    ``[[HasType::Category:<category>]]``, so it lists the pages that declare
+    ``[[HasType::<category>]]``, so it lists the pages that declare
     this exact category as their type.
 
     ``limit`` defaults to ``OSW_MAX_RESULTS`` (100 when that is unset).

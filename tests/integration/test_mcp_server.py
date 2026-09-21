@@ -27,6 +27,9 @@ def mcp_tools(wiki_domain, wiki_username, wiki_password, tmp_path, monkeypatch):
     monkeypatch.setenv("OSW_PASSWORD", wiki_password)
     monkeypatch.setenv("OSW_MCP_STATE_DIR", str(tmp_path / "state"))
     config.reset()
+    # This fixture stands in for the MCP server, which sets the prefix itself
+    # in src/osw/mcp/server.py.
+    config.set_log_prefix("osw-mcp")
 
     ctx = Context(
         config.get_settings(),
@@ -55,7 +58,7 @@ def test_status_connects(mcp_tools):
 
 
 def test_search_schema_and_read(mcp_tools):
-    found = mcp_tools["search_entities"](ask_query="[[Category:Item]]", limit=5)
+    found = mcp_tools["search_ask"](ask_query="[[Category:Item]]", limit=5)
     assert "titles" in found
 
     category_schema = mcp_tools["get_category_schema"](category="Category:Item")

@@ -165,6 +165,8 @@ def main() -> None:
         # A failed start is when the configuration sources matter most, so
         # they are printed even with OSW_VERBOSE unset.
         sys.stderr.write(report.getvalue())
+        # a fatal startup message stays a print, not a log record: setting
+        # OSW_LOG_LEVEL=OFF must not make the server fail silently.
         print(f"[osw-mcp] failed to start: {exc}", file=sys.stderr, flush=True)
         raise SystemExit(1) from exc
 

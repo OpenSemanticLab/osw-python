@@ -14,6 +14,7 @@ that progress output visible, so its policy leaves stdout alone.
 
 from __future__ import annotations
 
+import logging
 import sys
 import threading
 from contextlib import contextmanager, redirect_stdout
@@ -26,6 +27,8 @@ from osw.service import config, errors
 from osw.service.config import Settings
 from osw.service.ledger import Ledger
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -168,9 +171,8 @@ class Context:
                     with redirect_stdout(sys.stderr):
                         self._osw.close_connection()
                 except Exception as exc:
-                    print(
-                        f"{config.log_prefix()} error closing connection: {exc!r}",
-                        file=sys.stderr,
+                    _logger.warning(
+                        f"{config.log_prefix()} error closing connection: {exc!r}"
                     )
                 self._osw = None
             self._ledger = None

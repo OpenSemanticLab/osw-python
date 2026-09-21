@@ -16,8 +16,8 @@ module.
 
 from __future__ import annotations
 
+import logging
 import shutil
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +29,8 @@ from osw.service.ledger import LedgerRecord
 from osw.service.registry import operation
 from osw.utils.wiki import title_from_full_title
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 
 class _RenamedFile:
@@ -178,7 +180,7 @@ def _close_quietly(connection, iri: str) -> None:
     try:
         connection.close_connection()
     except Exception as exc:
-        print(f"[osw] error closing connection to {iri}: {exc!r}", file=sys.stderr)
+        _logger.warning(f"[osw] error closing connection to {iri}: {exc!r}")
 
 
 @operation(

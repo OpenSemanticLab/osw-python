@@ -11,6 +11,7 @@ state directory, namespaced by domain so multiple instances do not collide.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 from datetime import datetime, timezone
@@ -20,6 +21,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from osw.service import config
+
+_logger = logging.getLogger(__name__)
 
 LEDGER_VERSION = 1
 
@@ -76,10 +79,9 @@ class Ledger:
         except (json.JSONDecodeError, OSError) as exc:
             # A corrupt ledger must not take the server down; start fresh but
             # warn so the operator can investigate.
-            print(
+            _logger.warning(
                 f"{config.log_prefix()} ledger at {self.path} unreadable ({exc}); "
-                "starting a new one.",
-                file=sys.stderr,
+                "starting a new one."
             )
             return {"version": LEDGER_VERSION, "domain": self.domain, "entries": {}}
         data.setdefault("entries", {})

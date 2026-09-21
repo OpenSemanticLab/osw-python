@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import sys
+import logging
 
 from osw.service import config
 from osw.service.context import Context
 from osw.service.registry import operation
+
+_logger = logging.getLogger(__name__)
 
 
 def _osw_version():
@@ -58,13 +60,8 @@ def status(ctx: Context) -> dict:
             _ = ctx.osw
             info["connected"] = True
     except Exception as exc:
-        # flush=True: click's CliRunner only flushes stdout before reading a
-        # captured result, so an unflushed stderr write is invisible to a CLI
-        # test even though it reaches a real terminal fine on process exit.
-        print(
-            f"{config.log_prefix()} status connection check failed: {exc!r}",
-            file=sys.stderr,
-            flush=True,
+        _logger.warning(
+            f"{config.log_prefix()} status connection check failed: {exc!r}"
         )
         info["connected"] = False
         info["connection_error"] = str(exc)

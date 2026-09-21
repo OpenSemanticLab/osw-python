@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 from unittest.mock import MagicMock
 
 import click
@@ -531,7 +532,7 @@ def test_status_username_matches_the_one_the_login_uses(runner, monkeypatch, tmp
 
 # -- adapter-carried log prefix (Change: shared code no longer hardcodes it) ----
 def test_shared_code_reports_the_cli_prefix_on_a_connection_failure(
-    runner, configured_env, monkeypatch
+    runner, configured_env, monkeypatch, caplog
 ):
     """status's connection-failure branch lives in shared code
     (osw.service.ops.status), so it must carry whichever prefix the running
@@ -546,11 +547,14 @@ def test_shared_code_reports_the_cli_prefix_on_a_connection_failure(
 
     monkeypatch.setattr("osw.service.context.OswExpress", _boom)
 
-    result = runner.invoke(app, ["status"])
+    # the failure is logged, not printed: CliRunner captures sys.stderr, but
+    # under pytest the record propagates to pytest's own handler instead.
+    with caplog.at_level(logging.WARNING, logger="osw"):
+        result = runner.invoke(app, ["status"])
 
     assert result.exit_code == 0, result.stderr
-    assert "[osw] status connection check failed" in result.stderr
-    assert "[osw-mcp]" not in result.stderr
+    assert "[osw] status connection check failed" in caplog.text
+    assert "[osw-mcp]" not in caplog.text
 
 
 # -- instances status --------------------------------------------------------------

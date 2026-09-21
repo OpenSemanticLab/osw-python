@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import sys
+import logging
 from typing import Annotated, Optional
 
 import typer
@@ -16,6 +16,8 @@ from osw.service.params import json_value
 from osw.service.registry import operation
 from osw.service.serialization import maybe_truncate, to_jsonable
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 _OVERWRITE = {
     "true": OverwriteOptions.true,
@@ -198,10 +200,9 @@ def delete_entity(
             extra={"title": title, "deleted": False},
         )
     if not tracked:
-        print(
-            f"{config.log_prefix()} WARNING: deleting externally-created page "
-            f"'{title}' (confirm_external_delete=True)",
-            file=sys.stderr,
+        _logger.warning(
+            f"{config.log_prefix()} deleting externally-created page "
+            f"'{title}' (confirm_external_delete=True)"
         )
     page.delete(comment or f"{config.log_prefix()} delete")
     ctx.ledger.mark_deleted(title)

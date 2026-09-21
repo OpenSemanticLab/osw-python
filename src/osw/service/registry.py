@@ -13,7 +13,7 @@ This module imports nothing from the ``mcp`` SDK, ``typer``, or ``osw.cli``.
 from __future__ import annotations
 
 import inspect
-import sys
+import logging
 from typing import Any, Callable, Iterator, Literal, Optional, get_type_hints
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -22,6 +22,8 @@ from osw.service import config
 from osw.service.context import Context
 from osw.service.errors import OpError
 from osw.service.ledger import LedgerRecord
+
+_logger = logging.getLogger(__name__)
 
 PATH_LIKE_NAMES = frozenset({
     "path",
@@ -165,7 +167,7 @@ def bind(op: Operation, ctx: Context) -> Callable[..., dict]:
         except Exception as exc:
             if not ctx.policy.errors_as_dicts:
                 raise
-            print(f"{config.log_prefix()} {op.name} failed: {exc!r}", file=sys.stderr)
+            _logger.error(f"{config.log_prefix()} {op.name} failed: {exc!r}")
             if isinstance(exc, OpError):
                 return exc.payload()
             return {"error": str(exc), "type": type(exc).__name__}

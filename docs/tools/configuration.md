@@ -58,6 +58,21 @@ The prefix names the adapter that printed the line: `[osw]` for the CLI,
 `[osw-mcp]` for the MCP server. This holds for every message the two share,
 not only these two lines.
 
+## Where messages go
+
+The source report above is printed directly, because the adapter's own verbose
+flag decides whether it appears, not the log level.
+
+Every other message the adapters produce goes to the `osw` logger, together
+with the records of the library itself. A failed connection check and an
+unreadable provenance ledger are reported that way. `OSW_LOG_LEVEL` sets how
+much of it appears, and an application that configures logging itself takes the
+records over. See [Logging](../get-started.md#logging).
+
+Both kinds of message are written to stderr, never to stdout. The MCP server
+speaks JSON-RPC over stdout, and the CLI writes its `--json` output there, so
+stdout has to stay free.
+
 ## Credentials
 
 Keep credentials in a gitignored file. They are read once per process, into that

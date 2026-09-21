@@ -486,6 +486,9 @@ def log_config_sources(stream=None, verbose: bool = True) -> None:
     ``osw --json`` it carries the result payload.
     """
     _load_env_file()
+    # The configuration source report stays a print rather than a log record:
+    # it is an aligned report written to a caller-chosen stream, and the running
+    # adapter's own verbose flag decides whether it appears, not the log level.
     # Every print below flushes: stderr is block-buffered whenever it is not a
     # terminal (a pipe, a file, or a test runner's capture buffer), and these
     # lines must appear before the command's own output and before any error.
@@ -540,6 +543,8 @@ def log_env_file_source(stream=None) -> None:
     ``_env_file_origin`` that earlier call already recorded.
     """
     out = sys.stderr if stream is None else stream
+    # a print for the same reason as log_config_sources above: this is one line
+    # of that same report.
     print(
         f"{log_prefix()} env file       : {_describe_env_file()}", file=out, flush=True
     )

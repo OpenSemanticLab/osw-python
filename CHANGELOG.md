@@ -10,6 +10,54 @@
 
 <!-- version list -->
 
+## v2.5.2 (2026-09-21)
+
+### Bug Fixes
+
+- **search**: Read truncation from SMW's query-continue-offset
+  ([`91c3d7e`](https://github.com/OpenSemanticLab/osw-python/commit/91c3d7ea2d737a16a38ce457a8d060d73708c2ac))
+
+- **wtsite**: Reject a modify_search_results query without titles
+  ([`7943d49`](https://github.com/OpenSemanticLab/osw-python/commit/7943d49b2b3e393ddafde7ea78890035cd2031e3))
+
+
+## v2.5.1 (2026-09-21)
+
+### Bug Fixes
+
+- **wtsite**: Copy the jsonld context before rewriting it
+  ([`ea0cddf`](https://github.com/OpenSemanticLab/osw-python/commit/ea0cddfa85a0025560dda49f78ff99577a86f526))
+
+
+## v2.5.0 (2026-09-21)
+
+### Bug Fixes
+
+- Read the uuid from a file page title with suffixes
+  ([`79a645b`](https://github.com/OpenSemanticLab/osw-python/commit/79a645b3cb5a67e9b769c76270be7297220cde98))
+
+- **file**: Verify the upload before storing the file entity
+  ([`4a09bf5`](https://github.com/OpenSemanticLab/osw-python/commit/4a09bf541a3ea404dcd2e1cd41ea36b8c53ce141))
+
+- **file**: Write the metadata onto the page the upload created
+  ([`eb9e0e1`](https://github.com/OpenSemanticLab/osw-python/commit/eb9e0e112e8b75128c8a3fe5c8d5943531c16d6a))
+
+### Features
+
+- **file**: Report a rejected file extension clearly on upload
+  ([`bb49392`](https://github.com/OpenSemanticLab/osw-python/commit/bb49392a4fc81801d3662613faae96944dd8ed91))
+
+### Performance Improvements
+
+- **file**: Cache the wiki's allowed file extensions for 24 h
+  ([`3a7b6eb`](https://github.com/OpenSemanticLab/osw-python/commit/3a7b6eb3f5bbb14d3369c52f0bac7cb256d85f78))
+
+### Refactoring
+
+- Match the OSW-ID as the 32 hex characters it is
+  ([`186e9e3`](https://github.com/OpenSemanticLab/osw-python/commit/186e9e32042efdc8c8aabe374923d9cd99fa1bd7))
+
+
 ## v2.4.0 (2026-09-21)
 
 

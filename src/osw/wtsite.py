@@ -10,7 +10,7 @@ import threading
 import urllib
 import xml.etree.ElementTree as et
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from pprint import pformat
@@ -105,6 +105,9 @@ class WtSite:
         class Config:
             arbitrary_types_allowed = True
 
+    ALLOWED_FILE_EXTENSIONS_TTL = timedelta(hours=24)
+    """how long a fetched list of accepted file extensions stays valid"""
+
     def __init__(self, config: Union[WtSiteConfig, WtSiteLegacyConfig]):
         """creates a new WtSite instance from a WtSiteConfig
 
@@ -186,6 +189,10 @@ class WtSite:
         #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
+
+        # The file extensions the wiki accepts, read on demand and reused for
+        #  ALLOWED_FILE_EXTENSIONS_TTL
+        self._allowed_file_extensions = None
 
     def _get_session_lock(self) -> threading.RLock:
         """Return the session lock, lazily creating it if absent.
@@ -518,6 +525,68 @@ class WtSite:
         del self._page_cache
         self._page_cache = {}
 
+    class AllowedFileExtensionsResult(OswBaseModel):
+        """The file extensions a wiki accepts and when that list was read"""
+
+        extensions: Optional[List[str]]
+        """the accepted extensions, None if the lookup failed"""
+        fetched_at: Optional[datetime]
+        """when the list was read from the wiki, None if the lookup failed"""
+
+    def get_allowed_file_extensions(
+        self, refresh: bool = False
+    ) -> AllowedFileExtensionsResult:
+        """Returns the file extensions the wiki accepts, from cache if possible
+
+        The list only changes when the wiki configuration changes, so it is
+        cached for ALLOWED_FILE_EXTENSIONS_TTL instead of being read on every
+        call. A failed lookup is never cached, so the next call retries; a
+        failed refresh leaves any previously cached list in place.
+
+        Parameters
+        ----------
+        refresh:
+            if True, bypasses the cache and re-reads the list from the wiki
+
+        Returns
+        -------
+            an AllowedFileExtensionsResult with the accepted extensions and
+            when they were read, or with both fields None if the lookup failed
+        """
+        cached = getattr(self, "_allowed_file_extensions", None)
+        if (
+            cached is not None
+            and not refresh
+            and cached.fetched_at is not None
+            and datetime.now() - cached.fetched_at < self.ALLOWED_FILE_EXTENSIONS_TTL
+        ):
+            return cached
+        try:
+            result = self.mw_site.api(
+                "query", meta="siteinfo", siprop="fileextensions", formatversion=2
+            )
+            extensions = [
+                entry["ext"]
+                for entry in result.get("query", {}).get("fileextensions", [])
+                if "ext" in entry
+            ]
+        except Exception:
+            # only used to enrich an error message, never worth failing over
+            return WtSite.AllowedFileExtensionsResult(extensions=None, fetched_at=None)
+        self._allowed_file_extensions = WtSite.AllowedFileExtensionsResult(
+            extensions=extensions, fetched_at=datetime.now()
+        )
+        return self._allowed_file_extensions
+
+    def clear_allowed_file_extensions_cache(self):
+        """Clears the cached list of file extensions the wiki accepts
+
+        The next get_allowed_file_extensions() call reads the list from the
+        wiki again. Use this when the wiki's upload configuration changed
+        within ALLOWED_FILE_EXTENSIONS_TTL.
+        """
+        self._allowed_file_extensions = None
+
     def _clear_cookies(self):
         # see https://github.com/mwclient/mwclient/issues/221
         # Iterate a snapshot (list(...)) so mutating the jar mid-loop is safe, and
@@ -584,7 +653,9 @@ class WtSite:
 
         Returns
         -------
-            A list of page titles
+            A list of page titles, or, if the SearchParam sets return_json or
+            return_meta, one raw result dict or SemanticSearchResult per query.
+            See wiki_tools.semantic_search for details.
         """
         return wt.semantic_search(self._site, query)
 
@@ -637,6 +708,12 @@ class WtSite:
         dryrun
             Deprecated, use param.dryrun instead. if True, no actual changes are
             made, by default False
+
+        Raises
+        ------
+        ValueError
+            If param.query is a SearchParam asking for anything other than page
+            titles, meaning return_json or return_meta.
         """
         if not isinstance(param, WtSite.ModifySearchResultsParam):
             param = WtSite.ModifySearchResultsParam(
@@ -646,6 +723,23 @@ class WtSite:
                 log=log,
                 dryrun=dryrun,
             )
+
+        # Both searches can be asked for the raw API response, and the semantic
+        #  one for SemanticSearchResult objects. This method looks up and edits
+        #  a page per result, so it needs the titles themselves. Reject the
+        #  other options here rather than failing further down on a dict where
+        #  a title is expected
+        if isinstance(param.query, wt.SearchParam):
+            unsupported = [
+                name
+                for name in ("return_json", "return_meta")
+                if getattr(param.query, name)
+            ]
+            if unsupported:
+                raise ValueError(
+                    f"modify_search_results edits a page per search result, so "
+                    f"the query must not set {' or '.join(unsupported)}."
+                )
 
         titles = []
         if param.mode == "prefix":
@@ -1346,19 +1440,43 @@ class WtSite:
         handle string, list and dict values
         handle mappings direct to iri as well as
         {"@id": "http://example.org/property", @type": "@id"} and scoped contexts
+        the given context is not modified: dicts are copied before rewriting
+        values of an unhandled type are returned unchanged
         """
         if isinstance(context, str):
             return context
         if isinstance(context, list):
             return [self._replace_jsonld_context_mapping(e, config) for e in context]
-        if isinstance(context, dict):
-            context_iter = context.copy()
-            for key in context_iter:
-                value = context[key]
-                if key == "wiki":
-                    context[key] = f"https://{self._site.host}/id/"
-                    # print(f"apply https://{self._site.host}/id/ to {key}")
-                if isinstance(value, str):
+        if not isinstance(context, dict):
+            return context
+        context = deepcopy(context)
+        context_iter = context.copy()
+        for key in context_iter:
+            value = context[key]
+            if key == "wiki":
+                context[key] = f"https://{self._site.host}/id/"
+                # print(f"apply https://{self._site.host}/id/ to {key}")
+            if isinstance(value, str):
+                base_key = key.split("*")[0]
+                if base_key not in context:
+                    context[base_key] = value
+                    # print(f"apply {key} to {base_key}")
+                if config.prefer_external_vocal is False:
+                    base_mapping = context[base_key]
+                    if isinstance(base_mapping, dict):
+                        base_mapping = base_mapping["@id"]
+                    mapping = value
+                    if mapping.startswith("Property:") and not base_mapping.startswith(
+                        "Property:"
+                    ):
+                        context[base_key] = value
+                        # print(f"apply {key} to {base_key}")
+            elif isinstance(value, list):
+                context[key] = [
+                    self._replace_jsonld_context_mapping(e, config) for e in value
+                ]
+            elif isinstance(value, dict):
+                if "@id" in value:
                     base_key = key.split("*")[0]
                     if base_key not in context:
                         context[base_key] = value
@@ -1367,37 +1485,17 @@ class WtSite:
                         base_mapping = context[base_key]
                         if isinstance(base_mapping, dict):
                             base_mapping = base_mapping["@id"]
-                        mapping = value
+                        mapping = value["@id"]
                         if mapping.startswith(
                             "Property:"
                         ) and not base_mapping.startswith("Property:"):
                             context[base_key] = value
                             # print(f"apply {key} to {base_key}")
-                elif isinstance(value, list):
-                    context[key] = [
-                        self._replace_jsonld_context_mapping(e, config) for e in value
-                    ]
-                elif isinstance(value, dict):
-                    if "@id" in value:
-                        base_key = key.split("*")[0]
-                        if base_key not in context:
-                            context[base_key] = value
-                            # print(f"apply {key} to {base_key}")
-                        if config.prefer_external_vocal is False:
-                            base_mapping = context[base_key]
-                            if isinstance(base_mapping, dict):
-                                base_mapping = base_mapping["@id"]
-                            mapping = value["@id"]
-                            if mapping.startswith(
-                                "Property:"
-                            ) and not base_mapping.startswith("Property:"):
-                                context[base_key] = value
-                                # print(f"apply {key} to {base_key}")
-                    elif "@context" in value:
-                        context[key] = self._replace_jsonld_context_mapping(
-                            value["@context"], config
-                        )
-            return context
+                elif "@context" in value:
+                    context[key] = self._replace_jsonld_context_mapping(
+                        value["@context"], config
+                    )
+        return context
 
     @try_and_renew_token
     def get_jsonld_context_loader(self, params: JsonLdContextLoaderParams = None):

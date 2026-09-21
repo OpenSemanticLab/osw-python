@@ -559,9 +559,6 @@ def get_file_info_and_usage(
                 for fu_page_dict in file_usage:
                     using_pages.append(fu_page_dict["title"])
             if query.debug:
-                # todo: find out why this message is printed (sometimes) when using the
-                #  redirect,  which messes up the Progressbar
-                #  printed messages do not appear in the MessageBuffer
                 _logger.debug(f"File info for '{single_title}' retrieved.")
         return {"info": file_info, "usage": using_pages}
 

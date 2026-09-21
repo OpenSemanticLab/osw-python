@@ -33,6 +33,7 @@ parameters; the tool name is given in the table below.
 | `osw search label '<label>' --category <c>` | `search_by_label` | Resolving a person or a project by name. |
 | `osw entity get <title>` | `get_entity` | Reading a task before updating it. |
 | `osw entity put <category> --jsondata '<json>'` | `create_or_update_entity` | Creating and updating. |
+| `osw entity validate <category> --jsondata '<json>'` | `validate_entity` | Checking a payload without writing it. |
 
 Add `--json` before the group name for machine-readable CLI output, for
 example `osw --json search ask '[[Category:Item]]'`.
@@ -58,8 +59,11 @@ subclass name only when writing a new entity that has to land in it.
 ## The environment variables
 
 No command reads these four. Read them yourself, from the shell or from the
-`.env` file the instance uses. If you cannot read the environment, ask the
-user for the value instead. All four are optional.
+`.env` file the instance uses. All four are optional.
+
+Through the MCP server you cannot read them at all. The server is a separate
+process with its own environment and its own env file, and no tool reports
+either. Ask the user for the value in that case.
 
 | Variable | Meaning |
 | --- | --- |
@@ -95,6 +99,12 @@ It gives the field names and both vocabularies. In `properties`:
 
 Never write a status or priority string. The field stores a page name
 (`Item:OSW...`), taken from the schema.
+
+There is no alias table. Map the user's wording onto the labels you read
+yourself: "wip", "in progress" and "doing" all mean "In work"; "todo", "open"
+and "backlog" mean "To do"; "closed", "complete" and "finished" mean "Done".
+When the wording fits no label, ask the user rather than guessing, and say
+which labels the instance offers.
 
 ## The field map
 
@@ -135,6 +145,19 @@ osw entity put Category:OSWc5d4829ed2744a219ba027171c75fa1d --jsondata '{
 Leave out any field you have no value for. A task with no `status` is valid,
 but the OSL task views filter by status, so set it. Use the item for "To do"
 unless the todo says otherwise.
+
+**Validate the first task of a run before you write it.** Replace `put` with
+`validate` and send the same `jsondata`:
+
+```
+osw --json entity validate Category:OSWc5d4829ed2744a219ba027171c75fa1d --jsondata '<the same object>'
+```
+
+It writes nothing and checks the values against the category schema, so a
+status page name you got wrong is reported as
+`$.status: 'Item:OSW...' is not one of [...]` instead of being stored. Do this
+once per run, not once per task; a later task in the same run reuses fields
+that are already proven correct.
 
 The result reports `created`, `updated` and `skipped`, plus `titles` and
 `urls`. A create must show the page under `created`. If it shows up under

@@ -181,7 +181,10 @@ def create_or_update_entity(
     existed = [t for t in titles if store.pages[t].exists]
     # _apply_overwrite_policy returns an existing page untouched under this
     #  one option, logging a warning and never editing it. Mirrors the check
-    #  at the kept_existing branch in OSW.store_entity_.
+    #  at the kept_existing branch in OSW.store_entity_, which also tests
+    #  'offline is not True' and reads the per-class policy. Both are the same
+    #  value here, since the StoreEntityParam above sets neither 'offline' nor
+    #  'overwrite_per_class'. Setting either would make the two disagree.
     kept = _parse_overwrite(overwrite) == AddOverwriteClassOptions.keep_existing
     domain = config.get_active_domain()
     return {

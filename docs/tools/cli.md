@@ -36,7 +36,7 @@ Commands are grouped by subject:
 | `file` | `info`, `cat`, `write`, `download`, `upload` |
 | `search` | `ask`, `titles`, `content`, `entities`, `sparql`, `label` |
 | `slot` | `list`, `get`, `set` |
-| `schema` | `get`, `props` |
+| `schema` | `get`, `props`, `usage` |
 | `task` | `create`, `update`, `list`, `list-projects`, `list-persons`, `create-person`, `render` |
 | `skill` | `install` |
 | `instances` | `list`, `status` |

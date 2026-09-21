@@ -546,3 +546,310 @@ def test_get_category_property_map_raises_schema_error_when_empty():
 
     with pytest.raises(errors.SchemaError):
         schema.get_category_property_map(ctx, category="Category:Missing")
+
+
+# -- get_field_usage ---------------------------------------------------------
+def _usage_ctx(properties, instance_pages, *, more=False, titles=None):
+    """A context whose ``Category:Task`` page declares ``properties`` and whose
+    ask query returns one row per title.
+
+    ``instance_pages`` maps an instance title to the page object backing it
+    (built with ``_page``). ``titles`` overrides the titles the ask query
+    returns, so a row can name a page that does not exist. ``more`` adds the
+    ``query-continue-offset`` key SMW sets on a cut result set.
+    """
+    pages = {"Category:Task": _page({"properties": properties})}
+    pages.update(instance_pages)
+    site = _site_with_pages(pages)
+    ask_titles = list(instance_pages) if titles is None else titles
+    response = {"query": {"results": {t: {"fulltext": t} for t in ask_titles}}}
+    if more:
+        response["query-continue-offset"] = 20
+    site.semantic_search.return_value = [response]
+    osw = MagicMock()
+    osw.site = site
+    return Context(_settings(), Policy(), osw=osw)
+
+
+def _populated(result, field):
+    return next(e["populated"] for e in result["fields"] if e["field"] == field)
+
+
+def test_get_field_usage_counts_a_field_populated_in_some_instances():
+    ctx = _usage_ctx(
+        {"related_to": {"type": "array"}, "label": {"type": "array"}},
+        {
+            "Item:A": _page({"related_to": ["Item:P"], "label": [{"text": "a"}]}),
+            "Item:B": _page({"related_to": [], "label": [{"text": "b"}]}),
+            "Item:C": _page({"label": [{"text": "c"}]}),
+        },
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["category"] == "Category:Task"
+    assert result["sampled"] == 3
+    assert _populated(result, "related_to") == 1
+    assert _populated(result, "label") == 3
+    assert result["unreadable"] == []
+
+
+def test_get_field_usage_treats_empty_values_as_unpopulated_but_false_and_zero_as_used():
+    ctx = _usage_ctx(
+        {
+            "none_field": {},
+            "text_field": {},
+            "list_field": {},
+            "dict_field": {},
+            "flag_field": {},
+            "count_field": {},
+        },
+        {
+            "Item:A": _page({
+                "none_field": None,
+                "text_field": "",
+                "list_field": [],
+                "dict_field": {},
+                "flag_field": False,
+                "count_field": 0,
+            })
+        },
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["sampled"] == 1
+    assert _populated(result, "none_field") == 0
+    assert _populated(result, "text_field") == 0
+    assert _populated(result, "list_field") == 0
+    assert _populated(result, "dict_field") == 0
+    assert _populated(result, "flag_field") == 1
+    assert _populated(result, "count_field") == 1
+
+
+def test_get_field_usage_reports_a_declared_field_no_instance_populates():
+    ctx = _usage_ctx(
+        {"related_to": {}, "projects": {}},
+        {"Item:A": _page({"related_to": ["Item:P"]})},
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["declared_unused"] == ["projects"]
+    assert {"field": "projects", "populated": 0, "declared": True} in result["fields"]
+
+
+def test_get_field_usage_reports_an_undeclared_field_found_in_an_instance():
+    ctx = _usage_ctx(
+        {"related_to": {}},
+        {"Item:A": _page({"related_to": ["Item:P"], "legacy_field": "x"})},
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["undeclared_present"] == ["legacy_field"]
+    assert {
+        "field": "legacy_field",
+        "populated": 1,
+        "declared": False,
+    } in result["fields"]
+    assert result["declared_unused"] == []
+
+
+def test_get_field_usage_reports_more_instances_when_smw_cut_the_result_set():
+    ctx = _usage_ctx(
+        {"related_to": {}},
+        {"Item:A": _page({"related_to": ["Item:P"]})},
+        more=True,
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task", sample=1)
+
+    assert result["more_instances_exist"] is True
+
+
+def test_get_field_usage_reports_no_more_instances_without_a_continue_offset():
+    ctx = _usage_ctx(
+        {"related_to": {}},
+        {"Item:A": _page({"related_to": ["Item:P"]})},
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["more_instances_exist"] is False
+
+
+@pytest.mark.parametrize("sample", [0, 101])
+def test_get_field_usage_rejects_a_sample_outside_the_allowed_range(sample):
+    ctx = Context(_settings(), Policy(), osw=MagicMock())
+
+    with pytest.raises(errors.ValidationError) as excinfo:
+        schema.get_field_usage(ctx, category="Category:Task", sample=sample)
+
+    message = str(excinfo.value)
+    assert f"'{sample}'" in message
+    assert "between 1 and 100" in message
+
+
+def test_get_field_usage_raises_schema_error_when_the_schema_declares_no_properties():
+    ctx = _usage_ctx({}, {})
+
+    with pytest.raises(errors.SchemaError):
+        schema.get_field_usage(ctx, category="Category:Task")
+
+
+def test_get_field_usage_records_unreadable_instances_and_excludes_them():
+    ctx = _usage_ctx(
+        {"related_to": {}},
+        {
+            "Item:A": _page({"related_to": ["Item:P"]}),
+            "Item:NoSlot": _page(None, exists=True),
+        },
+        titles=["Item:A", "Item:NoSlot", "Item:Missing"],
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["unreadable"] == [
+        {"title": "Item:Missing", "reason": "page does not exist"},
+        {"title": "Item:NoSlot", "reason": "no jsondata slot"},
+    ]
+    assert result["sampled"] == 1
+    assert _populated(result, "related_to") == 1
+
+
+def test_get_field_usage_says_why_an_instance_was_unreadable():
+    """A connection failure and a deleted page both lower ``sampled``.
+
+    Only the reason separates them, so it has to survive into the result.
+    """
+    ctx = _usage_ctx(
+        {"related_to": {}},
+        {
+            "Item:A": _page({"related_to": ["Item:P"]}),
+            "Item:NotJson": _page("a plain string, not an object"),
+        },
+        titles=["Item:A", "Item:NotJson", "Item:Boom"],
+    )
+    broken = ctx.osw.site.get_page
+
+    def fail_on_boom(param):
+        if param.titles == ["Item:Boom"]:
+            raise ConnectionError("connection reset")
+        return broken(param)
+
+    ctx.osw.site.get_page = fail_on_boom
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    reasons = {e["title"]: e["reason"] for e in result["unreadable"]}
+    assert reasons["Item:NotJson"] == "jsondata slot is not a JSON object"
+    assert "connection reset" in reasons["Item:Boom"]
+    assert result["sampled"] == 1
+
+
+def test_get_field_usage_orders_fields_by_count_then_name():
+    ctx = _usage_ctx(
+        {"aaa": {}, "bbb": {}, "ccc": {}, "ddd": {}},
+        {
+            "Item:A": _page({"bbb": "x", "ccc": "x", "ddd": "x"}),
+            "Item:B": _page({"ccc": "x", "ddd": "x"}),
+        },
+    )
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert [e["field"] for e in result["fields"]] == ["ccc", "ddd", "bbb", "aaa"]
+
+
+def test_get_field_usage_asks_the_same_query_as_list_instances_of_category():
+    """The two operations must agree on what an instance of a category is.
+
+    ``list_instances_of_category`` goes through ``OSW.query_instances``,
+    which builds ``[[HasType::Category:<id>]]``. Nothing else would report
+    usage for the pages a caller just listed.
+    """
+    ctx = _usage_ctx({"label": {}}, {"Item:A": _page({"label": ["x"]})})
+
+    schema.get_field_usage(ctx, category="Category:Task", sample=7)
+
+    param = ctx.osw.site.semantic_search.call_args[0][0]
+    # SearchParam normalises a single query string to a one-element list.
+    assert param.query == ["[[HasType::Category:Task]]"]
+    assert param.limit == 7
+    assert param.return_json is True
+
+
+def test_get_field_usage_reads_no_more_pages_than_sample():
+    """A wiki that ignores the limit must not multiply the page reads."""
+    pages = {f"Item:{i}": _page({"label": ["x"]}) for i in range(5)}
+    ctx = _usage_ctx({"label": {}}, pages)
+
+    result = schema.get_field_usage(ctx, category="Category:Task", sample=2)
+
+    assert result["sampled"] == 2
+
+
+def test_get_field_usage_keeps_rows_from_a_non_empty_results_array():
+    """SMW can serialise results as an array rather than an object.
+
+    Dropping that form would report a populated category as having no
+    instances at all.
+    """
+    ctx = _usage_ctx({"label": {}}, {"Item:A": _page({"label": ["x"]})})
+    ctx.osw.site.semantic_search.return_value = [
+        {"query": {"results": [{"fulltext": "Item:A"}]}}
+    ]
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["sampled"] == 1
+    assert _populated(result, "label") == 1
+
+
+@pytest.mark.parametrize("bad", ["Category:A]]", "[[Category:A", "Category:A|x"])
+def test_get_field_usage_rejects_a_category_that_could_alter_the_ask_query(bad):
+    """Same guard the search and task operations apply to a category name.
+
+    Without it the counts would describe a different set of pages than the
+    caller asked about.
+    """
+    ctx = _usage_ctx({"label": {}}, {})
+
+    with pytest.raises(errors.ValidationError):
+        schema.get_field_usage(ctx, category=bad)
+
+    ctx.osw.site.semantic_search.assert_not_called()
+
+
+def test_get_field_usage_reads_instances_uncached():
+    """A write earlier in the same process can leave the page cache enabled.
+
+    The cached path would then count a revision from before that write, so
+    the instance reads disable the cache exactly as the schema walk does.
+    """
+    ctx = _usage_ctx({"label": {}}, {"Item:A": _page({"label": [{"text": "a"}]})})
+    ctx.osw.site.get_cache_enabled.return_value = True
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["sampled"] == 1
+    assert ctx.osw.site.disable_cache.called
+
+
+def test_get_field_usage_reports_no_unused_fields_when_nothing_was_sampled():
+    """A category whose instances all declare a subcategory matches no row.
+
+    Reporting every declared field as unused would then state a conclusion
+    drawn from zero observations, so ``declared_unused`` stays empty and
+    ``fields`` alone carries the zero counts.
+    """
+    ctx = _usage_ctx({"related_to": {}, "label": {}}, {}, titles=[])
+
+    result = schema.get_field_usage(ctx, category="Category:Task")
+
+    assert result["sampled"] == 0
+    assert result["declared_unused"] == []
+    assert result["undeclared_present"] == []
+    # Every count would be 0 here, which reads as 'no field is in use'.
+    assert result["fields"] == []

@@ -11,6 +11,7 @@ given invocation is built lazily, inside each command's callback, so
 from __future__ import annotations
 
 import inspect
+import sys
 from typing import Any, Optional, get_type_hints
 
 import click
@@ -34,6 +35,41 @@ from osw.wtsite import SLOTS
 from .render import render
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+
+
+def _force_utf8_output() -> None:
+    """Encode stdout and stderr as UTF-8, whatever the locale asks for.
+
+    Python encodes a redirected stream with the locale encoding, which on a
+    German Windows system is cp1252. A non-ASCII label then reaches the
+    consumer as bytes no JSON parser can read, and a character cp1252 has no
+    code point for -- Japanese, Greek, Cyrillic -- raises UnicodeEncodeError
+    and ends the command. A Windows console stream is UTF-8 already, so on
+    Windows only redirected output changes. Elsewhere a terminal uses the
+    locale encoding, so this overrides a deliberate non-UTF-8 LANG or
+    PYTHONIOENCODING too. stderr is covered as well as stdout, because
+    ``Context.guard`` sends captured stdout to stderr under ``--json``.
+
+    Called from the app callback, so it covers every command. Click prints
+    help and rejects an unknown root-level name before any callback runs, so
+    those paths keep the locale encoding. They carry no wiki content: every
+    help string in this package is ASCII (held by a test), and rich
+    substitutes its box-drawing characters once the stream is not UTF-8. What
+    stays exposed is the name the user typed, echoed back in a usage error --
+    an unknown command name or an unknown root option name. A name typed
+    after the command is fine, because click resolves the command, runs this
+    callback, and only then parses the command's own arguments.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        errors = getattr(stream, "errors", None)
+        # A stream a test harness or host application substituted may have
+        # neither, and then decides its own encoding. Both are required:
+        # errors= must be passed, because reconfigure() silently resets the
+        # handler to strict otherwise, which would let stderr raise while
+        # reporting a failure. Passing errors=None does exactly that too.
+        if reconfigure is not None and errors is not None:
+            reconfigure(encoding="utf-8", errors=errors)
 
 
 @app.callback()
@@ -66,6 +102,8 @@ def _callback(
     # the prefix is always correct for any message printed on the way out,
     # including one printed while handling set_env_file_discovery's error.
     config.set_log_prefix("osw")
+    # Before any output, including the configuration banner.
+    _force_utf8_output()
     # The CLI's working directory is the one the user typed the command in, so
     # searching it upward for a .env is what they mean. The MCP server leaves
     # this off: its working directory is chosen by the MCP client.

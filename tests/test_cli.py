@@ -11,6 +11,7 @@ import io
 import json
 import logging
 import re
+import sys
 from unittest.mock import MagicMock
 
 import click
@@ -290,6 +291,178 @@ def test_render_dict_shows_key_value_lines():
     assert "title" in rendered
     assert "Item:OSW1" in rendered
     assert "exists" in rendered
+
+
+# -- output encoding ------------------------------------------------------------
+# Redirected stdout on Windows is opened with the locale encoding, not UTF-8, so
+# a German label used to reach the consumer as cp1252 bytes. CliRunner's charset
+# gives the captured stream that same encoding, which reproduces the platform
+# behaviour everywhere, so these run on Linux CI too.
+_MISSING = object()  # "do not set this attribute at all", distinct from None
+
+
+@pytest.fixture
+def cp1252_runner():
+    return CliRunner(mix_stderr=False, charset="cp1252")
+
+
+def _fake_osw_labelled(monkeypatch, label: str):
+    """Patch in an entity whose label slot holds ``label``."""
+    fake_osw, page = _fake_osw_with_page()
+    page.get_slot_content.return_value = {"label": [{"text": label}]}
+    page.get_url.return_value = "https://wiki.example.org/wiki/Item:OSW1"
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+
+
+def test_json_output_is_utf8_when_stdout_uses_the_locale_encoding(
+    cp1252_runner, configured_env, monkeypatch
+):
+    _fake_osw_labelled(monkeypatch, "Änderungen")
+
+    result = cp1252_runner.invoke(app, ["--json", "entity", "get", "Item:OSW1"])
+
+    assert result.exit_code == 0, result.stderr
+    payload = json.loads(result.stdout_bytes.decode("utf-8"))
+    assert payload["jsondata"]["label"][0]["text"] == "Änderungen"
+
+
+def test_human_output_is_utf8_when_stdout_uses_the_locale_encoding(
+    cp1252_runner, configured_env, monkeypatch
+):
+    _fake_osw_labelled(monkeypatch, "Änderungen")
+
+    result = cp1252_runner.invoke(app, ["entity", "get", "Item:OSW1"])
+
+    assert result.exit_code == 0, result.stderr
+    assert "Änderungen" in result.stdout_bytes.decode("utf-8")
+
+
+def test_error_message_is_utf8_when_stderr_uses_the_locale_encoding(
+    cp1252_runner, configured_env, monkeypatch
+):
+    """An error names the page it failed on, so stderr carries labels too."""
+    fake_osw, _page = _fake_osw_with_page(exists=False)
+    fake_osw.load_entity.return_value.entities = []
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+
+    result = cp1252_runner.invoke(app, ["--json", "entity", "export", "Item:Änderung"])
+
+    assert result.exit_code == 2
+    assert "Item:Änderung" in result.stderr_bytes.decode("utf-8")
+
+
+def test_forcing_utf8_keeps_the_error_handler_each_stream_was_given(monkeypatch):
+    """``reconfigure`` resets ``errors`` to strict unless it is passed as well.
+
+    Python gives stderr ``backslashreplace`` precisely so that reporting a
+    failure cannot itself raise. Switching the encoding must not drop that.
+    """
+    err = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="backslashreplace")
+    monkeypatch.setattr(sys, "stderr", err)
+    monkeypatch.setattr(
+        sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    )
+
+    cli_main._force_utf8_output()
+
+    assert err.encoding == "utf-8"
+    err.write("\udc80")  # a lone surrogate, which "strict" refuses to encode
+    err.flush()
+    assert err.buffer.getvalue() == rb"\udc80"
+
+
+def test_every_help_string_is_ascii():
+    """Guards the one gap ``_force_utf8_output`` cannot close.
+
+    Click prints help and rejects an unknown name before any callback runs,
+    so those paths keep the locale encoding. That is only harmless while no
+    help string contains a character the locale encoding may lack. Adding a
+    German option description would make it a real defect, and this test is
+    what reports it.
+    """
+    offenders = []
+
+    def walk(command, path):
+        texts = {"help": command.help, "short_help": command.short_help}
+        for param in command.params:
+            texts[f"--{param.name}"] = getattr(param, "help", None)
+        for where, text in texts.items():
+            if text and not text.isascii():
+                offenders.append(f"{' '.join(path) or 'osw'} {where}: {text!r}")
+        for name, sub in getattr(command, "commands", {}).items():
+            walk(sub, [*path, name])
+
+    walk(typer.main.get_command(app), [])
+
+    assert offenders == []
+
+
+def test_a_substituted_stream_with_no_usable_errors_value_is_left_alone(monkeypatch):
+    """Both halves of the guard are needed, not just the ``reconfigure`` half.
+
+    A host application may put an object that is not a ``TextIOWrapper`` on
+    ``sys.stdout``. Reading ``.errors`` on one that lacks it raises, which
+    would end the command. A ``.errors`` of ``None`` is no better: passing it
+    on means ``strict``, the handler this function exists to preserve.
+    """
+
+    class Substituted:
+        def __init__(self, errors):
+            self.calls = []
+            if errors is not _MISSING:
+                self.errors = errors
+
+        def reconfigure(self, **kwargs):
+            self.calls.append(kwargs)
+
+    without = Substituted(_MISSING)
+    none_valued = Substituted(None)
+    monkeypatch.setattr(sys, "stdout", without)
+    monkeypatch.setattr(sys, "stderr", none_valued)
+
+    cli_main._force_utf8_output()
+
+    assert without.calls == []
+    assert none_valued.calls == []
+
+
+def test_a_log_handler_holding_stderr_writes_utf8_after_the_switch(monkeypatch):
+    """osw logs to ``sys.stderr``, and its handler is built at import time.
+
+    ``logging.StreamHandler`` stores the stream object it was given, so the
+    handler osw attaches in ``enable_logging`` holds ``sys.stderr`` itself.
+    ``reconfigure`` changes that object in place rather than replacing it,
+    which is why an already attached handler writes UTF-8 too. Replacing
+    ``sys.stderr`` with a new object would leave the handler on the old one.
+    """
+    err = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="backslashreplace")
+    monkeypatch.setattr(sys, "stderr", err)
+    handler = logging.StreamHandler(sys.stderr)  # as osw.enable_logging does
+    logger = logging.getLogger("test_utf8_handler")
+    logger.addHandler(handler)
+    monkeypatch.setattr(
+        sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    )
+
+    cli_main._force_utf8_output()
+    logger.warning("Änderungen")
+    handler.flush()
+
+    assert handler.stream is err
+    assert "Änderungen" in err.buffer.getvalue().decode("utf-8")
+
+
+def test_label_the_locale_encoding_cannot_represent_is_written_not_raised(
+    cp1252_runner, configured_env, monkeypatch
+):
+    """cp1252 has no Japanese characters, so encoding used to raise, not corrupt."""
+    _fake_osw_labelled(monkeypatch, "文字")
+
+    result = cp1252_runner.invoke(app, ["--json", "entity", "get", "Item:OSW1"])
+
+    assert result.exit_code == 0, result.exception or result.stderr
+    payload = json.loads(result.stdout_bytes.decode("utf-8"))
+    assert payload["jsondata"]["label"][0]["text"] == "文字"
 
 
 # -- CLI-only path-taking file commands (osw.cli.ops) ---------------------------

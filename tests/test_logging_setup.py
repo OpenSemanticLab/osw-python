@@ -36,11 +36,25 @@ class ListHandler(logging.Handler):
 
 @pytest.fixture
 def osw_logger():
-    """Hands out the osw logger and puts its global state back afterwards"""
+    """The osw logger as an interpreter has it before osw is imported
+
+    Does for the osw logger what plain_logging does for the root logger, and
+    puts the global state back afterwards. osw configures itself on import,
+    and whether that attaches its handler depends on whether anything had
+    configured logging by then. Import order decides that: a conftest that
+    imports osw runs before pytest attaches its capture handlers to the root
+    logger, one that does not leaves osw to be imported later, when they are
+    already on. Without this reset a test below would assert on the handler
+    left over from import rather than on the call it makes itself.
+    """
     logger = logging.getLogger("osw")
     saved = (logger.handlers[:], logger.level, logger.propagate, osw._level_is_ours)
+    logger.handlers, logger.propagate = [], True
+    logger.setLevel(logging.NOTSET)
+    osw._level_is_ours = False
     yield logger
-    logger.handlers, logger.level, logger.propagate = saved[:3]
+    logger.handlers, logger.propagate = saved[0], saved[2]
+    logger.setLevel(saved[1])
     osw._level_is_ours = saved[3]
 
 

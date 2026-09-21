@@ -789,7 +789,8 @@ class WtSite:
         debug: Optional[bool] = True
         """Only has an effect when parallel is True. If True, the messages logged
         while the pages are deleted are written out once the batch has finished.
-        If False, only warnings and errors are written out."""
+        If False, only warnings and errors are written out. Deleting logs only
+        warnings at present, so the flag currently changes nothing."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
 

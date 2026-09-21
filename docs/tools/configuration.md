@@ -100,14 +100,14 @@ set wins:
 
 | Canonical | Also accepted | Meaning |
 | --- | --- | --- |
-| `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to |
+| `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to. A bare host (`wiki.example.org`) or a full URL (`https://wiki.example.org/w/`); the host is taken from either |
 | `OSW_USERNAME` | `OSL_USERNAME` | Login user |
 | `OSW_PASSWORD` | `OSL_PASSWORD` | Login password |
 | `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri (falls back to `accounts.pwd.yaml` in the working directory, CLI only) |
 | `OSW_ENV_FILE` | `OSW_MCP_ENV_FILE` | `.env` file to load |
 | `OSW_READ_ONLY` | `OSW_MCP_READ_ONLY` | `true` refuses every write |
 | `OSW_SPARQL_ENDPOINT` | | Endpoint for `sparql` queries |
-| `OSW_STATE_DIR` | `OSW_MCP_STATE_DIR` | Where the provenance ledger is kept |
+| `OSW_STATE_DIR` | `OSW_MCP_STATE_DIR` | Where the provenance ledger is kept. Must be an absolute path; a leading `~` is expanded |
 | `OSW_MAX_RESULTS` | `OSW_MCP_MAX_RESULTS` | Default result cap (100) |
 | `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
 | `OSW_VERBOSE` | `OSW_MCP_VERBOSE` | `true` prints the configuration source report |

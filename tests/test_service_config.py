@@ -2,6 +2,7 @@
 
 import os
 import sys
+from pathlib import Path
 
 import pytest
 import yaml
@@ -1053,6 +1054,45 @@ def test_domain_as_full_url_accepted():
     # get_active_domain() relies on a full URL being a legal domain value.
     settings = Settings(domain="https://wiki.example.org/w/")
     assert settings.domain == "https://wiki.example.org/w/"
+
+
+@pytest.mark.parametrize("value", ["https://", "/w/index.php", "//", "https:///w/"])
+def test_domain_without_a_host_rejected(value):
+    """A value _derive_domain cannot reduce to a host is unusable.
+
+    Caught here rather than in OswExpress.validate_domain, which only runs on
+    the first connection and reports a regex rather than the variable name.
+    """
+    with pytest.raises(ValidationError) as exc:
+        Settings(domain=value)
+    assert "host" in str(exc.value)
+
+
+def test_state_dir_expands_a_leading_tilde():
+    """Path(state_dir) never expands it, so '~/osw' made a directory named '~'.
+
+    Ledger builds its file as Path(state_dir) / ... with no expanduser call
+    (src/osw/service/ledger.py:70), so the expansion has to happen here.
+    """
+    settings = Settings(domain="wiki.example.org", state_dir="~/osw-state")
+    assert settings.state_dir == str(Path.home() / "osw-state")
+
+
+@pytest.mark.parametrize("value", ["osw-state", "./osw-state", "../osw-state"])
+def test_state_dir_relative_rejected(value):
+    """A relative path resolves against a working directory the user may not own.
+
+    The MCP client chooses the server's working directory, so the ledger would
+    land somewhere unpredictable.
+    """
+    with pytest.raises(ValidationError) as exc:
+        Settings(domain="wiki.example.org", state_dir=value)
+    assert "absolute" in str(exc.value)
+
+
+def test_state_dir_absolute_is_left_alone(tmp_path):
+    settings = Settings(domain="wiki.example.org", state_dir=str(tmp_path / "state"))
+    assert settings.state_dir == str(tmp_path / "state")
 
 
 def test_settings_is_frozen():

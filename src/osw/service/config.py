@@ -117,6 +117,16 @@ class Settings(BaseModel):
             raise ValueError("must not contain whitespace")
         if any(ord(char) < 32 for char in value):
             raise ValueError("must not contain control characters")
+        # A bare host and a full URL are both legal here, so the check is on
+        # what _derive_domain makes of the value, not on its form.
+        # OswExpress.validate_domain rejects a hostless value too, but only on
+        # the first connection, and its message quotes a regex rather than
+        # naming the variable the operator has to correct.
+        if not _derive_domain(value):
+            raise ValueError(
+                "must contain a host name (e.g. 'wiki.example.org' or "
+                "'https://wiki.example.org/w/')"
+            )
         return value
 
     @field_validator("sparql_endpoint")
@@ -138,6 +148,22 @@ class Settings(BaseModel):
             return value
         if not value.strip():
             raise ValueError("must not be empty or whitespace-only")
+        # The only validator here that rewrites its value. Ledger builds its
+        # file as Path(state_dir) / ... and never expands a leading ~, so
+        # "~/osw" used to create a directory literally named "~".
+        if value.startswith("~"):
+            try:
+                value = str(Path(value).expanduser())
+            except RuntimeError as exc:
+                raise ValueError(
+                    f"starts with '~' but the home directory cannot be "
+                    f"determined ({exc})"
+                ) from exc
+        if not Path(value).is_absolute():
+            raise ValueError(
+                "must be an absolute path: a relative one resolves against the "
+                "working directory, which for osw-mcp is chosen by the client"
+            )
         return value
 
     @field_validator("cred_filepath")

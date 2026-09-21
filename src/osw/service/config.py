@@ -176,6 +176,20 @@ class Settings(BaseModel):
             return value
         if not value.strip():
             raise ValueError("must not be empty or whitespace-only")
+        # Same rewrite as _validate_state_dir, for the same reason: load()
+        # checks Path(cred_filepath).is_file() and _cred_file_iris() opens the
+        # path, and neither expands a leading ~, so "~/accounts.pwd.yaml" was
+        # reported as missing while the file was there. A relative path is
+        # still accepted, unlike for state_dir: the CLI resolves
+        # "accounts.pwd.yaml" against the working directory on purpose.
+        if value.startswith("~"):
+            try:
+                value = str(Path(value).expanduser())
+            except RuntimeError as exc:
+                raise ValueError(
+                    f"starts with '~' but the home directory cannot be "
+                    f"determined ({exc})"
+                ) from exc
         return value
 
     def redacted(self) -> dict:
@@ -444,6 +458,18 @@ def _resolve_cred_file() -> Optional[str]:
         _cred_file_origin = (
             "env file" if _cred_file_var in _env_file_supplied else "environment"
         )
+        # Expanded here, not only in Settings._validate_cred_filepath, because
+        # load() calls Path(cred_filepath).is_file() on this return value long
+        # before it constructs Settings. Determined after _cred_file_var above,
+        # which matches the raw value against os.getenv.
+        if path.startswith("~"):
+            try:
+                path = str(Path(path).expanduser())
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    f"{_cred_file_var} starts with '~' but the home directory "
+                    f"cannot be determined ({exc}). Set it to a full path."
+                ) from exc
         _cred_file_path = path
         return path
     if not _discover_env_file:
@@ -618,9 +644,11 @@ def load(strict: bool = True) -> Settings:
         If domain is missing and no usable credential file is configured, if
         neither a usable credential file nor username/password are
         configured (only when ``strict`` is ``True``), if a configured
-        credential file does not exist, or if a configured credential file has
-        no entry matching a configured domain. This keeps the osw interactive
-        credential prompt from ever being reached.
+        credential file does not exist, if a configured credential file has
+        no entry matching a configured domain, or if a configured credential
+        file path starts with ``~`` and no home directory can be determined.
+        This keeps the osw interactive credential prompt from ever being
+        reached.
     """
     _load_env_file()
 

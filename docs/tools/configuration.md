@@ -112,9 +112,9 @@ set wins:
 | `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
 | `OSW_VERBOSE` | `OSW_MCP_VERBOSE` | `true` prints the configuration source report |
 | `OSW_PERSON_IRI` | | Page name of the operator's own Person entity, read by the osl-tasks skill to filter tasks by actionee |
-| `OSW_TASK_CATEGORY` | | Category a newly created task is written to |
-| `OSW_PERSON_CATEGORY` | | Category a newly created person is written to |
-| `OSW_PROJECT_CATEGORY` | | Category used when resolving a project by name |
+| `OSW_TASK_CATEGORY` | | Category a newly created task is written to, read by the osl-tasks skill |
+| `OSW_PERSON_CATEGORY` | | Category a newly created person is written to, read by the osl-tasks skill |
+| `OSW_PROJECT_CATEGORY` | | Category a newly created project is written to, read by the osl-tasks skill |
 
 ## Windows paths in a `.env` file
 

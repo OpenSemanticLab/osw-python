@@ -238,8 +238,7 @@ MAX_FIELD_USAGE_SAMPLE = 100
 def _check_injection(value: str, field: str) -> None:
     """Reject a value that could change an ask query's structure.
 
-    A private copy, as in ``ops.search`` and ``ops.tasks``, which each keep
-    their own.
+    A private copy: ``ops.search`` keeps its own.
     """
     if "]]" in value or "[[" in value or "|" in value:
         raise errors.ValidationError(f"{field} must not contain ']]', '[[' or '|'.")

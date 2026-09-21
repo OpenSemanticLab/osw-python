@@ -37,7 +37,6 @@ Commands are grouped by subject:
 | `search` | `ask`, `titles`, `content`, `entities`, `sparql`, `label` |
 | `slot` | `list`, `get`, `set` |
 | `schema` | `get`, `props`, `usage` |
-| `task` | `create`, `update`, `create-person` |
 | `skill` | `install` |
 | `instances` | `list`, `status` |
 | `ledger` | `path` |
@@ -84,32 +83,29 @@ Failures exit non-zero with a short message on stderr and no traceback.
 
 ## Tasks and projects
 
-The `task` group reads local todos into an OSL wiki as Task entities, and
-reads tasks, projects and persons back out. It is built on three OSL core
-categories (Task, Person, Project); every operation takes plain typed
-parameters and returns a small flat dict, never a JSON Schema.
+There is no dedicated command group for tasks. Reading local todos into an
+OSL wiki as Task entities, and reading tasks, projects and persons back out,
+is done with the generic `entity`, `schema` and `search` commands against the
+three OSL core categories (Task, Person, Project).
 
-| Command | Tool | Purpose |
-| --- | --- | --- |
-| `osw task create` | `create_task` | Create a task. |
-| `osw task update` | `update_task` | Merge fields into an existing task. |
-| `osw task create-person` | `create_person` | Create a person, as a fallback for when one is genuinely absent. |
+**Configuration.** Four environment variables affect this, and all are
+optional: `OSW_PERSON_IRI`, `OSW_TASK_CATEGORY`, `OSW_PERSON_CATEGORY` and
+`OSW_PROJECT_CATEGORY`. Reading always queries the shared OSL core category,
+since MediaWiki category membership includes the whole subclass tree, so a
+task kept in a local subclass is found without any configuration. The three
+category overrides only change where a newly created task, person or project
+is written.
 
-**Configuration.** Four environment variables affect these operations, and
-all are optional: `OSW_PERSON_IRI`, `OSW_TASK_CATEGORY`, `OSW_PERSON_CATEGORY`
-and `OSW_PROJECT_CATEGORY`. Reading always queries the shared OSL core
-category, since MediaWiki category membership includes the whole subclass
-tree, so a task kept in a local subclass is found without any configuration.
-The three category overrides only change where a newly created task, person
-or project is written.
-
-**Vocabularies.** `status` is one of `to do`, `in work`, `done`. `prio` is one
-of `high`, `medium`, `low`. A due date is written to `end_date_time`, since
-the Task category has no due-date property.
+**Vocabularies.** `status` and `prio` store the page name of a wiki item, not
+a word. Read the allowed values from the category schema with `osw schema get
+<task category> --resolve`: `status` carries them in `enum`, and `prio` names
+the category that holds them in `range`. A stock instance offers To do, In
+work and Done for `status`, and High, Medium and Low for `prio`. A due date is
+written to `end_date_time`, since the Task category has no due-date property.
 
 ### The Claude Code skill
 
-The skill that drives this group ships at `src/osw/skills/osl-tasks/SKILL.md`.
+The skill that drives this ships at `src/osw/skills/osl-tasks/SKILL.md`.
 Install it one of two ways:
 
 1. `osw skill install`, which copies it to `~/.claude/skills/osl-tasks/`.

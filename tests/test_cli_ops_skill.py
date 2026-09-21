@@ -1,8 +1,7 @@
 """Unit tests for osw.cli.ops.install_skill (called directly).
 
 tests/test_cli.py only exercises osw.cli.ops through the typer command tree
-(runner.invoke), so this module calls the operation function directly instead,
-matching the style of tests/test_service_ops_tasks.py.
+(runner.invoke), so this module calls the operation function directly instead.
 """
 
 from __future__ import annotations

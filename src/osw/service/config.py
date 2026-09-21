@@ -113,8 +113,10 @@ class Settings(BaseModel):
     # Only controls the startup configuration report. No tool or command
     # reads it, and Settings.redacted() deliberately does not expose it.
     verbose: bool = False
-    # Category a newly created task/person/project gets; defaults to the
-    # matching core constant in osw.service.ops.tasks when unset.
+    # Category a newly created task, person or project is written to. No
+    # operation reads these three; the osl-tasks skill reads the env variables
+    # directly, and only when a new entity has to go into a local subclass
+    # instead of the shared OSL core category.
     task_category: Optional[str] = None
     person_category: Optional[str] = None
     project_category: Optional[str] = None

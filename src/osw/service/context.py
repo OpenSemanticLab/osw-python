@@ -164,8 +164,7 @@ class Context:
         around ``fetch_schema`` (e.g. ``create_or_update_entity``) can leave
         it on for the rest of a long-running process. A later read through
         the plain cached path could then return a page revision from before
-        a write made earlier in the same process. Mirrors
-        ``osw.service.ops.tasks._get_page_uncached``. Does not raise for a
+        a write made earlier in the same process. Does not raise for a
         missing page; the caller branches on ``page.exists``.
         """
         cache_state = self.osw.site.get_cache_enabled()

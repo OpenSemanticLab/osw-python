@@ -55,6 +55,23 @@ subclass of Person. Query the core category anyway. `search label` and a
 so instances of a local subclass are found without any configuration. Use the
 subclass name only when writing a new entity that has to land in it.
 
+## The environment variables
+
+No command reads these four. Read them yourself, from the shell or from the
+`.env` file the instance uses. If you cannot read the environment, ask the
+user for the value instead. All four are optional.
+
+| Variable | Meaning |
+| --- | --- |
+| `OSW_PERSON_IRI` | The page name of the operator's own Person entity. Needed to answer "my tasks". |
+| `OSW_TASK_CATEGORY` | Write a new task to this category instead of the core one. |
+| `OSW_PERSON_CATEGORY` | Write a new person to this category instead of the core one. |
+| `OSW_PROJECT_CATEGORY` | Write a new project to this category instead of the core one. |
+
+The three category variables affect writing only. Always read and search
+through the core category from the table above, because it covers the
+subclasses as well.
+
 ## Read the schema once per session
 
 Run this before the first write:
@@ -209,10 +226,8 @@ shape that depends on the property:
 `truncated` in the result means further matches exist beyond the limit. Raise
 `--limit` before you report a count as complete.
 
-**"My tasks" needs the operator's own Person page name.** It is in the
-environment variable `OSW_PERSON_IRI`. No command reports it, so read the
-variable from the shell or the `.env` file. If you cannot read the
-environment, ask the user which Person entity is theirs.
+**"My tasks" needs the operator's own Person page name.** Take it from
+`OSW_PERSON_IRI`, as described under The environment variables above.
 
 ## Resolving a person or a project
 

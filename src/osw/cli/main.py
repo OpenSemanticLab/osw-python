@@ -30,6 +30,7 @@ from osw.service.context import Context, Policy
 from osw.service.errors import OpError
 from osw.service.params import json_value
 from osw.service.registry import Operation, bind, iter_operations
+from osw.service.streams import force_utf8
 from osw.wtsite import SLOTS
 
 from .render import render
@@ -40,14 +41,8 @@ app = typer.Typer(no_args_is_help=True, add_completion=False)
 def _force_utf8_output() -> None:
     """Encode stdout and stderr as UTF-8, whatever the locale asks for.
 
-    Python encodes a redirected stream with the locale encoding, which on a
-    German Windows system is cp1252. A non-ASCII label then reaches the
-    consumer as bytes no JSON parser can read, and a character cp1252 has no
-    code point for -- Japanese, Greek, Cyrillic -- raises UnicodeEncodeError
-    and ends the command. A Windows console stream is UTF-8 already, so on
-    Windows only redirected output changes. Elsewhere a terminal uses the
-    locale encoding, so this overrides a deliberate non-UTF-8 LANG or
-    PYTHONIOENCODING too. stderr is covered as well as stdout, because
+    The mechanism lives in :func:`osw.service.streams.force_utf8`, which the
+    osw-mcp server uses as well. stderr is covered as well as stdout, because
     ``Context.guard`` sends captured stdout to stderr under ``--json``.
 
     Called from the app callback, so it covers every command. Click prints
@@ -60,16 +55,7 @@ def _force_utf8_output() -> None:
     after the command is fine, because click resolves the command, runs this
     callback, and only then parses the command's own arguments.
     """
-    for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        errors = getattr(stream, "errors", None)
-        # A stream a test harness or host application substituted may have
-        # neither, and then decides its own encoding. Both are required:
-        # errors= must be passed, because reconfigure() silently resets the
-        # handler to strict otherwise, which would let stderr raise while
-        # reporting a failure. Passing errors=None does exactly that too.
-        if reconfigure is not None and errors is not None:
-            reconfigure(encoding="utf-8", errors=errors)
+    force_utf8(sys.stdout, sys.stderr)
 
 
 @app.callback()

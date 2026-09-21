@@ -17,15 +17,21 @@ from __future__ import annotations
 
 import os
 
+#: The level the shim sets. It is the name of osw's own DEFAULT_LOG_LEVEL,
+#: written out rather than imported, because importing osw here would emit
+#: the very notice this module exists to suppress. A test in
+#: tests/test_osw_entry.py keeps the two in step.
+_DEFAULT_LEVEL = "INFO"
+
 
 def _suppress_import_notice():
     """Sets OSW_LOG_LEVEL before osw is imported, so its notice stays quiet
 
     Uses setdefault so a value the caller already set is left alone. The
-    value chosen, "INFO", is osw's own DEFAULT_LOG_LEVEL, so the log level
-    stays exactly what it is today; only the notice about it disappears.
+    value chosen is osw's own DEFAULT_LOG_LEVEL, so the log level stays
+    exactly what it is today; only the notice about it disappears.
     """
-    os.environ.setdefault("OSW_LOG_LEVEL", "INFO")
+    os.environ.setdefault("OSW_LOG_LEVEL", _DEFAULT_LEVEL)
 
 
 def cli():

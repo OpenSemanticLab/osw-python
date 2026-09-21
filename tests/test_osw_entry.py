@@ -65,6 +65,54 @@ def test_importing_osw_directly_still_prints_the_notice_on_stderr():
     assert any(NOTICE in line for line in result.stderr.splitlines())
 
 
+def test_the_osw_mcp_console_script_stays_quiet_and_leaves_stdout_empty():
+    """The second console script needs its own check, because it is the one
+    where a stray line is destructive rather than untidy.
+
+    osw-mcp speaks JSON-RPC over stdout. A single non-JSON line there breaks
+    the client's parser. The notice goes to stderr today, so the risk is
+    about a future change moving it, which is what the stdout assertion
+    catches. Dummy credentials are enough: building the server does not
+    contact the wiki. Empty stdin gives the transport an immediate EOF, so
+    the server serves nothing and exits by itself.
+    """
+    env = _env_without_log_level()
+    # Set explicitly so the run does not depend on the developer's own
+    # configuration, and so it can never reach a real wiki.
+    env.pop("OSW_ENV_FILE", None)
+    env.pop("OSW_CRED_FILEPATH", None)
+    env["OSW_DOMAIN"] = "wiki.example.org"
+    env["OSW_USERNAME"] = "not-a-real-user"
+    env["OSW_PASSWORD"] = "not-a-real-secret"
+    env["OSW_READ_ONLY"] = "true"
+
+    result = subprocess.run(
+        [_console_script("osw-mcp")],
+        input="",
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=180,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not any(NOTICE in line for line in result.stderr.splitlines())
+    assert result.stdout.strip() == ""
+
+
+def test_the_level_the_shim_sets_is_osws_own_default():
+    """osw_entry writes the level name out instead of importing it, so a
+    change to osw.DEFAULT_LOG_LEVEL would otherwise leave the shim setting a
+    different level than osw would have picked, and silently change what the
+    console scripts log."""
+    import logging
+
+    import osw
+    import osw_entry
+
+    assert logging.getLevelName(osw.DEFAULT_LOG_LEVEL) == osw_entry._DEFAULT_LEVEL
+
+
 def test_the_helper_does_not_override_an_already_set_log_level(monkeypatch):
     """setdefault is what makes this safe: a value the caller chose on
     purpose must survive, since overriding it would silently change what the

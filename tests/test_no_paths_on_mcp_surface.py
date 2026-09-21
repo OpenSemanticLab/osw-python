@@ -79,6 +79,13 @@ def test_mcp_server_never_imports_cli():
         ],
         capture_output=True,
         text=True,
+        # text=True alone decodes with the locale encoding, cp1252 on a German
+        # Windows system, while a child running in Python's UTF-8 mode writes
+        # UTF-8. The reader thread then raises UnicodeDecodeError and the
+        # stream arrives as None. The child prints ASCII today, so this is
+        # protection against a future non-ASCII line rather than a fix.
+        encoding="utf-8",
+        errors="replace",
     )
     assert result.returncode == 0, result.stderr
     # Importing osw prints unrelated hints (e.g. about the wikitext extra) on

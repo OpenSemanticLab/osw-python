@@ -20,6 +20,16 @@ from pathlib import Path
 
 NOTICE = "osw logs at INFO"
 
+# Every subprocess below is read with these. text=True alone decodes with the
+# locale encoding, which on a German Windows system is cp1252, and the reader
+# thread then raises UnicodeDecodeError on the box-drawing bytes rich writes
+# into --help output. The exception happens in the thread, so the test still
+# passes and only a PytestUnhandledThreadExceptionWarning shows it. Decoding
+# as UTF-8 matches what the child actually writes. errors="replace" keeps a
+# byte outside UTF-8 from ending a test, which is safe because every
+# assertion here searches for ASCII text.
+_DECODE = {"text": True, "encoding": "utf-8", "errors": "replace"}
+
 
 def _console_script(name: str) -> str:
     """Path to a console script installed next to the running interpreter."""
@@ -42,7 +52,7 @@ def test_the_osw_console_script_does_not_print_the_import_notice_on_stderr():
     result = subprocess.run(
         [_console_script("osw"), "--help"],
         capture_output=True,
-        text=True,
+        **_DECODE,
         env=_env_without_log_level(),
     )
 
@@ -57,7 +67,7 @@ def test_importing_osw_directly_still_prints_the_notice_on_stderr():
     result = subprocess.run(
         [sys.executable, "-c", "import osw"],
         capture_output=True,
-        text=True,
+        **_DECODE,
         env=_env_without_log_level(),
     )
 
@@ -90,7 +100,7 @@ def test_the_osw_mcp_console_script_stays_quiet_and_leaves_stdout_empty():
         [_console_script("osw-mcp")],
         input="",
         capture_output=True,
-        text=True,
+        **_DECODE,
         env=env,
         timeout=180,
     )

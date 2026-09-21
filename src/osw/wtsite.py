@@ -3,20 +3,19 @@ caching OpenSemanticLab specific features are located in osw.core.OSW
 """
 
 import json
+import logging
 import os
 import shutil
 import threading
 import urllib
-import warnings
 import xml.etree.ElementTree as et
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import StringIO
 from pathlib import Path
-from pprint import pprint
+from pprint import pformat
 from time import sleep
 from typing import Any, Dict, List, Optional, Union
-from warnings import warn
 
 import mwclient
 import pyld
@@ -34,6 +33,8 @@ from osw.auth import CredentialManager
 from osw.utils.regex_pattern import REGEX_PATTERN_LIB
 from osw.utils.util import parallelize
 from osw.utils.wiki import get_osw_id
+
+_logger = logging.getLogger(__name__)
 
 # Constants
 SLOTS = {
@@ -103,6 +104,9 @@ class WtSite:
 
         class Config:
             arbitrary_types_allowed = True
+
+    ALLOWED_FILE_EXTENSIONS_TTL = timedelta(hours=24)
+    """how long a fetched list of accepted file extensions stays valid"""
 
     def __init__(self, config: Union[WtSiteConfig, WtSiteLegacyConfig]):
         """creates a new WtSite instance from a WtSiteConfig
@@ -185,6 +189,10 @@ class WtSite:
         #  the wiki
         self._page_cache = {}
         self._cache_enabled = False
+
+        # The file extensions the wiki accepts, read on demand and reused for
+        #  ALLOWED_FILE_EXTENSIONS_TTL
+        self._allowed_file_extensions = None
 
     def _get_session_lock(self) -> threading.RLock:
         """Return the session lock, lazily creating it if absent.
@@ -351,7 +359,9 @@ class WtSite:
         retry_delay_s: Optional[int] = 5
         """Retry delay in seconds"""
         debug: Optional[bool] = False
-        """Whether to print debug messages"""
+        """Only has an effect when parallel is True. If True, the messages logged
+        while the pages are fetched are written out once the batch has finished.
+        If False, only warnings and errors are written out."""
         raise_exception: Optional[bool] = False
         """Whether to raise an exception if an error occurs"""
         raise_warning: Optional[bool] = True
@@ -417,10 +427,8 @@ class WtSite:
                     pages.append(wtpage)
                     if not wtpage.exists:
                         if param.raise_warning:
-                            warnings.warn(
-                                f"WARNING: Page with title '{title}' does not exist.",
-                                RuntimeWarning,
-                                3,
+                            _logger.warning(
+                                f"Page with title '{title}' does not exist."
                             )
                         # throw argument value exception if page does not exist
                         raise ValueError(f"Page with title '{title}' does not exist.")
@@ -438,7 +446,7 @@ class WtSite:
                         retry = param.retries
                         if param.raise_exception:
                             raise
-                print(msg)
+                _logger.info(msg)
             self._clear_cookies()
             return wtpage
 
@@ -516,6 +524,68 @@ class WtSite:
         """
         del self._page_cache
         self._page_cache = {}
+
+    class AllowedFileExtensionsResult(OswBaseModel):
+        """The file extensions a wiki accepts and when that list was read"""
+
+        extensions: Optional[List[str]]
+        """the accepted extensions, None if the lookup failed"""
+        fetched_at: Optional[datetime]
+        """when the list was read from the wiki, None if the lookup failed"""
+
+    def get_allowed_file_extensions(
+        self, refresh: bool = False
+    ) -> AllowedFileExtensionsResult:
+        """Returns the file extensions the wiki accepts, from cache if possible
+
+        The list only changes when the wiki configuration changes, so it is
+        cached for ALLOWED_FILE_EXTENSIONS_TTL instead of being read on every
+        call. A failed lookup is never cached, so the next call retries; a
+        failed refresh leaves any previously cached list in place.
+
+        Parameters
+        ----------
+        refresh:
+            if True, bypasses the cache and re-reads the list from the wiki
+
+        Returns
+        -------
+            an AllowedFileExtensionsResult with the accepted extensions and
+            when they were read, or with both fields None if the lookup failed
+        """
+        cached = getattr(self, "_allowed_file_extensions", None)
+        if (
+            cached is not None
+            and not refresh
+            and cached.fetched_at is not None
+            and datetime.now() - cached.fetched_at < self.ALLOWED_FILE_EXTENSIONS_TTL
+        ):
+            return cached
+        try:
+            result = self.mw_site.api(
+                "query", meta="siteinfo", siprop="fileextensions", formatversion=2
+            )
+            extensions = [
+                entry["ext"]
+                for entry in result.get("query", {}).get("fileextensions", [])
+                if "ext" in entry
+            ]
+        except Exception:
+            # only used to enrich an error message, never worth failing over
+            return WtSite.AllowedFileExtensionsResult(extensions=None, fetched_at=None)
+        self._allowed_file_extensions = WtSite.AllowedFileExtensionsResult(
+            extensions=extensions, fetched_at=datetime.now()
+        )
+        return self._allowed_file_extensions
+
+    def clear_allowed_file_extensions_cache(self):
+        """Clears the cached list of file extensions the wiki accepts
+
+        The next get_allowed_file_extensions() call reads the list from the
+        wiki again. Use this when the wiki's upload configuration changed
+        within ALLOWED_FILE_EXTENSIONS_TTL.
+        """
+        self._allowed_file_extensions = None
 
     def _clear_cookies(self):
         # see https://github.com/mwclient/mwclient/issues/221
@@ -639,19 +709,19 @@ class WtSite:
         if limit:
             titles = titles[0:limit]
         if param.log:
-            print(f"Found: {titles}")
+            _logger.debug(f"Found: {titles}")
 
         def modify_single_result(title: str):
             wtpage = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
             modify_page(wtpage)
             if param.log:
-                print(f"\n======= {title} =======")
+                _logger.debug(f"\n======= {title} =======")
                 for slot in wtpage._slots:
                     content = wtpage.get_slot_content(slot)
                     # if isinstance(content, dict): content = json.dumps(content)
-                    print(f"   ==== {title}:{slot} ====   ")
-                    pprint(content)
-                    print("\n")
+                    _logger.debug(f"   ==== {title}:{slot} ====   ")
+                    _logger.debug(pformat(content))
+                    _logger.debug("\n")
             if not param.dryrun:
                 wtpage.edit(param.comment)
 
@@ -668,7 +738,9 @@ class WtSite:
         parallel: Optional[bool] = False
         """If True, uploads the pages in parallel."""
         debug: Optional[bool] = False
-        """If True, debug messages will be printed."""
+        """Only has an effect when parallel is True. If True, the messages logged
+        while the pages are uploaded are written out once the batch has finished.
+        If False, only warnings and errors are written out."""
         comment: Optional[str] = None
         """Edit comment for the page history, applied to every uploaded page."""
 
@@ -713,9 +785,11 @@ class WtSite:
             page.edit(param.comment)
 
             if index is None:
-                print(f"Uploaded page to {page.get_url()}.")
+                _logger.info(f"Uploaded page to {page.get_url()}.")
             else:
-                print(f"({index + 1}/{max_index}): Uploaded page to {page.get_url()}.")
+                _logger.info(
+                    f"({index + 1}/{max_index}): Uploaded page to {page.get_url()}."
+                )
 
         if param.parallel:
             _ = parallelize(upload_page_, param.pages, flush_at_end=param.debug)
@@ -782,7 +856,10 @@ class WtSite:
         page: Union["WtPage", List["WtPage"], str, List[str]]
         comment: Optional[str] = None
         debug: Optional[bool] = True
-        """If True, debug messages will be printed."""
+        """Only has an effect when parallel is True. If True, the messages logged
+        while the pages are deleted are written out once the batch has finished.
+        If False, only warnings and errors are written out. Deleting logs only
+        warnings at present, so the flag currently changes nothing."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
 
@@ -828,7 +905,7 @@ class WtSite:
                 try:
                     page_ = self._site.pages[page_]
                 except Exception as e:
-                    warn(
+                    _logger.warning(
                         f"Page '{page_}' could not be added to the list of "
                         f"to-be-deleted pages. The following Exception occurred:\n{e}"
                     )
@@ -837,7 +914,7 @@ class WtSite:
                     return page_.delete(comment=comment)
                 return page_.delete(reason=comment)
             except Exception as e:
-                warn(
+                _logger.warning(
                     f"Page '{page_}' could not be deleted. "
                     f"The following Exception occurred:\n{e}"
                 )
@@ -860,7 +937,7 @@ class WtSite:
         dump_config: Optional["WtPage.PageDumpConfig"] = None
         """Configuration object for the page dump"""
         debug: Optional[bool] = True
-        """If True, debug messages will be printed."""
+        """If True, debug messages will be logged."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
         offline_pages: Optional[Dict[str, "WtPage"]] = None
@@ -885,14 +962,15 @@ class WtSite:
         config = param.config
 
         # Clear the content directory
-        try:
-            if debug:
-                print(f"Delete dir '{config.content_path}'")
-            if os.path.exists(config.content_path):
-                shutil.rmtree(config.content_path)
-        except OSError as e:
-            if debug:
-                print(f"Error: {e.filename} - {e.strerror}.")
+        if config.clear_content_dir:
+            try:
+                if debug:
+                    _logger.debug(f"Delete dir '{config.content_path}'")
+                if os.path.exists(config.content_path):
+                    shutil.rmtree(config.content_path)
+            except OSError as e:
+                if debug:
+                    _logger.error(f"{e.filename} - {e.strerror}.")
         # Create a dump config
         if dump_config is None:
             dump_config = WtPage.PageDumpConfig(
@@ -907,7 +985,7 @@ class WtSite:
         added_titles = []  # keep track of added pages, prevent duplicates
 
         if config.name not in bundle.packages:
-            print(f"Error: package {config.name} does not exist in bundle")
+            _logger.error(f"package {config.name} does not exist in bundle")
             return
         if not bundle.packages[config.name].pages:
             bundle.packages[config.name].pages = []
@@ -942,7 +1020,7 @@ class WtSite:
             if config.include_files:
                 referenced_file_pages = page.find_file_page_refs_in_slots()
                 if debug and len(referenced_file_pages) > 0:
-                    print(
+                    _logger.debug(
                         f"File pages referenced in {page.title}: {referenced_file_pages}"
                     )
                 if param.config.ignore_titles is not None:
@@ -954,7 +1032,7 @@ class WtSite:
                         set(referenced_file_pages) - set(included_file_pages)
                     )
                     if debug and len(ignored_files_pages) > 0:
-                        print(f"Ignored: {ignored_files_pages}")
+                        _logger.debug(f"Ignored: {ignored_files_pages}")
                     referenced_file_pages = included_file_pages
                 # find those files that are not already in the package
                 page_files[page.title] = list(
@@ -1019,7 +1097,7 @@ class WtSite:
         selected_slots: Optional[List[str]] = None
         """A list of slots that should be read. If None, all slots are read."""
         debug: Optional[bool] = False
-        """If True, debug information is printed to the console."""
+        """If True, debug information is logged."""
         offline: Optional[bool] = True
         """Skip reading the page content from the webserver
         before reading the local content, if True."""
@@ -1069,10 +1147,10 @@ class WtSite:
         #  option or raise error
         if os.path.exists(pi_fp) and os.path.isfile(pi_fp):
             if debug:
-                print(f"Found packages info file at '{pi_fp}'.")
+                _logger.debug(f"Found packages info file at '{pi_fp}'.")
         else:
             if debug:
-                print(
+                _logger.debug(
                     f"Did not find packages info file at '{pi_fp}'. Trying default "
                     f"'packages.json'."
                 )
@@ -1088,7 +1166,9 @@ class WtSite:
                 pi_fp = json_in_top_level["file path"]
             elif len(top_level_json_files) > 0:
                 if debug:
-                    print(f"Found JSON files: {top_level_json_files}. Using first one.")
+                    _logger.debug(
+                        f"Found JSON files: {top_level_json_files}. Using first one."
+                    )
                 pi_fp = top_level_json_files[0]
             else:
                 raise FileNotFoundError(
@@ -1096,7 +1176,12 @@ class WtSite:
                 )
         # Read packages info file
         with open(pi_fp, encoding="utf-8") as f:
-            packages_json = json.load(f)
+            try:
+                packages_json = json.load(f)
+            except json.JSONDecodeError as e:
+                raise json.JSONDecodeError(
+                    f"Malformed JSON in '{pi_fp}': {e.msg}", e.doc, e.pos
+                ) from e
         # Assume that the pages files are located in the subdir
         storage_path_content = ut.list_files_and_directories(
             search_path=storage_path, recursive=True
@@ -1130,7 +1215,14 @@ class WtSite:
                     if len(file_content) > 0:
                         if url_path.endswith(".json"):
                             with open(slot_path, encoding="utf-8") as f:
-                                slot_data = json.load(f)
+                                try:
+                                    slot_data = json.load(f)
+                                except json.JSONDecodeError as e:
+                                    raise json.JSONDecodeError(
+                                        f"Malformed JSON in '{slot_path}': {e.msg}",
+                                        e.doc,
+                                        e.pos,
+                                    ) from e
                             return slot_data
                         elif url_path.endswith(".wikitext"):
                             slot_data = file_content
@@ -1198,7 +1290,7 @@ class WtSite:
         """A list of WtPage objects.
         If 'pages' is not given, 'storage_path' must be given."""
         debug: Optional[bool] = False
-        """If True, prints debug information."""
+        """If True, logs debug information."""
 
         class Config:
             arbitrary_types_allowed = True
@@ -1308,19 +1400,43 @@ class WtSite:
         handle string, list and dict values
         handle mappings direct to iri as well as
         {"@id": "http://example.org/property", @type": "@id"} and scoped contexts
+        the given context is not modified: dicts are copied before rewriting
+        values of an unhandled type are returned unchanged
         """
         if isinstance(context, str):
             return context
         if isinstance(context, list):
             return [self._replace_jsonld_context_mapping(e, config) for e in context]
-        if isinstance(context, dict):
-            context_iter = context.copy()
-            for key in context_iter:
-                value = context[key]
-                if key == "wiki":
-                    context[key] = f"https://{self._site.host}/id/"
-                    # print(f"apply https://{self._site.host}/id/ to {key}")
-                if isinstance(value, str):
+        if not isinstance(context, dict):
+            return context
+        context = deepcopy(context)
+        context_iter = context.copy()
+        for key in context_iter:
+            value = context[key]
+            if key == "wiki":
+                context[key] = f"https://{self._site.host}/id/"
+                # print(f"apply https://{self._site.host}/id/ to {key}")
+            if isinstance(value, str):
+                base_key = key.split("*")[0]
+                if base_key not in context:
+                    context[base_key] = value
+                    # print(f"apply {key} to {base_key}")
+                if config.prefer_external_vocal is False:
+                    base_mapping = context[base_key]
+                    if isinstance(base_mapping, dict):
+                        base_mapping = base_mapping["@id"]
+                    mapping = value
+                    if mapping.startswith("Property:") and not base_mapping.startswith(
+                        "Property:"
+                    ):
+                        context[base_key] = value
+                        # print(f"apply {key} to {base_key}")
+            elif isinstance(value, list):
+                context[key] = [
+                    self._replace_jsonld_context_mapping(e, config) for e in value
+                ]
+            elif isinstance(value, dict):
+                if "@id" in value:
                     base_key = key.split("*")[0]
                     if base_key not in context:
                         context[base_key] = value
@@ -1329,37 +1445,17 @@ class WtSite:
                         base_mapping = context[base_key]
                         if isinstance(base_mapping, dict):
                             base_mapping = base_mapping["@id"]
-                        mapping = value
+                        mapping = value["@id"]
                         if mapping.startswith(
                             "Property:"
                         ) and not base_mapping.startswith("Property:"):
                             context[base_key] = value
                             # print(f"apply {key} to {base_key}")
-                elif isinstance(value, list):
-                    context[key] = [
-                        self._replace_jsonld_context_mapping(e, config) for e in value
-                    ]
-                elif isinstance(value, dict):
-                    if "@id" in value:
-                        base_key = key.split("*")[0]
-                        if base_key not in context:
-                            context[base_key] = value
-                            # print(f"apply {key} to {base_key}")
-                        if config.prefer_external_vocal is False:
-                            base_mapping = context[base_key]
-                            if isinstance(base_mapping, dict):
-                                base_mapping = base_mapping["@id"]
-                            mapping = value["@id"]
-                            if mapping.startswith(
-                                "Property:"
-                            ) and not base_mapping.startswith("Property:"):
-                                context[base_key] = value
-                                # print(f"apply {key} to {base_key}")
-                    elif "@context" in value:
-                        context[key] = self._replace_jsonld_context_mapping(
-                            value["@context"], config
-                        )
-            return context
+                elif "@context" in value:
+                    context[key] = self._replace_jsonld_context_mapping(
+                        value["@context"], config
+                    )
+        return context
 
     @try_and_renew_token
     def get_jsonld_context_loader(self, params: JsonLdContextLoaderParams = None):
@@ -1837,7 +1933,9 @@ class WtPage:
                 return self._edit(comment, mode, bot_edit)
             except Exception as e:
                 last_exc = e
-                print(f"Page edit failed: {e}. Retry ({attempt + 1}/{max_retry})")
+                _logger.warning(
+                    f"Page edit failed: {e}. Retry ({attempt + 1}/{max_retry})"
+                )
                 if attempt + 1 < max_retry:
                     # Attempt to recover the shared session before retrying.
                     # Guard the whole block: a recovery failure must never mask
@@ -1934,7 +2032,7 @@ class WtPage:
             whether to create a redirect from the old title to the new title
         """
         if new_title != self.title:
-            print(f"move '{self.title}' to '{new_title}'")
+            _logger.info(f"move '{self.title}' to '{new_title}'")
             self._page.move(
                 new_title=new_title, reason=comment, no_redirect=not redirect
             )
@@ -1995,13 +2093,13 @@ class WtPage:
                     if self.get_slot_content(slot) != slot_contents.get(slot, None):
                         changed_slots.append(slot)
                 if len(changed_slots) == 0:
-                    print(
+                    _logger.info(
                         f"Page '{self.title}' already has the same content. It will "
                         f"not be updated."
                     )
                     return WtPage.PageCopyResult(page=self, target_altered=False)
                 else:
-                    print(
+                    _logger.info(
                         f"Page '{self.title}' has different content in slots "
                         f"{changed_slots}."
                     )
@@ -2020,7 +2118,7 @@ class WtPage:
                     f"'https://{self.wtSite.mw_site.host}/w/index.php?title"
                     f"={self.title}&action=history'."
                 )
-            print(s2p)
+            _logger.info(s2p)
             return WtPage.PageCopyResult(page=self, target_altered=True)
 
     class PageDumpConfig(OswBaseModel):
@@ -2129,7 +2227,7 @@ class WtPage:
                 dump_slot_content(slot_key, content_type, content)
 
         if self.is_file_page():
-            print("download " + self.title)
+            _logger.info("download " + self.title)
             file = self.wtSite.mw_site.images[self.title.split(":")[-1]]
             file_name = f"{page_name}"
             file_path = os.path.join(tar_dir, *file_name.split("/"))  # handle subpages
@@ -2149,7 +2247,7 @@ class WtPage:
         Parameters
         ----------
         debug
-            Whether to print debug information, by default False
+            Whether to log debug information, by default False
 
         Returns
         -------
@@ -2204,7 +2302,7 @@ class WtPage:
                     if ft is not None:
                         file_page_refs.append(ft)
                 except ValueError:
-                    print("Warning: Error while parsing uuid in editor template")
+                    _logger.warning("Error while parsing uuid in editor template")
         return list(set(file_page_refs))
 
     @try_and_renew_token
@@ -2324,7 +2422,7 @@ class WtPage:
         config.xml = config.xml.replace(
             'xmlns="http://www.mediawiki.org', '_xmlns="http://www.mediawiki.org'
         )
-        print(config.xml)
+        _logger.debug(config.xml)
         tree = et.fromstring(config.xml)  # noqa: S314 parses our own exported XML
 
         # Replace title and namespace with the requested ones

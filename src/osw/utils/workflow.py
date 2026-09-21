@@ -1,6 +1,7 @@
 """Prefect utils as support for OpenSemanticWorld."""
 
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -27,6 +28,8 @@ from osw.core import OSW
 from osw.utils._httpx_gateway import _install as _install_gateway_hook
 from osw.utils.wiki import get_full_title
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 # Auto-patch httpx at import time if PREFECT_API_URL is an ApiGateway URL.
 # This ensures the transport is active for ALL Prefect API calls, not just
@@ -192,16 +195,13 @@ class ApiGatewayTransport(httpx.AsyncBaseTransport):
         )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        import logging
-
-        log = logging.getLogger(__name__)
-        log.debug("ApiGateway: %s %s", request.method, request.url)
+        _logger.debug("ApiGateway: %s %s", request.method, request.url)
         rewritten = self._rewrite_request(request)
-        log.debug("ApiGateway rewritten: %s %s", rewritten.method, rewritten.url)
+        _logger.debug("ApiGateway rewritten: %s %s", rewritten.method, rewritten.url)
         # Create a fresh transport per request to avoid event-loop binding
         inner = httpx.AsyncHTTPTransport()
         response = await inner.handle_async_request(rewritten)
-        log.debug("ApiGateway response: %s", response.status_code)
+        _logger.debug("ApiGateway response: %s", response.status_code)
         # Follow redirects by rewriting internal Location URLs back
         # through the gateway (backend may return internal Docker URLs)
         if response.status_code in (301, 302, 307, 308):
@@ -221,7 +221,7 @@ class ApiGatewayTransport(httpx.AsyncBaseTransport):
                 if loc_parsed.query:
                     redirect_query.append(f"query={quote(loc_parsed.query, safe='')}")
                 redirect_url = f"{self._gateway_url}?{'&'.join(redirect_query)}"
-                log.debug("ApiGateway following redirect: %s", redirect_url)
+                _logger.debug("ApiGateway following redirect: %s", redirect_url)
                 redirect_req = httpx.Request(
                     method=(
                         rewritten.method
@@ -249,7 +249,7 @@ class ApiGatewayTransport(httpx.AsyncBaseTransport):
                     body = response.read().decode(errors="replace")
                 except Exception:
                     body = "<unreadable>"
-                log.warning(
+                _logger.warning(
                     "ApiGateway returned 403, re-authenticating. Response: %s",
                     body,
                 )
@@ -321,7 +321,7 @@ def install_gateway_hook():
     shutil.copy2(src, os.path.join(sp, _PTH_MODULE))
     with open(os.path.join(sp, _PTH_FILENAME), "w") as f:
         f.write(_PTH_CONTENT)
-    print(f"Installed gateway hook in {sp}")
+    _logger.info(f"Installed gateway hook in {sp}")
 
 
 def uninstall_gateway_hook():
@@ -331,7 +331,7 @@ def uninstall_gateway_hook():
         target = os.path.join(sp, name)
         if os.path.exists(target):
             os.remove(target)
-            print(f"Removed {target}")
+            _logger.info(f"Removed {target}")
 
 
 # ------------------------------ NOTIFICATIONS ---------------------
@@ -583,8 +583,8 @@ async def register_flow(
                 stale_entities.append(entity)
     if stale_entities:
         for e in stale_entities:
-            print(
-                f"WARNING: Deleting stale PrefectFlow entity "
+            _logger.warning(
+                f"Deleting stale PrefectFlow entity "
                 f"'{get_full_title(e)}' (superseded by '{new_flow_title}')"
             )
         osw_instance.delete_entity(
@@ -654,11 +654,7 @@ async def register_flow(
         f"{snippet}\n"
         "</pre>\n"
     )
-    import logging
-
-    logging.getLogger(__name__).debug(
-        "Writing usage template to '%s':\n%s", software_title, snippet
-    )
+    _logger.debug("Writing usage template to '%s':\n%s", software_title, snippet)
 
     page = osw_instance.site.get_page(
         WtSite.GetPageParam(titles=[software_title])
@@ -674,75 +670,78 @@ async def _deploy(param: DeployParam):
 
     _original_api_url = None
     _original_httpx_init = None
+    _api_url_overridden = False
     gateway_url = param.public_url or environ.get("PREFECT_API_URL", "")
-    if _is_apigateway_url(gateway_url) and param.osw is not None:
-        _original_api_url = environ.get("PREFECT_API_URL")
-        environ["PREFECT_API_URL"] = gateway_url
-        _mw_site = param.osw.site.mw_site
-
-        def _relogin():
-            cred = param.osw.site._cred_mngr.get_credential(param.osw.site._iri)
-            _mw_site.login(username=cred.username, password=cred.password)
-
-        _gw_transport = ApiGatewayTransport(
-            gateway_url=gateway_url,
-            mw_site=_mw_site,
-            relogin_cb=_relogin,
-        )
-        # Patch httpx.AsyncClient to auto-inject our transport when
-        # the base_url is an ApiGateway URL. One patch covers ALL
-        # Prefect client instances regardless of how they're created.
-        _original_httpx_init = httpx.AsyncClient.__init__
-
-        def _patched_httpx_init(self, *args, **kwargs):
-            base = str(kwargs.get("base_url", ""))
-            if _is_apigateway_url(base) and "transport" not in kwargs:
-                kwargs["transport"] = _gw_transport
-            _original_httpx_init(self, *args, **kwargs)
-
-        httpx.AsyncClient.__init__ = _patched_httpx_init
-
-        # Auto-install .pth hook so Prefect subprocesses also get patched
-        _pth_target = os.path.join(_get_site_packages(), _PTH_FILENAME)
-        if not os.path.exists(_pth_target):
-            install_gateway_hook()
-
-    deployments = []
-
-    for deploy_config in param.deployments:
-        flow: Flow = deploy_config.flow
-        # Set deployment name if not provided
-        if deploy_config.name is None or deploy_config.name == "":
-            deploy_config.name = flow.name + "-deployment"
-
-        # Match valid args of flow.to_deployment and deploy_config
-        kwargs = match_func_model_args(func=flow.to_deployment, model=deploy_config)
-        # Set config via matching flow.to_deployment arguments
-        config = await flow.to_deployment(**kwargs)
-        await config.apply()  # returns the deployment_uuid
-
-        deployments.append(config)
-
-        # Register flow on OSW if an instance is provided
-        if param.osw is not None:
-            await register_flow(
-                osw_instance=param.osw,
-                flow=flow,
-                namespace_uuid=param.namespace_uuid,
-                public_url=param.public_url,
-            )
-
     try:
+        if _is_apigateway_url(gateway_url) and param.osw is not None:
+            _original_api_url = environ.get("PREFECT_API_URL")
+            environ["PREFECT_API_URL"] = gateway_url
+            _api_url_overridden = True
+            _mw_site = param.osw.site.mw_site
+
+            def _relogin():
+                cred = param.osw.site._cred_mngr.get_credential(param.osw.site._iri)
+                _mw_site.login(username=cred.username, password=cred.password)
+
+            _gw_transport = ApiGatewayTransport(
+                gateway_url=gateway_url,
+                mw_site=_mw_site,
+                relogin_cb=_relogin,
+            )
+            # Patch httpx.AsyncClient to auto-inject our transport when
+            # the base_url is an ApiGateway URL. One patch covers ALL
+            # Prefect client instances regardless of how they're created.
+            _original_httpx_init = httpx.AsyncClient.__init__
+
+            def _patched_httpx_init(self, *args, **kwargs):
+                base = str(kwargs.get("base_url", ""))
+                if _is_apigateway_url(base) and "transport" not in kwargs:
+                    kwargs["transport"] = _gw_transport
+                _original_httpx_init(self, *args, **kwargs)
+
+            httpx.AsyncClient.__init__ = _patched_httpx_init
+
+            # Auto-install .pth hook so Prefect subprocesses also get patched
+            _pth_target = os.path.join(_get_site_packages(), _PTH_FILENAME)
+            if not os.path.exists(_pth_target):
+                install_gateway_hook()
+
+        deployments = []
+
+        for deploy_config in param.deployments:
+            flow: Flow = deploy_config.flow
+            # Set deployment name if not provided
+            if deploy_config.name is None or deploy_config.name == "":
+                deploy_config.name = flow.name + "-deployment"
+
+            # Match valid args of flow.to_deployment and deploy_config
+            kwargs = match_func_model_args(func=flow.to_deployment, model=deploy_config)
+            # Set config via matching flow.to_deployment arguments
+            config = await flow.to_deployment(**kwargs)
+            await config.apply()  # returns the deployment_uuid
+
+            deployments.append(config)
+
+            # Register flow on OSW if an instance is provided
+            if param.osw is not None:
+                await register_flow(
+                    osw_instance=param.osw,
+                    flow=flow,
+                    namespace_uuid=param.namespace_uuid,
+                    public_url=param.public_url,
+                )
+
         await serve(*deployments)
     finally:
         # Restore patched httpx.AsyncClient.__init__
         if _original_httpx_init is not None:
             httpx.AsyncClient.__init__ = _original_httpx_init
         # Restore original PREFECT_API_URL if we overrode it
-        if _original_api_url is not None:
-            environ["PREFECT_API_URL"] = _original_api_url
-        elif _is_apigateway_url(gateway_url):
-            environ.pop("PREFECT_API_URL", None)
+        if _api_url_overridden:
+            if _original_api_url is not None:
+                environ["PREFECT_API_URL"] = _original_api_url
+            else:
+                environ.pop("PREFECT_API_URL", None)
 
 
 def deploy(param: DeployParam):

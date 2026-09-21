@@ -487,6 +487,10 @@ def _stub_page_io(monkeypatch, exists: bool):
     )
     edited = []
     monkeypatch.setattr(WtPage, "edit", lambda self, *a, **k: edited.append(self.title))
+    # the write verification of store_entity() would query the wiki. These tests
+    # cover the overwrite policy, so report every edited page as existing. The
+    # verification itself is covered by test_store_entity_verify.py
+    monkeypatch.setattr(OSW, "_get_missing_page_titles", lambda self, titles: [])
     return edited
 
 

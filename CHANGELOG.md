@@ -10,6 +10,101 @@
 
 <!-- version list -->
 
+## v2.5.1 (2026-09-21)
+
+### Bug Fixes
+
+- **wtsite**: Copy the jsonld context before rewriting it
+  ([`ea0cddf`](https://github.com/OpenSemanticLab/osw-python/commit/ea0cddfa85a0025560dda49f78ff99577a86f526))
+
+
+## v2.5.0 (2026-09-21)
+
+### Bug Fixes
+
+- Read the uuid from a file page title with suffixes
+  ([`79a645b`](https://github.com/OpenSemanticLab/osw-python/commit/79a645b3cb5a67e9b769c76270be7297220cde98))
+
+- **file**: Verify the upload before storing the file entity
+  ([`4a09bf5`](https://github.com/OpenSemanticLab/osw-python/commit/4a09bf541a3ea404dcd2e1cd41ea36b8c53ce141))
+
+- **file**: Write the metadata onto the page the upload created
+  ([`eb9e0e1`](https://github.com/OpenSemanticLab/osw-python/commit/eb9e0e112e8b75128c8a3fe5c8d5943531c16d6a))
+
+### Features
+
+- **file**: Report a rejected file extension clearly on upload
+  ([`bb49392`](https://github.com/OpenSemanticLab/osw-python/commit/bb49392a4fc81801d3662613faae96944dd8ed91))
+
+### Performance Improvements
+
+- **file**: Cache the wiki's allowed file extensions for 24 h
+  ([`3a7b6eb`](https://github.com/OpenSemanticLab/osw-python/commit/3a7b6eb3f5bbb14d3369c52f0bac7cb256d85f78))
+
+### Refactoring
+
+- Match the OSW-ID as the 32 hex characters it is
+  ([`186e9e3`](https://github.com/OpenSemanticLab/osw-python/commit/186e9e32042efdc8c8aabe374923d9cd99fa1bd7))
+
+
+## v2.4.0 (2026-09-21)
+
+
+## v2.3.5 (2026-09-21)
+
+### Bug Fixes
+
+- **core**: Report dropped entities and restore the cache on error
+  ([`870adb8`](https://github.com/OpenSemanticLab/osw-python/commit/870adb876b890c8df97d6545fe2ff113940d4b5b))
+
+### Documentation
+
+- **core**: State that a failed key is not always a page title
+  ([`7297ca6`](https://github.com/OpenSemanticLab/osw-python/commit/7297ca6250292493697cbf8746b492f9a97e188e))
+
+### Testing
+
+- **core**: Cover a raise inside the load_entity page loop
+  ([`88be481`](https://github.com/OpenSemanticLab/osw-python/commit/88be4810807db103af965d9f812952875c4589c7))
+
+
+## v2.3.4 (2026-09-21)
+
+### Bug Fixes
+
+- **core**: Confirm a missing page before reporting a failed store
+  ([`5756436`](https://github.com/OpenSemanticLab/osw-python/commit/5756436e08ba95be3e177c6a78c424bfdba756c8))
+
+- **core**: Verify that store_entity actually created the page
+  ([`f84a529`](https://github.com/OpenSemanticLab/osw-python/commit/f84a5297c605fc458783e5497edeb1f97113053b))
+
+### Chores
+
+- Relicense to Apache-2.0 ([#173](https://github.com/OpenSemanticLab/osw-python/pull/173),
+  [`848615c`](https://github.com/OpenSemanticLab/osw-python/commit/848615cbd1e06401922eda88231a51028440a242))
+
+
+## v2.3.3 (2026-09-08)
+
+### Bug Fixes
+
+- **gui**: Improvements to gui_local_slot_editing
+  ([`a84e73a`](https://github.com/OpenSemanticLab/osw-python/commit/a84e73ad1e2f3a3f7c20eabce748d288bbb531a8))
+
+### Build System
+
+- **deps**: Require pysimplegui>=6 for the UI extra
+  ([`4ca7ab9`](https://github.com/OpenSemanticLab/osw-python/commit/4ca7ab97ad94ad53629db2db513769af648acf5a))
+
+
+## v2.3.2 (2026-09-07)
+
+### Bug Fixes
+
+- **workflow**: Scope _deploy cleanup to what it actually changed
+  ([`4f0593e`](https://github.com/OpenSemanticLab/osw-python/commit/4f0593e47b7a2dd42f304429f2ffb9b5eb5fe47c))
+
+
 ## v2.3.1 (2026-09-03)
 
 ### Bug Fixes

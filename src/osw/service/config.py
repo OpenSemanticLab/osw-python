@@ -489,9 +489,11 @@ def log_config_sources(stream=None, verbose: bool = True) -> None:
     # The configuration source report stays a print rather than a log record:
     # it is an aligned report written to a caller-chosen stream, and the running
     # adapter's own verbose flag decides whether it appears, not the log level.
-    # Every print below flushes: stderr is block-buffered whenever it is not a
-    # terminal (a pipe, a file, or a test runner's capture buffer), and these
-    # lines must appear before the command's own output and before any error.
+    # Every print below flushes. sys.stderr is line-buffered on the supported
+    # Python versions, but these go to whichever stream the caller passed, and
+    # that one need not be: the MCP server passes an io.StringIO, and click's
+    # CliRunner replaces sys.stderr with a wrapper it never flushes. The lines
+    # must appear before the command's own output and before any error.
     out = sys.stderr if stream is None else stream
     _resolve_cred_file()
     if _cred_file_path:

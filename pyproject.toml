@@ -104,10 +104,13 @@ all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
 
 [project.scripts]
 # command-line access to a live OSL instance, built from the same
-# osw.service.registry the MCP server uses
-osw = "osw.cli.main:app"
-# stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude Code)
-osw-mcp = "osw.mcp.server:main"
+# osw.service.registry the MCP server uses. Goes through osw_entry so the
+# import-time notice about osw's logging is suppressed for this entry point.
+osw = "osw_entry:cli"
+# stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude
+# Code). Goes through osw_entry so the import-time notice about osw's
+# logging is suppressed for this entry point.
+osw-mcp = "osw_entry:mcp"
 
 [build-system]
 requires = ["hatchling"]
@@ -153,7 +156,9 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/osw"]
+# osw_entry.py must be shipped too: both console scripts point at it.
+only-include = ["src/osw", "src/osw_entry.py"]
+sources = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -352,7 +352,9 @@ class WtSite:
         retry_delay_s: Optional[int] = 5
         """Retry delay in seconds"""
         debug: Optional[bool] = False
-        """Whether to log debug messages"""
+        """Only has an effect when parallel is True. If True, the messages logged
+        while the pages are fetched are written out once the batch has finished.
+        If False, only warnings and errors are written out."""
         raise_exception: Optional[bool] = False
         """Whether to raise an exception if an error occurs"""
         raise_warning: Optional[bool] = True
@@ -667,7 +669,9 @@ class WtSite:
         parallel: Optional[bool] = False
         """If True, uploads the pages in parallel."""
         debug: Optional[bool] = False
-        """If True, debug messages will be logged."""
+        """Only has an effect when parallel is True. If True, the messages logged
+        while the pages are uploaded are written out once the batch has finished.
+        If False, only warnings and errors are written out."""
         comment: Optional[str] = None
         """Edit comment for the page history, applied to every uploaded page."""
 
@@ -783,7 +787,9 @@ class WtSite:
         page: Union["WtPage", List["WtPage"], str, List[str]]
         comment: Optional[str] = None
         debug: Optional[bool] = True
-        """If True, debug messages will be logged."""
+        """Only has an effect when parallel is True. If True, the messages logged
+        while the pages are deleted are written out once the batch has finished.
+        If False, only warnings and errors are written out."""
         parallel: Optional[bool] = None
         """If true, processes the pages in parallel."""
 

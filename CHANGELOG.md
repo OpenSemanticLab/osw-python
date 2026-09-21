@@ -10,6 +10,22 @@
 
 <!-- version list -->
 
+## v2.3.4 (2026-09-21)
+
+### Bug Fixes
+
+- **core**: Confirm a missing page before reporting a failed store
+  ([`5756436`](https://github.com/OpenSemanticLab/osw-python/commit/5756436e08ba95be3e177c6a78c424bfdba756c8))
+
+- **core**: Verify that store_entity actually created the page
+  ([`f84a529`](https://github.com/OpenSemanticLab/osw-python/commit/f84a5297c605fc458783e5497edeb1f97113053b))
+
+### Chores
+
+- Relicense to Apache-2.0 ([#173](https://github.com/OpenSemanticLab/osw-python/pull/173),
+  [`848615c`](https://github.com/OpenSemanticLab/osw-python/commit/848615cbd1e06401922eda88231a51028440a242))
+
+
 ## v2.3.3 (2026-09-08)
 
 ### Bug Fixes

@@ -10,6 +10,15 @@
 
 <!-- version list -->
 
+## v2.6.1 (2026-09-21)
+
+### Bug Fixes
+
+- **core**: Never write unparseable entity.py from fetch_schema
+  ([#167](https://github.com/OpenSemanticLab/osw-python/pull/167),
+  [`8a830d9`](https://github.com/OpenSemanticLab/osw-python/commit/8a830d981c19eada131de5713350802d0f732df5))
+
+
 ## v2.6.0 (2026-09-21)
 
 ### Bug Fixes

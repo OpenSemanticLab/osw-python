@@ -99,6 +99,69 @@ def test_create_or_update_entity_uses_active_domain(monkeypatch):
     assert result["urls"] == ["https://wiki-b.example.org/wiki/Item:OSW1"]
 
 
+def test_create_or_update_entity_separates_created_from_updated(monkeypatch):
+    """WtPage.exists is the pre-write value, so it tells the two apart.
+
+    A caller that meant to update sees a create when it forgot to pass the
+    stored uuid, which otherwise writes a second entity in silence.
+    """
+    osw = MagicMock()
+    osw.fetch_schema.return_value = MagicMock(error_messages=[])
+    osw.store_entity.return_value = MagicMock(
+        pages={
+            "Item:OSWnew": MagicMock(exists=False),
+            "Item:OSWold": MagicMock(exists=True),
+        },
+        change_id="c1",
+    )
+    monkeypatch.setattr(
+        entities, "_resolve_category_class", lambda category: entities.model_entity.Item
+    )
+    monkeypatch.setattr(
+        entities.config, "get_active_domain", lambda: "wiki-b.example.org"
+    )
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.create_or_update_entity(
+        ctx, category="Category:Item", jsondata={"label": [{"text": "Test"}]}
+    )
+
+    assert result["created"] == ["Item:OSWnew"]
+    assert result["updated"] == ["Item:OSWold"]
+    assert result["skipped"] == []
+
+
+def test_create_or_update_entity_reports_an_existing_page_as_skipped(monkeypatch):
+    """'keep existing' leaves an existing page unwritten, which has to show.
+
+    The operation returns its normal result either way, so without this the
+    caller cannot tell a write from a no-op.
+    """
+    osw = MagicMock()
+    osw.fetch_schema.return_value = MagicMock(error_messages=[])
+    osw.store_entity.return_value = MagicMock(
+        pages={"Item:OSWold": MagicMock(exists=True)}, change_id="c1"
+    )
+    monkeypatch.setattr(
+        entities, "_resolve_category_class", lambda category: entities.model_entity.Item
+    )
+    monkeypatch.setattr(
+        entities.config, "get_active_domain", lambda: "wiki-b.example.org"
+    )
+    ctx = Context(_settings(), Policy(), osw=osw)
+
+    result = entities.create_or_update_entity(
+        ctx,
+        category="Category:Item",
+        jsondata={"label": [{"text": "Test"}]},
+        overwrite="keep existing",
+    )
+
+    assert result["skipped"] == ["Item:OSWold"]
+    assert result["updated"] == []
+    assert result["created"] == []
+
+
 def test_create_or_update_entity_schema_error_raises():
     osw = MagicMock()
     osw.fetch_schema.return_value = MagicMock(error_messages=["bad schema"])
@@ -134,11 +197,14 @@ def test_create_or_update_entity_validation_error_raises(monkeypatch):
 
 
 # -- records= (ledger hook) ----------------------------------------------------
-def test_create_or_update_entity_records_matches_old_inline_ledger_call():
+def test_create_or_update_entity_records_created_and_updated_titles():
     op = registry.REGISTRY["create_or_update_entity"]
 
     result = {
         "titles": ["Item:OSW1", "Item:OSW2"],
+        "created": ["Item:OSW1"],
+        "updated": ["Item:OSW2"],
+        "skipped": [],
         "change_id": "c1",
         "urls": [
             "https://wiki.example.org/wiki/Item:OSW1",
@@ -156,10 +222,41 @@ def test_create_or_update_entity_records_matches_old_inline_ledger_call():
     ]
 
 
-def test_create_or_update_entity_records_empty_when_no_titles():
+def test_create_or_update_entity_does_not_record_a_skipped_page():
+    """A skipped page was never written, so the ledger must not claim it.
+
+    ``delete_entity`` trusts the ledger to decide whether a deletion needs the
+    external-delete confirmation. A record for an unwritten page would drop
+    that guard from a page this process never touched.
+    """
     op = registry.REGISTRY["create_or_update_entity"]
 
-    assert op.records({"titles": [], "change_id": "c1", "urls": []}) == []
+    result = {
+        "titles": ["Item:OSW1"],
+        "created": [],
+        "updated": [],
+        "skipped": ["Item:OSW1"],
+        "change_id": "c1",
+        "urls": ["https://wiki.example.org/wiki/Item:OSW1"],
+    }
+
+    assert op.records(result) == []
+
+
+def test_create_or_update_entity_records_empty_when_nothing_was_written():
+    op = registry.REGISTRY["create_or_update_entity"]
+
+    assert (
+        op.records({
+            "titles": [],
+            "created": [],
+            "updated": [],
+            "skipped": [],
+            "change_id": "c1",
+            "urls": [],
+        })
+        == []
+    )
 
 
 def test_create_or_update_entity_schema_error_does_not_reach_bind_records():

@@ -115,7 +115,7 @@ def export_entity_jsonld(
         LedgerRecord(
             title=t, op="create_or_update", change_id=r["change_id"], slots=["jsondata"]
         )
-        for t in r["titles"]
+        for t in r["created"] + r["updated"]
     ],
 )
 def create_or_update_entity(
@@ -123,16 +123,30 @@ def create_or_update_entity(
     category: str,
     jsondata: Annotated[dict, typer.Option(parser=json_value)],
     namespace: Optional[str] = None,
-    overwrite: str = "keep existing",
+    overwrite: str = "true",
     comment: Optional[str] = None,
 ) -> dict:
     """Create or update an entity of ``category`` from a ``jsondata`` payload.
 
     ``category`` is a full category page name (e.g. ``Category:Item``); use
-    ``get_category_schema`` to learn the valid fields first. ``overwrite``
-    controls update behavior: one of true | false | only empty |
-    replace remote | keep existing. Records the resulting page(s) in the
-    provenance ledger so they can be deleted without extra confirmation.
+    ``get_category_schema`` to learn the valid fields first.
+
+    **To update an existing entity, put its ``uuid`` in ``jsondata``.** The
+    page name is derived from that uuid, so omitting it generates a new one
+    and writes a second entity instead of changing the intended one. Read the
+    current record with ``get_entity`` first and keep its uuid.
+
+    ``overwrite`` controls update behavior: one of true | false | only empty |
+    replace remote | keep existing. The default, true, merges field by field
+    into the stored record: fields absent from ``jsondata`` keep their stored
+    value, so only what is passed changes. ``keep existing`` writes nothing at
+    all when the page already exists, and ``replace remote`` drops every
+    stored field that ``jsondata`` does not repeat.
+
+    The result splits the written pages into ``created``, ``updated`` and
+    ``skipped`` so a caller can tell an update apart from an accidental
+    create. Only created and updated pages are recorded in the provenance
+    ledger, since a skipped page was never written.
     """
     fetch = ctx.osw.fetch_schema(
         OSW.FetchSchemaParam(schema_title=category, mode="append")
@@ -161,9 +175,20 @@ def create_or_update_entity(
         )
     )
     titles = list(store.pages.keys())
+    # WtPage.exists is set once, when the page is loaded, and no write path
+    #  refreshes it, so after the store it still reports the pre-write state.
+    #  A page that did not exist then was created by this call.
+    existed = [t for t in titles if store.pages[t].exists]
+    # _apply_overwrite_policy returns an existing page untouched under this
+    #  one option, logging a warning and never editing it. Mirrors the check
+    #  at the kept_existing branch in OSW.store_entity_.
+    kept = _parse_overwrite(overwrite) == AddOverwriteClassOptions.keep_existing
     domain = config.get_active_domain()
     return {
         "titles": titles,
+        "created": [t for t in titles if t not in existed],
+        "updated": [] if kept else existed,
+        "skipped": existed if kept else [],
         "change_id": store.change_id,
         "urls": [f"https://{domain}/wiki/{t}" for t in titles],
     }

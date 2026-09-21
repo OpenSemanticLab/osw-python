@@ -50,6 +50,10 @@ dependencies = [
     # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
     # install osw` never ships a broken `osw` console script
     "typer",
+    # typer is built on click, and osw.cli.main subclasses click's Command and
+    # Group to report a misplaced root option. That is a direct import, so it
+    # is declared here rather than relied on through typer.
+    "click",
     # .env loading (osw.service.config). Also a base dependency: without it the
     # CLI silently cannot find a .env file and reports missing credentials
     "python-dotenv>=1.0",

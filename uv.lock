@@ -2071,6 +2071,7 @@ source = { editable = "." }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "black" },
+    { name = "click" },
     { name = "dask" },
     { name = "datamodel-code-generator" },
     { name = "httpx" },
@@ -2171,6 +2172,7 @@ requires-dist = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "black" },
     { name = "boto3", marker = "extra == 's3'" },
+    { name = "click" },
     { name = "dask" },
     { name = "datamodel-code-generator", specifier = "==0.51.0" },
     { name = "deepl", marker = "extra == 'dataimport'" },

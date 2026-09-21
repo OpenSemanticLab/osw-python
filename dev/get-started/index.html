@@ -518,6 +518,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Logging
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#collecting-osws-records-in-your-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Collecting osw's records in your application
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-from-parallel-batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Output from parallel batches
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples-and-tutorials" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -747,6 +786,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Logging
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#collecting-osws-records-in-your-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Collecting osw's records in your application
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-from-parallel-batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Output from parallel batches
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples-and-tutorials" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -903,6 +981,53 @@
 <code>OSW_PASSWORD</code> (e.g. loaded from a <code>.env</code> file), from an existing
 credentials file, or via an interactive prompt - and are held in memory
 only, never written to disk; see <a href="../api/auth/">Authentication</a>.</p>
+<h2 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h2>
+<p>osw reports what it is doing through the standard <code>logging</code> module, on the
+<code>osw</code> logger, at INFO by default:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">osw</span>
+
+<span class="n">osw</span><span class="o">.</span><span class="n">set_log_level</span><span class="p">(</span><span class="s2">&quot;WARNING&quot;</span><span class="p">)</span>  <span class="c1"># see less</span>
+<span class="n">osw</span><span class="o">.</span><span class="n">set_log_level</span><span class="p">(</span><span class="s2">&quot;DEBUG&quot;</span><span class="p">)</span>    <span class="c1"># see more</span>
+<span class="n">osw</span><span class="o">.</span><span class="n">disable_logging</span><span class="p">()</span>         <span class="c1"># detach the handler osw attached</span>
+</code></pre></div>
+<p>Problems that osw can work around are WARNING records on the same logger, not
+Python <code>warnings</code>. A truncated query result and a page that does not exist are
+examples. A <code>warnings</code> filter or the <code>-W</code> option therefore has no effect on
+them. A message that repeats is also written out every time, where the warnings
+machinery would have shown it once. Use <code>set_log_level</code> to control them.</p>
+<p>The records go to <code>stderr</code>, which leaves <code>stdout</code> free for your program's own
+output. That matters for anything speaking a protocol over <code>stdout</code>, such as an
+MCP stdio server. Pass <code>osw.enable_logging(stream=...)</code> to send them elsewhere.</p>
+<p>Set <code>OSW_LOG_LEVEL</code> to a level name, a level number, or <code>OFF</code> to choose the
+level before the package is imported. <code>OFF</code> silences osw everywhere, including
+in your own handlers.</p>
+<h3 id="collecting-osws-records-in-your-application">Collecting osw's records in your application<a class="headerlink" href="#collecting-osws-records-in-your-application" title="Permanent link">&para;</a></h3>
+<p>Configure logging the way you normally would and osw's records arrive there,
+once:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">osw</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;app.log&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>The <code>osw</code> logger propagates at all times, so the records reach your handlers
+whatever else happens. osw's own handler notices that something above it is
+listening, detaches itself so nothing is written twice, and gives back the
+level it had picked, so your level applies from then on. It makes no difference
+whether you configure logging before or after importing osw.</p>
+<p>A level you asked for is kept across that hand-over, so <code>set_log_level("DEBUG")</code>
+or <code>OSW_LOG_LEVEL=DEBUG</code> is how you pull osw's debug records into an aggregated
+setup while the rest of your application stays quieter.</p>
+<p>One case osw cannot detect is a handler added to the <code>osw</code> logger itself, since
+that is indistinguishable from one of its own. Call <code>disable_logging()</code> first if
+you do that.</p>
+<h3 id="output-from-parallel-batches">Output from parallel batches<a class="headerlink" href="#output-from-parallel-batches" title="Permanent link">&para;</a></h3>
+<p>Several osw calls process their input in parallel. What such a task prints, as
+opposed to logs, is collected while the batch runs and replayed afterwards, so
+that concurrent writing cannot garble the progress bar. That text arrives on the
+<code>osw.parallel.output</code> logger, one record per line, at INFO. Give that logger its
+own level or handler to keep the output of third-party code apart from osw's own
+records. Most osw calls replay it only when you pass <code>debug=True</code>; <code>copy_pages</code>
+always replays.</p>
 <h2 id="examples-and-tutorials">Examples and tutorials<a class="headerlink" href="#examples-and-tutorials" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Runnable scripts in

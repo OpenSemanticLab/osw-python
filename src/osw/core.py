@@ -1709,8 +1709,11 @@ class OSW(BaseModel):
         """The pages that have been successfully stored, keyed by full page title.
         On partial failure this contains only the successfully-stored pages."""
         failed: Dict[str, Exception] = {}
-        """Entities that could not be stored, keyed by full page title and mapped to
-        the exception that caused the failure. Empty on full success."""
+        """Entities that could not be stored, mapped to the exception that caused the
+        failure. Empty on full success. The key is the full page title where one could
+        be determined. For an entity whose title or namespace could not be resolved it
+        falls back to the entity name, then to its uuid, then to 'unknown', so do not
+        parse this key as 'namespace:title'."""
 
         class Config:
             arbitrary_types_allowed = True

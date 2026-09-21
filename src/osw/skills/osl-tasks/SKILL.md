@@ -28,12 +28,6 @@ Four environment variables affect these operations. All are optional.
 | `OSW_PERSON_CATEGORY` | The category a newly created person is written to. |
 | `OSW_PROJECT_CATEGORY` | The category used when resolving a project by name. |
 
-Find the value for `OSW_PERSON_IRI` with:
-
-```
-osw task list-persons --text "<surname>"
-```
-
 Reading never uses the three category overrides. Listing and searching always
 query the shared OSL core category, and MediaWiki category membership includes
 the whole subclass tree. An instance that keeps its data in a local subclass,
@@ -47,14 +41,7 @@ land in that local subclass.
 | --- | --- | --- |
 | `osw task create` | `create_task` | Create one task. |
 | `osw task update` | `update_task` | Merge fields into an existing task. |
-| `osw task list` | `list_tasks` | List and filter tasks. |
-| `osw task list-projects` | `list_projects` | Find a project page name. |
-| `osw task list-persons` | `list_persons` | Find a person page name. |
 | `osw task create-person` | `create_person` | Fallback only. See below. |
-| `osw task render` | not available | Write a Markdown table to a local file. |
-
-`render` is CLI only, because it names a local path and the MCP surface never
-exposes a path.
 
 ## The import loop
 
@@ -65,14 +52,11 @@ For each todo line:
 
 1. **If the line already carries an OSW link, the task exists.** Update it or
    skip it. Never create.
-2. **If it does not, search for a duplicate** with `list_tasks`, filtered by
-   the project, and compare the returned `label` against the label you are
-   about to create.
-3. **Create the task.**
-4. **Write the link back into the file immediately**, before moving to the
+2. **Create the task.**
+3. **Write the link back into the file immediately**, before moving to the
    next todo.
 
-Step 4 has to happen before step 1 of the next todo. A task that exists in OSL
+Step 3 has to happen before step 1 of the next todo. A task that exists in OSL
 but has no marker in the local file looks like a new todo on the next run, and
 gets created a second time. If the file edit fails, stop and report the page
 name to the user rather than continuing.
@@ -137,35 +121,24 @@ any further question, even when it is not the entity the user meant.
 Most OSL instances create persons and users through their own process or
 workflow, and an instance usually already holds every person you need.
 
-1. Search with `list_persons` first.
-2. Only if the person is genuinely absent, ask the user whether to create one.
-3. Create it with `create_person` and its `first_name` and `surname`.
+1. Only if the person is genuinely absent, ask the user whether to create one.
+2. Create it with `create_person` and its `first_name` and `surname`.
 
 Never create a person without asking.
 
 ## Worked example
 
 ```
-# find the project
-osw task list-projects --text "ArkEve"
-
-# look for an existing task before creating
-osw task list --project "Item:OSW3660..." --text "parser"
-
 # create it
 osw task create "Fix the parser" --project "Item:OSW3660..." \
   --status "in work" --prio high --due 2026-12-31
 
 # later, mark it done
 osw task update Item:OSW1234... --status done
-
-# a local view of everything assigned to me
-osw task render tasks.md --mine
 ```
 
 `update` changes only the fields you pass. A field you leave out keeps its
 stored value. To clear a field, edit the entity with `osw entity put`.
 
 `project` and `actionees` replace the stored list, they do not add to it.
-Passing one actionee removes every other actionee the task had. To add a
-person, read the current actionees with `list_tasks` and pass the full list.
+Passing one actionee removes every other actionee the task had.

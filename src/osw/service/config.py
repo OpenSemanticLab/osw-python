@@ -119,9 +119,9 @@ class Settings(BaseModel):
     person_category: Optional[str] = None
     project_category: Optional[str] = None
     # Full page name of the Person entity representing the operator, e.g.
-    # "Item:OSW...". Read only by list_tasks(mine=True) in
-    # osw.service.ops.tasks. An actionee is never assigned from it, so a task
-    # created without an explicit actionee has none.
+    # "Item:OSW...". No operation reads it; the osl-tasks skill reads the env
+    # variable directly to filter tasks by their actionee. An actionee is never
+    # assigned from it, so a task created without an explicit actionee has none.
     person_iri: Optional[str] = None
 
     @field_validator("domain")

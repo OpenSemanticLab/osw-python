@@ -37,7 +37,7 @@ Commands are grouped by subject:
 | `search` | `ask`, `titles`, `content`, `entities`, `sparql`, `label` |
 | `slot` | `list`, `get`, `set` |
 | `schema` | `get`, `props`, `usage` |
-| `task` | `create`, `update`, `list`, `list-projects`, `list-persons`, `create-person`, `render` |
+| `task` | `create`, `update`, `create-person` |
 | `skill` | `install` |
 | `instances` | `list`, `status` |
 | `ledger` | `path` |
@@ -93,14 +93,7 @@ parameters and returns a small flat dict, never a JSON Schema.
 | --- | --- | --- |
 | `osw task create` | `create_task` | Create a task. |
 | `osw task update` | `update_task` | Merge fields into an existing task. |
-| `osw task list` | `list_tasks` | List tasks, filtered by project, actionee, status or label text. |
-| `osw task list-projects` | `list_projects` | Find a project's page name. |
-| `osw task list-persons` | `list_persons` | Find a person's page name. |
 | `osw task create-person` | `create_person` | Create a person, as a fallback for when one is genuinely absent. |
-| `osw task render` | not available | Render a Markdown table of tasks to a local file. |
-
-`render` is CLI only: it names a local output path, and no MCP tool takes or
-returns a path.
 
 **Configuration.** Four environment variables affect these operations, and
 all are optional: `OSW_PERSON_IRI`, `OSW_TASK_CATEGORY`, `OSW_PERSON_CATEGORY`

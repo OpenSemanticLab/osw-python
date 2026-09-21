@@ -238,21 +238,6 @@ def _ask_rows(
     return rows, "query-continue-offset" in response
 
 
-def _page_values(row: dict, prop: str) -> list[dict]:
-    """Return [{"title": ..., "label": ...}, ...] from one page-valued printout."""
-    entries = row.get("printouts", {}).get(prop) or []
-    return [
-        {"title": e["fulltext"], "label": e.get("displaytitle") or e["fulltext"]}
-        for e in entries
-    ]
-
-
-def _first_page_value(row: dict, prop: str) -> Optional[dict]:
-    """The first entry of ``_page_values``, or ``None``."""
-    values = _page_values(row, prop)
-    return values[0] if values else None
-
-
 def _label_of(row: dict) -> str:
     """The display label of an ask result row.
 
@@ -299,9 +284,10 @@ def _resolve_ref(ctx: Context, value: str, category: str, kind: str) -> str:
     if len(rows) == 1:
         return rows[0]["fulltext"]
     if not rows:
-        list_op = "list_projects" if kind == "project" else "list_persons"
         raise errors.NotFound(
-            f"No {kind} matches '{value}'. Use '{list_op}' to see candidates."
+            f"No {kind} matches '{value}'. Search with the CLI command "
+            f"'osw search label \"{value}\" --category {category}' or the MCP "
+            "tool 'search_by_label' to see candidates."
         )
     candidates = "; ".join(f"{_label_of(r)} ({r['fulltext']})" for r in rows)
     raise errors.ValidationError(
@@ -328,33 +314,6 @@ def _resolve_due(value: str) -> str:
             f"Invalid due date/time '{value}'. Use 'YYYY-MM-DD' or full ISO 8601."
         )
     return f"{text}T00:00:00Z" if date_only else text
-
-
-def _escape_cell(text: str) -> str:
-    return text.replace("|", "\\|")
-
-
-def _render_markdown(tasks: list[dict]) -> str:
-    """Render ``list_tasks``' tasks as a Markdown table.
-
-    The single rendering function for tasks; both ``list_tasks(markdown=True)``
-    and ``render_task_view`` call it and nothing else renders tasks.
-    """
-    lines = [
-        "| Task | Status | Priority | Project | Actionees |",
-        "| --- | --- | --- | --- | --- |",
-    ]
-    for task in tasks:
-        task_cell = f"[{_escape_cell(task['label'])}]({task['url']})"
-        status_cell = _escape_cell(task["status"] or "")
-        prio_cell = _escape_cell(task["prio"] or "")
-        project_cell = _escape_cell("; ".join(p["label"] for p in task["related_to"]))
-        actionees_cell = _escape_cell("; ".join(a["label"] for a in task["actionees"]))
-        lines.append(
-            f"| {task_cell} | {status_cell} | {prio_cell} | {project_cell} | "
-            f"{actionees_cell} |"
-        )
-    return "\n".join(lines)
 
 
 def _resolved_refs(jsondata: dict) -> dict:
@@ -457,7 +416,7 @@ def create_task(
     task's end time, since the Task category has no due-date property;
     accepts ``YYYY-MM-DD`` (midnight UTC) or a full ISO 8601 timestamp.
 
-    Use ``list_tasks`` filtered by ``project`` first as a duplicate check: an
+    Use ``search_ask`` filtered by ``project`` first as a duplicate check: an
     exact label match within the same project means the task already exists.
 
     Returns ``{title, url, uuid, change_id, titles, urls, related_to,
@@ -546,7 +505,7 @@ def update_task(
     ``project`` and ``actionees`` replace the stored list, they do not add to
     it. Passing one actionee removes every other actionee the task had, and
     passing one project removes every other related project. To add someone,
-    read the current actionees with ``list_tasks`` and pass the full list.
+    read the current actionees with ``get_entity`` and pass the full list.
 
     Returns ``{title, url, change_id, changed, related_to, actionees}``, where
     ``changed`` is the sorted list of field names that were actually written,
@@ -607,167 +566,6 @@ def update_task(
 
 @operation(
     group="task",
-    cli_name="list",
-    read_only_hint=True,
-    idempotent_hint=True,
-)
-def list_tasks(
-    ctx: Context,
-    project: Optional[str] = None,
-    actionee: Optional[str] = None,
-    status: Optional[str] = None,
-    text: Optional[str] = None,
-    mine: bool = False,
-    markdown: bool = False,
-    limit: Optional[int] = None,
-) -> dict:
-    """List tasks, filtered by project, actionee, status and/or label text.
-
-    This is also the duplicate check before creating a task: filter by
-    ``project`` and compare each returned ``label`` against the label you
-    are about to create; an exact label match within one project means the
-    task already exists. ``project`` and ``actionee`` accept a page name or
-    a label to look up. ``mine=True`` filters to the configured
-    ``OSW_PERSON_IRI`` and cannot be combined with ``actionee``.
-
-    Returns ``{tasks, count, truncated}``, plus ``markdown`` when
-    ``markdown=True``. Each task is
-    ``{title, url, label, status, prio, related_to, actionees}``, where
-    ``status``/``prio`` are the human labels or ``None`` and
-    ``related_to``/``actionees`` are lists of ``{title, label}``.
-    """
-    if mine and actionee is not None:
-        raise errors.ValidationError("Pass either 'mine' or 'actionee', not both.")
-
-    # Check the setting first, so a missing configuration does not first pay
-    # for a schema read.
-    person_iri = None
-    if mine:
-        settings = config.get_settings()
-        if not settings.person_iri:
-            raise errors.NotConfigured(
-                "OSW_PERSON_IRI is not configured; it is required to filter "
-                "tasks assigned to you."
-            )
-        person_iri = settings.person_iri
-
-    props = _smw_props(
-        ctx, CATEGORY_TASK, ["status", "prio", "related_to", "actionees", "label"]
-    )
-
-    query = f"[[{CATEGORY_TASK}]]"
-    if project is not None:
-        project_title = _resolve_ref(ctx, project, CATEGORY_PROJECT, "project")
-        query += f"[[{props['related_to']}::{project_title}]]"
-    if person_iri:
-        query += f"[[{props['actionees']}::{person_iri}]]"
-    elif actionee is not None:
-        actionee_title = _resolve_ref(ctx, actionee, CATEGORY_PERSON, "person")
-        query += f"[[{props['actionees']}::{actionee_title}]]"
-    if status is not None:
-        status_title = _resolve_vocab(status, STATUS_ITEMS, STATUS_ALIASES, "status")
-        query += f"[[{props['status']}::{status_title}]]"
-    if text is not None:
-        _check_injection(text, "text")
-        query += f"[[{props['label']}::~*{text}*]]"
-
-    rows, truncated = _ask_rows(
-        ctx,
-        query,
-        [props["status"], props["prio"], props["related_to"], props["actionees"]],
-        limit,
-    )
-    # A typo in the configured page name gives the same empty result as having
-    # no tasks, so tell the two apart. The extra read only happens when the
-    # result is empty.
-    if person_iri and not rows and not _get_page_uncached(ctx, person_iri).exists:
-        raise errors.NotConfigured(
-            f"OSW_PERSON_IRI is set to '{person_iri}', which is not a page on "
-            "this wiki, so no task can reference it. Use 'list_persons' to "
-            "find the right page name."
-        )
-    tasks = []
-    for row in rows:
-        status_value = _first_page_value(row, props["status"])
-        prio_value = _first_page_value(row, props["prio"])
-        tasks.append({
-            "title": row["fulltext"],
-            "url": row["fullurl"],
-            "label": _label_of(row),
-            "status": status_value["label"] if status_value else None,
-            "prio": prio_value["label"] if prio_value else None,
-            "related_to": _page_values(row, props["related_to"]),
-            "actionees": _page_values(row, props["actionees"]),
-        })
-    result = {"tasks": tasks, "count": len(tasks), "truncated": truncated}
-    if markdown:
-        result["markdown"] = _render_markdown(tasks)
-    return result
-
-
-@operation(
-    group="task",
-    cli_name="list-projects",
-    read_only_hint=True,
-    idempotent_hint=True,
-)
-def list_projects(
-    ctx: Context, text: Optional[str] = None, limit: Optional[int] = None
-) -> dict:
-    """List projects, optionally filtered by label text.
-
-    Use this to find a project's page name for ``create_task``'s
-    ``project`` parameter when a label match would be ambiguous.
-
-    Returns ``{projects, count, truncated}`` where each entry is
-    ``{title, url, label}``.
-    """
-    prop_label = _smw_props(ctx, CATEGORY_PROJECT, ["label"])["label"]
-    query = f"[[{CATEGORY_PROJECT}]]"
-    if text is not None:
-        _check_injection(text, "text")
-        query += f"[[{prop_label}::~*{text}*]]"
-    rows, truncated = _ask_rows(ctx, query, [], limit)
-    projects = [
-        {"title": r["fulltext"], "url": r["fullurl"], "label": _label_of(r)}
-        for r in rows
-    ]
-    return {"projects": projects, "count": len(projects), "truncated": truncated}
-
-
-@operation(
-    group="task",
-    cli_name="list-persons",
-    read_only_hint=True,
-    idempotent_hint=True,
-)
-def list_persons(
-    ctx: Context, text: Optional[str] = None, limit: Optional[int] = None
-) -> dict:
-    """List persons, optionally filtered by label text.
-
-    Finds persons stored in subclasses too, because it queries category
-    membership rather than an exact type match. Search here before calling
-    ``create_person``; most instances already hold every person you need.
-
-    Returns ``{persons, count, truncated}`` where each entry is
-    ``{title, url, label}``.
-    """
-    prop_label = _smw_props(ctx, CATEGORY_PERSON, ["label"])["label"]
-    query = f"[[{CATEGORY_PERSON}]]"
-    if text is not None:
-        _check_injection(text, "text")
-        query += f"[[{prop_label}::~*{text}*]]"
-    rows, truncated = _ask_rows(ctx, query, [], limit)
-    persons = [
-        {"title": r["fulltext"], "url": r["fullurl"], "label": _label_of(r)}
-        for r in rows
-    ]
-    return {"persons": persons, "count": len(persons), "truncated": truncated}
-
-
-@operation(
-    group="task",
     cli_name="create-person",
     writes=True,
     destructive_hint=False,
@@ -786,7 +584,7 @@ def create_person(
 
     This is a fallback, not the normal path: most OSL instances create
     persons through their own process or workflow, and an instance usually
-    already holds every person you need. Search with ``list_persons`` first,
+    already holds every person you need. Search with ``search_by_label`` first,
     and only create one when the person is genuinely absent.
 
     The label is built here as "<first_name> <surname>". The Person schema
@@ -820,46 +618,4 @@ def create_person(
         "change_id": result["change_id"],
         "titles": result["titles"],
         "urls": result["urls"],
-    }
-
-
-@operation(
-    group="task",
-    cli_name="render",
-    surfaces=frozenset({"cli"}),
-    read_only_hint=True,
-)
-def render_task_view(
-    ctx: Context,
-    output_path: str,
-    project: Optional[str] = None,
-    actionee: Optional[str] = None,
-    status: Optional[str] = None,
-    mine: bool = False,
-    limit: Optional[int] = None,
-) -> dict:
-    """Render a Markdown table of tasks and write it to a local file.
-
-    CLI only, since ``output_path`` names a local file and the MCP surface
-    never exposes a path. Filters are the same as ``list_tasks``.
-
-    Returns ``{output_path, count, bytes_written}``.
-    """
-    result = list_tasks(
-        ctx,
-        project=project,
-        actionee=actionee,
-        status=status,
-        mine=mine,
-        markdown=True,
-        limit=limit,
-    )
-    content = result["markdown"]
-    data = content.encode("utf-8")
-    with open(output_path, "w", encoding="utf-8") as stream:
-        stream.write(content)
-    return {
-        "output_path": output_path,
-        "count": result["count"],
-        "bytes_written": len(data),
     }

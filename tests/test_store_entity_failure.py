@@ -26,6 +26,10 @@ def offline_osw(monkeypatch):
     monkeypatch.setattr(
         OSW, "_apply_overwrite_policy", staticmethod(lambda param: param.page)
     )
+    # the write verification would query the wiki. These tests cover the reporting
+    # of a failed edit, so report every edited page as existing. The verification
+    # itself is covered by test_store_entity_verify.py
+    monkeypatch.setattr(OSW, "_get_missing_page_titles", lambda self, titles: [])
     return OSW.construct(site=object())
 
 

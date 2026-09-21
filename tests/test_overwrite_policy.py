@@ -763,3 +763,49 @@ def test_an_overwritten_existing_page_is_not_reported_as_skipped(monkeypatch):
     )
 
     assert result.skipped == {}
+
+
+def test_a_skipped_page_is_not_verified_and_survives_a_failed_neighbour(monkeypatch):
+    """A kept page was never edited, so the write verification must ignore it.
+
+    'keep existing' and the write verification of #175 were written separately
+    and first meet here. A kept page must not be queried, and must stay in
+    'pages' and 'skipped' when the verification reports the other page of the
+    same call as missing.
+    """
+    existing = model.Item(label=[model.Label(text="Keep me")])
+    created = model.Item(label=[model.Label(text="Create me")])
+    kept_title = f"Item:{OSW.get_osw_id(existing.uuid)}"
+    created_title = f"Item:{OSW.get_osw_id(created.uuid)}"
+    verified = []
+
+    monkeypatch.setattr(
+        WtPage, "init", lambda self: setattr(self, "exists", self.title == kept_title)
+    )
+    monkeypatch.setattr(
+        WtPage, "get_url", lambda self: f"https://example.org/{self.title}"
+    )
+    monkeypatch.setattr(WtPage, "edit", lambda self, *a, **k: None)
+
+    def _missing(self, titles):
+        verified.extend(titles)
+        return [created_title]
+
+    monkeypatch.setattr(OSW, "_get_missing_page_titles", _missing)
+    osw_obj = OSW.construct(site=object())
+
+    with pytest.raises(OSW.StoreEntityPartialError) as exc_info:
+        osw_obj.store_entity(
+            OSW.StoreEntityParam(
+                entities=[existing, created],
+                overwrite=AddOverwriteClassOptions.keep_existing,
+                parallel=False,
+            )
+        )
+
+    err = exc_info.value
+    assert verified == [created_title]
+    assert kept_title in err.result.skipped
+    assert kept_title in err.result.pages
+    assert created_title in err.failed
+    assert err.stored == []

@@ -52,6 +52,13 @@ osw search ask '[[Category:Item]]' --limit 5
 Commands, tools and their configuration are described in the
 [Tools guide](https://opensemanticlab.github.io/osw-python/tools/).
 
+## Logging
+
+osw reports what it is doing on the `osw` logger at INFO by default. Levels,
+the `OSW_LOG_LEVEL` environment variable and how to collect the records in your
+own logging setup are described in the
+[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/#logging).
+
 ## Contributing
 
 Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,10 +1,10 @@
 import importlib.util
 import json
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import Optional, Union
-from warnings import warn
 
 from opensemantic.v1 import OswBaseModel
 from pydantic.v1 import FilePath
@@ -16,6 +16,8 @@ from osw.model import page_package as package
 from osw.model.page_package import NAMESPACE_CONST_TO_NAMESPACE_MAPPING
 from osw.utils.regex import RegExPatternExtended
 from osw.wtsite import WtPage, WtSite
+
+_logger = logging.getLogger(__name__)
 
 # Definition of constants
 PATTERNS = {
@@ -267,7 +269,7 @@ def find_first_package_dir(
             # expected: not every search path holds every package
             continue
         except ValueError as e:
-            warn(
+            _logger.warning(
                 f"Multiple elements {package_or_script_name} found in "
                 f"{search_path}: {e}"
             )
@@ -697,7 +699,7 @@ class PagePackageController(model.PagePackageMetaData):
                 new_listed_pages = []
                 required_packages = []
                 if script_path is None:
-                    warn(
+                    _logger.warning(
                         f"Package script for {package_to_process} not found in any "
                         f"of the search paths: {search_paths}"
                     )
@@ -711,7 +713,7 @@ class PagePackageController(model.PagePackageMetaData):
                             package_script
                         )
                     except Exception as e:
-                        warn(
+                        _logger.warning(
                             f"Error reading package script for "
                             f"{package_to_process}: {e}"
                         )
@@ -724,7 +726,7 @@ class PagePackageController(model.PagePackageMetaData):
                 new_listed_pages = []
                 required_packages = []
                 if package_dir is None:
-                    warn(
+                    _logger.warning(
                         f"Package info for {package_to_process} not found in any "
                         f"of the search paths: {search_paths}"
                     )
@@ -738,7 +740,7 @@ class PagePackageController(model.PagePackageMetaData):
                             get_required_packages_from_package_info_file(package_info)
                         )
                     except Exception as e:
-                        warn(
+                        _logger.warning(
                             f"Error reading package info for {package_to_process}: {e}"
                         )
             # Check for redundant pages
@@ -812,7 +814,7 @@ class PagePackageController(model.PagePackageMetaData):
         # Report on redundantly listed pages
         for pg in rec_ret["redundant_pages"].keys():
             pks = rec_ret["redundant_pages"][pg]
-            warn(f"Page {pg} is listed in {len(pks)} packages!: {pks}")
+            _logger.warning(f"Page {pg} is listed in {len(pks)} packages!: {pks}")
         # Get all listed pages
         all_listed_pages = []
         for pck in rec_ret["listed_pages"].keys():

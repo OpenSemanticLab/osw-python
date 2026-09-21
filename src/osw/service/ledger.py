@@ -19,6 +19,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
+from osw.service import config
+
 LEDGER_VERSION = 1
 
 
@@ -75,7 +77,7 @@ class Ledger:
             # A corrupt ledger must not take the server down; start fresh but
             # warn so the operator can investigate.
             print(
-                f"[osw-mcp] ledger at {self.path} unreadable ({exc}); "
+                f"{config.log_prefix()} ledger at {self.path} unreadable ({exc}); "
                 "starting a new one.",
                 file=sys.stderr,
             )

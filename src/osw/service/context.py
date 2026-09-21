@@ -168,7 +168,10 @@ class Context:
                     with redirect_stdout(sys.stderr):
                         self._osw.close_connection()
                 except Exception as exc:
-                    print(f"[osw] error closing connection: {exc!r}", file=sys.stderr)
+                    print(
+                        f"{config.log_prefix()} error closing connection: {exc!r}",
+                        file=sys.stderr,
+                    )
                 self._osw = None
             self._ledger = None
 

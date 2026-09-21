@@ -199,10 +199,10 @@ def delete_entity(
         )
     if not tracked:
         print(
-            f"[osw-mcp] WARNING: deleting externally-created page "
+            f"{config.log_prefix()} WARNING: deleting externally-created page "
             f"'{title}' (confirm_external_delete=True)",
             file=sys.stderr,
         )
-    page.delete(comment or "[osw-mcp] delete")
+    page.delete(comment or f"{config.log_prefix()} delete")
     ctx.ledger.mark_deleted(title)
     return {"title": title, "deleted": True}

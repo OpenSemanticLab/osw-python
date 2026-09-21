@@ -235,3 +235,16 @@ def test_delete_nonexistent_page_raises():
         "type": "NotFound",
     }
     page.delete.assert_not_called()
+
+
+def test_delete_default_comment_carries_the_configured_log_prefix():
+    osw, page = _osw_with_page()
+    ledger = MagicMock()
+    ledger.is_tracked.return_value = True
+    ctx = Context(_settings(), Policy(), osw=osw, ledger=ledger)
+    entities.config.set_log_prefix("osw-mcp")
+
+    entities.delete_entity(ctx, title="Item:OSWx")
+
+    page.delete.assert_called_once()
+    assert page.delete.call_args[0][0].startswith("[osw-mcp]")

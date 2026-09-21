@@ -112,6 +112,11 @@ def _build_server(report: Optional[TextIO] = None) -> tuple[MCPServer, Context]:
     the caller decides whether to show them. With no ``report`` they are
     discarded.
     """
+    # Set before any shared-code logging runs, so every "[xxx] ..." message
+    # and wiki edit comment from shared code names this adapter. Also set as
+    # the first statement of main(), since main() prints on a start failure
+    # and this function is also callable on its own, e.g. from tests.
+    config.set_log_prefix("osw-mcp")
     # Before get_settings(), so a misconfiguration that makes loading raise
     # still reports which files were read. Into `report` rather than stderr:
     # these lines repeat the client's own server entry, so main() shows them
@@ -151,6 +156,8 @@ def create_server() -> MCPServer:
 
 def main() -> None:
     """Console-script entry point: build the server and serve over stdio."""
+    # See _build_server for why this is set here too.
+    config.set_log_prefix("osw-mcp")
     report = io.StringIO()
     try:
         mcp, ctx = _build_server(report)

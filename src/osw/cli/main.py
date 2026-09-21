@@ -62,6 +62,10 @@ def _callback(
     configured instance this invocation talks to; unlike the MCP server, the
     CLI is stateless, so the choice only applies to this one command.
     """
+    # Set first, before a call that can raise: set_log_prefix never raises, so
+    # the prefix is always correct for any message printed on the way out,
+    # including one printed while handling set_env_file_discovery's error.
+    config.set_log_prefix("osw")
     # The CLI's working directory is the one the user typed the command in, so
     # searching it upward for a .env is what they mean. The MCP server leaves
     # this off: its working directory is chosen by the MCP client.

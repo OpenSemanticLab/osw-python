@@ -178,8 +178,22 @@ def test_build_server_writes_the_report_into_the_given_buffer(monkeypatch, capsy
     _mcp, ctx = server._build_server(buf)
     ctx.close()
 
-    assert "[osw] credentials" in buf.getvalue()
+    assert "[osw-mcp] credentials" in buf.getvalue()
     assert capsys.readouterr().err == ""
+
+
+def test_build_server_report_lines_carry_the_mcp_prefix(monkeypatch):
+    """The config source lines are shared code (osw.service.config); this
+    server sets the "osw-mcp" prefix so they never show the CLI's "osw"."""
+    _configure(monkeypatch)
+    buf = io.StringIO()
+
+    _mcp, ctx = server._build_server(buf)
+    ctx.close()
+
+    lines = buf.getvalue().splitlines()
+    assert lines
+    assert all(line.startswith("[osw-mcp]") for line in lines)
 
 
 def _serve_without_blocking(monkeypatch) -> None:
@@ -206,8 +220,8 @@ def test_main_prints_the_report_when_osw_verbose_is_set(monkeypatch, capsys):
     server.main()
 
     err = capsys.readouterr().err
-    assert "[osw] credentials" in err
-    assert "[osw] env file" in err
+    assert "[osw-mcp] credentials" in err
+    assert "[osw-mcp] env file" in err
 
 
 def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys):
@@ -221,5 +235,5 @@ def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys
         server.main()
 
     err = capsys.readouterr().err
-    assert "[osw] " in err
+    assert "[osw-mcp] " in err
     assert "failed to start" in err

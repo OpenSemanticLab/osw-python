@@ -1059,3 +1059,15 @@ def test_settings_is_frozen():
     settings = Settings(domain="wiki.example.org")
     with pytest.raises(ValidationError):
         settings.domain = "other.example.org"
+
+
+# -- log prefix ---------------------------------------------------------------
+
+
+def test_log_prefix_defaults_to_osw():
+    assert config.log_prefix() == "[osw]"
+
+
+def test_log_prefix_reflects_set_log_prefix():
+    config.set_log_prefix("osw-mcp")
+    assert config.log_prefix() == "[osw-mcp]"

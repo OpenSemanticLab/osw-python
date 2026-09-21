@@ -529,6 +529,30 @@ def test_status_username_matches_the_one_the_login_uses(runner, monkeypatch, tmp
     assert json.loads(result.stdout)["username"] == "from-file"
 
 
+# -- adapter-carried log prefix (Change: shared code no longer hardcodes it) ----
+def test_shared_code_reports_the_cli_prefix_on_a_connection_failure(
+    runner, configured_env, monkeypatch
+):
+    """status's connection-failure branch lives in shared code
+    (osw.service.ops.status), so it must carry whichever prefix the running
+    adapter set, not a hardcoded one; the CLI sets "osw"."""
+    # Start from a foreign prefix so the assertion below proves the CLI's own
+    # callback set "osw"; starting from the config default would still pass
+    # even if that callback's set_log_prefix call were removed.
+    config.set_log_prefix("osw-mcp")
+
+    def _boom(**kwargs):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr("osw.service.context.OswExpress", _boom)
+
+    result = runner.invoke(app, ["status"])
+
+    assert result.exit_code == 0, result.stderr
+    assert "[osw] status connection check failed" in result.stderr
+    assert "[osw-mcp]" not in result.stderr
+
+
 # -- instances status --------------------------------------------------------------
 def test_instances_status_reports_each_configured_instance(
     runner, monkeypatch, tmp_path

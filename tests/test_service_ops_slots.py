@@ -182,6 +182,18 @@ def test_set_slot_existing_slot_skips_create():
     assert result["changed"] is True
 
 
+def test_set_slot_default_comment_carries_the_configured_log_prefix():
+    osw, page = _osw_with_page(present_slots=["jsondata"])
+    page.get_url.return_value = "https://wiki.example.org/wiki/Item:OSW1"
+    ctx = Context(_settings(), Policy(), osw=osw)
+    slots.config.set_log_prefix("osw-mcp")
+
+    slots.set_slot(ctx, title="Item:OSW1", slot="jsondata", content={"a": 1})
+
+    page.edit.assert_called_once()
+    assert page.edit.call_args.kwargs["comment"].startswith("[osw-mcp]")
+
+
 # -- records= (ledger hook) -------------------------------------------------
 def test_set_slot_records_matches_old_inline_ledger_call():
     op = registry.REGISTRY["set_slot"]

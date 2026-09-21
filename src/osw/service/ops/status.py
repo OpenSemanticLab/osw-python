@@ -58,9 +58,13 @@ def status(ctx: Context) -> dict:
             _ = ctx.osw
             info["connected"] = True
     except Exception as exc:
+        # flush=True: click's CliRunner only flushes stdout before reading a
+        # captured result, so an unflushed stderr write is invisible to a CLI
+        # test even though it reaches a real terminal fine on process exit.
         print(
-            f"[osw-mcp] status connection check failed: {exc!r}",
+            f"{config.log_prefix()} status connection check failed: {exc!r}",
             file=sys.stderr,
+            flush=True,
         )
         info["connected"] = False
         info["connection_error"] = str(exc)

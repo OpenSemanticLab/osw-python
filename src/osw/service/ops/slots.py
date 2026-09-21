@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Optional, Union
 
-from osw.service import errors
+from osw.service import config, errors
 from osw.service.context import Context
 from osw.service.ledger import LedgerRecord
 from osw.service.registry import operation
@@ -131,7 +131,9 @@ def set_slot(
             )
         page.create_slot(slot, content_model)
     page.set_slot_content(slot, content)
-    page.edit(comment=comment or f"[osw-mcp] set_slot {slot}", bot_edit=True)
+    page.edit(
+        comment=comment or f"{config.log_prefix()} set_slot {slot}", bot_edit=True
+    )
     return {
         "title": title,
         "slot": slot,

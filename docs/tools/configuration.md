@@ -47,12 +47,16 @@ adapter:
 - **MCP server**: neither, since its sources are fixed in the server entry.
   `OSW_VERBOSE=true` prints both, and a failed start prints both regardless.
 
-A verbose run prints:
+A verbose run of the CLI prints:
 
 ```text
 [osw] credential file: /home/me/project/accounts.pwd.yaml (accounts.pwd.yaml found in the working directory)
 [osw] env file       : /home/me/project/.env (found from the working directory upward)
 ```
+
+The prefix names the adapter that printed the line: `[osw]` for the CLI,
+`[osw-mcp]` for the MCP server. This holds for every message the two share,
+not only these two lines.
 
 ## Credentials
 

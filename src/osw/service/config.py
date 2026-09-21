@@ -263,6 +263,35 @@ _cred_file_path: Optional[str] = None
 _cred_file_origin: str = "not searched"
 _cred_file_var: Optional[str] = None
 
+# The adapter name every "[name] ..." message this module (and the rest of
+# osw.service) prints. "osw" is the default, covering a process that embeds
+# osw.service directly, without going through either adapter.
+_LOG_PREFIX = "osw"
+
+
+def set_log_prefix(name: str) -> None:
+    """Set the adapter name used in every "[name] ..." message osw.service prints.
+
+    Call this once at process startup, before any of this module's logging
+    functions run: ``osw.cli.main`` passes ``"osw"`` and ``osw.mcp.server``
+    passes ``"osw-mcp"``. The default ``"osw"`` already covers a process that
+    embeds ``osw.service`` directly, without going through either adapter, so
+    such a process need not call this at all.
+    """
+    global _LOG_PREFIX
+    _LOG_PREFIX = name
+
+
+def log_prefix() -> str:
+    """Return the current adapter name, formatted as ``"[name]"``.
+
+    Reads ``_LOG_PREFIX`` at call time rather than at import time: a module
+    that captured it once into a module-level constant would keep printing
+    the default prefix forever, even for an adapter that calls
+    :func:`set_log_prefix` before that constant is ever read.
+    """
+    return f"[{_LOG_PREFIX}]"
+
 
 def set_env_file_discovery(enabled: bool) -> None:
     """Enable or disable implicit discovery (default: disabled).
@@ -473,7 +502,7 @@ def log_config_sources(stream=None, verbose: bool = True) -> None:
             ),
         }[_cred_file_origin]
         print(
-            f"[osw] credential file: {_cred_file_path} {cred_described}",
+            f"{log_prefix()} credential file: {_cred_file_path} {cred_described}",
             file=out,
             flush=True,
         )
@@ -493,9 +522,13 @@ def log_config_sources(stream=None, verbose: bool = True) -> None:
             cred_described = (
                 "not configured (set OSW_CRED_FILEPATH, or OSW_USERNAME/OSW_PASSWORD)"
             )
-        print(f"[osw] credentials    : {cred_described}", file=out, flush=True)
+        print(f"{log_prefix()} credentials    : {cred_described}", file=out, flush=True)
     if verbose:
-        print(f"[osw] env file       : {_describe_env_file()}", file=out, flush=True)
+        print(
+            f"{log_prefix()} env file       : {_describe_env_file()}",
+            file=out,
+            flush=True,
+        )
 
 
 def log_env_file_source(stream=None) -> None:
@@ -507,7 +540,9 @@ def log_env_file_source(stream=None) -> None:
     ``_env_file_origin`` that earlier call already recorded.
     """
     out = sys.stderr if stream is None else stream
-    print(f"[osw] env file       : {_describe_env_file()}", file=out, flush=True)
+    print(
+        f"{log_prefix()} env file       : {_describe_env_file()}", file=out, flush=True
+    )
 
 
 def load(strict: bool = True) -> Settings:

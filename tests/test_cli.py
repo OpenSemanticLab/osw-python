@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import re
 from unittest.mock import MagicMock
 
 import click
@@ -85,6 +86,27 @@ def _error_lines(stderr: str) -> list[str]:
     return [
         line for line in stderr.strip().splitlines() if not line.startswith("[osw] ")
     ]
+
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+_BOX = re.compile(r"[─-╿]")  # the Box Drawing block, rich's panel
+
+
+def _usage_error(result) -> str:
+    """``result``'s whole output as one line, without styling or box drawing.
+
+    typer renders a usage error through rich, and two parts of that rendering
+    depend on the environment. typer forces colour on when GITHUB_ACTIONS is
+    set (typer/rich_utils.py), and rich wraps at the width of the real
+    terminal. Colour breaks an option name into separate escape sequences,
+    because rich styles the leading dash on its own, and wrapping breaks it
+    across two lines. Either one defeats a plain substring check, which is why
+    these assertions passed on a developer machine and failed in CI. Removing
+    the escape sequences and the panel borders, then joining the lines, leaves
+    the words the assertions are about.
+    """
+    text = _ANSI.sub("", result.stdout + result.stderr)
+    return " ".join(_BOX.sub(" ", text).split())
 
 
 def _banner_lines(stderr: str) -> list[str]:
@@ -624,7 +646,7 @@ def test_root_option_after_command_names_the_correct_form(runner):
     result = runner.invoke(app, ["status", "--instance", "wiki-dev.example.org"])
 
     assert result.exit_code != 0
-    combined = result.stdout + result.stderr
+    combined = _usage_error(result)
     assert "--instance <iri>" in combined
     assert "before the command" in combined
 
@@ -633,7 +655,7 @@ def test_root_option_after_grouped_command_names_the_correct_form(runner):
     result = runner.invoke(app, ["entity", "--instance", "x", "get", "T"])
 
     assert result.exit_code != 0
-    combined = result.stdout + result.stderr
+    combined = _usage_error(result)
     assert "--instance <iri>" in combined
     assert "before the command" in combined
 
@@ -666,6 +688,6 @@ def test_misspelled_command_option_keeps_clicks_suggestion(runner):
     result = runner.invoke(app, ["entity", "put", "--json", "{}"])
 
     assert result.exit_code != 0
-    combined = result.stdout + result.stderr
+    combined = _usage_error(result)
     assert "--jsondata" in combined
     assert "before the command" not in combined

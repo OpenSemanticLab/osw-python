@@ -10,6 +10,17 @@
 
 <!-- version list -->
 
+## v2.5.2 (2026-09-21)
+
+### Bug Fixes
+
+- **search**: Read truncation from SMW's query-continue-offset
+  ([`91c3d7e`](https://github.com/OpenSemanticLab/osw-python/commit/91c3d7ea2d737a16a38ce457a8d060d73708c2ac))
+
+- **wtsite**: Reject a modify_search_results query without titles
+  ([`7943d49`](https://github.com/OpenSemanticLab/osw-python/commit/7943d49b2b3e393ddafde7ea78890035cd2031e3))
+
+
 ## v2.5.1 (2026-09-21)
 
 ### Bug Fixes

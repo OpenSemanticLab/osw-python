@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.5.1 (2026-09-21)
+
+### Bug Fixes
+
+- **wtsite**: Copy the jsonld context before rewriting it
+  ([`ea0cddf`](https://github.com/OpenSemanticLab/osw-python/commit/ea0cddfa85a0025560dda49f78ff99577a86f526))
+
+
 ## v2.5.0 (2026-09-21)
 
 ### Bug Fixes

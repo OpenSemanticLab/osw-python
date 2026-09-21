@@ -933,6 +933,13 @@ class WtSite:
                     WtSite.GetPageParam(titles=titles_to_fetch, parallel=param.parallel)
                 ).pages
             )
+
+        # get_page appends in completion order when fetching in parallel, so the
+        # page that claims a file referenced by several pages would vary between
+        # runs. Restore the configured order.
+        title_rank = {title: rank for rank, title in enumerate(added_titles)}
+        pages.sort(key=lambda p: (title_rank.get(p.title, len(title_rank)), p.title))
+
         added_file_titles = []
         page_dumps = {}
         page_files = {}
@@ -957,8 +964,10 @@ class WtSite:
                     if debug and len(ignored_files_pages) > 0:
                         print(f"Ignored: {ignored_files_pages}")
                     referenced_file_pages = included_file_pages
-                # find those files that are not already in the package
-                page_files[page.title] = list(
+                # find those files that are not already in the package. sorted()
+                # because the set difference and find_file_page_refs_in_slots
+                # both return an order that varies between runs
+                page_files[page.title] = sorted(
                     set(referenced_file_pages) - set(added_file_titles)
                 )
                 added_file_titles = list(set(added_file_titles + referenced_file_pages))

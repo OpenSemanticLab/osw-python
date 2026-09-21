@@ -4,6 +4,8 @@ Covers #94: a download can keep the OSW-ID it has on the wiki, use the original
 file name, or combine both.
 """
 
+import logging
+
 import pytest
 
 from osw.express import FilenameMode, build_target_fn
@@ -67,9 +69,11 @@ def test_a_directory_in_the_name_is_dropped():
 
 @pytest.mark.parametrize("name", [None, ""])
 @pytest.mark.parametrize("mode", [FilenameMode.name, FilenameMode.name_and_osw_id])
-def test_a_missing_name_falls_back_to_the_osw_id(mode, name):
-    with pytest.warns(UserWarning, match="No name is stored"):
-        assert build_target_fn(mode, OSW_ID_FN, name) == OSW_ID_FN
+def test_a_missing_name_falls_back_to_the_osw_id(mode, name, caplog):
+    caplog.set_level(logging.WARNING, logger="osw")
+    assert build_target_fn(mode, OSW_ID_FN, name) == OSW_ID_FN
+
+    assert any("No name is stored" in record.message for record in caplog.records)
 
 
 def test_an_unknown_mode_is_rejected():

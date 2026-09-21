@@ -1,3 +1,4 @@
+import logging
 import time
 
 import pytest
@@ -8,7 +9,7 @@ from osw.utils.wiki import get_full_title
 from osw.wtsite import WtSite
 
 
-def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
+def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker, caplog):
     # create a credential file on the default path for osw express
     cm = CredentialManager()  # cred_filepath = Path.cwd() / "accounts.pwd.yaml")
     cm.add_credential(
@@ -74,17 +75,16 @@ def test_fetch_and_load(wiki_domain, wiki_username, wiki_password, mocker):
 
     assert len(result.pages) == 50
 
-    # we should get a warning for the non-existent page
-    # see https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+    # we should get a log warning for the non-existent page
     pages[0] = "IDONOTEXIST"
-    with pytest.warns(RuntimeWarning) as record:
-        result = osw_express.site.get_page(
-            WtSite.GetPageParam(titles=pages[:50], raise_exception=False)
-        )
-        # assert that at least one warning message contains
-        # the missing page title to inform the user
-        assert any("IDONOTEXIST" in str(rec.message) for rec in record)
-        assert len(result.pages) == 50  # assert that the result is still returned
+    caplog.set_level(logging.WARNING, logger="osw")
+    result = osw_express.site.get_page(
+        WtSite.GetPageParam(titles=pages[:50], raise_exception=False)
+    )
+    # assert that at least one warning message contains
+    # the missing page title to inform the user
+    assert any("IDONOTEXIST" in record.message for record in caplog.records)
+    assert len(result.pages) == 50  # assert that the result is still returned
 
     # assert that ValueError is raised when the page does not exist
     pages[0] = "IDONOTEXIST"

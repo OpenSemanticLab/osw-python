@@ -1,4 +1,4 @@
-import warnings
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,9 +13,47 @@ def test_create_flat_content_structure_from_wikitext():
     assert result == expected
 
 
-def _ask_result(*titles):
-    """Build a minimal SMW ``ask`` API result dict for the given page titles."""
-    return {
+def test_read_domains_from_credentials_file_empty_file_raises_value_error(tmp_path):
+    """An empty file is parsed as None by yaml.safe_load. Before the fix this
+    raised an unhandled AttributeError from accounts_dict.keys(); it must now
+    raise the same clear ValueError as an empty mapping."""
+    cred_file = tmp_path / "accounts.pwd.yaml"
+    cred_file.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="No domain found"):
+        wt.read_domains_from_credentials_file(cred_file)
+
+
+def test_read_domains_from_credentials_file_empty_mapping_raises_value_error(
+    tmp_path,
+):
+    cred_file = tmp_path / "accounts.pwd.yaml"
+    cred_file.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="No domain found"):
+        wt.read_domains_from_credentials_file(cred_file)
+
+
+def test_read_domains_from_credentials_file_valid_file_returns_domains_and_accounts(
+    tmp_path,
+):
+    cred_file = tmp_path / "accounts.pwd.yaml"
+    cred_file.write_text(
+        "example.org:\n  username: user\n  password: pass\n", encoding="utf-8"
+    )
+
+    domains, accounts = wt.read_domains_from_credentials_file(cred_file)
+
+    assert domains == ["example.org"]
+    assert accounts == {"example.org": {"username": "user", "password": "pass"}}
+
+
+def _ask_result(*titles, continue_offset=None):
+    """Build a minimal SMW ``ask`` API result dict for the given page titles.
+
+    ``continue_offset`` adds the top-level ``query-continue-offset`` key that SMW
+    sends when further results exist beyond the ones returned."""
+    result = {
         "query": {
             "results": {
                 title: {
@@ -30,6 +68,9 @@ def _ask_result(*titles):
             }
         }
     }
+    if continue_offset is not None:
+        result["query-continue-offset"] = continue_offset
+    return result
 
 
 def _ask_result_empty():
@@ -165,46 +206,224 @@ def test_semantic_search_parallel_batch_with_one_zero_result_query():
     ]
 
 
-def test_semantic_search_truncation_warning():
+def test_semantic_search_truncation_warning(caplog):
+    titles = [f"Item:OSW{i}" for i in range(5)]
+    result = _ask_result(*titles, continue_offset=5)
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=5)
+    )
+
+    assert any("truncated" in record.message for record in caplog.records)
+    assert sorted(out) == sorted(titles)
+
+
+def test_semantic_search_no_truncation_warning_for_a_complete_set_at_the_limit(caplog):
+    """A wiki that has exactly as many results as the limit asked for sends no
+    offset, so meeting the limit is not on its own a sign of truncation."""
+    titles = [f"Item:OSW{i}" for i in range(5)]
+    site = MagicMock()
+    site.api.return_value = _ask_result(*titles)
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=5)
+    )
+
+    assert not any("truncated" in record.message for record in caplog.records)
+    assert sorted(out) == sorted(titles)
+
+
+def test_semantic_search_no_truncation_warning_below_limit(caplog):
     titles = [f"Item:OSW{i}" for i in range(5)]
     result = _ask_result(*titles)
     site = MagicMock()
     site.api.return_value = result
 
-    with pytest.warns(UserWarning, match="truncated"):
-        out = wt.semantic_search(
-            site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=5)
-        )
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=1000)
+    )
 
+    assert not any("truncated" in record.message for record in caplog.records)
     assert sorted(out) == sorted(titles)
 
 
-def test_semantic_search_no_truncation_warning_below_limit():
-    titles = [f"Item:OSW{i}" for i in range(5)]
-    result = _ask_result(*titles)
-    site = MagicMock()
-    site.api.return_value = result
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        out = wt.semantic_search(
-            site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=1000)
-        )
-
-    assert not any("truncated" in str(w.message) for w in caught)
-    assert sorted(out) == sorted(titles)
-
-
-def test_semantic_search_exists_drop_warning():
+def test_semantic_search_exists_drop_warning(caplog):
     result = _ask_result("Item:OSW1", "Item:OSW2")
     result["query"]["results"]["Item:OSW2"]["exists"] = ""
     site = MagicMock()
     site.api.return_value = result
 
-    with pytest.warns(UserWarning, match="non-existing"):
-        out = wt.semantic_search(site, "[[HasType::Category:Item]]")
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(site, "[[HasType::Category:Item]]")
 
+    assert any("non-existing" in record.message for record in caplog.records)
     assert out == ["Item:OSW1"]
+
+
+def test_semantic_search_truncation_warning_from_the_continue_offset(caplog):
+    # Fewer results than the limit, so only the wiki's own signal can report
+    # that the result set was cut short
+    result = _ask_result("Item:OSW1", "Item:OSW2", continue_offset=2)
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=1000)
+    )
+
+    assert any("truncated" in record.message for record in caplog.records)
+    assert sorted(out) == ["Item:OSW1", "Item:OSW2"]
+
+
+def test_semantic_search_limit_none_warns_from_the_continue_offset(caplog):
+    # With no limit in force the wiki applies its own '$smwgQMaxLimit' cap,
+    # which the result count cannot detect
+    result = _ask_result("Item:OSW1", "Item:OSW2", continue_offset=2)
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=None)
+    )
+
+    assert any("truncated" in record.message for record in caplog.records)
+
+
+def test_semantic_search_return_json_keeps_the_continue_offset(caplog):
+    result = _ask_result("Item:OSW1", continue_offset=1)
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", return_json=True)
+    )
+
+    assert any("truncated" in record.message for record in caplog.records)
+    # The raw response is returned unchanged, so it already carries the
+    # truncation signal
+    assert out[0]["query-continue-offset"] == 1
+
+
+def test_semantic_search_return_meta_reports_truncation(caplog):
+    result = _ask_result("Item:OSW1", "Item:OSW2", continue_offset=2)
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", return_meta=True)
+    )
+
+    assert any("truncated" in record.message for record in caplog.records)
+    assert len(out) == 1
+    assert isinstance(out[0], wt.SemanticSearchResult)
+    assert out[0].truncated is True
+    assert out[0].next_offset == 2
+    assert out[0].count == 2
+    assert sorted(out[0].titles) == ["Item:OSW1", "Item:OSW2"]
+    # the limit appended by semantic_search is part of the reported query
+    assert out[0].query == "[[HasType::Category:Item]]|limit=1000"
+
+
+def test_semantic_search_return_meta_reports_a_complete_result(caplog):
+    result = _ask_result("Item:OSW1", "Item:OSW2")
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", return_meta=True)
+    )
+
+    assert not any("truncated" in record.message for record in caplog.records)
+    assert out[0].truncated is False
+    assert out[0].next_offset is None
+    assert out[0].count == 2
+
+
+def test_semantic_search_return_meta_returns_one_result_per_query(caplog):
+    site = MagicMock()
+    site.api.side_effect = [
+        _ask_result("Item:OSW1", continue_offset=1),
+        _ask_result("Item:OSW2"),
+    ]
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site,
+        wt.SearchParam(
+            query=["[[HasType::Category:A]]", "[[HasType::Category:B]]"],
+            return_meta=True,
+        ),
+    )
+
+    assert any("truncated" in record.message for record in caplog.records)
+    # One entry per query, not flattened into a single list of titles
+    assert len(out) == 2
+    assert [r.truncated for r in out] == [True, False]
+    assert [r.titles for r in out] == [["Item:OSW1"], ["Item:OSW2"]]
+
+
+def test_semantic_search_return_meta_count_includes_dropped_pages(caplog):
+    result = _ask_result("Item:OSW1", "Item:OSW2")
+    result["query"]["results"]["Item:OSW2"]["exists"] = ""
+    site = MagicMock()
+    site.api.return_value = result
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", return_meta=True)
+    )
+
+    assert any("non-existing" in record.message for record in caplog.records)
+    assert out[0].count == 2
+    assert out[0].titles == ["Item:OSW1"]
+
+
+def test_semantic_search_return_meta_keeps_the_query_order_when_parallel(caplog):
+    # More than five queries makes SearchParam switch to the parallel path, where
+    # the results must still line up with the queries they came from
+    queries = [f"[[HasType::Category:C{i}]]" for i in range(6)]
+
+    def api(action, query=None, format=None):
+        index = queries.index(query.split("|limit=")[0])
+        return _ask_result(f"Item:OSW{index}", continue_offset=index or None)
+
+    site = MagicMock()
+    site.api.side_effect = api
+    param = wt.SearchParam(query=queries, return_meta=True)
+    assert param.parallel is True
+
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(site, param)
+
+    assert any("truncated" in record.message for record in caplog.records)
+    assert [r.query.split("|limit=")[0] for r in out] == queries
+    assert [r.titles for r in out] == [[f"Item:OSW{i}"] for i in range(6)]
+    assert [r.truncated for r in out] == [False] + [True] * 5
+
+
+def test_semantic_search_return_json_takes_precedence_over_return_meta():
+    result = _ask_result("Item:OSW1")
+    site = MagicMock()
+    site.api.return_value = result
+
+    out = wt.semantic_search(
+        site,
+        wt.SearchParam(
+            query="[[HasType::Category:Item]]", return_json=True, return_meta=True
+        ),
+    )
+
+    assert out == [result]
 
 
 @pytest.mark.parametrize(
@@ -264,15 +483,17 @@ def test_semantic_search_query_limit_beats_the_search_param_limit():
     assert site.api.call_args.kwargs["query"] == "[[HasType::Category:Item]]|limit=2"
 
 
-def test_semantic_search_truncation_warning_uses_the_query_limit():
-    """The caller's limit is the one the results were truncated at."""
+def test_semantic_search_truncation_warning_names_the_query_as_sent(caplog):
+    """The caller's limit is the one the results were truncated at, so the
+    warning has to quote the query carrying it."""
     titles = [f"Item:OSW{i}" for i in range(2)]
     site = MagicMock()
-    site.api.return_value = _ask_result(*titles)
+    site.api.return_value = _ask_result(*titles, continue_offset=2)
 
-    with pytest.warns(UserWarning, match="requested limit of 2"):
-        out = wt.semantic_search(site, "[[HasType::Category:Item]]|limit=2")
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(site, "[[HasType::Category:Item]]|limit=2")
 
+    assert any("|limit=2'" in record.message for record in caplog.records)
     assert sorted(out) == sorted(titles)
 
 
@@ -299,44 +520,43 @@ def test_semantic_search_limit_none_keeps_a_limit_the_caller_wrote():
     assert site.api.call_args.kwargs["query"] == "[[HasType::Category:Item]]|limit=2"
 
 
-def test_semantic_search_limit_none_does_not_warn_about_truncation():
-    """With no limit in force the result count says nothing about truncation."""
+def test_semantic_search_limit_none_does_not_warn_without_an_offset(caplog):
+    """A wiki reporting no further results never triggers the warning, whatever
+    limit was in force."""
     titles = [f"Item:OSW{i}" for i in range(5)]
     site = MagicMock()
     site.api.return_value = _ask_result(*titles)
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        out = wt.semantic_search(
-            site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=None)
-        )
+    caplog.set_level(logging.WARNING, logger="osw")
+    out = wt.semantic_search(
+        site, wt.SearchParam(query="[[HasType::Category:Item]]", limit=None)
+    )
 
-    assert not any("truncated" in str(w.message) for w in caught)
+    assert not any("truncated" in record.message for record in caplog.records)
     assert sorted(out) == sorted(titles)
 
 
-def test_semantic_search_no_truncation_warning_for_a_zero_limit():
-    """'limit=0' asks for no results, so meeting it is not truncation."""
+def test_semantic_search_no_truncation_warning_for_a_zero_limit(caplog):
+    """'limit=0' asks for a count rather than results, and SMW sends no offset
+    for it even when the query does match pages."""
     site = MagicMock()
     site.api.return_value = _ask_result_empty()
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        wt.semantic_search(site, "[[HasType::Category:Item]]|limit=0")
+    caplog.set_level(logging.WARNING, logger="osw")
+    wt.semantic_search(site, "[[HasType::Category:Item]]|limit=0")
 
-    assert not any("truncated" in str(w.message) for w in caught)
+    assert not any("truncated" in record.message for record in caplog.records)
 
 
-def test_semantic_search_no_truncation_warning_below_the_query_limit():
+def test_semantic_search_no_truncation_warning_below_the_query_limit(caplog):
     titles = [f"Item:OSW{i}" for i in range(2)]
     site = MagicMock()
     site.api.return_value = _ask_result(*titles)
 
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        wt.semantic_search(site, "[[HasType::Category:Item]]|limit=50")
+    caplog.set_level(logging.WARNING, logger="osw")
+    wt.semantic_search(site, "[[HasType::Category:Item]]|limit=50")
 
-    assert not any("truncated" in str(w.message) for w in caught)
+    assert not any("truncated" in record.message for record in caplog.records)
 
 
 def _prefixsearch_result(*titles):
@@ -389,3 +609,42 @@ def test_prefix_search_returns_flat_list_of_titles():
 
     # return_json=False (the default) still yields a flat list of page titles
     assert out == ["Star Wars", "Star Trek"]
+
+
+def _search_result(*titles):
+    """Build a minimal MediaWiki ``search`` API result dict."""
+    return {
+        "batchcomplete": "",
+        "query": {
+            "search": [
+                {"ns": 0, "title": title, "pageid": idx}
+                for idx, title in enumerate(titles, start=1)
+            ]
+        },
+    }
+
+
+def test_content_search_returns_flat_list_of_titles():
+    result = _search_result("Star Wars", "Star Trek")
+    site = MagicMock()
+    site.api.return_value = result
+
+    out = wt.content_search(site, "Star")
+
+    # return_json=False (the default) still yields a flat list of page titles
+    assert out == ["Star Wars", "Star Trek"]
+
+
+def test_content_search_calls_the_search_api():
+    site = MagicMock()
+    site.api.return_value = _search_result("Star Wars", "Star Trek")
+
+    wt.content_search(site, wt.SearchParam(query="Star", limit=7))
+
+    # Pin the API contract: the content search must use list=search with its
+    # sr* parameters, not list=prefixsearch
+    args, kwargs = site.api.call_args
+    assert args == ("query",)
+    assert kwargs["list"] == "search"
+    assert kwargs["srsearch"] == "Star"
+    assert kwargs["srlimit"] == 7

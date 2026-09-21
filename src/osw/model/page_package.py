@@ -171,6 +171,10 @@ class PagePackageConfig(BaseModel):
     content_path: Optional[Union[str, Path]] = ""
     """The directory where the content (pages, files) is stored.
     Will be created automatically if not existing."""
+    clear_content_dir: Optional[bool] = True
+    """If True (default), the content directory is deleted before the page
+    package is created. Set to False to keep any existing content, e.g. when
+    reusing a directory that already holds locally edited slot files."""
     titles: List[str]
     """List of page titles."""
     ignore_titles: Optional[List[str]] = None

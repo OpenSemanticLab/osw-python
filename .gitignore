@@ -69,5 +69,8 @@ playground
 /osw_files/
 */accounts.pwd.yaml
 /accounts.pwd.yaml
-.ign
-.claude
+
+# Local folders
+.ign/
+.claude/
+graphify-out/

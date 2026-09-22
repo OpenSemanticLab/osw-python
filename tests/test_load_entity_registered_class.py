@@ -405,8 +405,37 @@ def test_load_entity_logs_a_schema_title_that_names_no_class(caplog):
     try:
         _load_single_category_page(category, cls_name, "B")
         assert any(
-            "Error creating entity from page" in record.message
+            "Error creating entity from page Item:OSWNonClassB" in record.message
             for record in caplog.records
         )
     finally:
         delattr(model, cls_name)
+
+
+def test_load_entity_logs_a_fetch_that_leaves_no_class_under_the_title(
+    monkeypatch, caplog
+):
+    """fetch_schema() can register a class for the category while the schema
+    title still names a non-class attribute of osw.model.entity. The registry
+    conflict check must not call issubclass() on that value; the failed
+    construction is logged, as on main."""
+    category = "Category:OSWNonClassFetched000000000000000000000"
+    cls_name = "NonClassAttributeC"
+    assert oold_type_registry.get(category) is None
+    fetched_cls = make_isolated_cls("NonClassFetched")
+
+    def fake_fetch_schema(self, fetchSchemaParam=None):
+        setattr(model, cls_name, "not a class")
+        oold_type_registry[category] = fetched_cls
+
+    monkeypatch.setattr(OSW, "fetch_schema", fake_fetch_schema)
+    try:
+        _load_single_category_page(category, cls_name, "C")
+        assert any(
+            "Error creating entity from page Item:OSWNonClassC" in record.message
+            for record in caplog.records
+        )
+    finally:
+        if hasattr(model, cls_name):
+            delattr(model, cls_name)
+        oold_type_registry.pop(category, None)

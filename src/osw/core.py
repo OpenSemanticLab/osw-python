@@ -1333,9 +1333,13 @@ class OSW(BaseModel):
                                         #  generated_cls, e.g. a controller
                                         #  that inherits the category IRI:
                                         #  the case the guard above expects,
-                                        #  not a conflict
-                                        and not issubclass(
-                                            conflicting_cls, generated_cls
+                                        #  not a conflict. A fetch can leave
+                                        #  a non-class under the schema title.
+                                        and not (
+                                            isinstance(generated_cls, type)
+                                            and issubclass(
+                                                conflicting_cls, generated_cls
+                                            )
                                         )
                                     ):
                                         _logger.warning(

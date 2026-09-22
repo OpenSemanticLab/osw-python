@@ -1133,7 +1133,7 @@ set wins:</p>
 <tr>
 <td><code>OSW_CRED_FILEPATH</code></td>
 <td><code>OSW_MCP_CRED_FILEPATH</code>, <code>OSL_CRED_FILEPATH</code></td>
-<td>YAML credential file, keyed by iri (falls back to <code>accounts.pwd.yaml</code> in the working directory, CLI only)</td>
+<td>YAML credential file, keyed by iri (falls back to <code>accounts.pwd.yaml</code> in the working directory, CLI only). A leading <code>~</code> is expanded. A relative path is accepted; the MCP server resolves it at startup against the working directory its client chose, and the source report shows the full path</td>
 </tr>
 <tr>
 <td><code>OSW_ENV_FILE</code></td>

@@ -1035,7 +1035,13 @@ form.</p>
 <li><code>--verbose</code> / <code>-v</code> shows full tracebacks instead of a one-line message, and
   adds the env-file line to the source report described under
   <a href="../configuration/#where-settings-come-from">Where settings come from</a>.</li>
+<li><code>--version</code> / <code>-V</code> prints one line with the osw version, the location of
+  the osw package and the Python version, then exits, needing no instance or
+  credentials.</li>
 </ul>
+<p><code>--help</code> / <code>-h</code> works on <code>osw</code> itself and after any subcommand or group, e.g.
+<code>osw entity --help</code> or <code>osw entity get -h</code>, and prints that command's own
+help.</p>
 <p>Failures exit non-zero with a short message on stderr and no traceback.</p>
 
 

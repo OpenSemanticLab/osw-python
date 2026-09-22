@@ -1050,6 +1050,12 @@ instance for its whole lifetime; there is no tool to switch at runtime.
 <code>OSW_DOMAIN</code> must be set, either in the server entry's <code>env</code> block or in the
 <code>.env</code> file that entry names. Without it the server refuses to start rather than
 register tools that would all fail.</p>
+<p><code>osw-mcp</code> also answers two flags from a shell, for checking an install rather
+than for an MCP client to pass: <code>-h</code> / <code>--help</code> prints usage and exits, and
+<code>-V</code> / <code>--version</code> prints one line with the osw version, the location of the
+osw package and the Python version, then exits. Neither one starts the server
+or needs an instance or credentials. Any other argument, including a
+shortened form of these two flags, is rejected with a usage error.</p>
 <h2 id="quick-install">Quick install<a class="headerlink" href="#quick-install" title="Permanent link">&para;</a></h2>
 <p>For Claude Code, one command registers the server. Replace the domain and the
 credential file path with your own:</p>

@@ -87,6 +87,9 @@ mcp = [
     # official MCP Python SDK; provides MCPServer from mcp.server.
     # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.
     "mcp>=2",
+    # without it osw.wiki_tools warns at import time, which is noise on the
+    # server's stderr and appears in every client's log.
+    "osw[wikitext]",
 ]
 workflow = [
     "prefect>=2.20.25,<3.0",

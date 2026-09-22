@@ -10,6 +10,8 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
+import platform
 import re
 import sys
 from unittest.mock import MagicMock
@@ -20,6 +22,7 @@ import typer
 import yaml
 from typer.testing import CliRunner
 
+import osw
 import osw.cli.main as cli_main
 from osw.cli.main import app
 from osw.cli.render import render
@@ -133,9 +136,101 @@ def test_help_works_with_no_config_present(runner, args):
     assert result.exit_code == 0, result.stderr
 
 
+# -- -h as an alias of --help (Change: issue #199) -----------------------------
+@pytest.mark.parametrize(
+    "args",
+    [["-h"], ["entity", "-h"], ["entity", "get", "-h"]],
+)
+def test_short_help_flag_works_with_no_config_present(runner, args):
+    result = runner.invoke(app, args)
+    assert result.exit_code == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "args",
+    [[], ["entity"], ["entity", "get"]],
+)
+def test_short_help_flag_prints_the_same_help_as_the_long_form(runner, args):
+    """-h has to work on the root, on a subgroup and on a leaf command,
+    each printing that same command's own help."""
+    long_result = runner.invoke(app, [*args, "--help"])
+    short_result = runner.invoke(app, [*args, "-h"])
+
+    assert short_result.exit_code == 0, short_result.stderr
+    assert _usage_error(short_result) == _usage_error(long_result)
+
+
+# -- --version / -V (Change: issue #199) ----------------------------------------
+def _expected_version_line(prog: str) -> str:
+    """The line ``prog --version`` must print, built independently of
+    ``cli_main.version_line`` so a bug in that function (e.g. ignoring
+    ``prog``) cannot pass these tests by comparing itself to itself."""
+    location = os.path.dirname(osw.__file__)
+    return (
+        f"{prog} {osw.__version__} from {location} (Python {platform.python_version()})"
+    )
+
+
+@pytest.fixture
+def _no_osw_env(monkeypatch, tmp_path):
+    """No OSW_* variable at all, not even one _ALL_VARS/``_clean_env`` does
+    not happen to list, and no .env file discoverable by searching upward
+    from the working directory. --version must work with neither, unlike
+    every other command, which is what this isolates for."""
+    for key in list(os.environ):
+        if key.startswith("OSW_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.chdir(tmp_path)
+
+
+def test_version_flag_prints_one_line_matching_the_format(runner, _no_osw_env):
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0, result.stderr
+    lines = result.stdout.splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("osw ")
+    assert lines[0] == _expected_version_line("osw")
+
+
+def test_short_version_flag_prints_the_same_line(runner, _no_osw_env):
+    result = runner.invoke(app, ["-V"])
+
+    assert result.exit_code == 0, result.stderr
+    assert result.stdout.splitlines() == [_expected_version_line("osw")]
+
+
+def test_version_callback_forces_stdout_to_utf8_before_printing(monkeypatch):
+    """The eager --version callback runs before ``_callback``'s own body, so
+    ``_force_utf8_output`` never covers it (see that function's docstring).
+    The line it prints names the package's install directory, which can
+    contain a character the locale encoding lacks, so it has to force UTF-8
+    itself -- the same reason ``osw-mcp -V`` already does
+    (``osw.mcp.server.main``).
+    """
+    out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", out)
+    line = "osw 1.0 from C:\\Users\\Ren\u0151 (Python 3.12.7)"  # \u0151 has no cp1252 code point
+    monkeypatch.setattr(cli_main, "version_line", lambda prog: line)
+
+    with pytest.raises(typer.Exit):
+        cli_main._version_callback(True)
+
+    out.flush()
+    # echo() appends "\n", which an io.TextIOWrapper with the default
+    # newline=None translates to os.linesep on write (e.g. "\r\n" on Windows).
+    assert out.buffer.getvalue().decode("utf-8").rstrip("\r\n") == line
+
+
 # -- lazy Context -------------------------------------------------------------
-def test_context_is_not_built_at_import_or_help_time(monkeypatch, runner):
-    """Building the app / answering --help must never construct a Context."""
+@pytest.mark.parametrize(
+    "cli_args",
+    [["entity", "get", "--help"], ["--version"]],
+    ids=["--help", "--version"],
+)
+def test_context_is_not_built_at_import_or_help_time(monkeypatch, runner, cli_args):
+    """Building the app / answering --help / --version must never construct
+    a Context."""
     calls = []
     orig_init = cli_main.Context.__init__
 
@@ -145,7 +240,7 @@ def test_context_is_not_built_at_import_or_help_time(monkeypatch, runner):
 
     monkeypatch.setattr(cli_main.Context, "__init__", spy_init)
 
-    result = runner.invoke(app, ["entity", "get", "--help"])
+    result = runner.invoke(app, cli_args)
 
     assert result.exit_code == 0
     assert calls == []
@@ -375,10 +470,13 @@ def test_every_help_string_is_ascii():
     """Guards the one gap ``_force_utf8_output`` cannot close.
 
     Click prints help and rejects an unknown name before any callback runs,
-    so those paths keep the locale encoding. That is only harmless while no
-    help string contains a character the locale encoding may lack. Adding a
-    German option description would make it a real defect, and this test is
-    what reports it.
+    so those paths keep the locale encoding. --version / -V also prints
+    before that callback (its own callback is eager, like --help), but it
+    forces UTF-8 on stdout itself (see ``cli_main._version_callback``), so it
+    is not part of this gap and is exempt here. For everything else, this is
+    only harmless while no help string contains a character the locale
+    encoding may lack. Adding a German option description would make it a
+    real defect, and this test is what reports it.
     """
     offenders = []
 
@@ -833,6 +931,32 @@ def test_root_option_after_grouped_command_names_the_correct_form(runner):
     assert "before the command" in combined
 
 
+@pytest.mark.parametrize("flag", ["--version", "-V"])
+def test_version_option_after_grouped_command_names_the_correct_form(runner, flag):
+    """--version and -V (Change: issue #199) belong in _ROOT_OPTIONS too."""
+    result = runner.invoke(app, ["entity", flag])
+
+    assert result.exit_code != 0
+    combined = _usage_error(result)
+    assert flag in combined
+    assert "before the command" in combined
+
+
+def test_unknown_subcommand_option_names_help_with_the_configured_order(runner):
+    """help_option_names is ``["--help", "-h"]`` (Change: issue #199), and
+    click builds its "Try '...' for help." hint from ``help_option_names[0]``,
+    so an ordinary usage error -- one _root_option_hint leaves untouched,
+    unlike --instance/--version above -- must still name --help, not -h.
+    CliRunner.invoke uses "root" as the program name in this hint, not "osw",
+    so the assertion checks the part after it rather than the whole line."""
+    result = runner.invoke(app, ["entity", "--no-such-option"])
+
+    assert result.exit_code != 0
+    combined = _usage_error(result)
+    assert "entity --help' for help." in combined
+    assert "entity -h' for help." not in combined
+
+
 def test_root_options_mapping_covers_every_root_option():
     """_ROOT_OPTIONS is maintained by hand, next to but apart from _callback.
 
@@ -846,7 +970,7 @@ def test_root_options_mapping_covers_every_root_option():
         for param in root.params
         if isinstance(param, click.Option)
         for opt in [*param.opts, *param.secondary_opts]
-        if opt != "--help"
+        if opt not in ("--help", "-h")
     }
 
     assert declared == set(cli_main._ROOT_OPTIONS)

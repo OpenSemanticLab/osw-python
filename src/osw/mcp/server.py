@@ -7,11 +7,12 @@ credentials come from the environment / a ``.env`` file (see
 
 from __future__ import annotations
 
+import argparse
 import atexit
 import inspect
 import io
 import sys
-from typing import Any, Optional, TextIO
+from typing import Any, Optional, Sequence, TextIO
 
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
@@ -23,6 +24,7 @@ from osw.service.config import Settings
 from osw.service.context import Context, Policy
 from osw.service.registry import Operation, bind, iter_operations
 from osw.service.streams import force_utf8
+from osw.service.version import version_line
 
 INSTRUCTIONS = """\
 This server is pinned to exactly one OpenSemanticLab (OSL) instance for its
@@ -114,9 +116,11 @@ def _build_server(report: Optional[TextIO] = None) -> tuple[MCPServer, Context]:
     discarded.
     """
     # Set before any shared-code logging runs, so every "[xxx] ..." message
-    # and wiki edit comment from shared code names this adapter. Also set as
-    # the first statement of main(), since main() prints on a start failure
-    # and this function is also callable on its own, e.g. from tests.
+    # and wiki edit comment from shared code names this adapter. main() sets
+    # it again before calling this function -- not as its first statement:
+    # force_utf8, argument parsing and the --version branch run before it
+    # there -- since main() prints on a start failure and this function is
+    # also callable on its own, e.g. from tests.
     config.set_log_prefix("osw-mcp")
     # Before get_settings(), so a misconfiguration that makes loading raise
     # still reports which files were read. Into `report` rather than stderr:
@@ -155,20 +159,74 @@ def create_server() -> MCPServer:
     return mcp
 
 
-def main() -> None:
-    """Console-script entry point: build the server and serve over stdio."""
-    # Before any write below. An MCP client starts this server with stderr on
-    # a pipe, so Python encodes it with the locale encoding, cp1252 on a
-    # German Windows system. The report holds the credential file path and the
-    # env file path, so a directory named "Muller" with an umlaut is enough to
-    # reach the client's log mangled. Reconfiguring in place also covers osw's
-    # own log handler, which holds this same stream object.
+# Wrapped by hand, below 80 columns, with the URL on a line of its own.
+# argparse's default formatter re-wraps a description with textwrap
+# (break_on_hyphens=True), so at some terminal widths a line ends with
+# ".../osw-" and the next starts with "python/blob/...", splitting the URL.
+# RawDescriptionHelpFormatter (below) prints this text verbatim instead.
+_DESCRIPTION = (
+    "Runs an MCP server for one OpenSemanticLab instance over stdio. An MCP\n"
+    "client starts it, not a person from a shell. Configuration comes from\n"
+    "environment variables, a .env file, or a credential file; see\n"
+    "https://github.com/OpenSemanticLab/osw-python/blob/main/docs/tools/mcp.md."
+)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for the ``osw-mcp`` console script.
+
+    Parsing happens before :func:`_build_server`, so ``-h``, ``-V`` and an
+    unrecognized argument never need credentials.
+    """
+    parser = argparse.ArgumentParser(
+        prog="osw-mcp",
+        description=_DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        # argparse accepts an unambiguous abbreviation by default (e.g.
+        # "--vers"); osw's own CLI (click) does not, so this is turned off to
+        # match: an argument that is not exactly one of the two below is
+        # rejected.
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="store_true",
+        help="show the version and exit",
+    )
+    return parser
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    """Console-script entry point: build the server and serve over stdio.
+
+    ``argv`` follows ``sys.argv[1:]``'s convention: ``None`` (the default)
+    reads the real command line, and a caller that wants to pass its own,
+    such as a test or ``python -m osw.mcp``, gives an explicit list instead.
+    """
+    # Before any write below, including the usage error argparse prints for
+    # an unrecognized argument, which echoes it back. An MCP client starts
+    # this server with stderr on a pipe, so Python encodes it with the locale
+    # encoding, cp1252 on a German Windows system. The report holds the
+    # credential file path and the env file path, so a directory named
+    # "Muller" with an umlaut is enough to reach the client's log mangled.
+    # Reconfiguring in place also covers osw's own log handler, which holds
+    # this same stream object.
     #
     # stdout is deliberately left alone. The SDK's stdio_server re-wraps the
     # binary buffer as UTF-8 itself, and claims file descriptor 1 while doing
     # it, so the JSON-RPC channel does not depend on this and changing it here
     # would only add a way to interfere.
     force_utf8(sys.stderr)
+    args = _build_parser().parse_args(argv)
+
+    if args.version:
+        # No server runs on this path, so the reason above for leaving
+        # stdout alone does not apply.
+        force_utf8(sys.stdout)
+        print(version_line("osw-mcp"))
+        return
+
     # See _build_server for why this is set here too.
     config.set_log_prefix("osw-mcp")
     report = io.StringIO()

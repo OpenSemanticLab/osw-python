@@ -19,6 +19,13 @@ instance for its whole lifetime; there is no tool to switch at runtime.
 `.env` file that entry names. Without it the server refuses to start rather than
 register tools that would all fail.
 
+`osw-mcp` also answers two flags from a shell, for checking an install rather
+than for an MCP client to pass: `-h` / `--help` prints usage and exits, and
+`-V` / `--version` prints one line with the osw version, the location of the
+osw package and the Python version, then exits. Neither one starts the server
+or needs an instance or credentials. Any other argument, including a
+shortened form of these two flags, is rejected with a usage error.
+
 ## Quick install
 
 For Claude Code, one command registers the server. Replace the domain and the

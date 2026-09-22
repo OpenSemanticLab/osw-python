@@ -54,7 +54,10 @@ Notes:
   specification is part of the entry, so one server can name a version or a
   checkout that the others do not use. `uvx` needs no install of its own. The
   cost is that changing the version means editing every entry that should
-  change.
+  change. Note that `uvx` reuses an installed `osw` tool whenever that
+  installation satisfies the specification, so an unpinned `osw[mcp]` runs the
+  installed version if there is one. Write an explicit version, for example
+  `osw[mcp]==2.6.2`, when a server must be independent of it.
 
 - **To let all servers share one `osw` version, register the installed
   `osw-mcp` command.** Install `osw[mcp]` as a uv tool ([Setup](index.md#setup)),
@@ -207,8 +210,8 @@ registration stays the same:
 uvx --reinstall --from "/abs/path/to/osw-python[mcp]" osw-mcp
 ```
 
-`--reinstall` is what picks up your latest edits, since `uvx` caches the wheel
-it builds. In a JSON `args` array, a Windows path needs forward slashes or
+`--reinstall` is what makes `uvx` use your latest edits, since it caches the
+wheel it builds. In a JSON `args` array, a Windows path needs forward slashes or
 doubled backslashes.
 
 Or install the checkout as an editable uv tool. The server then registers as

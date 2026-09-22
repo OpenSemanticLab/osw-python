@@ -352,3 +352,61 @@ def test_load_entity_uses_the_current_class_after_a_reload(monkeypatch):
                 delattr(model, name)
         oold_type_registry.pop(cat_a, None)
         oold_type_registry.pop(cat_b, None)
+
+
+def _load_single_category_page(category: str, cls_name: str, suffix: str):
+    """Load a page of one category whose schema title is cls_name."""
+    entity_page = OfflineWtPage(title=f"Item:OSWNonClass{suffix}".ljust(44, "0"))
+    jsondata = {
+        "type": [category],
+        "uuid": "44444444-4444-4444-4444-444444444444",
+        "name": "x",
+        "label": [{"text": "x"}],
+    }
+    remove_empty(jsondata)
+    entity_page.set_slot_content("jsondata", jsondata)
+    return OSW(site=make_offline_wtsite()).load_entity(
+        OSW.LoadEntityParam(
+            titles=[entity_page.title],
+            autofetch_schema=True,
+            offline_pages={
+                entity_page.title: entity_page,
+                category: make_schema_page(category, cls_name),
+            },
+        )
+    )
+
+
+def test_load_entity_uses_the_registered_class_when_the_name_is_not_a_class():
+    """A schema title can collide with a module attribute of osw.model.entity
+    that is not a class. The subclass guard must not call issubclass() on it,
+    and the registered class is used as usual."""
+    category = "Category:OSWNonClassRegistered00000000000000000"
+    cls_name = "NonClassAttributeA"
+    registered_cls = make_isolated_cls("NonClassRegistered")
+    setattr(model, cls_name, "not a class")
+    oold_type_registry[category] = registered_cls
+    try:
+        result = _load_single_category_page(category, cls_name, "A")
+        assert type(result.entities[0]) is registered_cls
+    finally:
+        delattr(model, cls_name)
+        oold_type_registry.pop(category, None)
+
+
+def test_load_entity_logs_a_schema_title_that_names_no_class(caplog):
+    """With nothing registered, a schema title that names a non-class attribute
+    of osw.model.entity cannot build an entity. load_entity() logs the failed
+    construction and returns, as on main, instead of raising."""
+    category = "Category:OSWNonClassNotRegistered0000000000000000"
+    cls_name = "NonClassAttributeB"
+    assert oold_type_registry.get(category) is None
+    setattr(model, cls_name, "not a class")
+    try:
+        _load_single_category_page(category, cls_name, "B")
+        assert any(
+            "Error creating entity from page" in record.message
+            for record in caplog.records
+        )
+    finally:
+        delattr(model, cls_name)

@@ -1287,7 +1287,9 @@ class OSW(BaseModel):
                             canonical_cls = getattr(model, cls_name, None)
                             if (
                                 registered_cls is not None
-                                and canonical_cls is not None
+                                # the schema title can also name a module
+                                #  attribute that is not a class
+                                and isinstance(canonical_cls, type)
                                 and registered_cls is not canonical_cls
                                 and issubclass(registered_cls, canonical_cls)
                             ):
@@ -1349,7 +1351,11 @@ class OSW(BaseModel):
                 #  class defined there, so a class picked before a later fetch in
                 #  the loop above may be out of date: take the current object
                 for category, chosen_cls in category_to_cls.items():
-                    if chosen_cls.__module__ == model.__name__:
+                    # a non-class is left for the construction below to reject
+                    if (
+                        isinstance(chosen_cls, type)
+                        and chosen_cls.__module__ == model.__name__
+                    ):
                         category_to_cls[category] = getattr(
                             model, chosen_cls.__name__, chosen_cls
                         )

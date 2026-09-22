@@ -42,6 +42,31 @@ Notes:
   for every project, or `-s project` to write a shared `.mcp.json`.
 - List what is registered with `claude mcp list`.
 
+### `uvx` or the installed command
+
+The other examples on this page run the server with `uvx`, which needs no
+install of its own. If you installed `osw[mcp]` with `uv tool install`
+([Setup](index.md#setup)), register the `osw-mcp` command directly instead and
+drop the `--from` argument:
+
+```bash
+claude mcp add osw-dev \
+  -e OSW_DOMAIN=wiki-dev.open-semantic-lab.org \
+  -e OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml \
+  -- osw-mcp
+```
+
+In JSON, that entry is `"command": "osw-mcp"` with an empty `args` array. Every
+other part of an entry, `env` included, stays the same.
+
+Which one to pick depends on how many instances you register. With `uvx`, the
+package specification is part of every entry, so pinning a version or pointing
+at a checkout means editing every entry in every client. With the installed
+command, an entry names only `osw-mcp`, and `uv tool install` or
+`uv tool upgrade osw` decides what that runs. The trade-off is that `osw-mcp`
+has to be on the PATH of the client, and that all registered servers change
+version together.
+
 ## Registering a server
 
 A server entry can carry its settings in two ways:
@@ -176,10 +201,18 @@ uvx --reinstall --from "/abs/path/to/osw-python[mcp]" osw-mcp
 it builds. In a JSON `args` array, a Windows path needs forward slashes or
 doubled backslashes.
 
-Prefer that over an editable install for the server. `create_or_update_entity`
-and `export_entity_jsonld` call `fetch_schema`, which regenerates
-`src/osw/model/entity.py` inside the installed package: `uvx` builds a
-non-editable wheel, so the write lands in the uv cache, while under
-`pip install -e` or `uv sync` it lands in your working tree. The read tools
+The alternative is an editable tool install
+([From a local checkout](index.md#from-a-local-checkout)). The server then
+registers as plain `osw-mcp`, no client config contains the checkout path, and
+edits take effect at the next server start without a `--reinstall`.
+
+One difference decides between the two. `create_or_update_entity` and
+`export_entity_jsonld` call `fetch_schema`, which regenerates
+`src/osw/model/entity.py` inside the installed package. `uvx` builds a
+non-editable wheel, so the regenerated file is written into the uv cache. Under
+an editable install, as under `pip install -e` or `uv sync`, it is written into
+your working tree, where git tracks it. Note that `export_entity_jsonld` is
+declared read-only and still triggers this. The remaining read tools
 (`get_entity`, `get_slot`, `get_category_schema`, ...) read raw page slots and
-never trigger it.
+never trigger it. So choose `uvx` whenever a client may call either of those two
+operations, and the editable install otherwise.

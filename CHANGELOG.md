@@ -10,6 +10,93 @@
 
 <!-- version list -->
 
+## v2.8.0 (2026-09-22)
+
+### Bug Fixes
+
+- **service**: Reconcile validate_entity with the write path
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Report created, updated and skipped pages separately
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **skill**: Validate before the first write, and cover the task settings
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Build System
+
+- **release**: Stamp the osw version into the osl-tasks skill
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **release**: Stamp the osw version into the plugin manifest too
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Documentation
+
+- **service**: Correct the cause of the emptied reference lists
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Name the two terms that could desync the skipped check
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **skill**: Drive osl-tasks from the generic operations
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Features
+
+- **service**: Add generic schema, search and validation operations
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Add schema field-usage operation
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Add task and project operations with a Claude skill
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Derive SMW property names from the category @context
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Generic schema and search operations with an osl-tasks skill
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Refactoring
+
+- **service**: Drop the task read and render operations
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Remove the task service module
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Testing
+
+- **release**: Check the version bump touches only the skill frontmatter
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **release**: Cover CITATION.cff in the version stamping guards
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **release**: Drop the version equality check
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+
 ## v2.7.1 (2026-09-22)
 
 ### Bug Fixes

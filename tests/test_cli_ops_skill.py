@@ -2,6 +2,9 @@
 
 tests/test_cli.py only exercises osw.cli.ops through the typer command tree
 (runner.invoke), so this module calls the operation function directly instead.
+
+The last three tests cover the release version stamping of the skill and of
+the two other files that carry a copy of the osw version.
 """
 
 from __future__ import annotations
@@ -30,8 +33,10 @@ SKILL_MD_PATH = (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
 PLUGIN_JSON_PATH = REPO_ROOT / ".claude-plugin" / "plugin.json"
+CITATION_PATH = REPO_ROOT / "CITATION.cff"
 SKILL_VERSION_ENTRY = "src/osw/skills/osl-tasks/SKILL.md:version"
 PLUGIN_VERSION_ENTRY = ".claude-plugin/plugin.json:version"
+CITATION_VERSION_ENTRY = "CITATION.cff:version"
 
 
 def _skill_version() -> str:
@@ -42,6 +47,10 @@ def _skill_version() -> str:
 
 def _plugin_version() -> str:
     return json.loads(PLUGIN_JSON_PATH.read_text(encoding="utf-8"))["version"]
+
+
+def _citation_version() -> str:
+    return yaml.safe_load(CITATION_PATH.read_text(encoding="utf-8"))["version"]
 
 
 def _pyproject() -> dict:
@@ -104,19 +113,21 @@ def test_install_skill_is_registered_on_the_cli_surface_only():
 
 
 @pytest.mark.parametrize(
-    "read_version", [_skill_version, _plugin_version], ids=["skill", "plugin"]
+    "read_version",
+    [_skill_version, _plugin_version, _citation_version],
+    ids=["skill", "plugin", "citation"],
 )
 def test_stamped_version_matches_the_package_version(read_version):
-    """The skill and the plugin manifest carry the osw version they ship with.
+    """Three files carry a copy of the osw version they ship with.
 
-    python-semantic-release rewrites all three in the release commit, so they
-    can only differ when one of them was edited by hand.
+    python-semantic-release rewrites all of them in the release commit, so
+    they can only differ when one of them was edited by hand.
     """
     assert read_version() == _pyproject()["project"]["version"]
 
 
 def test_stamped_files_are_registered_for_the_release_version_bump():
-    """Without these entries a release bumps pyproject.toml but neither file.
+    """Without these entries a release bumps pyproject.toml but not the file.
 
     The version check above would only fail after that release, so this
     catches a removed entry at once.
@@ -125,19 +136,21 @@ def test_stamped_files_are_registered_for_the_release_version_bump():
 
     assert SKILL_VERSION_ENTRY in variables
     assert PLUGIN_VERSION_ENTRY in variables
+    assert CITATION_VERSION_ENTRY in variables
 
 
 @pytest.mark.parametrize(
-    ("entry", "path", "changed_line"),
+    ("entry", "changed_line"),
     [
-        (SKILL_VERSION_ENTRY, SKILL_MD_PATH, '  version: "99.99.99"'),
-        (PLUGIN_VERSION_ENTRY, PLUGIN_JSON_PATH, '  "version": "99.99.99",'),
+        (SKILL_VERSION_ENTRY, '  version: "99.99.99"'),
+        (PLUGIN_VERSION_ENTRY, '  "version": "99.99.99",'),
+        # CITATION.cff also holds 'cff-version', which the pattern's negative
+        # lookbehind must keep out of the replacement.
+        (CITATION_VERSION_ENTRY, "version: 99.99.99"),
     ],
-    ids=["skill", "plugin"],
+    ids=["skill", "plugin", "citation"],
 )
-def test_release_bump_rewrites_only_the_version_line(
-    entry, path, changed_line, monkeypatch
-):
+def test_release_bump_rewrites_only_the_version_line(entry, changed_line, monkeypatch):
     """python-semantic-release rewrites every match of its pattern in the file.
 
     A second line such as 'version: 1.2.3' or 'osw version 1.2.3' would be
@@ -153,7 +166,11 @@ def test_release_bump_rewrites_only_the_version_line(
     # tool runs.
     monkeypatch.chdir(REPO_ROOT)
     declaration = PatternVersionDeclaration.from_string_definition(entry, "v{version}")
-    before = path.read_text(encoding="utf-8").splitlines()
+    # Read the file the way the release tool does. It uses the locale
+    #  encoding, which on Windows decodes a UTF-8 umlaut as two characters,
+    #  and a comparison against our own UTF-8 read would report that line as
+    #  changed.
+    before = declaration.content.splitlines()
     after = declaration.replace(Version.parse("99.99.99")).splitlines()
 
     assert len(after) == len(before)

@@ -1,9 +1,10 @@
 # Automated release: python-semantic-release analyzes the conventional
 # commits on main, and when a release is due it bumps the static version in
-# pyproject.toml and CITATION.cff, updates CHANGELOG.md, relocks uv.lock,
-# commits, tags vX.Y.Z, pushes and creates the GitHub release. Publishing
-# happens in this same run: pushes made with GITHUB_TOKEN do not retrigger
-# workflows, so a tag-triggered publish would never fire.
+# pyproject.toml, CITATION.cff, the osl-tasks skill and the Claude Code
+# plugin manifest, updates CHANGELOG.md, relocks uv.lock, commits, tags
+# vX.Y.Z, pushes and creates the GitHub release. Publishing happens in this
+# same run: pushes made with GITHUB_TOKEN do not retrigger workflows, so a
+# tag-triggered publish would never fire.
 #
 # Filename and environment name are load-bearing: the PyPI trusted
 # publisher (OIDC) references workflow "on-release-main.yml" and

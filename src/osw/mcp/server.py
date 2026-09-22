@@ -22,6 +22,7 @@ from osw.service import config
 from osw.service.config import Settings
 from osw.service.context import Context, Policy
 from osw.service.registry import Operation, bind, iter_operations
+from osw.service.streams import force_utf8
 
 INSTRUCTIONS = """\
 This server is pinned to exactly one OpenSemanticLab (OSL) instance for its
@@ -156,6 +157,18 @@ def create_server() -> MCPServer:
 
 def main() -> None:
     """Console-script entry point: build the server and serve over stdio."""
+    # Before any write below. An MCP client starts this server with stderr on
+    # a pipe, so Python encodes it with the locale encoding, cp1252 on a
+    # German Windows system. The report holds the credential file path and the
+    # env file path, so a directory named "Muller" with an umlaut is enough to
+    # reach the client's log mangled. Reconfiguring in place also covers osw's
+    # own log handler, which holds this same stream object.
+    #
+    # stdout is deliberately left alone. The SDK's stdio_server re-wraps the
+    # binary buffer as UTF-8 itself, and claims file descriptor 1 while doing
+    # it, so the JSON-RPC channel does not depend on this and changing it here
+    # would only add a way to interfere.
+    force_utf8(sys.stderr)
     # See _build_server for why this is set here too.
     config.set_log_prefix("osw-mcp")
     report = io.StringIO()

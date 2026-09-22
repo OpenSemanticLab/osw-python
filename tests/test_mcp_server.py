@@ -11,12 +11,17 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
+import sys
+from contextlib import contextmanager
 
 import pytest
 import yaml
 
+import osw
 from osw.mcp import server
 from osw.service import config
+from osw.service.context import Context
 from osw.service.registry import iter_operations
 
 _ALL_VARS = [
@@ -237,3 +242,97 @@ def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys
     err = capsys.readouterr().err
     assert "[osw-mcp] " in err
     assert "failed to start" in err
+
+
+def test_main_forces_utf8_on_stderr_and_leaves_stdout_alone(monkeypatch):
+    """An MCP client puts stderr on a pipe, so Python picks the locale encoding.
+
+    The startup report carries the credential file path and the env file path
+    (src/osw/service/config.py), so a directory or account name outside ASCII
+    reaches the client's log mangled.
+
+    stdout is left alone on purpose. The SDK's ``stdio_server`` re-wraps the
+    binary buffer as UTF-8 itself and claims file descriptor 1 while doing it,
+    so the JSON-RPC channel does not depend on this.
+    """
+    _configure(monkeypatch)
+    _serve_without_blocking(monkeypatch)
+    out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    err = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="backslashreplace")
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+
+    server.main()
+
+    assert err.encoding == "utf-8"
+    # reconfigure() resets errors to strict unless it is passed as well, and a
+    # strict stderr would raise while reporting a failure.
+    assert err.errors == "backslashreplace"
+    assert out.encoding == "cp1252"
+
+
+@contextmanager
+def _osw_logging_on_the_captured_stream():
+    """osw's own handler, writing to the stream pytest has in place right now.
+
+    Two resets are needed. ``enable_logging`` resolves ``sys.stderr`` once,
+    when it builds the handler (src/osw/__init__.py:149), so the handler
+    attached when conftest imported osw still holds the stderr from before
+    capsys replaced it. And that handler steps aside as soon as an ancestor
+    logger has a handler of its own (src/osw/__init__.py:84-88), which
+    pytest's log capture puts on the root logger.
+
+    A context manager rather than a fixture, because pytest attaches those
+    root handlers after the fixtures have run. Mirrors ``osw_logger`` and
+    ``plain_logging`` in tests/test_logging_setup.py.
+    """
+    root, osw_logger = logging.getLogger(), logging.getLogger("osw")
+    saved_root = root.handlers[:]
+    saved = (osw_logger.handlers[:], osw_logger.level, osw._level_is_ours)
+    root.handlers = []
+    try:
+        osw.enable_logging()
+        yield
+    finally:
+        root.handlers = saved_root
+        osw_logger.handlers, osw._level_is_ours = saved[0], saved[2]
+        osw_logger.setLevel(saved[1])
+
+
+def _no_connection(self, iri):
+    raise RuntimeError("offline test: no connection is made")
+
+
+def test_a_log_record_during_a_tool_call_never_reaches_stdout(
+    monkeypatch, tmp_path, capsys
+):
+    """stdout is the JSON-RPC channel, so one log line there breaks the client.
+
+    Two mechanisms keep it clean and only one of them is osw's own code:
+    ``enable_logging`` defaults its handler to ``sys.stderr``, and the MCP SDK
+    claims file descriptor 1 for the wire. A single edit to that default would
+    undo the first, which is what this holds.
+
+    The status operation is used because it logs a warning from inside
+    ``ctx.guard()`` when the connection check fails
+    (src/osw/service/ops/status.py:63). ``guard()`` rebinds ``sys.stdout`` to
+    ``sys.stderr`` for the call's duration, and a handler built earlier does
+    not follow that rebinding, so the record goes to the handler's own stream.
+    That is the stream under test here.
+    """
+    _configure(monkeypatch)
+    monkeypatch.setenv("OSW_STATE_DIR", str(tmp_path / "state"))
+    # Makes the connection check fail without a network, which is what gets
+    # status to log while the tool call is running.
+    monkeypatch.setattr(Context, "osw_for", _no_connection)
+    config.reset()
+    mcp = server.create_server()
+
+    with _osw_logging_on_the_captured_stream():
+        asyncio.run(mcp.call_tool("status", {}))
+
+    captured = capsys.readouterr()
+    # First, so a run that emits no record at all fails here rather than
+    # passing the stdout assertion without having observed anything.
+    assert "status connection check failed" in captured.err
+    assert captured.out == ""

@@ -428,6 +428,117 @@ def test_canonical_cred_filepath(monkeypatch, tmp_path):
     assert settings.cred_filepath == str(cred_file)
 
 
+def test_cred_filepath_tilde_expanded_before_the_existence_check(monkeypatch, tmp_path):
+    """Settings._validate_cred_filepath runs too late to fix this on its own.
+
+    _resolve_cred_file returns the value load() passes to Path(...).is_file(),
+    and Settings is constructed only afterwards. An unexpanded '~' therefore
+    reported a file that exists as missing.
+    """
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    # expanduser reads USERPROFILE on Windows and HOME on POSIX. Both are set
+    # so the test needs no platform marker.
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "~/accounts.pwd.yaml")
+
+    settings = config.load()
+
+    assert settings.cred_filepath == str(tmp_path / "accounts.pwd.yaml")
+
+
+def test_cred_filepath_tilde_with_no_home_names_the_variable(monkeypatch):
+    """Uncaught, expanduser's RuntimeError says nothing about the setting.
+
+    See test_state_dir_reports_an_undeterminable_home for why the raise is
+    patched in rather than reproduced.
+    """
+
+    def _no_home(self):
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "expanduser", _no_home)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "~/accounts.pwd.yaml")
+
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert "OSW_CRED_FILEPATH" in str(exc.value)
+    assert "home directory" in str(exc.value)
+
+
+def test_cred_filepath_relative_is_stored_resolved_for_the_mcp_server(
+    monkeypatch, tmp_path
+):
+    """The MCP client chooses the server's working directory, not the user.
+
+    Implicit discovery is off, which is the MCP server's setting. A relative
+    path is resolved against the working directory once, at load time, and the
+    full path is stored, so no later read depends on the working directory.
+    """
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "accounts.pwd.yaml")
+
+    settings = config.load()
+
+    assert settings.cred_filepath == str(Path.cwd() / "accounts.pwd.yaml")
+
+
+def test_cred_filepath_relative_and_missing_names_the_resolved_path(
+    monkeypatch, tmp_path, capsys
+):
+    """The rejection and the source report both show where the server looked.
+
+    Called in the order the MCP server calls them: the report first, then
+    load(). The server prints the report when it fails to start, so a bare
+    'accounts.pwd.yaml' there would not say which directory was searched. The
+    full path alone would not say why that directory either: the user never
+    typed it, so the message names the relative value it came from.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "accounts.pwd.yaml")
+    resolved = str(Path.cwd() / "accounts.pwd.yaml")
+
+    config.log_config_sources()
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert f"Configured credential file '{resolved}' does not exist" in str(exc.value)
+    assert "OSW_CRED_FILEPATH is the relative path 'accounts.pwd.yaml'" in (
+        str(exc.value)
+    )
+    assert f"credential file: {resolved} (from the OSW_CRED_FILEPATH" in (
+        capsys.readouterr().err
+    )
+
+
+def test_cred_filepath_relative_stays_relative_for_the_cli(monkeypatch, tmp_path):
+    """The CLI's working directory is the one the user typed the command in."""
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "accounts.pwd.yaml")
+
+    settings = config.load()
+
+    assert settings.cred_filepath == "accounts.pwd.yaml"
+
+
 def test_canonical_read_only(monkeypatch):
     monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
     monkeypatch.setenv("OSW_USERNAME", "alice")
@@ -1126,6 +1237,43 @@ def test_state_dir_reports_an_undeterminable_home(monkeypatch):
 def test_state_dir_absolute_is_left_alone(tmp_path):
     settings = Settings(domain="wiki.example.org", state_dir=str(tmp_path / "state"))
     assert settings.state_dir == str(tmp_path / "state")
+
+
+def test_cred_filepath_expands_a_leading_tilde():
+    """load() reports '~/accounts.pwd.yaml' as missing while the file is there.
+
+    Path(cred_filepath).is_file() in load() and open(cred_filepath) in
+    _cred_file_iris() both read the value literally, so a leading '~' names a
+    directory called '~'. The failure is loud but points at the wrong cause.
+    """
+    settings = Settings(domain="wiki.example.org", cred_filepath="~/accounts.pwd.yaml")
+    assert settings.cred_filepath == str(Path.home() / "accounts.pwd.yaml")
+
+
+def test_cred_filepath_relative_is_accepted():
+    """Unlike state_dir, a relative credential file stays valid.
+
+    The CLI resolves 'accounts.pwd.yaml' against the working directory the
+    user typed the command in, which is what they mean.
+    """
+    settings = Settings(domain="wiki.example.org", cred_filepath="accounts.pwd.yaml")
+    assert settings.cred_filepath == "accounts.pwd.yaml"
+
+
+def test_cred_filepath_reports_an_undeterminable_home(monkeypatch):
+    """Same failure mode as state_dir: the error has to name the setting.
+
+    See test_state_dir_reports_an_undeterminable_home for why the raise is
+    patched in rather than reproduced.
+    """
+
+    def _no_home(self):
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "expanduser", _no_home)
+    with pytest.raises(ValidationError) as exc:
+        Settings(domain="wiki.example.org", cred_filepath="~/accounts.pwd.yaml")
+    assert "home directory" in str(exc.value)
 
 
 def test_settings_is_frozen():

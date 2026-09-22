@@ -176,6 +176,21 @@ class Settings(BaseModel):
             return value
         if not value.strip():
             raise ValueError("must not be empty or whitespace-only")
+        # Same rewrite as _validate_state_dir, for the same reason: load()
+        # checks Path(cred_filepath).is_file() and _cred_file_iris() opens the
+        # path, and neither expands a leading ~, so "~/accounts.pwd.yaml" was
+        # reported as missing while the file was there. A relative path is
+        # still accepted, unlike for state_dir: the CLI resolves
+        # "accounts.pwd.yaml" against the working directory on purpose. For the
+        # MCP server, _resolve_cred_file has already made it absolute.
+        if value.startswith("~"):
+            try:
+                value = str(Path(value).expanduser())
+            except RuntimeError as exc:
+                raise ValueError(
+                    f"starts with '~' but the home directory cannot be "
+                    f"determined ({exc})"
+                ) from exc
         return value
 
     def redacted(self) -> dict:
@@ -288,6 +303,10 @@ _env_file_supplied: set[str] = set()
 _cred_file_path: Optional[str] = None
 _cred_file_origin: str = "not searched"
 _cred_file_var: Optional[str] = None
+# The relative value _resolve_cred_file() made absolute, or None. Only for
+# load()'s "does not exist" message, which otherwise shows a directory the
+# user never typed.
+_cred_file_relative: Optional[str] = None
 
 # The adapter name every "[name] ..." message this module (and the rest of
 # osw.service) prints. "osw" is the default, covering a process that embeds
@@ -328,7 +347,9 @@ def set_env_file_discovery(enabled: bool) -> None:
     depend on the working directory the process happens to run in, so both
     are gated by the same flag: the CLI's working directory is the one the
     user typed the command in, while the MCP server's is chosen by the MCP
-    client, which it does not control.
+    client, which it does not control. For the same reason, a relative
+    ``OSW_CRED_FILEPATH`` is made absolute while discovery is disabled, see
+    :func:`_resolve_cred_file`.
 
     Must be called before settings are first loaded, since the file is read
     exactly once per process; a call that would *change* the setting after
@@ -406,8 +427,10 @@ def _resolve_cred_file() -> Optional[str]:
     1. An explicitly configured ``OSW_CRED_FILEPATH`` (or its
        ``OSW_MCP_CRED_FILEPATH`` / ``OSL_CRED_FILEPATH`` aliases) always wins,
        whether it came from the real environment or from a ``.env`` file.
-       Existence is not checked here; ``load()`` already reports a missing
-       configured file with a specific error message.
+       A leading ``~`` is expanded. While implicit discovery is disabled (the
+       MCP server), a relative path is made absolute against the working
+       directory. Existence is not checked here; ``load()`` checks the
+       returned path and reports a missing file with a specific error message.
     2. Otherwise, if implicit discovery is disabled (the MCP server; see
        :func:`set_env_file_discovery`), nothing is resolved: origin
        ``"not searched"``.
@@ -435,7 +458,8 @@ def _resolve_cred_file() -> Optional[str]:
     username/password already configured. Safe to call more than once, like
     :func:`_load_env_file`, which this assumes has already run.
     """
-    global _cred_file_path, _cred_file_origin, _cred_file_var
+    global _cred_file_path, _cred_file_origin, _cred_file_var, _cred_file_relative
+    _cred_file_relative = None
     path = _first_env(ENV_CRED_FILEPATH)
     if path:
         _cred_file_var = next(
@@ -444,6 +468,29 @@ def _resolve_cred_file() -> Optional[str]:
         _cred_file_origin = (
             "env file" if _cred_file_var in _env_file_supplied else "environment"
         )
+        # Expanded here, not only in Settings._validate_cred_filepath, because
+        # load() calls Path(cred_filepath).is_file() on this return value long
+        # before it constructs Settings. Determined after _cred_file_var above,
+        # which matches the raw value against os.getenv.
+        if path.startswith("~"):
+            try:
+                path = str(Path(path).expanduser())
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    f"{_cred_file_var} starts with '~' but the home directory "
+                    f"cannot be determined ({exc}). Set it to a full path."
+                ) from exc
+        # With discovery disabled, the working directory is the one the MCP
+        # client chose, so a relative path names a file the user cannot predict.
+        # It is resolved once, here, so that load()'s existence check, the
+        # source report and the stored Settings all name the same full path,
+        # and no later read depends on the working directory. The CLI keeps
+        # the relative value: its working directory is the one the user typed
+        # the command in. os.path.abspath rather than Path.resolve(), which
+        # would also replace a symlink with its target.
+        if not _discover_env_file and not Path(path).is_absolute():
+            _cred_file_relative = path
+            path = os.path.abspath(path)
         _cred_file_path = path
         return path
     if not _discover_env_file:
@@ -618,9 +665,11 @@ def load(strict: bool = True) -> Settings:
         If domain is missing and no usable credential file is configured, if
         neither a usable credential file nor username/password are
         configured (only when ``strict`` is ``True``), if a configured
-        credential file does not exist, or if a configured credential file has
-        no entry matching a configured domain. This keeps the osw interactive
-        credential prompt from ever being reached.
+        credential file does not exist, if a configured credential file has
+        no entry matching a configured domain, or if a configured credential
+        file path starts with ``~`` and no home directory can be determined.
+        This keeps the osw interactive credential prompt from ever being
+        reached.
     """
     _load_env_file()
 
@@ -632,9 +681,17 @@ def load(strict: bool = True) -> Settings:
     cred_file_usable = False
     if cred_filepath:
         if not Path(cred_filepath).is_file():
+            relative_hint = (
+                f"{_cred_file_var} is the relative path '{_cred_file_relative}', "
+                "resolved against the working directory, which the MCP client "
+                "chooses. "
+                if _cred_file_relative
+                else ""
+            )
             raise RuntimeError(
                 f"Configured credential file '{cred_filepath}' does not exist. "
-                "Set OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH / "
+                + relative_hint
+                + "Set OSW_CRED_FILEPATH (or its OSW_MCP_CRED_FILEPATH / "
                 "OSL_CRED_FILEPATH aliases) to a valid path, or remove it and "
                 "configure OSW_USERNAME/OSW_PASSWORD instead."
                 + _escape_hint(cred_filepath)
@@ -744,7 +801,7 @@ def reset() -> None:
     """Drop cached settings and the active-instance selection (used by tests)."""
     global _settings, _active_iri, _active_resolved
     global _discover_env_file, _env_file_path, _env_file_origin, _env_file_supplied
-    global _cred_file_path, _cred_file_origin, _cred_file_var
+    global _cred_file_path, _cred_file_origin, _cred_file_var, _cred_file_relative
     _settings = None
     _active_iri = None
     _active_resolved = False
@@ -755,6 +812,7 @@ def reset() -> None:
     _cred_file_path = None
     _cred_file_origin = "not searched"
     _cred_file_var = None
+    _cred_file_relative = None
 
 
 # -- active-instance state ---------------------------------------------------

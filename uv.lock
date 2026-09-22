@@ -2121,6 +2121,7 @@ db = [
 ]
 mcp = [
     { name = "mcp" },
+    { name = "mwparserfromhell" },
 ]
 s3 = [
     { name = "boto3" },
@@ -2191,6 +2192,7 @@ requires-dist = [
     { name = "opensemantic-core", specifier = ">=0.57.4" },
     { name = "osw", extras = ["dataimport"], marker = "extra == 'tutorial'" },
     { name = "osw", extras = ["dataimport", "db", "ui", "s3", "wikitext", "mcp"], marker = "extra == 'all'" },
+    { name = "osw", extras = ["wikitext"], marker = "extra == 'mcp'" },
     { name = "prefect", marker = "extra == 'workflow'", specifier = ">=2.20.25,<3.0" },
     { name = "psycopg2", marker = "extra == 'db'" },
     { name = "pybars3-wheel" },

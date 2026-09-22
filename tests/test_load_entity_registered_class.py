@@ -171,12 +171,16 @@ def test_load_entity_falls_back_to_generated_class_when_nothing_registered():
         delattr(model, cls_name)
 
 
-def test_load_entity_ignores_a_registered_subclass_of_the_model_class():
+def test_load_entity_ignores_a_registered_subclass_of_the_model_class(caplog):
     """osw's own controllers and result wrappers (WikiFileController,
     UploadFileResult, ...) inherit the category IRI of the model class they
     extend, and oold's registry keeps whichever class was defined last. Such a
     specialization needs fields a plain page does not carry, so load_entity()
     must fall back to the canonical class in osw.model.entity.
+
+    This is the expected case on every WikiFile load, so it must not raise the
+    registry conflict warning: nothing claims the slot, it still holds the
+    specialization.
     """
     category = "Category:OSWSubclassTest000000000000000000000000"
     cls_name = "SubclassTestBase"
@@ -219,6 +223,10 @@ def test_load_entity_ignores_a_registered_subclass_of_the_model_class():
         )
 
         assert type(result.entities[0]) is base_cls
+        assert not any(
+            "claims the oold type registry slot" in record.message
+            for record in caplog.records
+        )
     finally:
         delattr(model, cls_name)
         oold_type_registry.pop(category, None)

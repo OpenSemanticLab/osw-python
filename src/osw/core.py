@@ -1327,6 +1327,12 @@ class OSW(BaseModel):
                                     if (
                                         conflicting_cls is not None
                                         and conflicting_cls is not generated_cls
+                                        # a specialization of generated_cls was
+                                        #  already set aside above; it still
+                                        #  holds the slot and nothing claimed it
+                                        and not issubclass(
+                                            conflicting_cls, generated_cls
+                                        )
                                     ):
                                         _logger.warning(
                                             f"Class '{generated_cls}' generated for "

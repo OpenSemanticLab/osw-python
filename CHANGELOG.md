@@ -10,6 +10,21 @@
 
 <!-- version list -->
 
+## v2.7.0 (2026-09-22)
+
+### Features
+
+- **cli,mcp**: Accept -h and -V/--version
+  ([#200](https://github.com/OpenSemanticLab/osw-python/pull/200),
+  [`41e0162`](https://github.com/OpenSemanticLab/osw-python/commit/41e0162695849869d0c6f51173a4a8cc1e96188f))
+
+### Testing
+
+- **cli**: Check -h on every command, not three sample paths
+  ([#200](https://github.com/OpenSemanticLab/osw-python/pull/200),
+  [`41e0162`](https://github.com/OpenSemanticLab/osw-python/commit/41e0162695849869d0c6f51173a4a8cc1e96188f))
+
+
 ## v2.6.2 (2026-09-22)
 
 ### Bug Fixes

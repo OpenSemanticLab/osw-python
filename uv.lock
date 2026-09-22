@@ -2066,7 +2066,7 @@ wheels = [
 
 [[package]]
 name = "osw"
-version = "2.6.2"
+version = "2.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },

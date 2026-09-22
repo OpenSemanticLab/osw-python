@@ -6,6 +6,7 @@ tests/test_cli.py only exercises osw.cli.ops through the typer command tree
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -26,14 +27,21 @@ else:
 SKILL_MD_PATH = (
     Path(ops.__file__).resolve().parent.parent / "skills" / "osl-tasks" / "SKILL.md"
 )
-PYPROJECT_PATH = Path(__file__).resolve().parent.parent / "pyproject.toml"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
+PLUGIN_JSON_PATH = REPO_ROOT / ".claude-plugin" / "plugin.json"
 SKILL_VERSION_ENTRY = "src/osw/skills/osl-tasks/SKILL.md:version"
+PLUGIN_VERSION_ENTRY = ".claude-plugin/plugin.json:version"
 
 
-def _skill_frontmatter() -> dict:
+def _skill_version() -> str:
     # The frontmatter is the YAML between the two leading '---' lines.
     _, frontmatter, _ = SKILL_MD_PATH.read_text(encoding="utf-8").split("---", 2)
-    return yaml.safe_load(frontmatter)
+    return yaml.safe_load(frontmatter)["metadata"]["version"]
+
+
+def _plugin_version() -> str:
+    return json.loads(PLUGIN_JSON_PATH.read_text(encoding="utf-8"))["version"]
 
 
 def _pyproject() -> dict:
@@ -95,19 +103,20 @@ def test_install_skill_is_registered_on_the_cli_surface_only():
     assert registry.REGISTRY["install_skill"].surfaces == frozenset({"cli"})
 
 
-def test_skill_version_matches_the_package_version():
-    """The skill carries the osw version it ships with.
+@pytest.mark.parametrize(
+    "read_version", [_skill_version, _plugin_version], ids=["skill", "plugin"]
+)
+def test_stamped_version_matches_the_package_version(read_version):
+    """The skill and the plugin manifest carry the osw version they ship with.
 
-    python-semantic-release rewrites both in the release commit, so they can
-    only differ when one of them was edited by hand.
+    python-semantic-release rewrites all three in the release commit, so they
+    can only differ when one of them was edited by hand.
     """
-    skill_version = _skill_frontmatter()["metadata"]["version"]
-
-    assert skill_version == _pyproject()["project"]["version"]
+    assert read_version() == _pyproject()["project"]["version"]
 
 
-def test_skill_is_registered_for_the_release_version_bump():
-    """Without this entry a release bumps pyproject.toml but not the skill.
+def test_stamped_files_are_registered_for_the_release_version_bump():
+    """Without these entries a release bumps pyproject.toml but neither file.
 
     The version check above would only fail after that release, so this
     catches a removed entry at once.
@@ -115,12 +124,23 @@ def test_skill_is_registered_for_the_release_version_bump():
     variables = _pyproject()["tool"]["semantic_release"]["version_variables"]
 
     assert SKILL_VERSION_ENTRY in variables
+    assert PLUGIN_VERSION_ENTRY in variables
 
 
-def test_release_bump_rewrites_only_the_frontmatter_version(monkeypatch):
+@pytest.mark.parametrize(
+    ("entry", "path", "changed_line"),
+    [
+        (SKILL_VERSION_ENTRY, SKILL_MD_PATH, '  version: "99.99.99"'),
+        (PLUGIN_VERSION_ENTRY, PLUGIN_JSON_PATH, '  "version": "99.99.99",'),
+    ],
+    ids=["skill", "plugin"],
+)
+def test_release_bump_rewrites_only_the_version_line(
+    entry, path, changed_line, monkeypatch
+):
     """python-semantic-release rewrites every match of its pattern in the file.
 
-    A body line such as 'version: 1.2.3' or 'osw version 1.2.3' would be
+    A second line such as 'version: 1.2.3' or 'osw version 1.2.3' would be
     rewritten on every release without any test failing, so run the release
     tool's own replacement and check that it changes exactly one line.
     """
@@ -131,13 +151,11 @@ def test_release_bump_rewrites_only_the_frontmatter_version(monkeypatch):
 
     # The entry's path is relative to the repository root, where the release
     # tool runs.
-    monkeypatch.chdir(PYPROJECT_PATH.parent)
-    declaration = PatternVersionDeclaration.from_string_definition(
-        SKILL_VERSION_ENTRY, "v{version}"
-    )
-    before = SKILL_MD_PATH.read_text(encoding="utf-8").splitlines()
+    monkeypatch.chdir(REPO_ROOT)
+    declaration = PatternVersionDeclaration.from_string_definition(entry, "v{version}")
+    before = path.read_text(encoding="utf-8").splitlines()
     after = declaration.replace(Version.parse("99.99.99")).splitlines()
 
     assert len(after) == len(before)
     changed = [new for old, new in zip(before, after) if old != new]
-    assert changed == ['  version: "99.99.99"']
+    assert changed == [changed_line]

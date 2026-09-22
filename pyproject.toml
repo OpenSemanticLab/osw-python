@@ -38,6 +38,9 @@ dependencies = [
     "PyLD",
     "SPARQLWrapper",
     "jsonpath-ng",
+    # validates jsondata against a resolved JSON Schema in
+    # osw.service.ops.entities.validate_entity
+    "jsonschema>=4.0",
     "numpy",
     "pyyaml",
     "typing_extensions",
@@ -303,7 +306,8 @@ preview = true
 
 [tool.semantic_release]
 # python-semantic-release owns the version: it reads the conventional commits
-# on main, bumps the static version below and in CITATION.cff, updates the
+# on main, bumps the static version below, in CITATION.cff, in the osl-tasks
+# skill's frontmatter and in the Claude Code plugin manifest, updates the
 # changelog, relocks uv.lock, commits, tags (vX.Y.Z) and creates the GitHub
 # release. Publishing to PyPI happens in the same workflow run
 # (on-release-main.yml).
@@ -315,7 +319,14 @@ commit_message = "chore(release): v{version} [skip ci]"
 allow_zero_version = true
 exclude_commit_patterns = ['''chore\(release\):.*''']
 version_toml = ["pyproject.toml:project.version"]
-version_variables = ["CITATION.cff:version"]
+version_variables = [
+    "CITATION.cff:version",
+    "src/osw/skills/osl-tasks/SKILL.md:version",
+    # Claude Code caches an installed plugin under its version string, so a
+    # version that never changes keeps plugin users on the skill they first
+    # installed.
+    ".claude-plugin/plugin.json:version",
+]
 # relock so uv.lock's own pin of osw's version stays consistent, and include
 # the relocked file in the release commit
 build_command = "uv lock"

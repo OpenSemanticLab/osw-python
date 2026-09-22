@@ -40,6 +40,10 @@ ENV_MAX_RESULTS = ("OSW_MAX_RESULTS", "OSW_MCP_MAX_RESULTS")
 ENV_MAX_CHARS = ("OSW_MAX_CHARS", "OSW_MCP_MAX_CHARS")
 ENV_FILE = ("OSW_ENV_FILE", "OSW_MCP_ENV_FILE")
 ENV_VERBOSE = ("OSW_VERBOSE", "OSW_MCP_VERBOSE")
+ENV_TASK_CATEGORY = ("OSW_TASK_CATEGORY",)
+ENV_PERSON_CATEGORY = ("OSW_PERSON_CATEGORY",)
+ENV_PROJECT_CATEGORY = ("OSW_PROJECT_CATEGORY",)
+ENV_PERSON_IRI = ("OSW_PERSON_IRI",)
 
 
 def _first_env(names: tuple[str, ...]) -> Optional[str]:
@@ -64,6 +68,10 @@ _ENV_BY_FIELD: dict[str, tuple[str, ...]] = {
     "max_results": ENV_MAX_RESULTS,
     "max_chars": ENV_MAX_CHARS,
     "verbose": ENV_VERBOSE,
+    "task_category": ENV_TASK_CATEGORY,
+    "person_category": ENV_PERSON_CATEGORY,
+    "project_category": ENV_PROJECT_CATEGORY,
+    "person_iri": ENV_PERSON_IRI,
 }
 
 
@@ -105,6 +113,18 @@ class Settings(BaseModel):
     # Only controls the startup configuration report. No tool or command
     # reads it, and Settings.redacted() deliberately does not expose it.
     verbose: bool = False
+    # Category a newly created task, person or project is written to. No
+    # operation reads these three; the osl-tasks skill reads the env variables
+    # directly, and only when a new entity has to go into a local subclass
+    # instead of the shared OSL core category.
+    task_category: Optional[str] = None
+    person_category: Optional[str] = None
+    project_category: Optional[str] = None
+    # Full page name of the Person entity representing the operator, e.g.
+    # "Item:OSW...". No operation reads it; the osl-tasks skill reads the env
+    # variable directly to filter tasks by their actionee. An actionee is never
+    # assigned from it, so a task created without an explicit actionee has none.
+    person_iri: Optional[str] = None
 
     @field_validator("domain")
     @classmethod
@@ -164,6 +184,17 @@ class Settings(BaseModel):
                 "must be an absolute path: a relative one resolves against the "
                 "working directory, which for osw-mcp is chosen by the client"
             )
+        return value
+
+    @field_validator(
+        "task_category", "person_category", "project_category", "person_iri"
+    )
+    @classmethod
+    def _validate_non_blank(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if not value.strip():
+            raise ValueError("must not be empty or whitespace-only")
         return value
 
     @field_validator("cred_filepath")
@@ -755,6 +786,10 @@ def load(strict: bool = True) -> Settings:
         cred_filepath=cred_filepath,
         sparql_endpoint=_first_env(ENV_SPARQL_ENDPOINT),
         state_dir=_first_env(ENV_STATE_DIR),
+        task_category=_first_env(ENV_TASK_CATEGORY),
+        person_category=_first_env(ENV_PERSON_CATEGORY),
+        project_category=_first_env(ENV_PROJECT_CATEGORY),
+        person_iri=_first_env(ENV_PERSON_IRI),
     )
     # An unset or blank/whitespace-only variable falls back to the model
     # default; pass the raw string only when there is one to validate. Letting

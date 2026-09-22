@@ -194,6 +194,12 @@ class WtSite:
         #  ALLOWED_FILE_EXTENSIONS_TTL
         self._allowed_file_extensions = None
 
+        # These two caches are always used, unlike the optional page cache above,
+        #  because schema pages change rarely and resolving a category's @context
+        #  chain costs one page read per level
+        self._jsonld_context_cache = {}
+        self._jsonld_page_context_cache = {}
+
     def _get_session_lock(self) -> threading.RLock:
         """Return the session lock, lazily creating it if absent.
 
@@ -524,6 +530,10 @@ class WtSite:
         """
         del self._page_cache
         self._page_cache = {}
+        del self._jsonld_context_cache
+        self._jsonld_context_cache = {}
+        del self._jsonld_page_context_cache
+        self._jsonld_page_context_cache = {}
 
     class AllowedFileExtensionsResult(OswBaseModel):
         """The file extensions a wiki accepts and when that list was read"""
@@ -1542,6 +1552,202 @@ class WtSite:
                 return requests_loader(url, options)
 
         return loader
+
+    def _merge_jsonld_context(
+        self,
+        title: str,
+        prefer_external_vocabulary: bool,
+        max_depth: int,
+        merged: dict,
+        seen: set,
+    ) -> None:
+        """Merge one page's own JSON-LD context mappings into ``merged``, then
+        recurse into its parents.
+
+        Parameters
+        ----------
+        title:
+            Full page title (``Category:...`` or ``JsonSchema:...``) to read.
+        prefer_external_vocabulary:
+            Passed through to ``JsonLdContextLoaderParams.prefer_external_vocal``
+            when resolving the ``<key>*`` convention for this page.
+        max_depth:
+            Remaining recursion depth. Recursion stops once this reaches 0, to
+            guard against a cycle.
+        merged:
+            Dictionary that the resolved mappings are merged into, in place.
+            Parents are merged before the current page, so a child overrides a
+            parent.
+        seen:
+            Titles already visited. Stops the same page being merged twice,
+            which also breaks a cycle.
+
+        Returns
+        -------
+        None
+            The result is written into ``merged`` in place.
+        """
+        if max_depth <= 0 or title in seen:
+            return
+        seen.add(title)
+
+        cache_key = (title, prefer_external_vocabulary)
+        if cache_key not in self._jsonld_page_context_cache:
+            own = {}
+            parents = []
+            try:
+                page = self.get_page(WtSite.GetPageParam(titles=[title])).pages[0]
+                schema = None
+                if page.exists:
+                    if "JsonSchema:" in title:
+                        schema = page.get_slot_content("main")
+                    else:
+                        schema = page.get_slot_content("jsonschema")
+            except Exception as exc:
+                # get_page retries 5 times with sleep(5) in between before it
+                # raises, so a wiki that cannot serve this page would pay that
+                # delay again on every call; cache the failure as an empty
+                # result instead.
+                _logger.warning(
+                    f"Could not read the JSON-LD context of '{title}': {exc}"
+                )
+                schema = None
+            if isinstance(schema, str):
+                schema = json.loads(schema)
+            if isinstance(schema, dict):
+                params = WtSite.JsonLdContextLoaderParams(
+                    prefer_external_vocal=prefer_external_vocabulary
+                )
+                context = self._replace_jsonld_context_mapping(
+                    deepcopy(schema.get("@context")), params
+                )
+                entries = context if isinstance(context, list) else [context]
+                for entry in entries:
+                    if isinstance(entry, str):
+                        parents.append(entry)
+                    elif isinstance(entry, dict):
+                        own.update(entry)
+                # A category usually names its parent in both @context and
+                # allOf, and following both means a schema that inherits only
+                # through allOf still contributes its parent's mappings.
+                # Duplicates are harmless because `seen` stops the second
+                # visit.
+                for ref in schema.get("allOf", []):
+                    if isinstance(ref, dict) and ref.get("$ref"):
+                        parents.append(ref["$ref"])
+            self._jsonld_page_context_cache[cache_key] = (own, parents)
+
+        own, parents = self._jsonld_page_context_cache[cache_key]
+
+        for ref in parents:
+            parent_title = ref.split("/wiki/")[-1].split("?")[0]
+            if parent_title.startswith("Category:") or parent_title.startswith(
+                "JsonSchema:"
+            ):
+                self._merge_jsonld_context(
+                    parent_title,
+                    prefer_external_vocabulary,
+                    max_depth - 1,
+                    merged,
+                    seen,
+                )
+
+        merged.update(deepcopy(own))
+
+    def get_jsonld_context(
+        self,
+        category: str,
+        prefer_external_vocabulary: bool = False,
+        max_depth: int = 10,
+    ) -> dict:
+        """Resolve a category's effective JSON-LD ``@context`` across its
+        parent chain.
+
+        A category declares only its own mappings in its ``jsonschema`` slot
+        and points at its parent with a URL entry in ``@context``, so the
+        effective context of e.g. ``Category:Task`` is spread over Task,
+        Process, Item and Entity. Levels are merged parent first, so a child
+        overrides a parent. Each level passes through
+        ``_replace_jsonld_context_mapping``, which applies the ``<key>*``
+        convention, so ``label`` maps to ``skos:prefLabel`` while the wiki
+        property sits under ``label*``.
+
+        A shared ancestor reached by two different paths is merged once, at
+        the first position it is reached, which is correct for the linear
+        chains OSL uses.
+
+        Parameters
+        ----------
+        category:
+            Full page title of the category, e.g.
+            ``Category:OSWc5d4829ed2744a219ba027171c75fa1d``.
+        prefer_external_vocabulary:
+            Whether to prefer a mapping to an external vocabulary (e.g.
+            ``skos``, ``schema``) over one in the wiki's own ``Property:``
+            namespace. Pass False, the default, to get the wiki's own
+            ``Property:`` mappings, which is what a Semantic MediaWiki query
+            needs.
+        max_depth:
+            Maximum number of levels to follow up the parent chain. Guards
+            against a cycle.
+
+        Returns
+        -------
+        dict
+            The merged ``@context`` mapping. Always a copy of the cached
+            value, so a caller cannot corrupt the cache by mutating the
+            result.
+        """
+        cache_key = (category, prefer_external_vocabulary, max_depth)
+        if cache_key not in self._jsonld_context_cache:
+            merged = {}
+            self._merge_jsonld_context(
+                category, prefer_external_vocabulary, max_depth, merged, set()
+            )
+            self._jsonld_context_cache[cache_key] = merged
+        return deepcopy(self._jsonld_context_cache[cache_key])
+
+    def get_smw_property_map(
+        self, category: str, max_depth: int = 10
+    ) -> Dict[str, str]:
+        """Derive the Semantic MediaWiki property names for a category's
+        fields.
+
+        The mapping is derived from the merged ``@context`` (see
+        ``get_jsonld_context``), so it follows what the wiki currently
+        declares instead of a hardcoded table. Only fields mapped into the
+        ``Property:`` namespace appear in the result, so prefix declarations
+        and fields mapped only to an external vocabulary are excluded. The
+        returned property names carry no ``Property:`` prefix, which is the
+        form a Semantic MediaWiki ``ask`` query expects.
+
+        The mapping is one-way and cannot be inverted, because several JSON
+        fields may share one property, for example ``related_to`` and
+        ``related_to_project`` both map to ``IsRelatedTo``.
+
+        Parameters
+        ----------
+        category:
+            Full page title of the category.
+        max_depth:
+            Maximum number of levels to follow up the parent chain. Passed
+            through to ``get_jsonld_context``.
+
+        Returns
+        -------
+        Dict[str, str]
+            Mapping of JSON field name to Semantic MediaWiki property name,
+            without the ``Property:`` prefix.
+        """
+        context = self.get_jsonld_context(
+            category, prefer_external_vocabulary=False, max_depth=max_depth
+        )
+        result: Dict[str, str] = {}
+        for field, entry in context.items():
+            iri = entry.get("@id") if isinstance(entry, dict) else entry
+            if isinstance(iri, str) and iri.startswith("Property:"):
+                result[field] = iri[len("Property:") :]
+        return result
 
 
 class WtPage:

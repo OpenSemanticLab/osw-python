@@ -34,6 +34,10 @@ _ALL_VARS = [
     "OSW_MCP_ENV_FILE",
     "OSW_VERBOSE",
     "OSW_MCP_VERBOSE",
+    "OSW_PERSON_IRI",
+    "OSW_TASK_CATEGORY",
+    "OSW_PERSON_CATEGORY",
+    "OSW_PROJECT_CATEGORY",
 ]
 
 
@@ -74,6 +78,28 @@ def test_missing_credentials_do_not_prompt(monkeypatch):
     monkeypatch.setattr("builtins.input", _boom)
     with pytest.raises(RuntimeError):
         config.load()
+
+
+def test_osl_task_settings_parse(monkeypatch):
+    """The four settings the osl-tasks skill relies on stay parsed.
+
+    No operation reads them. The skill reads the environment variables itself,
+    so nothing in the package would fail if these fields were dropped, and a
+    deployment that sets them would just be ignored. This test is what makes
+    that removal visible.
+    """
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_USERNAME", "alice")
+    monkeypatch.setenv("OSW_PASSWORD", "secret")
+    monkeypatch.setenv("OSW_PERSON_IRI", "Item:OSWperson")
+    monkeypatch.setenv("OSW_TASK_CATEGORY", "Category:OSWtask")
+    monkeypatch.setenv("OSW_PERSON_CATEGORY", "Category:OSWpersoncat")
+    monkeypatch.setenv("OSW_PROJECT_CATEGORY", "Category:OSWproject")
+    settings = config.load()
+    assert settings.person_iri == "Item:OSWperson"
+    assert settings.task_category == "Category:OSWtask"
+    assert settings.person_category == "Category:OSWpersoncat"
+    assert settings.project_category == "Category:OSWproject"
 
 
 def test_valid_credentials_parse(monkeypatch):

@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Annotated, Optional
 
 import typer
+from jsonschema.validators import validator_for
 
 import osw.model.entity as model_entity
 from osw.core import OSW, AddOverwriteClassOptions, OverwriteOptions
 from osw.service import config, errors
 from osw.service.context import Context
 from osw.service.ledger import LedgerRecord
+from osw.service.ops.schema import _resolve_schema
 from osw.service.params import json_value
 from osw.service.registry import operation
 from osw.service.serialization import maybe_truncate, to_jsonable
@@ -112,7 +115,7 @@ def export_entity_jsonld(
         LedgerRecord(
             title=t, op="create_or_update", change_id=r["change_id"], slots=["jsondata"]
         )
-        for t in r["titles"]
+        for t in r["created"] + r["updated"]
     ],
 )
 def create_or_update_entity(
@@ -120,16 +123,30 @@ def create_or_update_entity(
     category: str,
     jsondata: Annotated[dict, typer.Option(parser=json_value)],
     namespace: Optional[str] = None,
-    overwrite: str = "keep existing",
+    overwrite: str = "true",
     comment: Optional[str] = None,
 ) -> dict:
     """Create or update an entity of ``category`` from a ``jsondata`` payload.
 
     ``category`` is a full category page name (e.g. ``Category:Item``); use
-    ``get_category_schema`` to learn the valid fields first. ``overwrite``
-    controls update behavior: one of true | false | only empty |
-    replace remote | keep existing. Records the resulting page(s) in the
-    provenance ledger so they can be deleted without extra confirmation.
+    ``get_category_schema`` to learn the valid fields first.
+
+    **To update an existing entity, put its ``uuid`` in ``jsondata``.** The
+    page name is derived from that uuid, so omitting it generates a new one
+    and writes a second entity instead of changing the intended one. Read the
+    current record with ``get_entity`` first and keep its uuid.
+
+    ``overwrite`` controls update behavior: one of true | false | only empty |
+    replace remote | keep existing. The default, true, merges field by field
+    into the stored record: fields absent from ``jsondata`` keep their stored
+    value, so only what is passed changes. ``keep existing`` writes nothing at
+    all when the page already exists, and ``replace remote`` drops every
+    stored field that ``jsondata`` does not repeat.
+
+    The result splits the written pages into ``created``, ``updated`` and
+    ``skipped`` so a caller can tell an update apart from an accidental
+    create. Only created and updated pages are recorded in the provenance
+    ledger, since a skipped page was never written.
     """
     fetch = ctx.osw.fetch_schema(
         OSW.FetchSchemaParam(schema_title=category, mode="append")
@@ -158,11 +175,198 @@ def create_or_update_entity(
         )
     )
     titles = list(store.pages.keys())
+    # WtPage.exists is set once, when the page is loaded, and no write path
+    #  refreshes it, so after the store it still reports the pre-write state.
+    #  A page that did not exist then was created by this call.
+    existed = [t for t in titles if store.pages[t].exists]
+    # _apply_overwrite_policy returns an existing page untouched under this
+    #  one option, logging a warning and never editing it. Mirrors the check
+    #  at the kept_existing branch in OSW.store_entity_, which also tests
+    #  'offline is not True' and reads the per-class policy. Both are the same
+    #  value here, since the StoreEntityParam above sets neither 'offline' nor
+    #  'overwrite_per_class'. Setting either would make the two disagree.
+    kept = _parse_overwrite(overwrite) == AddOverwriteClassOptions.keep_existing
     domain = config.get_active_domain()
     return {
         "titles": titles,
+        "created": [t for t in titles if t not in existed],
+        "updated": [] if kept else existed,
+        "skipped": existed if kept else [],
         "change_id": store.change_id,
         "urls": [f"https://{domain}/wiki/{t}" for t in titles],
+    }
+
+
+def _auto_filled_fields() -> set:
+    """Field names the osw base model actually supplies a value for.
+
+    ``create_or_update_entity`` validates by constructing the category's
+    generated subclass, and every generated class inherits from ``Entity``.
+    A field counts here only when the base model gives it a value on
+    construction, through a default factory or a non-``None`` default -
+    ``uuid`` (a fresh ``uuid4``) and ``type`` (the category default) are the
+    two this matters for in practice. Most other fields are merely optional
+    on ``Entity`` and default to ``None``, which is not a supplied value: a
+    category subclass may still declare one of them required, in which case
+    omitting it from the payload does make ``create_or_update_entity`` fail,
+    so it must stay required here too. Reading the field set off the base
+    class rather than naming the fields keeps this correct if the base model
+    changes.
+    """
+    return {
+        name
+        for name, field in model_entity.Entity.__fields__.items()
+        if field.required is False
+        and (field.default_factory is not None or field.default is not None)
+    }
+
+
+def _strip_remote_refs(node, path: str, unchecked_refs: list) -> object:
+    """Return a copy of ``node`` with every remote ``$ref`` replaced by ``{}``.
+
+    A ``$ref`` is remote when its value does not start with ``#`` (a local
+    JSON pointer); OSL schemas instead point ``$ref`` at a URL that reads
+    another wiki page's schema, which a JSON Schema validator would try to
+    fetch over the network. ``{}`` is the empty schema, which accepts
+    anything, so that part of the payload is simply left unchecked. Each
+    replacement's location is appended to ``unchecked_refs`` as a JSON path
+    such as ``$.properties.parent``.
+    """
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and not ref.startswith("#"):
+            unchecked_refs.append(path)
+            return {}
+        return {
+            key: _strip_remote_refs(value, f"{path}.{key}", unchecked_refs)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [
+            _strip_remote_refs(item, f"{path}[{index}]", unchecked_refs)
+            for index, item in enumerate(node)
+        ]
+    return node
+
+
+@operation(
+    group="entity", cli_name="validate", read_only_hint=True, idempotent_hint=True
+)
+def validate_entity(
+    ctx: Context,
+    category: str,
+    jsondata: Annotated[dict, typer.Option(parser=json_value)],
+) -> dict:
+    """Check whether ``jsondata`` validates against ``category``'s resolved
+    JSON Schema, without writing anything.
+
+    Resolves ``category``'s effective JSON Schema across its parent chain -
+    the same walk ``get_category_schema(resolve=True)`` performs - and
+    validates ``jsondata`` against it with the ``jsonschema`` package.
+    Passing here does not guarantee ``create_or_update_entity`` will
+    succeed: that operation validates by constructing the generated
+    pydantic model instead, a different check with different rules, and it
+    also fetches the category's schema and regenerates the local
+    ``osw.model.entity`` module as a side effect, which this operation never
+    does.
+
+    ``unknown_fields`` lists top-level keys of ``jsondata`` that are not
+    declared in the resolved schema's ``properties``. This is the check
+    that matters most in practice: most OSL schemas do not set
+    ``additionalProperties: false``, so the validator itself would silently
+    accept a plausible but wrong field name. ``unchecked_refs`` lists the
+    JSON paths of parts of the schema that were not checked, because they
+    were a remote ``$ref`` - a URL pointing at another wiki page rather than
+    a local JSON pointer; validating against it would require a network
+    call, so that part of the payload is left unchecked instead.
+
+    Returns ``{category, valid, errors, unknown_fields, unchecked_refs,
+    sources, skipped, auto_filled}``, where ``sources`` are the page titles
+    successfully read while resolving the schema and ``skipped`` names every
+    page the walk visited and could not use, and why - the walk's depth
+    limit was reached, the page does not exist, it has no schema slot, it
+    could not be read, or its slot did not parse. A non-empty ``skipped``
+    means part of the category's inherited schema could not be read, so the
+    check was made against less than the full schema and ``valid: true`` is
+    weaker than it looks. ``auto_filled`` lists fields the category's schema
+    marks required but the osw model supplies by itself, so they were not
+    required here; ``uuid`` and ``type`` are the usual ones - omitting them
+    from a payload is fine, since ``create_or_update_entity`` generates a
+    uuid and sets the type from the category. An invalid payload is this
+    operation's normal, successful answer: ``valid`` is False and ``errors``
+    holds one message per validation error, each including its JSON path;
+    this never raises for a bad payload. Raises ``errors.NotFound`` if
+    ``category`` does not exist, and ``errors.SchemaError`` if the resolved
+    schema could not actually be read (its ``jsonschema`` slot is missing,
+    empty or unparsable, or ``category`` is not a category page at all) or
+    is not itself a valid JSON Schema - in both cases the payload was not
+    checked.
+    """
+    page = ctx.osw.site.get_page(WtSite.GetPageParam(titles=[category])).pages[0]
+    if not page.exists:
+        raise errors.NotFound(f"Category '{category}' does not exist.")
+
+    merged_schema, sources, skipped = _resolve_schema(ctx, category)
+    if not merged_schema or not merged_schema.get("properties"):
+        raise errors.SchemaError(
+            f"Could not read a JSON Schema for '{category}': its "
+            "'jsonschema' slot is missing, empty or unparsable, or "
+            "'category' is not a category page. The payload was not checked."
+        )
+
+    # Strip remote $refs on a deep copy, so this validation-only check never
+    # mutates the schema _resolve_schema built.
+    unchecked_refs: list = []
+    schema = _strip_remote_refs(copy.deepcopy(merged_schema), "$", unchecked_refs)
+
+    # Drop the required fields the model fills in itself, so a payload that
+    # create_or_update_entity would accept is not reported invalid here. A
+    # malformed 'required' (not a list, or holding an unhashable item) is
+    # left alone here and surfaces as a SchemaError below, from check_schema,
+    # rather than raising a raw TypeError from this step.
+    required = schema.get("required")
+    auto_filled = (
+        sorted(
+            {name for name in required if isinstance(name, str)} & _auto_filled_fields()
+        )
+        if isinstance(required, list)
+        else []
+    )
+    if auto_filled:
+        schema["required"] = [
+            name for name in schema["required"] if name not in auto_filled
+        ]
+
+    try:
+        validator_cls = validator_for(schema)
+        validator_cls.check_schema(schema)
+        validator = validator_cls(schema)
+    except Exception as exc:
+        raise errors.SchemaError(
+            f"The resolved schema for '{category}' is not a valid JSON Schema: {exc}"
+        )
+
+    try:
+        validation_errors = [
+            f"{err.json_path}: {err.message}" for err in validator.iter_errors(jsondata)
+        ]
+    except Exception as exc:
+        # An unresolvable local $ref (one iter_errors actually tries to
+        # follow, unlike the remote ones stripped above) raises instead of
+        # yielding, so surface it the same way a malformed schema is.
+        raise errors.SchemaError(f"Could not validate '{category}': {exc}")
+    declared = set(schema.get("properties") or {})
+    unknown_fields = [key for key in jsondata if key not in declared]
+
+    return {
+        "category": category,
+        "valid": not validation_errors,
+        "errors": validation_errors,
+        "unknown_fields": unknown_fields,
+        "unchecked_refs": unchecked_refs,
+        "sources": sources,
+        "skipped": skipped,
+        "auto_filled": auto_filled,
     }
 
 

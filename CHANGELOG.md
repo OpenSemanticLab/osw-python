@@ -10,6 +10,33 @@
 
 <!-- version list -->
 
+## v2.7.1 (2026-09-22)
+
+### Bug Fixes
+
+- **mcp**: Include the wikitext extra in the mcp extra
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+- **mcp**: Include wikitext in the mcp extra, streamline tools docs
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+### Documentation
+
+- **mcp**: Note that uvx reuses an installed osw tool
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+- **tools**: Document uv tool install for osw and osw-mcp
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+- **tools**: Streamline install and registration guidance
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+
 ## v2.7.0 (2026-09-22)
 
 ### Features

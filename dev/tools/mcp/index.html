@@ -639,6 +639,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Quick install">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-command-to-register-for-the-mcp-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Which command to register for the MCP server
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -880,6 +897,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Quick install">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-command-to-register-for-the-mcp-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Which command to register for the MCP server
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1041,6 +1075,10 @@ page content),
 introspect category schemas, read entities and every page slot, create/update
 and delete entities, and read and write file pages as text. The transport is
 stdio; SSE and HTTP are not supported.</p>
+<p>A registered server runs the <code>osw-mcp</code> console script, and there are two ways to
+reach it: let <code>uvx</code> fetch it for each server, or install <code>osw[mcp]</code> once and
+register the command directly. See
+<a href="#which-command-to-register-for-the-mcp-server">Which command to register for the MCP server</a>.</p>
 <p><strong>No filesystem access:</strong> no MCP tool takes or returns a local path. File
 content moves inline as text (<code>get_file_info</code>, <code>read_file_text</code>,
 <code>write_file_text</code>), and everything path-based lives in the CLI instead
@@ -1075,6 +1113,35 @@ credential file path with your own:</p>
   for every project, or <code>-s project</code> to write a shared <code>.mcp.json</code>.</li>
 <li>List what is registered with <code>claude mcp list</code>.</li>
 </ul>
+<h3 id="which-command-to-register-for-the-mcp-server">Which command to register for the MCP server<a class="headerlink" href="#which-command-to-register-for-the-mcp-server" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p><strong>To pin the <code>osw</code> version per server, register the <code>uvx</code> command</strong>, as in the
+  example above and in every other example on this page. The package
+  specification is part of the entry, so one server can name a version or a
+  checkout that the others do not use. <code>uvx</code> needs no install of its own. The
+  cost is that changing the version means editing every entry that should
+  change. Note that <code>uvx</code> reuses an installed <code>osw</code> tool whenever that
+  installation satisfies the specification, so an unpinned <code>osw[mcp]</code> runs the
+  installed version if there is one. Write an explicit version, for example
+  <code>osw[mcp]==2.6.2</code>, when a server must be independent of it.</p>
+</li>
+<li>
+<p><strong>To let all servers share one <code>osw</code> version, register the installed
+  <code>osw-mcp</code> command.</strong> Install <code>osw[mcp]</code> as a uv tool (<a href="../#setup">Setup</a>),
+  then register that command in place of the whole <code>uvx --from ...</code> invocation:</p>
+<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>osw-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">OSW_DOMAIN</span><span class="o">=</span>wiki-dev.open-semantic-lab.org<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">OSW_CRED_FILEPATH</span><span class="o">=</span>/abs/path/to/accounts.pwd.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--<span class="w"> </span>osw-mcp
+</code></pre></div>
+<p>In JSON that entry is <code>"command": "osw-mcp"</code> with an empty <code>args</code> array.
+<code>uv tool upgrade osw</code> then changes the version for every server at once. The
+cost is that <code>osw-mcp</code> has to be on the PATH of the client, and that no
+server can keep an older version.</p>
+</li>
+</ul>
+<p>Everything else about an entry, <code>env</code> included, is the same either way.</p>
 <h2 id="registering-a-server">Registering a server<a class="headerlink" href="#registering-a-server" title="Permanent link">&para;</a></h2>
 <p>A server entry can carry its settings in two ways:</p>
 <ul>
@@ -1178,20 +1245,45 @@ instance:</p>
   needs, so only users who actually run the server pay for it.</li>
 </ul>
 <h2 id="notes-for-developers">Notes for developers<a class="headerlink" href="#notes-for-developers" title="Permanent link">&para;</a></h2>
-<p>To try an unreleased branch against a real client, point <code>uvx</code> at the checkout
-instead of at PyPI. Everything else about the registration stays the same:</p>
+<p>To try an unreleased branch against a real client, run it from the checkout. The
+same two options apply as above.</p>
+<p>Point <code>uvx</code> at the checkout instead of at PyPI. Everything else about the
+registration stays the same:</p>
 <div class="highlight"><pre><span></span><code>uvx<span class="w"> </span>--reinstall<span class="w"> </span>--from<span class="w"> </span><span class="s2">&quot;/abs/path/to/osw-python[mcp]&quot;</span><span class="w"> </span>osw-mcp
 </code></pre></div>
-<p><code>--reinstall</code> is what picks up your latest edits, since <code>uvx</code> caches the wheel
-it builds. In a JSON <code>args</code> array, a Windows path needs forward slashes or
+<p><code>--reinstall</code> is what makes <code>uvx</code> use your latest edits, since it caches the
+wheel it builds. In a JSON <code>args</code> array, a Windows path needs forward slashes or
 doubled backslashes.</p>
-<p>Prefer that over an editable install for the server. <code>create_or_update_entity</code>
-and <code>export_entity_jsonld</code> call <code>fetch_schema</code>, which regenerates
-<code>src/osw/model/entity.py</code> inside the installed package: <code>uvx</code> builds a
-non-editable wheel, so the write lands in the uv cache, while under
-<code>pip install -e</code> or <code>uv sync</code> it lands in your working tree. The read tools
+<p>Or install the checkout as an editable uv tool. The server then registers as
+plain <code>osw-mcp</code>, no client config contains the checkout path, and edits take
+effect at the next server start without a reinstall:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/path/to/osw-python
+uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>--reinstall<span class="w"> </span>--editable<span class="w"> </span><span class="s2">&quot;.[mcp]&quot;</span>
+</code></pre></div>
+<p><code>osw</code> and <code>osw-mcp</code> then import from <code>src/</code> in that checkout. Four consequences:</p>
+<ul>
+<li>Both commands follow the checked-out branch, so switching branches changes
+  what a registered server runs.</li>
+<li>Run the install command again after a change to <code>pyproject.toml</code>. uv
+  re-resolves from the checkout and installs the difference.</li>
+<li>Returning to a released version needs <code>--reinstall</code>. Without it uv finds the
+  requirement satisfied, keeps the editable environment and rewrites only the
+  tool receipt, so receipt and environment disagree.</li>
+<li>On Windows, an install that has to replace the tool environment fails with
+  <code>os error 5</code> while an <code>osw-mcp</code> server from it is running, because the running
+  process locks the tool's <code>Scripts</code> directory. Stop the MCP clients first.</li>
+</ul>
+<p>One difference decides between <code>uvx</code> and the editable install.
+<code>create_or_update_entity</code> and
+<code>export_entity_jsonld</code> call <code>fetch_schema</code>, which regenerates
+<code>src/osw/model/entity.py</code> inside the installed package. <code>uvx</code> builds a
+non-editable wheel, so the regenerated file is written into the uv cache. Under
+an editable install, as under <code>pip install -e</code> or <code>uv sync</code>, it is written into
+your working tree, where git tracks it. Note that <code>export_entity_jsonld</code> is
+declared read-only and still triggers this. The remaining read tools
 (<code>get_entity</code>, <code>get_slot</code>, <code>get_category_schema</code>, ...) read raw page slots and
-never trigger it.</p>
+never trigger it. So choose <code>uvx</code> whenever a client may call either of those two
+operations, and the editable install otherwise.</p>
 
 
 

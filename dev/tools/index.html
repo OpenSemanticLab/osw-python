@@ -883,21 +883,30 @@ Claude Code. Both run the same operations from one shared, SDK-free core
 (<code>osw.service</code>), so a command and its matching tool behave identically. They
 differ in exactly one way: only the CLI accepts filesystem paths.</p>
 <h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
-<p>Install one of the two; the second includes the first:</p>
+<p>Install <code>osw</code> as a uv tool. The <code>mcp</code> extra adds the server to the same install:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>osw<span class="w">             </span><span class="c1"># the `osw` command</span>
 uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;osw[mcp]&quot;</span><span class="w">      </span><span class="c1"># the same, plus the `osw-mcp` server</span>
 </code></pre></div>
+<p>uv writes both console scripts to its tool bin directory, <code>~/.local/bin</code> by
+default. Run <code>uv tool update-shell</code> once if that directory is not on your PATH
+yet, and <code>uv tool upgrade osw</code> to update them later. Quote the argument:
+<code>osw[mcp]</code> contains brackets, which zsh reads as a glob pattern and then refuses
+to run.</p>
+<p>Without the <code>mcp</code> extra, uv still writes <code>osw-mcp</code> to the bin directory, but
+that copy raises <code>ModuleNotFoundError</code> at startup. Install <code>osw[mcp]</code> before you
+register the server with a client.</p>
 <details>
 <summary>Other ways to install</summary>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;osw[mcp]&quot;</span><span class="w">          </span><span class="c1"># into the active environment</span>
 uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;osw[mcp]&quot;</span><span class="w">               </span><span class="c1"># as a dependency of the current uv project</span>
 uvx<span class="w"> </span>--from<span class="w"> </span><span class="s2">&quot;osw[mcp]&quot;</span><span class="w"> </span>osw-mcp<span class="w">   </span><span class="c1"># run the server without installing it</span>
 </code></pre></div>
-<p><code>uvx</code> is what the registration examples further down use, so the server needs
-no install of its own.</p>
+<p><code>uvx</code> needs no install of its own.
+<a href="mcp/#which-command-to-register-for-the-mcp-server">Which command to register</a>
+explains when to prefer it over the installed command.</p>
 </details>
-<p><code>osw[mcp]</code> is also part of <code>osw[all]</code>. The other extras are listed in the
-<a href="../get-started/#optional-extras">Get Started guide</a>.</p>
+<p><code>osw[mcp]</code> includes <code>osw[wikitext]</code>, and is itself part of <code>osw[all]</code>. The other
+extras are listed in the <a href="../get-started/#optional-extras">Get Started guide</a>.</p>
 <h2 id="in-this-section">In this section<a class="headerlink" href="#in-this-section" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

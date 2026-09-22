@@ -625,6 +625,34 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tasks-and-projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tasks and projects
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tasks and projects">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-claude-code-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The Claude Code skill
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -849,6 +877,34 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tasks-and-projects" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tasks and projects
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tasks and projects">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-claude-code-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The Claude Code skill
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -977,7 +1033,7 @@ osw<span class="w"> </span>file<span class="w"> </span>download<span class="w"> 
 <tbody>
 <tr>
 <td><code>entity</code></td>
-<td><code>get</code>, <code>put</code>, <code>export</code>, <code>delete</code></td>
+<td><code>get</code>, <code>put</code>, <code>export</code>, <code>delete</code>, <code>validate</code></td>
 </tr>
 <tr>
 <td><code>file</code></td>
@@ -985,7 +1041,7 @@ osw<span class="w"> </span>file<span class="w"> </span>download<span class="w"> 
 </tr>
 <tr>
 <td><code>search</code></td>
-<td><code>ask</code>, <code>titles</code>, <code>content</code>, <code>entities</code>, <code>sparql</code></td>
+<td><code>ask</code>, <code>titles</code>, <code>content</code>, <code>entities</code>, <code>sparql</code>, <code>label</code></td>
 </tr>
 <tr>
 <td><code>slot</code></td>
@@ -993,7 +1049,11 @@ osw<span class="w"> </span>file<span class="w"> </span>download<span class="w"> 
 </tr>
 <tr>
 <td><code>schema</code></td>
-<td><code>get</code></td>
+<td><code>get</code>, <code>props</code>, <code>usage</code></td>
+</tr>
+<tr>
+<td><code>skill</code></td>
+<td><code>install</code></td>
 </tr>
 <tr>
 <td><code>instances</code></td>
@@ -1043,6 +1103,33 @@ form.</p>
 <code>osw entity --help</code> or <code>osw entity get -h</code>, and prints that command's own
 help.</p>
 <p>Failures exit non-zero with a short message on stderr and no traceback.</p>
+<h2 id="tasks-and-projects">Tasks and projects<a class="headerlink" href="#tasks-and-projects" title="Permanent link">&para;</a></h2>
+<p>There is no dedicated command group for tasks. Reading local todos into an
+OSL wiki as Task entities, and reading tasks, projects and persons back out,
+is done with the generic <code>entity</code>, <code>schema</code> and <code>search</code> commands against the
+three OSL core categories (Task, Person, Project).</p>
+<p><strong>Configuration.</strong> Four environment variables affect this, and all are
+optional: <code>OSW_PERSON_IRI</code>, <code>OSW_TASK_CATEGORY</code>, <code>OSW_PERSON_CATEGORY</code> and
+<code>OSW_PROJECT_CATEGORY</code>. Reading always queries the shared OSL core category,
+since MediaWiki category membership includes the whole subclass tree, so a
+task kept in a local subclass is found without any configuration. The three
+category overrides only change where a newly created task, person or project
+is written.</p>
+<p><strong>Vocabularies.</strong> <code>status</code> and <code>prio</code> store the page name of a wiki item, not
+a word. Read the allowed values from the category schema with <code>osw schema get
+&lt;task category&gt; --resolve</code>: <code>status</code> carries them in <code>enum</code>, and <code>prio</code> names
+the category that holds them in <code>range</code>. A stock instance offers To do, In
+work and Done for <code>status</code>, and High, Medium and Low for <code>prio</code>. A due date is
+written to <code>end_date_time</code>, since the Task category has no due-date property.</p>
+<h3 id="the-claude-code-skill">The Claude Code skill<a class="headerlink" href="#the-claude-code-skill" title="Permanent link">&para;</a></h3>
+<p>The skill that drives this ships at <code>src/osw/skills/osl-tasks/SKILL.md</code>.
+Install it one of two ways:</p>
+<ol>
+<li><code>osw skill install</code>, which copies it to <code>~/.claude/skills/osl-tasks/</code>.</li>
+<li><code>/plugin marketplace add OpenSemanticLab/osw-python</code> then
+   <code>/plugin install osl-tasks</code>.</li>
+</ol>
+<p>A new Claude Code session picks it up with no further action.</p>
 
 
 

@@ -31,11 +31,23 @@ from osw.service.errors import OpError
 from osw.service.params import json_value
 from osw.service.registry import Operation, bind, iter_operations
 from osw.service.streams import force_utf8
+from osw.service.version import version_line
 from osw.wtsite import SLOTS
 
 from .render import render
 
-app = typer.Typer(no_args_is_help=True, add_completion=False)
+# help_option_names adds -h as an alias for --help. A child context created
+# for a subcommand or a subgroup inherits it from its parent context when the
+# child sets none of its own (click.Context.__init__), so this one setting
+# covers the whole command tree, not just the root. --help comes first: click
+# builds its "Try '... --help' for help." hint from help_option_names[0], and
+# every existing usage error already names --help, so putting -h first would
+# have changed all of them.
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["--help", "-h"]},
+)
 
 
 def _force_utf8_output() -> None:
@@ -53,14 +65,43 @@ def _force_utf8_output() -> None:
     stays exposed is the name the user typed, echoed back in a usage error --
     an unknown command name or an unknown root option name. A name typed
     after the command is fine, because click resolves the command, runs this
-    callback, and only then parses the command's own arguments.
+    callback, and only then parses the command's own arguments. --version /
+    -V also prints before this callback runs (its own callback is eager, like
+    --help), but it names no wiki content either, and forces UTF-8 on stdout
+    itself (see ``_version_callback``) rather than relying on this function.
     """
     force_utf8(sys.stdout, sys.stderr)
+
+
+def _version_callback(value: bool) -> None:
+    """Eager callback for --version / -V: print the line and exit.
+
+    click processes an eager option's callback before a command's own
+    callback body runs, so this needs no configuration, no credential file
+    and no network -- the same reason ``--help`` works with none of those.
+    It also runs before ``_force_utf8_output``, so it forces stdout to UTF-8
+    itself: the line names the package's install directory, which a redirected
+    stdout on Windows would otherwise encode with the locale encoding, raising
+    ``UnicodeEncodeError`` on a path outside it. ``osw-mcp -V`` does the same
+    (``osw.mcp.server.main``).
+    """
+    if value:
+        force_utf8(sys.stdout)
+        typer.echo(version_line("osw"))
+        raise typer.Exit()
 
 
 @app.callback()
 def _callback(
     ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show the version and exit.",
+        is_eager=True,
+        callback=_version_callback,
+    ),
     instance: Optional[str] = typer.Option(
         None,
         "--instance",
@@ -113,6 +154,8 @@ _ROOT_OPTIONS = {
     "--read-only": "--read-only",
     "--verbose": "--verbose",
     "-v": "-v",
+    "--version": "--version",
+    "-V": "-V",
 }
 
 

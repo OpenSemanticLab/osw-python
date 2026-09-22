@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import os
+import platform
 import sys
 from contextlib import contextmanager
 
@@ -207,11 +209,125 @@ def _serve_without_blocking(monkeypatch) -> None:
     monkeypatch.setattr(server.atexit, "register", lambda func: func)
 
 
+# -- -h / -V / an unknown argument, all resolved before any credential is
+# needed (Change: main() now takes argv and parses it with argparse) --------
+def _refuse_to_build(*args, **kwargs):
+    raise AssertionError("_build_server must not be called on this path")
+
+
+def _expected_version_line(prog: str) -> str:
+    """The line ``prog --version`` must print, built independently of
+    ``server.version_line`` so a bug in that function (e.g. ignoring
+    ``prog``) cannot pass these tests by comparing itself to itself."""
+    location = os.path.dirname(osw.__file__)
+    return (
+        f"{prog} {osw.__version__} from {location} (Python {platform.python_version()})"
+    )
+
+
+def test_main_version_flag_prints_the_line_and_builds_no_server(monkeypatch, capsys):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    server.main(["--version"])
+
+    out = capsys.readouterr().out.strip()
+    assert out.startswith("osw-mcp ")
+    assert out == _expected_version_line("osw-mcp")
+
+
+def test_main_short_version_flag_prints_the_line_and_builds_no_server(
+    monkeypatch, capsys
+):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    server.main(["-V"])
+
+    assert capsys.readouterr().out.strip() == _expected_version_line("osw-mcp")
+
+
+def test_main_help_flag_exits_zero_with_the_help_on_stdout(monkeypatch, capsys):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    with pytest.raises(SystemExit) as exc_info:
+        server.main(["-h"])
+
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert "osw-mcp" in out
+    assert "--version" in out
+
+
+def test_main_with_no_argument_reads_sys_argv(monkeypatch, capsys):
+    """``argv=None`` (the default) is argparse's own convention for "read
+    the real command line", which ``ArgumentParser.parse_args`` implements by
+    reading ``sys.argv[1:]`` itself, at call time. This proves that path
+    actually works for ``main()``, not just that it forwards ``None``."""
+    monkeypatch.setattr(sys, "argv", ["osw-mcp", "--version"])
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    server.main()
+
+    assert capsys.readouterr().out.strip() == _expected_version_line("osw-mcp")
+
+
+_MCP_DOCS_URL = (
+    "https://github.com/OpenSemanticLab/osw-python/blob/main/docs/tools/mcp.md."
+)
+
+
+@pytest.mark.parametrize("columns", ["60", "90", "132"])
+def test_help_description_keeps_the_url_on_one_line(monkeypatch, columns):
+    """argparse's default formatter wraps the description with textwrap,
+    break_on_hyphens=True, so at some terminal widths (90 is one) a line ends
+    with ".../osw-" and the next starts with "python/blob/...". The parser
+    has to keep the URL intact regardless of the terminal width; COLUMNS is
+    what shutil.get_terminal_size (which argparse's formatter uses) reads.
+    """
+    monkeypatch.setenv("COLUMNS", columns)
+
+    lines = server._build_parser().format_help().splitlines()
+
+    assert any(_MCP_DOCS_URL in line for line in lines)
+
+
+def test_argparse_help_text_is_ascii():
+    """osw-mcp's argparse help goes to stdout on the -h path, which main()
+    does not force to UTF-8 (unlike the --version path). A non-ASCII
+    character in the description or an option's help would risk
+    UnicodeEncodeError on a locale that cannot represent it, the same class
+    of defect tests/test_cli.py::test_every_help_string_is_ascii guards
+    against for the typer app.
+    """
+    assert server._build_parser().format_help().isascii()
+
+
+def test_main_rejects_an_unknown_argument(monkeypatch, capsys):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    with pytest.raises(SystemExit) as exc_info:
+        server.main(["--bogus"])
+
+    assert exc_info.value.code == 2
+    assert "osw-mcp" in capsys.readouterr().err
+
+
+def test_main_rejects_an_abbreviated_version_flag(monkeypatch, capsys):
+    """argparse accepts an unambiguous abbreviation by default; osw's own
+    CLI (click) does not, so osw-mcp turns that off (allow_abbrev=False) to
+    match: an argument that is not exactly --version or -V is rejected."""
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    with pytest.raises(SystemExit) as exc_info:
+        server.main(["--vers"])
+
+    assert exc_info.value.code == 2
+
+
 def test_main_is_quiet_on_a_successful_start(monkeypatch, capsys):
     _configure(monkeypatch)
     _serve_without_blocking(monkeypatch)
 
-    server.main()
+    server.main([])
 
     assert "[osw]" not in capsys.readouterr().err
 
@@ -222,7 +338,7 @@ def test_main_prints_the_report_when_osw_verbose_is_set(monkeypatch, capsys):
     config.reset()
     _serve_without_blocking(monkeypatch)
 
-    server.main()
+    server.main([])
 
     err = capsys.readouterr().err
     assert "[osw-mcp] credentials" in err
@@ -237,7 +353,7 @@ def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys
     config.reset()
 
     with pytest.raises(SystemExit):
-        server.main()
+        server.main([])
 
     err = capsys.readouterr().err
     assert "[osw-mcp] " in err
@@ -262,7 +378,7 @@ def test_main_forces_utf8_on_stderr_and_leaves_stdout_alone(monkeypatch):
     monkeypatch.setattr(sys, "stdout", out)
     monkeypatch.setattr(sys, "stderr", err)
 
-    server.main()
+    server.main([])
 
     assert err.encoding == "utf-8"
     # reconfigure() resets errors to strict unless it is passed as well, and a

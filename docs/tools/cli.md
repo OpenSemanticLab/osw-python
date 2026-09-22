@@ -70,5 +70,12 @@ form.
 - `--verbose` / `-v` shows full tracebacks instead of a one-line message, and
   adds the env-file line to the source report described under
   [Where settings come from](configuration.md#where-settings-come-from).
+- `--version` / `-V` prints one line with the osw version, the location of
+  the osw package and the Python version, then exits, needing no instance or
+  credentials.
+
+`--help` / `-h` works on `osw` itself and after any subcommand or group, e.g.
+`osw entity --help` or `osw entity get -h`, and prints that command's own
+help.
 
 Failures exit non-zero with a short message on stderr and no traceback.

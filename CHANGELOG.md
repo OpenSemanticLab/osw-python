@@ -10,6 +10,27 @@
 
 <!-- version list -->
 
+## v2.6.2 (2026-09-22)
+
+### Bug Fixes
+
+- **cli,mcp**: UTF-8 stderr, a stdout guard, and OSW_CRED_FILEPATH paths
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+- **config**: Expand a leading ~ in OSW_CRED_FILEPATH
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+- **mcp**: Encode the osw-mcp startup report as UTF-8
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+- **mcp**: Resolve a relative OSW_CRED_FILEPATH at startup
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+
 ## v2.6.1 (2026-09-21)
 
 ### Bug Fixes

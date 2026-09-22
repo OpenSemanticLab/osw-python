@@ -472,6 +472,73 @@ def test_cred_filepath_tilde_with_no_home_names_the_variable(monkeypatch):
     assert "home directory" in str(exc.value)
 
 
+def test_cred_filepath_relative_is_stored_resolved_for_the_mcp_server(
+    monkeypatch, tmp_path
+):
+    """The MCP client chooses the server's working directory, not the user.
+
+    Implicit discovery is off, which is the MCP server's setting. A relative
+    path is resolved against the working directory once, at load time, and the
+    full path is stored, so no later read depends on the working directory.
+    """
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "accounts.pwd.yaml")
+
+    settings = config.load()
+
+    assert settings.cred_filepath == str(Path.cwd() / "accounts.pwd.yaml")
+
+
+def test_cred_filepath_relative_and_missing_names_the_resolved_path(
+    monkeypatch, tmp_path, capsys
+):
+    """The rejection and the source report both show where the server looked.
+
+    Called in the order the MCP server calls them: the report first, then
+    load(). The server prints the report when it fails to start, so a bare
+    'accounts.pwd.yaml' there would not say which directory was searched. The
+    full path alone would not say why that directory either: the user never
+    typed it, so the message names the relative value it came from.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "accounts.pwd.yaml")
+    resolved = str(Path.cwd() / "accounts.pwd.yaml")
+
+    config.log_config_sources()
+    with pytest.raises(RuntimeError) as exc:
+        config.load()
+
+    assert f"Configured credential file '{resolved}' does not exist" in str(exc.value)
+    assert "OSW_CRED_FILEPATH is the relative path 'accounts.pwd.yaml'" in (
+        str(exc.value)
+    )
+    assert f"credential file: {resolved} (from the OSW_CRED_FILEPATH" in (
+        capsys.readouterr().err
+    )
+
+
+def test_cred_filepath_relative_stays_relative_for_the_cli(monkeypatch, tmp_path):
+    """The CLI's working directory is the one the user typed the command in."""
+    _write_cred_file(
+        tmp_path / "accounts.pwd.yaml",
+        {"wiki.example.org": {"username": "alice", "password": "secret"}},
+    )
+    monkeypatch.chdir(tmp_path)
+    config.set_env_file_discovery(True)
+    monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
+    monkeypatch.setenv("OSW_CRED_FILEPATH", "accounts.pwd.yaml")
+
+    settings = config.load()
+
+    assert settings.cred_filepath == "accounts.pwd.yaml"
+
+
 def test_canonical_read_only(monkeypatch):
     monkeypatch.setenv("OSW_DOMAIN", "wiki.example.org")
     monkeypatch.setenv("OSW_USERNAME", "alice")

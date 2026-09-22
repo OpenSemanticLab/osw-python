@@ -27,6 +27,7 @@ SKILL_MD_PATH = (
     Path(ops.__file__).resolve().parent.parent / "skills" / "osl-tasks" / "SKILL.md"
 )
 PYPROJECT_PATH = Path(__file__).resolve().parent.parent / "pyproject.toml"
+SKILL_VERSION_ENTRY = "src/osw/skills/osl-tasks/SKILL.md:version"
 
 
 def _skill_frontmatter() -> dict:
@@ -113,4 +114,30 @@ def test_skill_is_registered_for_the_release_version_bump():
     """
     variables = _pyproject()["tool"]["semantic_release"]["version_variables"]
 
-    assert "src/osw/skills/osl-tasks/SKILL.md:version" in variables
+    assert SKILL_VERSION_ENTRY in variables
+
+
+def test_release_bump_rewrites_only_the_frontmatter_version(monkeypatch):
+    """python-semantic-release rewrites every match of its pattern in the file.
+
+    A body line such as 'version: 1.2.3' or 'osw version 1.2.3' would be
+    rewritten on every release without any test failing, so run the release
+    tool's own replacement and check that it changes exactly one line.
+    """
+    from semantic_release.version.declarations.pattern import (
+        PatternVersionDeclaration,
+    )
+    from semantic_release.version.version import Version
+
+    # The entry's path is relative to the repository root, where the release
+    # tool runs.
+    monkeypatch.chdir(PYPROJECT_PATH.parent)
+    declaration = PatternVersionDeclaration.from_string_definition(
+        SKILL_VERSION_ENTRY, "v{version}"
+    )
+    before = SKILL_MD_PATH.read_text(encoding="utf-8").splitlines()
+    after = declaration.replace(Version.parse("99.99.99")).splitlines()
+
+    assert len(after) == len(before)
+    changed = [new for old, new in zip(before, after) if old != new]
+    assert changed == ['  version: "99.99.99"']

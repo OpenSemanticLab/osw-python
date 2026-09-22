@@ -6,19 +6,37 @@ tests/test_cli.py only exercises osw.cli.ops through the typer command tree
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+import yaml
 
 from osw.cli import ops
 from osw.service import errors, registry
 from osw.service.config import Settings
 from osw.service.context import Context, Policy
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
 SKILL_MD_PATH = (
     Path(ops.__file__).resolve().parent.parent / "skills" / "osl-tasks" / "SKILL.md"
 )
+PYPROJECT_PATH = Path(__file__).resolve().parent.parent / "pyproject.toml"
+
+
+def _skill_frontmatter() -> dict:
+    # The frontmatter is the YAML between the two leading '---' lines.
+    _, frontmatter, _ = SKILL_MD_PATH.read_text(encoding="utf-8").split("---", 2)
+    return yaml.safe_load(frontmatter)
+
+
+def _pyproject() -> dict:
+    return tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
 
 
 def _ctx() -> Context:
@@ -74,3 +92,25 @@ def test_second_install_with_force_overwrites(tmp_path):
 
 def test_install_skill_is_registered_on_the_cli_surface_only():
     assert registry.REGISTRY["install_skill"].surfaces == frozenset({"cli"})
+
+
+def test_skill_version_matches_the_package_version():
+    """The skill carries the osw version it ships with.
+
+    python-semantic-release rewrites both in the release commit, so they can
+    only differ when one of them was edited by hand.
+    """
+    skill_version = _skill_frontmatter()["metadata"]["version"]
+
+    assert skill_version == _pyproject()["project"]["version"]
+
+
+def test_skill_is_registered_for_the_release_version_bump():
+    """Without this entry a release bumps pyproject.toml but not the skill.
+
+    The version check above would only fail after that release, so this
+    catches a removed entry at once.
+    """
+    variables = _pyproject()["tool"]["semantic_release"]["version_variables"]
+
+    assert "src/osw/skills/osl-tasks/SKILL.md:version" in variables

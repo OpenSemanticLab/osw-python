@@ -1,6 +1,8 @@
 ---
 name: osl-tasks
 description: Use when importing local todo or note files into an OpenSemanticLab (OSL) wiki as Task entities, or when listing, filtering and updating tasks that already live in OSL. Drives the generic entity, schema and search operations of the `osw` CLI and MCP server; there are no task-specific commands. Covers the Task, Person and Project category page names, how to read the status and priority vocabularies from the schema, the update-by-uuid rule, the duplicate rule and the link marker written back into the local file.
+metadata:
+  version: "2.6.0"
 ---
 
 # OSL task management

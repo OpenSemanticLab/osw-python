@@ -1327,9 +1327,11 @@ class OSW(BaseModel):
                                     if (
                                         conflicting_cls is not None
                                         and conflicting_cls is not generated_cls
-                                        # a specialization of generated_cls was
-                                        #  already set aside above; it still
-                                        #  holds the slot and nothing claimed it
+                                        # the slot holder specializes
+                                        #  generated_cls, e.g. a controller
+                                        #  that inherits the category IRI:
+                                        #  the case the guard above expects,
+                                        #  not a conflict
                                         and not issubclass(
                                             conflicting_cls, generated_cls
                                         )
@@ -1343,6 +1345,14 @@ class OSW(BaseModel):
                                     category_to_cls[category] = generated_cls
                 if not schemas_fetched:
                     continue
+                # fetch_schema() reloads osw.model.entity, which replaces every
+                #  class defined there, so a class picked before a later fetch in
+                #  the loop above may be out of date: take the current object
+                for category, chosen_cls in category_to_cls.items():
+                    if chosen_cls.__module__ == model.__name__:
+                        category_to_cls[category] = getattr(
+                            model, chosen_cls.__name__, chosen_cls
+                        )
 
                 try:
                     if param.model_to_use:

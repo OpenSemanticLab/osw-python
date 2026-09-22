@@ -102,6 +102,14 @@ def make_isolated_cls(name: str, base=model.Item):
     return type(base)(name, (base,), namespace)
 
 
+def make_generated_cls(name: str):
+    """Like make_isolated_cls, but defined in osw.model.entity, as a class that
+    fetch_schema() generated is."""
+    cls = make_isolated_cls(name)
+    cls.__module__ = model.__name__
+    return cls
+
+
 def test_load_entity_prefers_registered_class_over_generated_one():
     """A class already registered for the category IRI is used as-is, and no
     replacement class is compiled into osw.model.entity for it."""
@@ -289,3 +297,58 @@ def test_load_entity_warns_on_registry_conflict(monkeypatch, caplog):
         if hasattr(model, cls_name):
             delattr(model, cls_name)
         oold_type_registry.pop(category, None)
+
+
+def test_load_entity_uses_the_current_class_after_a_reload(monkeypatch):
+    """fetch_schema() reloads osw.model.entity, which replaces every class
+    defined there. On a page with two categories, a fetch for the second one
+    must not leave the entity built from the first one's replaced class."""
+    cat_a = "Category:OSWReloadTestA000000000000000000000000"
+    cat_b = "Category:OSWReloadTestB000000000000000000000000"
+    name_a, name_b = "ReloadTestA", "ReloadTestB"
+
+    setattr(model, name_a, make_generated_cls(name_a))
+
+    def fake_fetch_schema(self, fetchSchemaParam=None):
+        # what importlib.reload(model) does: the requested class appears, and
+        # every class already generated there becomes a new object
+        setattr(model, name_a, make_generated_cls(name_a))
+        setattr(model, name_b, make_generated_cls(name_b))
+
+    monkeypatch.setattr(OSW, "fetch_schema", fake_fetch_schema)
+    try:
+        entity_page = OfflineWtPage(
+            title="Item:OSWReloadEntity00000000000000000000000000000"
+        )
+        jsondata = {
+            "type": [cat_a, cat_b],
+            "uuid": "33333333-3333-3333-3333-333333333333",
+            "name": "x",
+            "label": [{"text": "x"}],
+        }
+        remove_empty(jsondata)
+        entity_page.set_slot_content("jsondata", jsondata)
+
+        osw_obj = OSW(site=make_offline_wtsite())
+
+        result = osw_obj.load_entity(
+            OSW.LoadEntityParam(
+                titles=[entity_page.title],
+                autofetch_schema=True,
+                offline_pages={
+                    entity_page.title: entity_page,
+                    cat_a: make_schema_page(cat_a, name_a),
+                    cat_b: make_schema_page(cat_b, name_b),
+                },
+            )
+        )
+
+        entity = result.entities[0]
+        assert isinstance(entity, getattr(model, name_a))
+        assert isinstance(entity, getattr(model, name_b))
+    finally:
+        for name in (name_a, name_b):
+            if hasattr(model, name):
+                delattr(model, name)
+        oold_type_registry.pop(cat_a, None)
+        oold_type_registry.pop(cat_b, None)

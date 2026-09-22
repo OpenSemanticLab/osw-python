@@ -160,6 +160,28 @@ def test_short_help_flag_prints_the_same_help_as_the_long_form(runner, args):
     assert _usage_error(short_result) == _usage_error(long_result)
 
 
+def _command_paths(command: click.Command, path: list[str]) -> list[list[str]]:
+    """Every command and group below ``command``, as argument lists."""
+    paths = [path]
+    if isinstance(command, click.Group):
+        for name, sub in command.commands.items():
+            paths.extend(_command_paths(sub, [*path, name]))
+    return paths
+
+
+def test_short_help_flag_works_on_every_command(runner):
+    """The commands are generated from the operation registry, so the three
+    paths above do not show that none of them sets its own context settings.
+    Walk the whole tree instead."""
+    paths = _command_paths(typer.main.get_command(app), [])
+    failing = [
+        path for path in paths if runner.invoke(app, [*path, "-h"]).exit_code != 0
+    ]
+
+    assert len(paths) > 3
+    assert failing == []
+
+
 # -- --version / -V (Change: issue #199) ----------------------------------------
 def _expected_version_line(prog: str) -> str:
     """The line ``prog --version`` must print, built independently of

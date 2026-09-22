@@ -3,19 +3,17 @@
 tests/test_cli.py only exercises osw.cli.ops through the typer command tree
 (runner.invoke), so this module calls the operation function directly instead.
 
-The last three tests cover the release version stamping of the skill and of
-the two other files that carry a copy of the osw version.
+The last two tests cover the release version stamping of the skill and of the
+two other files that carry a copy of the osw version.
 """
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-import yaml
 
 from osw.cli import ops
 from osw.service import errors, registry
@@ -32,25 +30,17 @@ SKILL_MD_PATH = (
 )
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
-PLUGIN_JSON_PATH = REPO_ROOT / ".claude-plugin" / "plugin.json"
-CITATION_PATH = REPO_ROOT / "CITATION.cff"
 SKILL_VERSION_ENTRY = "src/osw/skills/osl-tasks/SKILL.md:version"
 PLUGIN_VERSION_ENTRY = ".claude-plugin/plugin.json:version"
 CITATION_VERSION_ENTRY = "CITATION.cff:version"
 
-
-def _skill_version() -> str:
-    # The frontmatter is the YAML between the two leading '---' lines.
-    _, frontmatter, _ = SKILL_MD_PATH.read_text(encoding="utf-8").split("---", 2)
-    return yaml.safe_load(frontmatter)["metadata"]["version"]
-
-
-def _plugin_version() -> str:
-    return json.loads(PLUGIN_JSON_PATH.read_text(encoding="utf-8"))["version"]
-
-
-def _citation_version() -> str:
-    return yaml.safe_load(CITATION_PATH.read_text(encoding="utf-8"))["version"]
+# There is deliberately no test that a stamped version equals
+# project.version. A pull request is tested against its merge with main, and
+# a release on main bumps pyproject.toml and every stamped file the branch
+# does not touch. A branch that edits SKILL.md therefore keeps the older
+# version in that one file, and such a test would fail for a branch that is
+# correct. The two tests below cover the rot that matters: a missing
+# registration, and a version line the release pattern no longer matches.
 
 
 def _pyproject() -> dict:
@@ -112,25 +102,11 @@ def test_install_skill_is_registered_on_the_cli_surface_only():
     assert registry.REGISTRY["install_skill"].surfaces == frozenset({"cli"})
 
 
-@pytest.mark.parametrize(
-    "read_version",
-    [_skill_version, _plugin_version, _citation_version],
-    ids=["skill", "plugin", "citation"],
-)
-def test_stamped_version_matches_the_package_version(read_version):
-    """Three files carry a copy of the osw version they ship with.
-
-    python-semantic-release rewrites all of them in the release commit, so
-    they can only differ when one of them was edited by hand.
-    """
-    assert read_version() == _pyproject()["project"]["version"]
-
-
 def test_stamped_files_are_registered_for_the_release_version_bump():
     """Without these entries a release bumps pyproject.toml but not the file.
 
-    The version check above would only fail after that release, so this
-    catches a removed entry at once.
+    The file would then keep the version it was committed with, release after
+    release, and nothing else would report it.
     """
     variables = _pyproject()["tool"]["semantic_release"]["version_variables"]
 

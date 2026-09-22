@@ -8,6 +8,11 @@ introspect category schemas, read entities and every page slot, create/update
 and delete entities, and read and write file pages as text. The transport is
 stdio; SSE and HTTP are not supported.
 
+A registered server runs the `osw-mcp` console script, and there are two ways to
+reach it: let `uvx` fetch it for each server, or install `osw[mcp]` once and
+register the command directly. See
+[Which command to register for the MCP server](#which-command-to-register-for-the-mcp-server).
+
 **No filesystem access:** no MCP tool takes or returns a local path. File
 content moves inline as text (`get_file_info`, `read_file_text`,
 `write_file_text`), and everything path-based lives in the CLI instead
@@ -42,30 +47,32 @@ Notes:
   for every project, or `-s project` to write a shared `.mcp.json`.
 - List what is registered with `claude mcp list`.
 
-### `uvx` or the installed command
+### Which command to register for the MCP server
 
-The other examples on this page run the server with `uvx`, which needs no
-install of its own. If you installed `osw[mcp]` with `uv tool install`
-([Setup](index.md#setup)), register the `osw-mcp` command directly instead and
-drop the `--from` argument:
+- **To pin the `osw` version per server, register the `uvx` command**, as in the
+  example above and in every other example on this page. The package
+  specification is part of the entry, so one server can name a version or a
+  checkout that the others do not use. `uvx` needs no install of its own. The
+  cost is that changing the version means editing every entry that should
+  change.
 
-```bash
-claude mcp add osw-dev \
-  -e OSW_DOMAIN=wiki-dev.open-semantic-lab.org \
-  -e OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml \
-  -- osw-mcp
-```
+- **To let all servers share one `osw` version, register the installed
+  `osw-mcp` command.** Install `osw[mcp]` as a uv tool ([Setup](index.md#setup)),
+  then register that command in place of the whole `uvx --from ...` invocation:
 
-In JSON, that entry is `"command": "osw-mcp"` with an empty `args` array. Every
-other part of an entry, `env` included, stays the same.
+    ```bash
+    claude mcp add osw-dev \
+      -e OSW_DOMAIN=wiki-dev.open-semantic-lab.org \
+      -e OSW_CRED_FILEPATH=/abs/path/to/accounts.pwd.yaml \
+      -- osw-mcp
+    ```
 
-Which one to pick depends on how many instances you register. With `uvx`, the
-package specification is part of every entry, so pinning a version or pointing
-at a checkout means editing every entry in every client. With the installed
-command, an entry names only `osw-mcp`, and `uv tool install` or
-`uv tool upgrade osw` decides what that runs. The trade-off is that `osw-mcp`
-has to be on the PATH of the client, and that all registered servers change
-version together.
+    In JSON that entry is `"command": "osw-mcp"` with an empty `args` array.
+    `uv tool upgrade osw` then changes the version for every server at once. The
+    cost is that `osw-mcp` has to be on the PATH of the client, and that no
+    server can keep an older version.
+
+Everything else about an entry, `env` included, is the same either way.
 
 ## Registering a server
 
@@ -190,8 +197,11 @@ Why the MCP server is shaped the way it is, and how that differs from the CLI:
 
 ## Notes for developers
 
-To try an unreleased branch against a real client, point `uvx` at the checkout
-instead of at PyPI. Everything else about the registration stays the same:
+To try an unreleased branch against a real client, run it from the checkout. The
+same two options apply as above.
+
+Point `uvx` at the checkout instead of at PyPI. Everything else about the
+registration stays the same:
 
 ```bash
 uvx --reinstall --from "/abs/path/to/osw-python[mcp]" osw-mcp
@@ -201,12 +211,30 @@ uvx --reinstall --from "/abs/path/to/osw-python[mcp]" osw-mcp
 it builds. In a JSON `args` array, a Windows path needs forward slashes or
 doubled backslashes.
 
-The alternative is an editable tool install
-([From a local checkout](index.md#from-a-local-checkout)). The server then
-registers as plain `osw-mcp`, no client config contains the checkout path, and
-edits take effect at the next server start without a `--reinstall`.
+Or install the checkout as an editable uv tool. The server then registers as
+plain `osw-mcp`, no client config contains the checkout path, and edits take
+effect at the next server start without a reinstall:
 
-One difference decides between the two. `create_or_update_entity` and
+```bash
+cd /path/to/osw-python
+uv tool install --reinstall --editable ".[mcp]"
+```
+
+`osw` and `osw-mcp` then import from `src/` in that checkout. Four consequences:
+
+- Both commands follow the checked-out branch, so switching branches changes
+  what a registered server runs.
+- Run the install command again after a change to `pyproject.toml`. uv
+  re-resolves from the checkout and installs the difference.
+- Returning to a released version needs `--reinstall`. Without it uv finds the
+  requirement satisfied, keeps the editable environment and rewrites only the
+  tool receipt, so receipt and environment disagree.
+- On Windows, an install that has to replace the tool environment fails with
+  `os error 5` while an `osw-mcp` server from it is running, because the running
+  process locks the tool's `Scripts` directory. Stop the MCP clients first.
+
+One difference decides between `uvx` and the editable install.
+`create_or_update_entity` and
 `export_entity_jsonld` call `fetch_schema`, which regenerates
 `src/osw/model/entity.py` inside the installed package. `uvx` builds a
 non-editable wheel, so the regenerated file is written into the uv cache. Under

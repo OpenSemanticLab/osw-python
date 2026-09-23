@@ -1,6 +1,6 @@
 ---
 name: osl-tasks
-description: Use when importing local todo or note files into an OpenSemanticLab (OSL) wiki as Task entities, or when listing, filtering and updating tasks that already live in OSL. Drives the generic entity, schema and search operations of the `osw` CLI and MCP server; there are no task-specific commands. Covers the Task, Person and Project category page names, how to read the status and priority vocabularies from the schema, the update-by-uuid rule, the duplicate rule and the link marker written back into the local file.
+description: Use when importing local todo or note files into an OpenSemanticLab (OSL) wiki as Task entities, or when listing, filtering and updating tasks that already live in OSL. Requires the `osw` CLI or the osw MCP server.
 metadata:
   version: "2.8.0"
 ---
@@ -17,6 +17,17 @@ mistakes silently produce a wrong result.
 
 Commands are shown in CLI form. Each one has an MCP tool with the same
 parameters; the tool name is given in the table below.
+
+## What this skill needs
+
+This skill calls the `osw` CLI or the osw MCP server, and installing the skill
+file or the `osl-tasks` plugin installs neither of them. Run `osw schema
+--help` first. It fails when the CLI is missing, and when it is old enough to
+lack the command groups below. It does not tell you whether the version
+matches this file. Troubleshooting covers that. If it fails and this session
+has no osw MCP tool, ask the
+user to install the `osw` package, plus the `mcp` extra and a registered
+server for the MCP tools. Then stop.
 
 ## When to use this skill
 
@@ -339,3 +350,19 @@ and reversible. A skipped todo is silent and loses work.
   update, not create.
 - Anything weaker than an exact label match is a candidate. Show the
   candidates to the user and let them decide. Do not resolve it yourself.
+
+## Troubleshooting
+
+Nothing checks that this file and the installed `osw` package come from the
+same release, although both versions are set together when a release is made.
+Compare `metadata.version` in this file's frontmatter with the version that
+`osw --version` prints. With the MCP server and no CLI, ask the user for the
+version of the `osw` package that serves it.
+
+If the two differ, this file can describe operations, flags or field names
+that the installed package does not have, or omit ones it does have.
+Reinstall with `osw skill install --force`, or update the `osl-tasks` plugin,
+or update the `osw` package, until both report the same version.
+
+If this file's frontmatter has no `metadata.version` at all, the copy is older
+than the release that added that field. Reinstall it.

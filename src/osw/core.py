@@ -1254,101 +1254,113 @@ class OSW(BaseModel):
                     remove_empty(jsondata)
                 if jsondata:
                     for category in jsondata["type"]:
-                        schema = (
-                            self.site
-                            .get_page(
-                                WtSite.GetPageParam(
-                                    titles=[category], offline_pages=param.offline_pages
-                                )
-                            )
-                            .pages[0]
-                            .get_slot_content("jsonschema")
-                        )
-                        schemas.append(schema)
-                        # generate model if not already exists
-                        cls_name: str = schema["title"]
-                        # If a schema_to_use is provided, we do not need to check if
-                        #  the model exists
-                        if not param.model_to_use:
-                            # Prefer a class already registered for this category
-                            # IRI (e.g. a packaged model class) over compiling a
-                            # new one. Compiling one anyway would take over the
-                            # oold type registry entry for this category and hide
-                            # the packaged class' typed fields/helpers.
-                            registered_cls = oold_type_registry.get(category)
-                            # Controllers and result wrappers (e.g.
-                            #  WikiFileController, UploadFileResult) inherit
-                            #  their category IRI from the model class they
-                            #  extend, and the registry keeps whichever class
-                            #  was defined last. Such a specialization asks for
-                            #  fields a plain page's jsondata does not carry, so
-                            #  prefer the canonical class from osw.model.entity
-                            #  over a subclass of it.
-                            canonical_cls = getattr(model, cls_name, None)
-                            if (
-                                registered_cls is not None
-                                # the schema title can also name a module
-                                #  attribute that is not a class
-                                and isinstance(canonical_cls, type)
-                                and registered_cls is not canonical_cls
-                                and issubclass(registered_cls, canonical_cls)
-                            ):
-                                _logger.debug(
-                                    f"Ignoring '{registered_cls}' registered for "
-                                    f"category '{category}': it specializes "
-                                    f"'{canonical_cls}', which is used instead."
-                                )
-                                registered_cls = None
-                            if registered_cls is not None:
-                                category_to_cls[category] = registered_cls
-                            else:
-                                if not hasattr(model, cls_name):
-                                    if param.autofetch_schema:
-                                        self.fetch_schema(
-                                            OSW.FetchSchemaParam(
-                                                schema_title=category,
-                                                mode="append",
-                                                offline_pages=param.offline_pages,
-                                            )
-                                        )
-                                if not hasattr(model, cls_name):
-                                    schemas_fetched = False
-                                    _logger.error(
-                                        f"Model {cls_name} not found. Schema "
-                                        f"{category} needs to be fetched first."
+                        # one unusable category must not end the whole call
+                        try:
+                            schema = (
+                                self.site
+                                .get_page(
+                                    WtSite.GetPageParam(
+                                        titles=[category],
+                                        offline_pages=param.offline_pages,
                                     )
+                                )
+                                .pages[0]
+                                .get_slot_content("jsonschema")
+                            )
+                            schemas.append(schema)
+                            # generate model if not already exists
+                            cls_name: str = schema["title"]
+                            # If a schema_to_use is provided, we do not need to check if
+                            #  the model exists
+                            if not param.model_to_use:
+                                # Prefer a class already registered for this category
+                                # IRI (e.g. a packaged model class) over compiling a
+                                # new one. Compiling one anyway would take over the
+                                # oold type registry entry for this category and hide
+                                # the packaged class' typed fields/helpers.
+                                registered_cls = oold_type_registry.get(category)
+                                # Controllers and result wrappers (e.g.
+                                #  WikiFileController, UploadFileResult) inherit
+                                #  their category IRI from the model class they
+                                #  extend, and the registry keeps whichever class
+                                #  was defined last. Such a specialization asks for
+                                #  fields a plain page's jsondata does not carry, so
+                                #  prefer the canonical class from osw.model.entity
+                                #  over a subclass of it.
+                                canonical_cls = getattr(model, cls_name, None)
+                                if (
+                                    registered_cls is not None
+                                    # the schema title can also name a module
+                                    #  attribute that is not a class
+                                    and isinstance(canonical_cls, type)
+                                    and registered_cls is not canonical_cls
+                                    and issubclass(registered_cls, canonical_cls)
+                                ):
+                                    _logger.debug(
+                                        f"Ignoring '{registered_cls}' registered for "
+                                        f"category '{category}': it specializes "
+                                        f"'{canonical_cls}', which is used instead."
+                                    )
+                                    registered_cls = None
+                                if registered_cls is not None:
+                                    category_to_cls[category] = registered_cls
                                 else:
-                                    generated_cls = getattr(model, cls_name)
-                                    # The class we are about to use may have just
-                                    # claimed (or may already hold) the registry
-                                    # slot for this category. If a different class
-                                    # is registered for it, someone's registration
-                                    # was silently overwritten - do not raise, but
-                                    # make sure this does not pass silently.
-                                    conflicting_cls = oold_type_registry.get(category)
-                                    if (
-                                        conflicting_cls is not None
-                                        and conflicting_cls is not generated_cls
-                                        # the slot holder specializes
-                                        #  generated_cls, e.g. a controller
-                                        #  that inherits the category IRI:
-                                        #  the case the guard above expects,
-                                        #  not a conflict. A fetch can leave
-                                        #  a non-class under the schema title.
-                                        and not (
-                                            isinstance(generated_cls, type)
-                                            and issubclass(
-                                                conflicting_cls, generated_cls
+                                    if not hasattr(model, cls_name):
+                                        if param.autofetch_schema:
+                                            self.fetch_schema(
+                                                OSW.FetchSchemaParam(
+                                                    schema_title=category,
+                                                    mode="append",
+                                                    offline_pages=param.offline_pages,
+                                                )
                                             )
+                                    if not hasattr(model, cls_name):
+                                        schemas_fetched = False
+                                        _logger.error(
+                                            f"Model {cls_name} not found. Schema "
+                                            f"{category} needs to be fetched first."
                                         )
-                                    ):
-                                        _logger.warning(
-                                            f"Class '{generated_cls}' generated for "
-                                            f"category '{category}' claims the oold "
-                                            f"type registry slot already held by a "
-                                            f"different class '{conflicting_cls}'."
+                                    else:
+                                        generated_cls = getattr(model, cls_name)
+                                        # The class we are about to use may have just
+                                        # claimed (or may already hold) the registry
+                                        # slot for this category. If a different class
+                                        # is registered for it, someone's registration
+                                        # was silently overwritten - do not raise, but
+                                        # make sure this does not pass silently.
+                                        conflicting_cls = oold_type_registry.get(
+                                            category
                                         )
-                                    category_to_cls[category] = generated_cls
+                                        if (
+                                            conflicting_cls is not None
+                                            and conflicting_cls is not generated_cls
+                                            # the slot holder specializes
+                                            #  generated_cls, e.g. a controller
+                                            #  that inherits the category IRI:
+                                            #  the case the guard above expects,
+                                            #  not a conflict. A fetch can leave
+                                            #  a non-class under the schema title.
+                                            and not (
+                                                isinstance(generated_cls, type)
+                                                and issubclass(
+                                                    conflicting_cls, generated_cls
+                                                )
+                                            )
+                                        ):
+                                            _logger.warning(
+                                                f"Class '{generated_cls}' generated for "
+                                                f"category '{category}' claims the oold "
+                                                f"type registry slot already held by a "
+                                                f"different class '{conflicting_cls}'."
+                                            )
+                                        category_to_cls[category] = generated_cls
+                        except Exception as e:
+                            schemas_fetched = False
+                            _logger.error(
+                                f"Error reading the schema of category "
+                                f"{category} for page {page.title}: {e}"
+                            )
+                            continue
                 if not schemas_fetched:
                     continue
                 # fetch_schema() reloads osw.model.entity, which replaces every

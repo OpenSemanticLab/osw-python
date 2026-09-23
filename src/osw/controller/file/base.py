@@ -1,11 +1,30 @@
 from abc import abstractmethod
-from typing import IO, Any, Dict
+from typing import IO, Any, Dict, Optional
 
 from osw.core import model
 
 
 class FileController(model.File):
     """Base class for file controllers"""
+
+    @property
+    def uri(self) -> Optional[str]:
+        """The location of the file, in the URI scheme of its storage backend
+
+        The read interface for a location: derived on every access, never stored,
+        so it cannot go stale. Each controller keeps the handle its backend
+        actually needs, e.g., a Path in LocalFileController.path, and answers
+        here in its own scheme.
+
+        Not abstract on purpose. pydantic's ModelMetaclass extends ABCMeta, so an
+        abstract property would stop every file controller outside this package
+        that predates it from being instantiated.
+
+        Returns
+        -------
+            the URI, or None if the controller does not name a location
+        """
+        return None
 
     @abstractmethod
     def get(self) -> IO:

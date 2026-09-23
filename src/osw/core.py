@@ -38,6 +38,15 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
+
+try:
+    # Characteristics of the released opensemantic packages derive from this
+    # class, not from the one in osw.model.entity.
+    from opensemantic.core.v1 import (
+        CharacteristicType as _OpensemanticCharacteristicType,
+    )
+except ImportError:  # pragma: no cover - optional dependency
+    _OpensemanticCharacteristicType = None
 from osw.defaults import params as default_params
 from osw.utils.code_postprocessing import (
     remove_constraints_from_forward_refs,
@@ -1572,12 +1581,15 @@ class OSW(BaseModel):
             if self.change_id is None:
                 self.change_id = str(uuid4())
             for entity in self.entities:
-                if getattr(entity, "meta", None) is None:
-                    entity.meta = model.Meta()
-                if entity.meta.change_id is None:
-                    entity.meta.change_id = []
-                if self.change_id not in entity.meta.change_id:
-                    entity.meta.change_id.append(self.change_id)
+                try:
+                    if getattr(entity, "meta", None) is None:
+                        entity.meta = model.Meta()
+                    if entity.meta.change_id is None:
+                        entity.meta.change_id = []
+                    if self.change_id not in entity.meta.change_id:
+                        entity.meta.change_id.append(self.change_id)
+                except (ValueError, AttributeError):
+                    pass  # entity model doesn't have meta field
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
@@ -1731,10 +1743,18 @@ class OSW(BaseModel):
 
                 mode = AggregateGeneratedSchemasParamMode.ROOT_LEVEL
                 # Put generated schema in definitions section,
-                #  currently only enabled for Characteristics
-                if hasattr(model, "CharacteristicType") and isinstance(
-                    entity_, model.CharacteristicType
-                ):
+                #  currently only enabled for Characteristics. The class is
+                #  either the locally generated one or the one shipped by the
+                #  opensemantic packages, depending on where the model is from.
+                characteristic_types = tuple(
+                    t
+                    for t in (
+                        getattr(model, "CharacteristicType", None),
+                        _OpensemanticCharacteristicType,
+                    )
+                    if t is not None
+                )
+                if characteristic_types and isinstance(entity_, characteristic_types):
                     mode = AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
 
                 new_schema = aggregate_generated_schemas(

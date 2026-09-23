@@ -268,10 +268,21 @@ class OSW(BaseModel):
                 entities = osw_obj.load_entity(
                     OSW.LoadEntityParam(titles=request.iris)
                 ).entities
-                # create a dict with request.iris as keys and the loaded entities as values
-                # by iterating over both lists
+                # load_entity() skips pages it cannot build, so the returned
+                # list can be shorter than request.iris. Pair by full title
+                # instead of by position, so a skipped page does not shift
+                # every following entity onto the wrong iri.
+                entities_by_title = {
+                    get_full_title(entity): entity for entity in entities
+                }
                 nodes = {}
-                for iri, entity in zip(request.iris, entities):
+                for iri in request.iris:
+                    entity = entities_by_title.get(iri)
+                    if entity is None:
+                        _logger.warning(f"Could not resolve iri '{iri}'")
+                    # ResolveResult.nodes is typed Dict[str, Union[None, ...]],
+                    # and oold indexes it by iri without checking for the key,
+                    # so an unresolved iri has to be present and None
                     nodes[iri] = entity
                 return ResolveResult(nodes=nodes)
 
@@ -1280,8 +1291,8 @@ class OSW(BaseModel):
     class LoadEntityResult(BaseModel):
         """Result of load_entity()"""
 
-        entities: Union[model.OswBaseModel, List[model.OswBaseModel]]
-        """The dataclass instance(s)"""
+        entities: List[model.OswBaseModel]
+        """The list of dataclass instances"""
 
     # fmt: off
     @overload

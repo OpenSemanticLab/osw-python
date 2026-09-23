@@ -113,3 +113,7 @@ Install it one of two ways:
    `/plugin install osl-tasks`.
 
 A new Claude Code session picks it up with no further action.
+
+Path 2 installs the skill file only. The skill drives the `osw` CLI and the
+MCP server, so install the package separately, and register the MCP server as
+described in [MCP server](mcp.md).

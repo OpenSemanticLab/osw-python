@@ -92,8 +92,6 @@ def export_entity_jsonld(
         OSW.LoadEntityParam(titles=[title], autofetch_schema=True)
     )
     entities = result.entities
-    if not isinstance(entities, list):
-        entities = [entities]
     if not entities:
         raise errors.NotFound(f"Entity '{title}' not found.")
     export = ctx.osw.export_jsonld(

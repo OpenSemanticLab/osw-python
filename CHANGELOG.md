@@ -10,6 +10,29 @@
 
 <!-- version list -->
 
+## v2.8.1 (2026-09-23)
+
+### Bug Fixes
+
+- **core**: Map an unresolved iri to None instead of omitting it
+  ([#208](https://github.com/OpenSemanticLab/osw-python/pull/208),
+  [`a30dae1`](https://github.com/OpenSemanticLab/osw-python/commit/a30dae1b55f430818f329a5a2312c1bb0eb4d034))
+
+- **core**: Return a list from load_entity and pair iris by title
+  ([#208](https://github.com/OpenSemanticLab/osw-python/pull/208),
+  [`a30dae1`](https://github.com/OpenSemanticLab/osw-python/commit/a30dae1b55f430818f329a5a2312c1bb0eb4d034))
+
+### Documentation
+
+- Point repo links at the versioned /latest/ docs paths
+  ([#206](https://github.com/OpenSemanticLab/osw-python/pull/206),
+  [`c21ad24`](https://github.com/OpenSemanticLab/osw-python/commit/c21ad241078e64d05171b9ae2907c007590384b1))
+
+- **skill**: Note the CLI and MCP prerequisite and version skew
+  ([#210](https://github.com/OpenSemanticLab/osw-python/pull/210),
+  [`11e8ce8`](https://github.com/OpenSemanticLab/osw-python/commit/11e8ce8fbb466c638cdaf8b3d7c4b7854b2cda69))
+
+
 ## v2.8.0 (2026-09-22)
 
 ### Bug Fixes

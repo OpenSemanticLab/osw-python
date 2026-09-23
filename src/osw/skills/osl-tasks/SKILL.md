@@ -2,7 +2,7 @@
 name: osl-tasks
 description: Use when importing local todo or note files into an OpenSemanticLab (OSL) wiki as Task entities, or when listing, filtering and updating tasks that already live in OSL. Requires the `osw` CLI or the osw MCP server.
 metadata:
-  version: "2.8.0"
+  version: "2.8.1"
 ---
 
 # OSL task management

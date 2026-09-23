@@ -81,8 +81,12 @@ def test_resolve_pairs_iris_by_title_not_position(monkeypatch):
         ResolveParam(iris=["Item:OSWAlignBad", "Item:OSWAlignGood"])
     )
 
-    assert result.nodes == {"Item:OSWAlignGood": good}
-    assert "Item:OSWAlignBad" not in result.nodes
+    # ResolveResult validates its values, which copies the entity, so compare
+    # by equality rather than by identity
+    assert result.nodes["Item:OSWAlignGood"] == good
+    # oold indexes nodes by iri without checking for the key, and types the
+    # values as Union[None, ...], so an unresolved iri maps to None
+    assert result.nodes["Item:OSWAlignBad"] is None
 
 
 def test_resolve_returns_all_entities_when_every_iri_resolves(monkeypatch):

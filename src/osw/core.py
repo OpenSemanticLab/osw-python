@@ -280,7 +280,9 @@ class OSW(BaseModel):
                     entity = entities_by_title.get(iri)
                     if entity is None:
                         _logger.warning(f"Could not resolve iri '{iri}'")
-                        continue
+                    # ResolveResult.nodes is typed Dict[str, Union[None, ...]],
+                    # and oold indexes it by iri without checking for the key,
+                    # so an unresolved iri has to be present and None
                     nodes[iri] = entity
                 return ResolveResult(nodes=nodes)
 

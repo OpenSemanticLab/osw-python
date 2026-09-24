@@ -11,6 +11,9 @@ from osw.core import model
 class InMemoryController(FileController, model.LocalFile):
     """File controller for in-memory streams"""
 
+    type: Optional[List[str]] = model.LocalFile.__fields__["type"].get_default()
+    """LocalFile's category. FileController precedes model.LocalFile in the MRO, so
+    without this the field would resolve to model.File's category instead."""
     label: Optional[List[model.Label]] = [model.Label(text="Unnamed stream")]
     """the label of the stream, e.g., the name of the file the stream
     originates from. Defaults to 'Unnamed stream'."""

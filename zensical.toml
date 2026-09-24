@@ -28,6 +28,9 @@ nav = [
         { "Controllers" = "api/controller.md" },
         { "Model" = "api/model.md" },
     ]},
+    { "Tools" = [
+        { "User Sync" = "tools/user-sync.md" },
+    ]},
     { "Development" = "dev.md" },
 ]
 

@@ -1,45 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/about/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/about/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/get-started/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/get-started/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/tools/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/tools/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/tools/cli/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/tools/cli/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/tools/mcp/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/tools/mcp/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/tools/configuration/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/tools/configuration/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/api/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/api/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/api/core/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/api/core/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/api/wiki-tools/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/api/wiki-tools/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/api/auth/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/api/auth/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/api/controller/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/api/controller/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/api/model/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/api/model/</loc>
       </url>
       <url>
-        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.1/dev/</loc>
+        <loc>https://OpenSemanticLab.github.io/osw-python/2.8.2/dev/</loc>
       </url>
 </urlset>

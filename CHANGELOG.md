@@ -10,6 +10,14 @@
 
 <!-- version list -->
 
+## v2.8.2 (2026-10-10)
+
+### Bug Fixes
+
+- Detect CharacteristicType from the opensemantic packages too
+  ([`f195a97`](https://github.com/OpenSemanticLab/osw-python/commit/f195a973b141cf830c65656ab946ca454e7309aa))
+
+
 ## v2.8.1 (2026-09-23)
 
 ### Bug Fixes

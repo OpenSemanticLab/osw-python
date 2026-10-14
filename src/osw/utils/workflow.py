@@ -560,7 +560,10 @@ async def register_flow(
         description=[model.Description(text=flow.description or "")],
         flow_id=str(flow_uuid),
         hosted_software=[get_full_title(this_tool)],
-        domain=prefect_domain,
+        # None rather than "" when the hostname is unknown, like url_path above:
+        # an explicitly assigned empty value is written and would clear a domain
+        # already stored on the wiki
+        domain=prefect_domain or None,
         schema_=prefect_schema,
         network_port=prefect_port,
         url_path=prefect_path,

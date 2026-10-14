@@ -29,6 +29,12 @@ class LocalFileController(FileController, model.LocalFile):
         super().__init__(**kwargs)
         self._set_metadata()
 
+    @property
+    def uri(self) -> str:
+        """The file URI of the path, see
+        https://en.wikipedia.org/wiki/File_URI_scheme"""
+        return Path(self.path).absolute().as_uri()
+
     def get(self) -> IO:
         self._set_metadata()
         return open(self.path, "rb")

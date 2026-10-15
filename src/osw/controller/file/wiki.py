@@ -1,11 +1,12 @@
 import functools
 import logging
 import os
-from typing import IO, Any, Dict, List, Optional
+from typing import IO, Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import mwclient.errors
 from oold.backend.auth import get_credential as _get_registered_credential
+from oold.backend.auth import registered_credentials as _registered_credentials
 
 from osw.auth import CredentialManager
 from osw.controller.file.base import FileController
@@ -82,31 +83,49 @@ def store_params_for_upload(
     return {**se_params, "overwrite": "replace remote"}
 
 
-_sessions: Dict[str, OSW] = {}
-"""Sessions by host, so several files of one wiki share a connection."""
+_sessions: Dict[str, Tuple[Any, OSW]] = {}
+"""Sessions by credential IRI, with the credential they were built from.
+
+Keyed by the credential rather than by the host, because two credentials
+scoped to different paths of one wiki are two different logins. The credential
+is kept so a later ``set_credential`` replaces the session instead of being
+ignored for the lifetime of the process.
+"""
 
 
-def session_for(url: str) -> OSW:
+def clear_sessions() -> None:
+    """Drop the cached sessions, so the next access logs in again."""
+    _sessions.clear()
+
+
+def credential_for(url: str) -> Any:
+    """The credential registered for ``url``, or a readable error."""
+    host = urlparse(url).netloc or url
+    try:
+        return _get_registered_credential(url)
+    except ValueError as error:
+        raise ValueError(
+            f"No credential registered for {host}. Pass osw= explicitly or "
+            "register one with oold.backend.auth.set_credential."
+        ) from error
+
+
+def session_for(url: str, credential: Any = None) -> OSW:
     """An OSW session for the host of ``url``, from the registered credential.
 
     The file entity may be stored somewhere other than its bytes, so the
     lookup key is the URL the content lives at, not the entity's own IRI.
     """
     host = urlparse(url).netloc or url
-    session = _sessions.get(host)
-    if session is not None:
-        return session
-    try:
-        credential = _get_registered_credential(url)
-    except ValueError as error:
-        raise ValueError(
-            f"No credential registered for {host}. Pass osw= explicitly or "
-            "register one with oold.backend.auth.set_credential."
-        ) from error
+    if credential is None:
+        credential = credential_for(url)
+    cached = _sessions.get(credential.iri)
+    if cached is not None and cached[0] == credential:
+        return cached[1]
     cred_mngr = CredentialManager()
     cred_mngr.add_credential(credential)
     session = OSW(site=WtSite(WtSite.WtSiteConfig(iri=host, cred_mngr=cred_mngr)))
-    _sessions[host] = session
+    _sessions[credential.iri] = (credential, session)
     return session
 
 
@@ -135,7 +154,12 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         osw: Optional[OSW] = None,
         **kwargs: Dict[str, Any],
     ) -> "WikiFileController":
-        return super().from_other(other, osw=osw, **kwargs)
+        # Only pass a session that was given: writing None over the one the
+        # source already carries would defer the failure to put time, with a
+        # message about a missing credential rather than a dropped session.
+        if osw is not None:
+            kwargs["osw"] = osw
+        return super().from_other(other, **kwargs)
 
     def get(self) -> IO:
         self._init()
@@ -288,10 +312,37 @@ class WikiFileController(model.WikiFile, RemoteFileController):
         )
 
     def _ensure_session(self) -> OSW:
-        """The session, connecting on first use when none was passed in."""
+        """The session, connecting on first use when none was passed in.
+
+        A file that is about to be uploaded has no URL yet - that is what the
+        upload produces - so the URL is only one of the ways to find the wiki.
+        Without one the registered credentials decide, and they are only
+        unambiguous when there is exactly one.
+        """
         if self.osw is None:
-            self.osw = session_for(self._url())
+            self.osw = session_for(self._session_url())
         return self.osw
+
+    def _session_url(self) -> str:
+        """The wiki to connect to: the file's own URL, else the credential's."""
+        try:
+            return self._url()
+        except ValueError:
+            pass
+        registered = _registered_credentials()
+        if len(registered) == 1:
+            return next(iter(registered))
+        if not registered:
+            raise ValueError(
+                f"{type(self).__name__} has no download_url or access_url and "
+                "no credential is registered. Pass osw= explicitly or register "
+                "one with oold.backend.auth.set_credential."
+            )
+        raise ValueError(
+            f"{type(self).__name__} has no download_url or access_url, and "
+            f"credentials are registered for {', '.join(sorted(registered))}. "
+            "Pass osw= explicitly to say which wiki this file belongs to."
+        )
 
     def _init(self, name=None, suffix=None):
         self._ensure_session()

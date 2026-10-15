@@ -21,9 +21,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "oold>=0.15.0",
+    # registered_credentials(), used to find the wiki of a file without a URL
+    "oold>=1.1.0",
     "opensemantic",
-    "opensemantic.core>=0.57.4",
+    # TEMPORARY: the file controllers this module wraps are on the core branch
+    # below. Replace with opensemantic.core>=0.59.0 once released.
+    "opensemantic.core @ git+https://github.com/OpenSemanticWorld-Packages/opensemantic.core-python@feat/regen-core-v0.59.0",
     "opensemantic.base>=0.42.7",
     "pydantic[email]>=2.12.0",
     "datamodel-code-generator==0.51.0",

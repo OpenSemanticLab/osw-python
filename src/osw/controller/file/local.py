@@ -25,8 +25,15 @@ class LocalFileController(_LocalFileController):
         if path is not None and not kwargs.get("local_path"):
             kwargs["local_path"] = str(path)
         super().__init__(**kwargs)
-        if self.local_path:
-            self._set_metadata()
+        if not self.local_path:
+            # The controller this replaces declared path as a required field,
+            # so an instance without one never existed. Raising here keeps the
+            # error at the call site that is wrong, instead of surfacing it on
+            # the first read.
+            raise ValueError(
+                f"{type(self).__name__} needs a file: pass path= or local_path="
+            )
+        self._set_metadata()
 
     @classmethod
     def from_other(cls, other, path=None, **kwargs) -> "LocalFileController":

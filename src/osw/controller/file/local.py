@@ -7,7 +7,7 @@ controller it replaces.
 
 import os
 from pathlib import Path
-from typing import IO, Any, Dict
+from typing import IO, Any, Dict, Optional
 
 from opensemantic.core.v1 import LocalFileController as _LocalFileController
 
@@ -17,11 +17,18 @@ from osw.core import model
 class LocalFileController(_LocalFileController):
     """File controller for local files"""
 
+    path: Optional[Path] = None
+    """Where the content lives, as a Path. A field, not a property: a property
+    of this name would win over the ``path`` field declared by
+    ``osw.express.FileResult`` and make that field's value unreadable. Kept in
+    step with the model's own ``local_path`` by the constructor, so either name
+    reads the same file."""
+
     class Config:
         arbitrary_types_allowed = True
 
     def __init__(self, **kwargs):
-        path = kwargs.pop("path", None)
+        path = kwargs.get("path")
         if path is not None and not kwargs.get("local_path"):
             kwargs["local_path"] = str(path)
         super().__init__(**kwargs)
@@ -33,6 +40,7 @@ class LocalFileController(_LocalFileController):
             raise ValueError(
                 f"{type(self).__name__} needs a file: pass path= or local_path="
             )
+        self.path = Path(self.local_path)
         self._set_metadata()
 
     @classmethod

@@ -21,8 +21,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    # registered_credentials(), used to find the wiki of a file without a URL
-    "oold>=1.1.0",
+    # TEMPORARY: registered_credentials(), used to find the wiki of a file
+    # without a URL, is on the oold branch below and in no release (main is
+    # 2.2.0). Replace with oold>=2.3.0 once released.
+    "oold @ git+https://github.com/OO-LD/oold-python@feat/controller-type-lookup",
     "opensemantic",
     # TEMPORARY: the file controllers this module wraps are on the core branch
     # below. Replace with opensemantic.core>=0.59.0 once released.

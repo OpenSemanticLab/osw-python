@@ -83,13 +83,15 @@ def store_params_for_upload(
     return {**se_params, "overwrite": "replace remote"}
 
 
-_sessions: Dict[str, Tuple[Any, OSW]] = {}
-"""Sessions by credential IRI, with the credential they were built from.
+_sessions: Dict[Tuple[str, str], Tuple[Any, OSW]] = {}
+"""Sessions by (host, credential IRI), with the credential they were built from.
 
-Keyed by the credential rather than by the host, because two credentials
-scoped to different paths of one wiki are two different logins. The credential
-is kept so a later ``set_credential`` replaces the session instead of being
-ignored for the lifetime of the process.
+The credential is part of the key because two credentials scoped to different
+paths of one wiki are two different logins; the host is, because one credential
+can match several hosts - oold's lookup treats a stored IRI contained in the
+searched one as a match, so a credential for ``example.org`` answers for every
+subdomain. The credential itself is kept so a later ``set_credential`` replaces
+the session instead of being ignored for the lifetime of the process.
 """
 
 
@@ -98,34 +100,44 @@ def clear_sessions() -> None:
     _sessions.clear()
 
 
+def host_of(url: str) -> str:
+    """The wiki host a URL or a bare credential IRI names.
+
+    A credential is registered under whatever its owner chose - a bare host, a
+    host with a path, a full URL. ``WtSite`` wants the host alone: given a path
+    it builds an API endpoint that does not exist.
+    """
+    parsed = urlparse(url if "//" in url else f"//{url}")
+    return parsed.netloc or url.split("/")[0]
+
+
 def credential_for(url: str) -> Any:
     """The credential registered for ``url``, or a readable error."""
-    host = urlparse(url).netloc or url
     try:
         return _get_registered_credential(url)
     except ValueError as error:
         raise ValueError(
-            f"No credential registered for {host}. Pass osw= explicitly or "
-            "register one with oold.backend.auth.set_credential."
+            f"No credential registered for {host_of(url)}. Pass osw= explicitly "
+            "or register one with oold.backend.auth.set_credential."
         ) from error
 
 
-def session_for(url: str, credential: Any = None) -> OSW:
+def session_for(url: str) -> OSW:
     """An OSW session for the host of ``url``, from the registered credential.
 
     The file entity may be stored somewhere other than its bytes, so the
     lookup key is the URL the content lives at, not the entity's own IRI.
     """
-    host = urlparse(url).netloc or url
-    if credential is None:
-        credential = credential_for(url)
-    cached = _sessions.get(credential.iri)
+    host = host_of(url)
+    credential = credential_for(url)
+    key = (host, credential.iri)
+    cached = _sessions.get(key)
     if cached is not None and cached[0] == credential:
         return cached[1]
     cred_mngr = CredentialManager()
     cred_mngr.add_credential(credential)
     session = OSW(site=WtSite(WtSite.WtSiteConfig(iri=host, cred_mngr=cred_mngr)))
-    _sessions[credential.iri] = (credential, session)
+    _sessions[key] = (credential, session)
     return session
 
 

@@ -84,14 +84,25 @@ def test_a_session_that_was_passed_in_is_kept():
 # -- the session cache --------------------------------------------------------
 
 
-def test_sessions_are_cached_per_credential(monkeypatch):
-    """Two path-scoped credentials of one host are two logins."""
-    built = []
+@pytest.fixture
+def built_sites(monkeypatch):
+    """Record the WtSite configs built, instead of connecting to a wiki."""
+    configs = []
+
+    def _config(**kwargs):
+        configs.append(kwargs)
+        return kwargs
+
     monkeypatch.setattr(
-        wiki_module, "OSW", lambda site: built.append(site) or f"session{len(built)}"
+        wiki_module, "OSW", lambda site: f"session{len(configs)}:{site['iri']}"
     )
     monkeypatch.setattr(wiki_module, "WtSite", lambda config: config)
-    monkeypatch.setattr(wiki_module.WtSite, "WtSiteConfig", dict, raising=False)
+    monkeypatch.setattr(wiki_module.WtSite, "WtSiteConfig", _config, raising=False)
+    return configs
+
+
+def test_sessions_are_cached_per_credential(built_sites):
+    """Two path-scoped credentials of one host are two logins."""
     set_credential(_credential("wiki.example.org/a", username="a"))
     set_credential(_credential("wiki.example.org/b", username="b"))
 
@@ -101,16 +112,36 @@ def test_sessions_are_cached_per_credential(monkeypatch):
 
     assert first != second
     assert again == first
+    # and every one of them talks to the host, not to host/path
+    assert {config["iri"] for config in built_sites} == {"wiki.example.org"}
 
 
-def test_a_replaced_credential_replaces_the_session(monkeypatch):
+def test_one_credential_does_not_collapse_two_hosts(built_sites):
+    """oold matches a stored IRI inside the searched one, so one credential
+    answers for every subdomain - that must not share a session."""
+    set_credential(_credential("example.org"))
+
+    first = wiki_module.session_for("https://wiki-a.example.org/wiki/File:X")
+    second = wiki_module.session_for("https://wiki-b.example.org/wiki/File:Y")
+
+    assert first != second
+    assert [config["iri"] for config in built_sites] == [
+        "wiki-a.example.org",
+        "wiki-b.example.org",
+    ]
+
+
+def test_a_bare_credential_iri_still_names_the_host(built_sites):
+    """The no-URL path hands the credential key straight to session_for."""
+    set_credential(_credential("wiki.example.org/w"))
+
+    wiki_module.session_for(_controller()._session_url())
+
+    assert built_sites[0]["iri"] == "wiki.example.org"
+
+
+def test_a_replaced_credential_replaces_the_session(built_sites):
     """A later set_credential must not be ignored for the process lifetime."""
-    built = []
-    monkeypatch.setattr(
-        wiki_module, "OSW", lambda site: built.append(site) or f"session{len(built)}"
-    )
-    monkeypatch.setattr(wiki_module, "WtSite", lambda config: config)
-    monkeypatch.setattr(wiki_module.WtSite, "WtSiteConfig", dict, raising=False)
     set_credential(_credential("wiki.example.org", password="old"))
     first = wiki_module.session_for("https://wiki.example.org/File:X")
 
@@ -118,6 +149,7 @@ def test_a_replaced_credential_replaces_the_session(monkeypatch):
     second = wiki_module.session_for("https://wiki.example.org/File:X")
 
     assert second != first
+    assert len(built_sites) == 2
 
 
 def test_a_missing_credential_is_reported_with_the_host():

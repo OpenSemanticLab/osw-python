@@ -210,6 +210,29 @@ def read_file_if_exists(path: str) -> str:
         return f.read()
 
 
+def remove_generated_schema_section(
+    schema: dict, def_key: str = "$defs", gen_def_key: str = "generated"
+) -> dict:
+    """Removes the generated section and the allOf entry that points to it.
+
+    aggregate_generated_schemas() merges into an existing generated section and
+    merge_deep() concatenates arrays, so a stale 'required' entry or 'type' would
+    survive every regeneration. Mirrors osl.util.postProcessPage in PageBot.js of
+    mediawiki-extensions-OpenSemanticLab. Modifies schema in place.
+    """
+    gen_def_pointer = f"#/{def_key}/{gen_def_key}"
+    defs = schema.get(def_key)
+    if isinstance(defs, dict):
+        defs.pop(gen_def_key, None)
+    if isinstance(schema.get("allOf"), list):
+        schema["allOf"] = [
+            entry
+            for entry in schema["allOf"]
+            if not (isinstance(entry, dict) and entry.get("$ref") == gen_def_pointer)
+        ]
+    return schema
+
+
 # Reusable type definitions
 class OverwriteOptions(Enum):
     """Options for overwriting properties"""
@@ -2084,9 +2107,17 @@ class OSW(BaseModel):
                 if characteristic_types and isinstance(entity_, characteristic_types):
                     mode = AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
 
+                stored_schema = page.get_slot_content("jsonschema") or {}
+                # Regenerate the generated section from scratch. Skip this when
+                # the generation failed, so the stored section is kept.
+                if (
+                    mode == AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
+                    and len(generated_schemas) > 0
+                ):
+                    remove_generated_schema_section(stored_schema)
                 new_schema = aggregate_generated_schemas(
                     AggregateGeneratedSchemasParam(
-                        schema=page.get_slot_content("jsonschema"),
+                        target_schema=stored_schema,
                         generated_schemas=generated_schemas,
                         mode=mode,
                     )

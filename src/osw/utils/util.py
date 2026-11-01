@@ -12,8 +12,6 @@ from io import StringIO  # , BytesIO,
 from pathlib import Path
 from typing import IO, Callable, Dict, Iterable, List, Optional, Union
 
-import dask
-from dask.diagnostics import ProgressBar
 from tqdm.asyncio import tqdm
 
 _logger = logging.getLogger(__name__)
@@ -585,7 +583,16 @@ def file_in_paths(
 
 
 def async_parallelize(func: Callable, iterable: Iterable, **kwargs):
-    """Work in progress"""
+    """Work in progress. Requires the optional ``parallel`` extra.
+
+    dask is imported here rather than at module scope because this is the only
+    thing in osw that uses it. At module scope it made ``import osw`` fail
+    outright wherever dask is unavailable - util.py is imported unconditionally
+    by core, wtsite and wiki_tools - which rules out Pyodide, where there is no
+    dask build at all.
+    """
+    import dask
+    from dask.diagnostics import ProgressBar
 
     async def inner(func_, iterable_, **kwargs_):
         async with AsyncMessageBuffer() as msg_buf:
@@ -643,6 +650,11 @@ class RedirectStdout:
 
 # testing redirect
 if __name__ == "__main__":
+    # Only the demo helpers below use dask; see async_parallelize for why it is
+    # not imported at module scope. Needs the optional `parallel` extra.
+    import dask
+    from dask.diagnostics import ProgressBar
+
     from datetime import datetime
     from time import sleep
 

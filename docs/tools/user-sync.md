@@ -55,7 +55,9 @@ only core identity plus email.
 
 1. Enumerate MediaWiki accounts, skipping bots and privileged groups
    (`bot`, `sysop`, `bureaucrat`, `interface-admin`) and MediaWiki reserved
-   system usernames.
+   system usernames. Accounts whose username is an exact ORCID iD are exempt
+   from the group filter (so a person's own admin account is synced); other
+   accounts, such as `<orcid>@bot`, are still excluded by their groups.
 2. Enrich ORCID users from `https://pub.orcid.org/v3.0/<id>`: names and email
    always; researcher URLs and affiliations only when their flag is enabled.
 3. Map each account to a proposed `User` item with a deterministic id

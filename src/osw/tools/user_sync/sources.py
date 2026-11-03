@@ -105,7 +105,10 @@ def enumerate_mw_users(
 
     Args:
         site: An object exposing ``api("query", ...)`` (an mwclient Site).
-        excluded_groups: Accounts in any of these groups are skipped (bots, admins).
+        excluded_groups: Accounts in any of these groups are skipped (bots, admins),
+            unless the username is an exact ORCID iD (a person's own account).
+            Bot accounts derived from an ORCID (e.g. ``<orcid>@bot``) are not exact
+            ORCID iDs and stay excluded.
         excluded_usernames: Exact usernames to skip (reserved system accounts).
         include_orcid: If False, skip ORCID-username accounts.
         include_non_orcid: If False, keep only ORCID-username accounts.
@@ -119,7 +122,7 @@ def enumerate_mw_users(
         user = MwUser.from_api(raw)
         if user.name in excluded_names:
             continue
-        if excluded.intersection(user.groups):
+        if not user.is_orcid and excluded.intersection(user.groups):
             continue
         if not include_non_orcid and not user.is_orcid:
             continue

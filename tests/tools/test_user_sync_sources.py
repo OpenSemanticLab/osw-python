@@ -110,6 +110,19 @@ def test_enumerate_excludes_privileged_groups_and_reserved_names():
     assert [u.name for u in users] == ["0000-0002-6374-9831"]
 
 
+def test_enumerate_keeps_orcid_accounts_despite_excluded_groups():
+    site = FakeSite([
+        _page([
+            {"name": "0000-0001-7620-1245", "groups": ["user", "bot", "sysop"]},
+            {"name": "0000-0001-7620-1245@importer", "groups": ["user", "bot"]},
+            {"name": "SomeBot", "groups": ["user", "bot"]},
+            {"name": "Admin", "groups": ["user", "sysop"]},
+        ])
+    ])
+    users = enumerate_mw_users(site, excluded_groups=("bot", "sysop"))
+    assert [u.name for u in users] == ["0000-0001-7620-1245"]
+
+
 def test_enumerate_mw_only_skips_orcid():
     site = FakeSite([
         _page([

@@ -591,8 +591,13 @@ def async_parallelize(func: Callable, iterable: Iterable, **kwargs):
     by core, wtsite and wiki_tools - which rules out Pyodide, where there is no
     dask build at all.
     """
-    import dask
-    from dask.diagnostics import ProgressBar
+    # ty cannot resolve these: dask is the `parallel` extra and is deliberately
+    # absent from the dev environment, which is the condition this import exists to
+    # tolerate. Adding the extra to the dev group would make it resolve - that is what
+    # pyproject does for mcp - but it would install dask everywhere to type check the
+    # one place that is allowed to run without it.
+    import dask  # ty: ignore[unresolved-import]
+    from dask.diagnostics import ProgressBar  # ty: ignore[unresolved-import]
 
     async def inner(func_, iterable_, **kwargs_):
         async with AsyncMessageBuffer() as msg_buf:
@@ -655,8 +660,8 @@ if __name__ == "__main__":
 
     # Only the demo helpers below use dask; see async_parallelize for why it is
     # not imported at module scope. Needs the optional `parallel` extra.
-    import dask
-    from dask.diagnostics import ProgressBar
+    import dask  # ty: ignore[unresolved-import]
+    from dask.diagnostics import ProgressBar  # ty: ignore[unresolved-import]
 
     print("Redirecting print messages to a buffer.")
     message_buffer = MessageBuffer()

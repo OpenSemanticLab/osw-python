@@ -2072,7 +2072,6 @@ dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "black" },
     { name = "click" },
-    { name = "dask" },
     { name = "datamodel-code-generator" },
     { name = "httpx" },
     { name = "isort" },
@@ -2102,6 +2101,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "boto3" },
+    { name = "dask" },
     { name = "deepl" },
     { name = "geopy" },
     { name = "mcp" },
@@ -2123,6 +2123,9 @@ db = [
 mcp = [
     { name = "mcp" },
     { name = "mwparserfromhell" },
+]
+parallel = [
+    { name = "dask" },
 ]
 s3 = [
     { name = "boto3" },
@@ -2175,7 +2178,7 @@ requires-dist = [
     { name = "black" },
     { name = "boto3", marker = "extra == 's3'" },
     { name = "click" },
-    { name = "dask" },
+    { name = "dask", marker = "extra == 'parallel'" },
     { name = "datamodel-code-generator", specifier = "==0.51.0" },
     { name = "deepl", marker = "extra == 'dataimport'" },
     { name = "geopy", marker = "extra == 'dataimport'" },
@@ -2193,7 +2196,7 @@ requires-dist = [
     { name = "opensemantic-base", specifier = ">=0.42.7" },
     { name = "opensemantic-core", specifier = ">=0.57.4" },
     { name = "osw", extras = ["dataimport"], marker = "extra == 'tutorial'" },
-    { name = "osw", extras = ["dataimport", "db", "ui", "s3", "wikitext", "mcp"], marker = "extra == 'all'" },
+    { name = "osw", extras = ["dataimport", "db", "ui", "s3", "wikitext", "mcp", "parallel"], marker = "extra == 'all'" },
     { name = "osw", extras = ["wikitext"], marker = "extra == 'mcp'" },
     { name = "prefect", marker = "extra == 'workflow'", specifier = ">=2.20.25,<3.0" },
     { name = "psycopg2", marker = "extra == 'db'" },
@@ -2211,7 +2214,7 @@ requires-dist = [
     { name = "typer" },
     { name = "typing-extensions" },
 ]
-provides-extras = ["wikitext", "db", "s3", "dataimport", "ui", "mcp", "workflow", "tutorial", "all"]
+provides-extras = ["wikitext", "parallel", "db", "s3", "dataimport", "ui", "mcp", "workflow", "tutorial", "all"]
 
 [package.metadata.requires-dev]
 dev = [

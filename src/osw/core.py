@@ -259,13 +259,15 @@ def collect_category_template_titles(
 
     Mirrors the editor: the schema of the meta categories is bundled, the uuid of
     every schema is collected after the schemas below it (allOf, oneOf, anyOf,
-    definitions and $defs are followed in this order, so the most generic schema
-    comes first) and the result starts with Category:Category.
+    definitions, $defs, every entry of properties and the items of each property
+    are followed in this order, so the most generic schema comes first) and the
+    result starts with Category:Category. A referenced schema is followed only
+    at its first occurrence, like in a bundled schema.
     Category:Category and Category:Entity are not collected. Follows
     osl.util.postProcessPage (PageBot.js) with editor.jsonschema.subschemas_uuids
     (MwJson_schema.js, _preprocess) in mediawiki-extensions-OpenSemanticLab and
-    mediawiki-extensions-MwJson. Schemas reached through properties are not
-    followed.
+    mediawiki-extensions-MwJson. Only references to category pages are
+    followed, a reference to another page, e.g. JsonSchema:Label, is not.
 
     Parameters
     ----------
@@ -310,6 +312,11 @@ def collect_category_template_titles(
             if isinstance(schema.get(key), dict):
                 for entry in schema[key].values():
                     walk(entry)
+        if isinstance(schema.get("properties"), dict):
+            for entry in schema["properties"].values():
+                walk(entry)
+                if isinstance(entry, dict):
+                    walk(entry.get("items"))
         uuid = schema.get("uuid")
         if uuid and uuid not in (CATEGORY_CATEGORY_UUID, CATEGORY_ENTITY_UUID):
             title = "Category:" + get_osw_id(uuid)

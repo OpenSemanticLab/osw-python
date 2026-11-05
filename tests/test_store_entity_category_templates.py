@@ -202,3 +202,52 @@ def test_collect_warns_when_a_schema_is_missing(caplog):
 
     assert titles == ["Category:Category"]
     assert "No jsonschema found for Category:Category" in caplog.text
+
+
+def test_collect_follows_properties_and_items_in_wiki_order():
+    meta = "Category:OSW0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d"
+    prop_cat = "Category:OSW11111111222243338444555555555555"
+    items_cat = "Category:OSW66666666777748889999aaaaaaaaaaaa"
+
+    def ref(title):
+        return {"$ref": f"/wiki/{title}?action=raw&slot=jsonschema"}
+
+    schemas = {
+        meta: {
+            "uuid": "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+            "allOf": [ref(CHARACTERISTIC_TYPE)],
+            "properties": {
+                "first": ref(prop_cat),
+                "list": {"type": "array", "items": ref(items_cat)},
+                # the second reference to a bundled schema is not walked again
+                "again": ref(prop_cat),
+            },
+        },
+        CHARACTERISTIC_TYPE: {"uuid": "ffe74f29-1d35-4037-b318-c422591c5023"},
+        prop_cat: {"uuid": "11111111-2222-4333-8444-555555555555"},
+        items_cat: {"uuid": "66666666-7777-4888-9999-aaaaaaaaaaaa"},
+    }
+    requested = []
+
+    class Page:
+        def __init__(self, title):
+            self.title = title
+
+        def get_slot_content(self, slot):
+            return schemas[self.title]
+
+    def get_pages(titles):
+        requested.extend(titles)
+        return [Page(t) for t in titles]
+
+    titles = collect_category_template_titles(get_pages, [meta])
+
+    # allOf first, then properties in their order, then the uuid of the node itself
+    assert titles == [
+        "Category:Category",
+        CHARACTERISTIC_TYPE,
+        prop_cat,
+        items_cat,
+        meta,
+    ]
+    assert requested.count(prop_cat) == 1

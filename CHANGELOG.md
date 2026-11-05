@@ -10,6 +10,15 @@
 
 <!-- version list -->
 
+## v2.9.0 (2026-11-05)
+
+### Features
+
+- Make dask optional so osw imports without it
+  ([#219](https://github.com/OpenSemanticLab/osw-python/pull/219),
+  [`897df83`](https://github.com/OpenSemanticLab/osw-python/commit/897df832a132c653886af8089a0285f41e951e09))
+
+
 ## v2.8.2 (2026-10-10)
 
 ### Bug Fixes

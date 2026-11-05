@@ -650,13 +650,13 @@ class RedirectStdout:
 
 # testing redirect
 if __name__ == "__main__":
+    from datetime import datetime
+    from time import sleep
+
     # Only the demo helpers below use dask; see async_parallelize for why it is
     # not imported at module scope. Needs the optional `parallel` extra.
     import dask
     from dask.diagnostics import ProgressBar
-
-    from datetime import datetime
-    from time import sleep
 
     print("Redirecting print messages to a buffer.")
     message_buffer = MessageBuffer()

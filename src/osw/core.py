@@ -266,8 +266,9 @@ def collect_category_template_titles(
     Category:Category and Category:Entity are not collected. Follows
     osl.util.postProcessPage (PageBot.js) with editor.jsonschema.subschemas_uuids
     (MwJson_schema.js, _preprocess) in mediawiki-extensions-OpenSemanticLab and
-    mediawiki-extensions-MwJson. Only references to category pages are
-    followed, a reference to another page, e.g. JsonSchema:Label, is not.
+    mediawiki-extensions-MwJson. A '/wiki/<title>?action=raw' reference is
+    followed only for category pages, e.g. '/wiki/JsonSchema:Label?action=raw'
+    is not followed. A 'Special:SlotResolver' reference is followed for any page.
 
     Parameters
     ----------

@@ -86,9 +86,6 @@ workflow = [
 ]
 tutorial = ["osw[dataimport]"]
 all = ["osw[dataimport,DB,UI,S3,wikitext]"]
-examples = [
-    "python-dotenv>=1.2.4",
-]
 
 [build-system]
 requires = ["hatchling"]

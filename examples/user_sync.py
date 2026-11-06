@@ -4,16 +4,18 @@ Usage:
     uv run python examples/user_sync.py --domain llm4eln.semos.dev --dry-run
 """
 
-import dotenv
-
+from osw.defaults import paths
 from osw.express import OswExpress
 from osw.tools.user_sync import config_from_args, run_user_sync
 
 
 def main() -> None:
-    dotenv.load_dotenv()
     config = config_from_args()
-    osw = OswExpress(domain=config.domain, cred_filepath=config.cred_filepath)
+    cred_filepath = config.cred_filepath
+    if cred_filepath is None and paths.cred_filepath.is_file():
+        # OswExpress only reads OSW_CRED_FILEPATH; use the default accounts file.
+        cred_filepath = paths.cred_filepath
+    osw = OswExpress(domain=config.domain, cred_filepath=cred_filepath)
     report = run_user_sync(config, osw=osw)
     print(report.summary())
     for title in report.created:

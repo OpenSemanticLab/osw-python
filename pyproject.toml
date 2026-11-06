@@ -8,7 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not
 # edit by hand; it is bumped automatically on merge to main.
-version = "2.8.1"
+version = "2.9.1"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -49,7 +49,6 @@ dependencies = [
     # used in custom_types.py on py3.10; was missing before (latent
     # ImportError on 3.10), surfaced by ty/deptry during the migration
     'backports.strenum; python_version < "3.11"',
-    "dask",
     "tqdm",
     "pybars3-wheel",
     # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
@@ -73,6 +72,10 @@ Download = "https://pypi.org/project/osw/#files"
 
 [project.optional-dependencies]
 wikitext = ["mwparserfromhell"]
+# Only osw.utils.util.async_parallelize needs it, and nothing in the package calls
+# that. Keeping it in the base dependencies made `import osw` impossible anywhere
+# dask is unavailable - notably Pyodide, which has no dask build.
+parallel = ["dask"]
 DB = [
     "psycopg2",
     "sqlalchemy",
@@ -108,7 +111,7 @@ workflow = [
     "anyio>=4.9,<4.14",
 ]
 tutorial = ["osw[dataimport]"]
-all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext,mcp,parallel]"]
 
 [project.scripts]
 # command-line access to a live OSL instance, built from the same

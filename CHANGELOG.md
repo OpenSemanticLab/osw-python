@@ -10,6 +10,32 @@
 
 <!-- version list -->
 
+## v2.9.1 (2026-11-06)
+
+### Bug Fixes
+
+- **core**: Resolve bare $refs before dropping schema definitions
+  ([#164](https://github.com/OpenSemanticLab/osw-python/pull/164),
+  [`d86ad31`](https://github.com/OpenSemanticLab/osw-python/commit/d86ad31b9531b027117707bfa159a36f8b5d0694))
+
+
+## v2.9.0 (2026-11-05)
+
+### Features
+
+- Make dask optional so osw imports without it
+  ([#219](https://github.com/OpenSemanticLab/osw-python/pull/219),
+  [`897df83`](https://github.com/OpenSemanticLab/osw-python/commit/897df832a132c653886af8089a0285f41e951e09))
+
+
+## v2.8.2 (2026-10-10)
+
+### Bug Fixes
+
+- Detect CharacteristicType from the opensemantic packages too
+  ([`f195a97`](https://github.com/OpenSemanticLab/osw-python/commit/f195a973b141cf830c65656ab946ca454e7309aa))
+
+
 ## v2.8.1 (2026-09-23)
 
 ### Bug Fixes

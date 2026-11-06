@@ -21,9 +21,11 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "oold>=0.15.0",
+    # registered_credentials(), used to find the wiki of a file without a URL
+    "oold>=2.3.0",
     "opensemantic",
-    "opensemantic.core>=0.57.4",
+    # the file controllers this module wraps
+    "opensemantic.core>=0.59.0",
     "opensemantic.base>=0.42.7",
     "pydantic[email]>=2.12.0",
     "datamodel-code-generator==0.51.0",

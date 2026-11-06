@@ -1,0 +1,37 @@
+{
+    "@context": [
+    	{{#each subclass_of}}
+        "/wiki/{{{.}}}?action=raw\u0026slot=jsonschema"{{#unless @last}},{{/unless}}
+        {{/each}}
+    ],
+    "allOf": [
+        {{#if subclass_of}}{{#each subclass_of}}
+        {"$ref": "/wiki/{{{.}}}?action=raw\u0026slot=jsonschema"}{{#unless @last}},{{/unless}}
+        {{/each}}{{else}}
+        {}
+        {{/if}}
+    ],
+    "type": "object",
+    "uuid": "{{{uuid}}}",
+    {{#if version}}"x-oold-version": "{{{version}}}",{{/if}}
+    "title": "{{{name}}}",
+    "title*": {
+    	{{#each label}}
+        "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+    	{{/each}}
+    },
+    "description": "{{{description.[0].text}}}",
+    "description*": {
+    	{{#each description}}
+        "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+    	{{/each}}
+    },
+    "required": [
+        "type"
+    ],
+    "properties": {
+        "type": {
+            "default": ["{{{_page_title}}}"]
+        }
+    }
+}

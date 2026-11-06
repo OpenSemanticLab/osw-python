@@ -8,7 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not
 # edit by hand; it is bumped automatically on merge to main.
-version = "2.3.5"
+version = "2.9.1"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -21,9 +21,11 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "oold>=0.15.0",
+    # registered_credentials(), used to find the wiki of a file without a URL
+    "oold>=2.3.0",
     "opensemantic",
-    "opensemantic.core>=0.57.4",
+    # the file controllers this module wraps
+    "opensemantic.core>=0.59.0",
     "opensemantic.base>=0.42.7",
     "pydantic[email]>=2.12.0",
     "datamodel-code-generator==0.51.0",
@@ -38,15 +40,27 @@ dependencies = [
     "PyLD",
     "SPARQLWrapper",
     "jsonpath-ng",
+    # validates jsondata against a resolved JSON Schema in
+    # osw.service.ops.entities.validate_entity
+    "jsonschema>=4.0",
     "numpy",
     "pyyaml",
     "typing_extensions",
     # used in custom_types.py on py3.10; was missing before (latent
     # ImportError on 3.10), surfaced by ty/deptry during the migration
     'backports.strenum; python_version < "3.11"',
-    "dask",
     "tqdm",
     "pybars3-wheel",
+    # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
+    # install osw` never ships a broken `osw` console script
+    "typer",
+    # typer is built on click, and osw.cli.main subclasses click's Command and
+    # Group to report a misplaced root option. That is a direct import, so it
+    # is declared here rather than relied on through typer.
+    "click",
+    # .env loading (osw.service.config). Also a base dependency: without it the
+    # CLI silently cannot find a .env file and reports missing credentials
+    "python-dotenv>=1.0",
 ]
 
 [project.urls]
@@ -58,6 +72,10 @@ Download = "https://pypi.org/project/osw/#files"
 
 [project.optional-dependencies]
 wikitext = ["mwparserfromhell"]
+# Only osw.utils.util.async_parallelize needs it, and nothing in the package calls
+# that. Keeping it in the base dependencies made `import osw` impossible anywhere
+# dask is unavailable - notably Pyodide, which has no dask build.
+parallel = ["dask"]
 DB = [
     "psycopg2",
     "sqlalchemy",
@@ -73,6 +91,14 @@ UI = [
     # The LGPLv3 line resumed at version 6, which the GUI examples target.
     "pysimplegui>=6",
 ]
+mcp = [
+    # official MCP Python SDK; provides MCPServer from mcp.server.
+    # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.
+    "mcp>=2",
+    # without it osw.wiki_tools warns at import time, which is noise on the
+    # server's stderr and appears in every client's log.
+    "osw[wikitext]",
+]
 workflow = [
     "prefect>=2.20.25,<3.0",
     # prefect 2.20.25 is the final 2.x release (no backports). Its
@@ -85,7 +111,17 @@ workflow = [
     "anyio>=4.9,<4.14",
 ]
 tutorial = ["osw[dataimport]"]
-all = ["osw[dataimport,DB,UI,S3,wikitext]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext,mcp,parallel]"]
+
+[project.scripts]
+# command-line access to a live OSL instance, built from the same
+# osw.service.registry the MCP server uses. Goes through osw_entry so the
+# import-time notice about osw's logging is suppressed for this entry point.
+osw = "osw_entry:cli"
+# stdio MCP server exposing a live OSL instance to MCP clients (e.g. Claude
+# Code). Goes through osw_entry so the import-time notice about osw's
+# logging is suppressed for this entry point.
+osw-mcp = "osw_entry:mcp"
 
 [build-system]
 requires = ["hatchling"]
@@ -99,8 +135,10 @@ dev = [
     "pytest-mock",
     "pytest-asyncio",
     # inherit the capped prefect pin (<3.0); a bare "prefect" here resolved to
-    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests
-    "osw[workflow]",
+    # 3.x in CI, whose server API breaks the prefect-2.20-targeted tests.
+    # mcp is included so the MCP server and its tests run in the same
+    # environment as everything else.
+    "osw[workflow,mcp]",
     "geopy",
     "deepl",
     "sqlalchemy",
@@ -129,7 +167,9 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/osw"]
+# osw_entry.py must be shipped too: both console scripts point at it.
+only-include = ["src/osw", "src/osw_entry.py"]
+sources = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -271,7 +311,8 @@ preview = true
 
 [tool.semantic_release]
 # python-semantic-release owns the version: it reads the conventional commits
-# on main, bumps the static version below and in CITATION.cff, updates the
+# on main, bumps the static version below, in CITATION.cff, in the osl-tasks
+# skill's frontmatter and in the Claude Code plugin manifest, updates the
 # changelog, relocks uv.lock, commits, tags (vX.Y.Z) and creates the GitHub
 # release. Publishing to PyPI happens in the same workflow run
 # (on-release-main.yml).
@@ -283,7 +324,14 @@ commit_message = "chore(release): v{version} [skip ci]"
 allow_zero_version = true
 exclude_commit_patterns = ['''chore\(release\):.*''']
 version_toml = ["pyproject.toml:project.version"]
-version_variables = ["CITATION.cff:version"]
+version_variables = [
+    "CITATION.cff:version",
+    "src/osw/skills/osl-tasks/SKILL.md:version",
+    # Claude Code caches an installed plugin under its version string, so a
+    # version that never changes keeps plugin users on the skill they first
+    # installed.
+    ".claude-plugin/plugin.json:version",
+]
 # relock so uv.lock's own pin of osw's version stays consistent, and include
 # the relocked file in the release commit
 build_command = "uv lock"
@@ -306,6 +354,9 @@ python-version = "3.10"
 #  - src/osw/model/entity.py: generated (datamodel-code-generator) models
 #  - examples, scripts: illustrative/maintenance code, not part of the package
 #  - tests: not yet type-clean, tightened in a follow-up
+#
+# src/osw/mcp, src/osw/service and src/osw/cli are checked: the mcp extra is
+# part of the dev group, so the SDK imports resolve.
 exclude = [
     "src/osw/model/entity.py",
     "examples",
@@ -344,11 +395,14 @@ opensemantic-core = "opensemantic"
 opensemantic-base = "opensemantic"
 pybars3-wheel = "pybars"
 "backports.strenum" = "backports"
-# extras packages not installed in the dev env, mapped explicitly so
-# deptry does not have to guess ("Assuming ..." warnings)
+# extras packages whose import name deptry would otherwise have to guess
+# ("Assuming ..." warnings)
 psycopg2 = "psycopg2"
 openpyxl = "openpyxl"
 pysimplegui = "PySimpleGUI"
+mcp = "mcp"
+# python-dotenv imports as `dotenv`
+python-dotenv = "dotenv"
 
 [tool.deptry.per_rule_ignores]
 # DEP002: declared but not imported anywhere in src

@@ -781,7 +781,6 @@ class TestImportWithFallback:
         with pytest.raises(ValueError, match="to_import"):
             import_with_fallback(None, {})
 
-    @pytest.mark.filterwarnings("ignore:No 'dependencies' were passed:UserWarning")
     def test_nonexistent_class_no_deps_raises(self):
         """When the class doesn't exist and no dependencies or osw_fpt
         are given, should raise AttributeError."""
@@ -1228,10 +1227,6 @@ class TestLiveUploadWithTargetFpt:
 class TestLiveImportWithFallback:
     """Test import_with_fallback fallback path with live wiki."""
 
-    @pytest.mark.filterwarnings("ignore:No 'dependencies' were passed:UserWarning")
-    @pytest.mark.filterwarnings(
-        "ignore:An exception occurred while loading the module dependencies:UserWarning"
-    )
     def test_live_fallback_fetches_from_wiki(
         self, wiki_domain, wiki_username, wiki_password
     ):

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import uuid
@@ -13,6 +14,8 @@ from osw.core import OSW, model
 from osw.utils.strings import camel_case, pascal_case
 from osw.utils.wiki import get_namespace
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 
 class ParserSettings(OswBaseModel):
@@ -194,7 +197,7 @@ class OntologyImporter(OswBaseModel):
 
         # load the imported ontologies and merge them into the main graph
         for onto in ontologies_to_import:
-            print(f"Importing {onto}")
+            _logger.info(f"Importing {onto}")
             _rdf_graph = OntologyImporter._recursive_ontology_import(
                 onto,
                 format_=format_,
@@ -236,7 +239,7 @@ class OntologyImporter(OswBaseModel):
                     and iri in self.import_config.import_mapping
                 ):
                     iri = self.import_config.import_mapping[iri]
-                print(f"Importing {iri}")
+                _logger.info(f"Importing {iri}")
                 rdf_graph.parse(iri)
 
         # load the ontology file
@@ -606,10 +609,10 @@ class OntologyImporter(OswBaseModel):
                             "de",
                         ]:
                             # ToDo: Support all/more languages
-                            print((
-                                "Warning: remove value with unsupported language: ",
-                                f"{node[key]['lang']}",
-                            ))
+                            _logger.warning(
+                                "remove value with unsupported language: "
+                                f"{node[key]['lang']}"
+                            )
                             del node[key]
                             continue
                     elif isinstance(node[key], list):
@@ -623,20 +626,19 @@ class OntologyImporter(OswBaseModel):
                                     "lang"
                                 ] not in ["en", "de"]:
                                     # ToDo: Support all/more languages
-                                    print((
-                                        "Warning: remove value with unsupported language: ",
-                                        f"{node[key][i]['lang']}",
-                                    ))
+                                    _logger.warning(
+                                        "remove value with unsupported language: "
+                                        f"{node[key][i]['lang']}"
+                                    )
                                     del node[key][i]
                                     continue
                             else:
-                                print(
-                                    "Warning: remove invalide multilang value: "
-                                    f"{node[key][i]}"
+                                _logger.warning(
+                                    f"remove invalide multilang value: {node[key][i]}"
                                 )
                                 del node[key][i]
                     else:
-                        print(f"Warning: remove invalide multilang value: {node[key]}")
+                        _logger.warning(f"remove invalide multilang value: {node[key]}")
                         del node[key]
             for key in ps.ensure_array:
                 if key in node and not isinstance(node[key], list):
@@ -675,7 +677,7 @@ class OntologyImporter(OswBaseModel):
                 elif "label" in node:
                     node["name"] = node["label"][0]["text"]
                 else:
-                    print("No label: ", node["iri"])
+                    _logger.warning(f"No label: {node['iri']}")
                     # node["name"] = node["iri"].split("/")[-1].split("#")[-1]
                     # warning(f"Fallback to name from iri: {node['name']}")
                 if "name" in node:
@@ -774,8 +776,8 @@ class OntologyImporter(OswBaseModel):
 
                     except Exception as ex:
                         # print the validation error
-                        print("Exception while generating entity with ", node)
-                        print(ex)
+                        _logger.error(f"Exception while generating entity with {node}")
+                        _logger.error(ex)
 
                     if e:
                         self._entities.append(e)
@@ -818,7 +820,7 @@ class OntologyImporter(OswBaseModel):
                 )
                 text += f"\n {new_iri}|{smw_import_type}"
             else:
-                print("Error: Entity has not iri/uri property")
+                _logger.error("Entity has not iri/uri property")
 
         import_page.set_slot_content("main", text)
         import_page.edit("import ontology")
@@ -854,7 +856,7 @@ class OntologyImporter(OswBaseModel):
             dry_run = param.dryrun
             ontologies = param.ontologies
 
-        print(f"{len(entities)} classes to import")
+        _logger.info(f"{len(entities)} classes to import")
         prefix_dict = {}
         for e in entities:
             if "//" in e.iri:
@@ -882,7 +884,7 @@ class OntologyImporter(OswBaseModel):
                 if o.prefix == prefix or o.prefix_name == prefix:
                     onto = o
             if onto is None:
-                print(f"Error: No ontology defined for prefix {prefix}")
+                _logger.error(f"No ontology defined for prefix {prefix}")
             else:
                 if not dry_run:
                     self._store_ontology(

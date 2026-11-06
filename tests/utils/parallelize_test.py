@@ -10,12 +10,13 @@ implementation moved from dask to asyncio, leaving both parameters inert.
 """
 
 import asyncio
+import logging
 import sys
 import threading
 
 import pytest
 
-from osw.utils.util import ThreadRoutedStdout, parallelize
+from osw.utils.util import TASK_OUTPUT_LOGGER, ThreadRoutedStdout, parallelize
 
 # Generous enough that a loaded CI machine still passes, short enough that a
 # serialized execution trips it instead of hanging the suite.
@@ -123,18 +124,22 @@ def _print_then_return(item):
     return item
 
 
-def test_flush_at_end_prints_what_the_tasks_printed(capsys):
+def test_flush_at_end_logs_what_the_tasks_printed(caplog):
+    caplog.set_level(logging.INFO, logger=TASK_OUTPUT_LOGGER)
+
     parallelize(_print_then_return, [1, 2, 3], flush_at_end=True)
 
-    out = capsys.readouterr().out
-    assert "handled 1" in out
-    assert "handled 2" in out
-    assert "handled 3" in out
+    messages = [r.message for r in caplog.records if r.name == TASK_OUTPUT_LOGGER]
+    assert "handled 1" in messages
+    assert "handled 2" in messages
+    assert "handled 3" in messages
 
 
-def test_flush_at_end_replays_in_input_order(capsys):
+def test_flush_at_end_replays_in_input_order(caplog):
     """Output follows the iterable, not the order the tasks happened to finish."""
     import time
+
+    caplog.set_level(logging.INFO, logger=TASK_OUTPUT_LOGGER)
 
     delays = {1: 0.05, 2: 0.0, 3: 0.03}
 
@@ -144,49 +149,47 @@ def test_flush_at_end_replays_in_input_order(capsys):
 
     parallelize(sleep_then_print, [1, 2, 3], flush_at_end=True)
 
-    out = capsys.readouterr().out
-    assert out.index("handled 1") < out.index("handled 2") < out.index("handled 3")
+    messages = [r.message for r in caplog.records if r.name == TASK_OUTPUT_LOGGER]
+    assert messages.index("handled 1") < messages.index("handled 2")
+    assert messages.index("handled 2") < messages.index("handled 3")
 
 
-def test_flush_at_end_defers_until_the_batch_is_done():
-    """Nothing reaches the real stdout while the tasks are still running."""
-    written = []
+def test_flush_at_end_defers_until_the_batch_is_done(caplog):
+    """Nothing reaches the osw.parallel.output logger while the tasks are still
+    running."""
     snapshots = []
     barrier = threading.Barrier(3, timeout=BARRIER_TIMEOUT)
 
-    class _Recorder:
-        def write(self, message):
-            written.append(message)
-            return len(message)
-
-        def flush(self):
-            pass
+    caplog.set_level(logging.INFO, logger=TASK_OUTPUT_LOGGER)
 
     def print_then_look(item):
         print(f"handled {item}")
         barrier.wait()  # every task has printed by the time this releases
-        snapshots.append("".join(written))
+        snapshots.append([
+            r.message for r in caplog.records if r.name == TASK_OUTPUT_LOGGER
+        ])
 
-    original = sys.stdout
-    sys.stdout = _Recorder()
-    try:
-        parallelize(print_then_look, [1, 2, 3], flush_at_end=True, progress_bar=False)
-    finally:
-        sys.stdout = original
+    parallelize(print_then_look, [1, 2, 3], flush_at_end=True, progress_bar=False)
 
-    # mid-flight the real stream had seen none of it, afterwards it has all of it
-    assert not any("handled" in snapshot for snapshot in snapshots)
-    assert "".join(written).count("handled") == 3
+    # mid-flight the logger had seen none of it, afterwards it has all of it
+    assert not any(
+        any("handled" in message for message in snapshot) for snapshot in snapshots
+    )
+    final = [r.message for r in caplog.records if r.name == TASK_OUTPUT_LOGGER]
+    assert sum("handled" in message for message in final) == 3
 
 
-def test_task_output_is_suppressed_without_flush_at_end(capsys):
+def test_task_output_is_suppressed_without_flush_at_end(caplog):
+    caplog.set_level(logging.INFO, logger=TASK_OUTPUT_LOGGER)
+
     parallelize(_print_then_return, [1, 2, 3])
 
-    assert "handled" not in capsys.readouterr().out
+    assert not any("handled" in record.message for record in caplog.records)
 
 
-def test_flush_at_end_reports_even_when_the_batch_fails(capsys):
+def test_flush_at_end_reports_even_when_the_batch_fails(caplog):
     """A failing item must not swallow the diagnostics of the others."""
+    caplog.set_level(logging.INFO, logger=TASK_OUTPUT_LOGGER)
 
     def print_then_fail(item):
         print(f"handled {item}")
@@ -197,7 +200,7 @@ def test_flush_at_end_reports_even_when_the_batch_fails(capsys):
     with pytest.raises(ValueError, match="boom"):
         parallelize(print_then_fail, [1, 2, 3], flush_at_end=True)
 
-    assert "handled 1" in capsys.readouterr().out
+    assert any("handled 1" in record.message for record in caplog.records)
 
 
 def test_stdout_is_restored_afterwards():

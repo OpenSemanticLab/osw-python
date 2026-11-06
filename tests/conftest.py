@@ -9,9 +9,25 @@ Read more about conftest.py under:
 
 import pytest
 
+from osw.service import config
+
 # Note: pytest_addoption lives in the repo-root conftest.py - since pytest 9.0
 # it is not loaded from this subdirectory conftest via testpaths. The
 # option-backed fixtures below stay here.
+
+
+@pytest.fixture(autouse=True)
+def _restore_log_prefix():
+    """Restore ``osw.service.config._LOG_PREFIX`` after each test.
+
+    It is process-wide mutable state, set once by whichever adapter starts a
+    process (see ``config.set_log_prefix``). Without this, a test that sets
+    it directly, or indirectly by exercising the CLI or the MCP server, would
+    leak that choice into a later test that expects the default.
+    """
+    original = config._LOG_PREFIX
+    yield
+    config._LOG_PREFIX = original
 
 
 @pytest.fixture(scope="session")

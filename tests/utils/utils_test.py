@@ -1,6 +1,9 @@
 import uuid
 
+import pytest
+
 import osw.model.entity as model
+from osw.core import OSW
 from osw.utils.regex import count_match_groups
 from osw.utils.strings import camel_case, pascal_case
 from osw.utils.wiki import (
@@ -26,6 +29,50 @@ def test_get_uuid():
     uuid_ = uuid.uuid4()
     osw_id = f"OSW{str(uuid_).replace('-', '')}"
     assert get_uuid(osw_id) == uuid_
+
+
+@pytest.mark.parametrize(
+    "suffix", ["", ".png", ".drawio.png", ".tar.gz", ".jpg-2", ".a.b.c.d"]
+)
+def test_get_uuid_ignores_file_suffixes(suffix):
+    """File pages carry their extension in the title, ahead of the OSW-ID."""
+    uuid_ = uuid.uuid4()
+    osw_id = f"OSW{str(uuid_).replace('-', '')}{suffix}"
+
+    assert get_uuid(osw_id) == uuid_
+
+
+def test_get_uuid_accepts_a_bare_uuid():
+    """The prefix is optional, as it was when it was stripped by str.replace."""
+    uuid_ = uuid.uuid4()
+
+    assert get_uuid(str(uuid_).replace("-", "")) == uuid_
+
+
+@pytest.mark.parametrize(
+    "osw_id",
+    [
+        "",
+        "OSW",
+        "Category:OSW2ea5b605c91f4e5a95593dff79fdd4a5",  # full title, not an ID
+        "OSW2ea5b605c91f4e5a95593dff79fdd4a",  # one character short
+        "OSW2ea5b605c91f4e5a95593dff79fdd4a5x",
+        "OSW2ea5b605c91f4e5a95593dff79fdd4a5.",  # empty suffix
+        "OSWzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        "osw2ea5b605c91f4e5a95593dff79fdd4a5",  # prefix is case sensitive
+        "2ea5b605-c91f-4e5a-9559-3dff79fdd4a5",  # an OSW-ID carries no dashes
+    ],
+)
+def test_get_uuid_rejects_what_is_not_an_osw_id(osw_id):
+    with pytest.raises(ValueError):
+        get_uuid(osw_id)
+
+
+def test_osw_get_uuid_delegates():
+    """OSW.get_uuid is a wrapper, so it must handle suffixes just the same."""
+    osw_id = "OSW2ea5b605c91f4e5a95593dff79fdd4a5.drawio.png"
+
+    assert OSW.get_uuid(osw_id) == get_uuid(osw_id)
 
 
 def test_get_entity_namespace():

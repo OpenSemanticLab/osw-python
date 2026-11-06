@@ -1948,15 +1948,11 @@ wheels = [
 
 [[package]]
 name = "opensemantic"
-version = "0.2.4"
-source = { registry = "https://pypi.org/simple" }
+version = "0.2.4.post1.dev1+g664da4a1a"
+source = { git = "https://github.com/OpenSemanticWorld-Packages/opensemantic-python?rev=664da4a1a866a9c2b94ce9b3b2dc1c1ed1d5f226#664da4a1a866a9c2b94ce9b3b2dc1c1ed1d5f226" }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "oold" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/09/58/2bdbd07aeb065cbe95d0cdfe024e97e7ca69bfe0d2d49b48ff889466e139/opensemantic-0.2.4.tar.gz", hash = "sha256:1e5f6beac3dc84b04a3de9eb5c05bed9be1b2fd286898df7965be5ced387005e", size = 33204, upload-time = "2026-05-08T12:47:36.822Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/99/5c/e39d083d6ab2d036e9ab2c2a9d16ed4653f74402ff8be04efb97fd98ad15/opensemantic-0.2.4-py3-none-any.whl", hash = "sha256:a26c7540751c37010c24c48dfef9a92954301257a2f63c19d864e5aa5010af1c", size = 16596, upload-time = "2026-05-08T12:47:35.699Z" },
 ]
 
 [[package]]
@@ -2192,7 +2188,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "oold", specifier = ">=0.15.0" },
     { name = "openpyxl", marker = "extra == 'dataimport'" },
-    { name = "opensemantic" },
+    { name = "opensemantic", git = "https://github.com/OpenSemanticWorld-Packages/opensemantic-python?rev=664da4a1a866a9c2b94ce9b3b2dc1c1ed1d5f226" },
     { name = "opensemantic-base", specifier = ">=0.42.7" },
     { name = "opensemantic-core", specifier = ">=0.57.4" },
     { name = "osw", extras = ["dataimport"], marker = "extra == 'tutorial'" },

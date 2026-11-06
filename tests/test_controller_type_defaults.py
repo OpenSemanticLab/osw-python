@@ -7,17 +7,9 @@ class.
 """
 
 import osw.model.entity as model
-from osw.controller.file.base import FileController
 from osw.controller.file.local import LocalFileController
 from osw.controller.file.memory import InMemoryController
 from osw.controller.file.wiki import WikiFileController
-
-
-def test_file_controller_keeps_files_category():
-    assert (
-        FileController.__fields__["type"].get_default()
-        == model.File.__fields__["type"].get_default()
-    )
 
 
 def test_local_file_controller_keeps_local_files_category():

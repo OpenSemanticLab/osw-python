@@ -139,9 +139,7 @@ def download_file_binaries(
             log.error(f"Failed to download binary for '{title}': {e}")
 
 
-def upload_file_binary(
-    target: OswInstance, title: str, binary_path: Path
-) -> None:
+def upload_file_binary(target: OswInstance, title: str, binary_path: Path) -> None:
     """Upload a binary file to the target instance.
 
     Uses mw_site.upload() directly instead of OswExpress.upload_file() because
@@ -188,9 +186,7 @@ def resolve_categories(
             pass
 
         try:
-            result = source.wtsite.get_page(
-                WtSite.GetPageParam(titles=[title])
-            )
+            result = source.wtsite.get_page(WtSite.GetPageParam(titles=[title]))
             if not result.pages:
                 log.warning(f"Category '{title}' not found on source.")
                 continue
@@ -253,9 +249,7 @@ def collect_pages(
         Summary of what was collected, keyed by dependency type.
     """
     log.info(f"Fetching {len(titles)} primary pages from {source.domain}...")
-    primary_result = source.wtsite.get_page(
-        WtSite.GetPageParam(titles=titles)
-    )
+    primary_result = source.wtsite.get_page(WtSite.GetPageParam(titles=titles))
     primary_pages = primary_result.pages
     log.info(f"Fetched {len(primary_pages)} primary pages.")
 
@@ -293,12 +287,8 @@ def collect_pages(
             all_property_refs.update(extract_property_deps(page))
 
         if all_property_refs:
-            existing_props = check_existing_on_target(
-                target, list(all_property_refs)
-            )
-            property_titles = [
-                p for p in all_property_refs if p not in existing_props
-            ]
+            existing_props = check_existing_on_target(target, list(all_property_refs))
+            property_titles = [p for p in all_property_refs if p not in existing_props]
             skipped = len(all_property_refs) - len(property_titles)
             if skipped:
                 log.info(f"Skipped {skipped} properties already on target.")
@@ -504,16 +494,21 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     cred_filepath = Path("accounts.pwd.yaml")
-    source_domain = "arkeve.isc.fraunhofer.de"
+    source_domain = "proteckd.osl.isc.fraunhofer.de"
     target_domain = "wiki-dev.open-semantic-lab.org"
 
     source_inst = OswInstance(domain=source_domain, cred_filepath=cred_filepath)
     target_inst = OswInstance(domain=target_domain, cred_filepath=cred_filepath)
 
     titles_to_copy = [
-        #"Category:OSW3e5fdb3c3e614f5cbfb08899b2935bcd",  # Automated Experimental Setup
-        "Item:OSW2f753c2a187d403994a18ef1ed4cea68", # delete_me_test_for_copying
-        #"Category:OSW0b5e4975ee904456b4630c41b418fab3" # Delete me category
+        # "Category:OSW3e5fdb3c3e614f5cbfb08899b2935bcd",  # Automated Experimental Setup
+        # "Category:OSW0b5e4975ee904456b4630c41b418fab3" # Delete me category
+        # "Category:OSWcce5706e7223423886457f5d70ec29c0", # SampleShipment
+        # "Item:OSWab2414f148664cb48541f7dca4d20811" #Samples and Shipments
+        # "Category:OSW260bd4a8676549ba8c33471cf203ea31" # Sprühtrocknung
+        "Category:OSWd31cd3bdbcf44ca792642052974ecdb7",  # Spray Dryer
+        "Item:OSWb9b7ab3f4121483da340bdd72940182c",  # Sprühtrockner Sprühtrockner Büchi B290
+        "Item:OSW26d1bd14f7034a248d6b12a242e61a58",  # Sprühtrockner Büchi B191
     ]
     output_dir = Path("osw_copy_package")
 

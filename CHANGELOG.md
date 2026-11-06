@@ -10,6 +10,15 @@
 
 <!-- version list -->
 
+## v2.9.1 (2026-11-06)
+
+### Bug Fixes
+
+- **core**: Resolve bare $refs before dropping schema definitions
+  ([#164](https://github.com/OpenSemanticLab/osw-python/pull/164),
+  [`d86ad31`](https://github.com/OpenSemanticLab/osw-python/commit/d86ad31b9531b027117707bfa159a36f8b5d0694))
+
+
 ## v2.9.0 (2026-11-05)
 
 ### Features

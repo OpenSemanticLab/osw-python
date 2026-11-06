@@ -60,6 +60,23 @@ def test_the_osw_console_script_does_not_print_the_import_notice_on_stderr():
     assert not any(NOTICE in line for line in result.stderr.splitlines())
 
 
+def test_the_osw_console_script_version_flag_prints_only_the_version_line():
+    """--version must not carry the import notice either, and nothing else
+    on stdout (Change: issue #199)."""
+    result = subprocess.run(
+        [_console_script("osw"), "--version"],
+        capture_output=True,
+        **_DECODE,
+        env=_env_without_log_level(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not any(NOTICE in line for line in result.stderr.splitlines())
+    lines = result.stdout.strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("osw ")
+
+
 def test_importing_osw_directly_still_prints_the_notice_on_stderr():
     """Without the shim, library behaviour is unchanged: the notice is still
     written, proving the console script above is quiet because of osw_entry

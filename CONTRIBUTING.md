@@ -19,7 +19,7 @@ make install    # environment + pre-commit hooks
 4. Commit, push and open a pull request
 
 `make help` lists all targets; the
-[development guide](https://opensemanticlab.github.io/osw-python/dev/)
+[development guide](https://opensemanticlab.github.io/osw-python/latest/dev/)
 covers details such as running the integration tests and serving the docs
 locally.
 

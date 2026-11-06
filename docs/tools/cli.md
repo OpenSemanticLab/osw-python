@@ -32,11 +32,12 @@ Commands are grouped by subject:
 
 | Group | Commands |
 | --- | --- |
-| `entity` | `get`, `put`, `export`, `delete` |
+| `entity` | `get`, `put`, `export`, `delete`, `validate` |
 | `file` | `info`, `cat`, `write`, `download`, `upload` |
-| `search` | `ask`, `titles`, `content`, `entities`, `sparql` |
+| `search` | `ask`, `titles`, `content`, `entities`, `sparql`, `label` |
 | `slot` | `list`, `get`, `set` |
-| `schema` | `get` |
+| `schema` | `get`, `props`, `usage` |
+| `skill` | `install` |
 | `instances` | `list`, `status` |
 | `ledger` | `path` |
 | top level | `status` |
@@ -70,5 +71,49 @@ form.
 - `--verbose` / `-v` shows full tracebacks instead of a one-line message, and
   adds the env-file line to the source report described under
   [Where settings come from](configuration.md#where-settings-come-from).
+- `--version` / `-V` prints one line with the osw version, the location of
+  the osw package and the Python version, then exits, needing no instance or
+  credentials.
+
+`--help` / `-h` works on `osw` itself and after any subcommand or group, e.g.
+`osw entity --help` or `osw entity get -h`, and prints that command's own
+help.
 
 Failures exit non-zero with a short message on stderr and no traceback.
+
+## Tasks and projects
+
+There is no dedicated command group for tasks. Reading local todos into an
+OSL wiki as Task entities, and reading tasks, projects and persons back out,
+is done with the generic `entity`, `schema` and `search` commands against the
+three OSL core categories (Task, Person, Project).
+
+**Configuration.** Four environment variables affect this, and all are
+optional: `OSW_PERSON_IRI`, `OSW_TASK_CATEGORY`, `OSW_PERSON_CATEGORY` and
+`OSW_PROJECT_CATEGORY`. Reading always queries the shared OSL core category,
+since MediaWiki category membership includes the whole subclass tree, so a
+task kept in a local subclass is found without any configuration. The three
+category overrides only change where a newly created task, person or project
+is written.
+
+**Vocabularies.** `status` and `prio` store the page name of a wiki item, not
+a word. Read the allowed values from the category schema with `osw schema get
+<task category> --resolve`: `status` carries them in `enum`, and `prio` names
+the category that holds them in `range`. A stock instance offers To do, In
+work and Done for `status`, and High, Medium and Low for `prio`. A due date is
+written to `end_date_time`, since the Task category has no due-date property.
+
+### The Claude Code skill
+
+The skill that drives this ships at `src/osw/skills/osl-tasks/SKILL.md`.
+Install it one of two ways:
+
+1. `osw skill install`, which copies it to `~/.claude/skills/osl-tasks/`.
+2. `/plugin marketplace add OpenSemanticLab/osw-python` then
+   `/plugin install osl-tasks`.
+
+A new Claude Code session picks it up with no further action.
+
+Path 2 installs the skill file only. The skill drives the `osw` CLI and the
+MCP server, so install the package separately, and register the MCP server as
+described in [MCP server](mcp.md).

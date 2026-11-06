@@ -23,7 +23,7 @@ pip install osw
 
 Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
 `osw[UI]`, `osw[mcp]`, `osw[all]`) are described in the
-[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
+[Get Started guide](https://opensemanticlab.github.io/osw-python/latest/get-started/).
 
 ## Quickstart
 
@@ -50,14 +50,14 @@ osw search ask '[[Category:Item]]' --limit 5
 ```
 
 Commands, tools and their configuration are described in the
-[Tools guide](https://opensemanticlab.github.io/osw-python/tools/).
+[Tools guide](https://opensemanticlab.github.io/osw-python/latest/tools/).
 
 ## Logging
 
 osw reports what it is doing on the `osw` logger at INFO by default. Levels,
 the `OSW_LOG_LEVEL` environment variable and how to collect the records in your
 own logging setup are described in the
-[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/#logging).
+[Get Started guide](https://opensemanticlab.github.io/osw-python/latest/get-started/#logging).
 
 ## Contributing
 

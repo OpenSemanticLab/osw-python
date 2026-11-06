@@ -8,7 +8,7 @@ license-files = ["LICENSE.txt"]
 requires-python = ">=3.10,<3.14"
 # Managed by python-semantic-release (see [tool.semantic_release]). Do not
 # edit by hand; it is bumped automatically on merge to main.
-version = "2.6.0"
+version = "2.9.1"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -21,9 +21,11 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "oold>=0.15.0",
+    # registered_credentials(), used to find the wiki of a file without a URL
+    "oold>=2.3.0",
     "opensemantic",
-    "opensemantic.core>=0.57.4",
+    # the file controllers this module wraps
+    "opensemantic.core>=0.59.0",
     "opensemantic.base>=0.42.7",
     "pydantic[email]>=2.12.0",
     "datamodel-code-generator==0.51.0",
@@ -38,13 +40,15 @@ dependencies = [
     "PyLD",
     "SPARQLWrapper",
     "jsonpath-ng",
+    # validates jsondata against a resolved JSON Schema in
+    # osw.service.ops.entities.validate_entity
+    "jsonschema>=4.0",
     "numpy",
     "pyyaml",
     "typing_extensions",
     # used in custom_types.py on py3.10; was missing before (latent
     # ImportError on 3.10), surfaced by ty/deptry during the migration
     'backports.strenum; python_version < "3.11"',
-    "dask",
     "tqdm",
     "pybars3-wheel",
     # the osw CLI (src/osw/cli); a base dependency, not an extra, so `pip
@@ -68,6 +72,10 @@ Download = "https://pypi.org/project/osw/#files"
 
 [project.optional-dependencies]
 wikitext = ["mwparserfromhell"]
+# Only osw.utils.util.async_parallelize needs it, and nothing in the package calls
+# that. Keeping it in the base dependencies made `import osw` impossible anywhere
+# dask is unavailable - notably Pyodide, which has no dask build.
+parallel = ["dask"]
 DB = [
     "psycopg2",
     "sqlalchemy",
@@ -87,6 +95,9 @@ mcp = [
     # official MCP Python SDK; provides MCPServer from mcp.server.
     # requires 2.x: 1.x has no MCPServer, and 2.0 removed the vendored FastMCP.
     "mcp>=2",
+    # without it osw.wiki_tools warns at import time, which is noise on the
+    # server's stderr and appears in every client's log.
+    "osw[wikitext]",
 ]
 workflow = [
     "prefect>=2.20.25,<3.0",
@@ -100,7 +111,7 @@ workflow = [
     "anyio>=4.9,<4.14",
 ]
 tutorial = ["osw[dataimport]"]
-all = ["osw[dataimport,DB,UI,S3,wikitext,mcp]"]
+all = ["osw[dataimport,DB,UI,S3,wikitext,mcp,parallel]"]
 
 [project.scripts]
 # command-line access to a live OSL instance, built from the same
@@ -300,7 +311,8 @@ preview = true
 
 [tool.semantic_release]
 # python-semantic-release owns the version: it reads the conventional commits
-# on main, bumps the static version below and in CITATION.cff, updates the
+# on main, bumps the static version below, in CITATION.cff, in the osl-tasks
+# skill's frontmatter and in the Claude Code plugin manifest, updates the
 # changelog, relocks uv.lock, commits, tags (vX.Y.Z) and creates the GitHub
 # release. Publishing to PyPI happens in the same workflow run
 # (on-release-main.yml).
@@ -312,7 +324,14 @@ commit_message = "chore(release): v{version} [skip ci]"
 allow_zero_version = true
 exclude_commit_patterns = ['''chore\(release\):.*''']
 version_toml = ["pyproject.toml:project.version"]
-version_variables = ["CITATION.cff:version"]
+version_variables = [
+    "CITATION.cff:version",
+    "src/osw/skills/osl-tasks/SKILL.md:version",
+    # Claude Code caches an installed plugin under its version string, so a
+    # version that never changes keeps plugin users on the skill they first
+    # installed.
+    ".claude-plugin/plugin.json:version",
+]
 # relock so uv.lock's own pin of osw's version stays consistent, and include
 # the relocked file in the release commit
 build_command = "uv lock"

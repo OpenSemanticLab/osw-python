@@ -103,7 +103,7 @@ set wins:
 | `OSW_DOMAIN` | `OSL_DOMAIN` | Instance to connect to. A bare host (`wiki.example.org`) or a full URL (`https://wiki.example.org/w/`); the host is taken from either, and a value no host can be read from (`https://`, `/w/index.php`) is rejected at startup |
 | `OSW_USERNAME` | `OSL_USERNAME` | Login user |
 | `OSW_PASSWORD` | `OSL_PASSWORD` | Login password |
-| `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri (falls back to `accounts.pwd.yaml` in the working directory, CLI only) |
+| `OSW_CRED_FILEPATH` | `OSW_MCP_CRED_FILEPATH`, `OSL_CRED_FILEPATH` | YAML credential file, keyed by iri (falls back to `accounts.pwd.yaml` in the working directory, CLI only). A leading `~` is expanded. A relative path is accepted; the MCP server resolves it at startup against the working directory its client chose, and the source report shows the full path |
 | `OSW_ENV_FILE` | `OSW_MCP_ENV_FILE` | `.env` file to load |
 | `OSW_READ_ONLY` | `OSW_MCP_READ_ONLY` | `true` refuses every write |
 | `OSW_SPARQL_ENDPOINT` | | Endpoint for `sparql` queries |
@@ -111,6 +111,10 @@ set wins:
 | `OSW_MAX_RESULTS` | `OSW_MCP_MAX_RESULTS` | Default result cap (100) |
 | `OSW_MAX_CHARS` | `OSW_MCP_MAX_CHARS` | Result size cap in characters (100000) |
 | `OSW_VERBOSE` | `OSW_MCP_VERBOSE` | `true` prints the configuration source report |
+| `OSW_PERSON_IRI` | | Page name of the operator's own Person entity, read by the osl-tasks skill to filter tasks by actionee |
+| `OSW_TASK_CATEGORY` | | Category a newly created task is written to, read by the osl-tasks skill |
+| `OSW_PERSON_CATEGORY` | | Category a newly created person is written to, read by the osl-tasks skill |
+| `OSW_PROJECT_CATEGORY` | | Category a newly created project is written to, read by the osl-tasks skill |
 
 ## Windows paths in a `.env` file
 

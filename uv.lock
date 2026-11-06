@@ -1917,7 +1917,7 @@ wheels = [
 
 [[package]]
 name = "oold"
-version = "0.16.2"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datamodel-code-generator" },
@@ -1929,9 +1929,9 @@ dependencies = [
     { name = "sparqlwrapper" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/44/59/15da5384eab02f8d58cc17be3b820839b0ca76a4dfbdb3225d1cb555f955/oold-0.16.2.tar.gz", hash = "sha256:610192b49c744f5d35f0c9c780019beb2460df55119379e8482d2c484b7bd4e9", size = 702593, upload-time = "2026-05-11T09:44:04.126Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7c/6d/b6635ad891cde1a11e9ccef3f46c0f8cbe43c683c5e2d99daec6b3d5e587/oold-2.3.0.tar.gz", hash = "sha256:9d3b4de3ad53ebb046b575c772cd009374fedbb964ab3c6fbbfb2f48ce18f1c5", size = 1429319, upload-time = "2026-10-15T09:56:00.491Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/09/7e/ff3368ae3e8efcea19f79ab08c759f6d650c983f8b9b302bfe8d82d3db42/oold-0.16.2-py3-none-any.whl", hash = "sha256:32fd178829fba9a990fd1a1bd34c86378a54d5cdf5f554b10b9fdbdc8bf7715d", size = 189586, upload-time = "2026-05-11T09:44:02.601Z" },
+    { url = "https://files.pythonhosted.org/packages/17/fa/91913d09989ad88192d114b47f7743f45c1a18fedfa24097a96917d30040/oold-2.3.0-py3-none-any.whl", hash = "sha256:db9b692142b56471c72b0ee49bd9f814e010f54952fda43d783c9f4fc89ea49f", size = 472728, upload-time = "2026-10-15T09:56:02.23Z" },
 ]
 
 [[package]]
@@ -1975,15 +1975,16 @@ wheels = [
 
 [[package]]
 name = "opensemantic-core"
-version = "0.57.4.post1000002003001"
+version = "0.59.0.post1000004007001"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "oold" },
     { name = "opensemantic" },
     { name = "pydantic", extra = ["email"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/a7/d88f31ed639ce75ba58648b5ebcbab795fe82f93341e1d694b8993522789/opensemantic_core-0.57.4.post1000002003001.tar.gz", hash = "sha256:a25b9caee5e267d17569b5d64d7d6183b122e26f2da6ddc898cc224182ff903f", size = 67852, upload-time = "2026-05-04T06:15:27.097Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/63/1c0a049a28acce2d74cca95117a596f25b563861dd78099f2a081127562e/opensemantic_core-0.59.0.post1000004007001.tar.gz", hash = "sha256:9846fb4763fd25a8d30e24b29645b4c3ba2d52d10d492e6f073d284e1dd45c8d", size = 79184, upload-time = "2026-10-15T12:03:49.052Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/c8/ab45630822479696bd4e7650a7e3a547b782ae3a0b30bfcd04a39e6692d3/opensemantic_core-0.57.4.post1000002003001-py3-none-any.whl", hash = "sha256:6cb35e14e011be95e0ded366d1cc2dd8f547209a68665960ffab530ecb6d7ef4", size = 51538, upload-time = "2026-05-04T06:15:25.887Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/19/09bb22ad969a704fe9b2bf4991f24ac243cb380da3c5c9e081e8d5048fd3/opensemantic_core-0.59.0.post1000004007001-py3-none-any.whl", hash = "sha256:8e98fd4dbc2335081c3826a30486d698482fb003f3dc5417a536c32ee25a54c2", size = 59833, upload-time = "2026-10-15T12:03:47.692Z" },
 ]
 
 [[package]]
@@ -2066,17 +2067,17 @@ wheels = [
 
 [[package]]
 name = "osw"
-version = "2.6.0"
+version = "2.9.1"
 source = { editable = "." }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "black" },
     { name = "click" },
-    { name = "dask" },
     { name = "datamodel-code-generator" },
     { name = "httpx" },
     { name = "isort" },
     { name = "jsonpath-ng" },
+    { name = "jsonschema" },
     { name = "mwclient" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
@@ -2101,6 +2102,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "boto3" },
+    { name = "dask" },
     { name = "deepl" },
     { name = "geopy" },
     { name = "mcp" },
@@ -2121,6 +2123,10 @@ db = [
 ]
 mcp = [
     { name = "mcp" },
+    { name = "mwparserfromhell" },
+]
+parallel = [
+    { name = "dask" },
 ]
 s3 = [
     { name = "boto3" },
@@ -2173,24 +2179,26 @@ requires-dist = [
     { name = "black" },
     { name = "boto3", marker = "extra == 's3'" },
     { name = "click" },
-    { name = "dask" },
+    { name = "dask", marker = "extra == 'parallel'" },
     { name = "datamodel-code-generator", specifier = "==0.51.0" },
     { name = "deepl", marker = "extra == 'dataimport'" },
     { name = "geopy", marker = "extra == 'dataimport'" },
     { name = "httpx" },
     { name = "isort" },
     { name = "jsonpath-ng" },
+    { name = "jsonschema", specifier = ">=4.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2" },
     { name = "mwclient", specifier = ">=0.11.0" },
     { name = "mwparserfromhell", marker = "extra == 'wikitext'" },
     { name = "numpy" },
-    { name = "oold", specifier = ">=0.15.0" },
+    { name = "oold", specifier = ">=2.3.0" },
     { name = "openpyxl", marker = "extra == 'dataimport'" },
     { name = "opensemantic" },
     { name = "opensemantic-base", specifier = ">=0.42.7" },
-    { name = "opensemantic-core", specifier = ">=0.57.4" },
+    { name = "opensemantic-core", specifier = ">=0.59.0" },
     { name = "osw", extras = ["dataimport"], marker = "extra == 'tutorial'" },
-    { name = "osw", extras = ["dataimport", "db", "ui", "s3", "wikitext", "mcp"], marker = "extra == 'all'" },
+    { name = "osw", extras = ["dataimport", "db", "ui", "s3", "wikitext", "mcp", "parallel"], marker = "extra == 'all'" },
+    { name = "osw", extras = ["wikitext"], marker = "extra == 'mcp'" },
     { name = "prefect", marker = "extra == 'workflow'", specifier = ">=2.20.25,<3.0" },
     { name = "psycopg2", marker = "extra == 'db'" },
     { name = "pybars3-wheel" },
@@ -2207,7 +2215,7 @@ requires-dist = [
     { name = "typer" },
     { name = "typing-extensions" },
 ]
-provides-extras = ["wikitext", "db", "s3", "dataimport", "ui", "mcp", "workflow", "tutorial", "all"]
+provides-extras = ["wikitext", "parallel", "db", "s3", "dataimport", "ui", "mcp", "workflow", "tutorial", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4085,14 +4093,9 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/07/7c/5848aad6a5b566f5a3cebc77ab787793daec622b79295de243da7b8efae6/zensical-0.0.47-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:4162fb8b62f38e6d9b75688c1fb87e18a1cffef5eee51d2c18b79334b548e973", size = 12789282, upload-time = "2026-07-05T15:50:45.118Z" },
     { url = "https://files.pythonhosted.org/packages/ce/08/c2a056ae22eba7063985cc89554ab8e54efb11af8e26f6d606e5bd300ae8/zensical-0.0.47-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:cdc2d84f38da809a28402eda5f2b6dbb150e14427f296c5b521e0dfc6a2e8a39", size = 12661193, upload-time = "2026-07-05T15:50:49.138Z" },
     { url = "https://files.pythonhosted.org/packages/dc/2b/30dc3262e99bc72e9a6529487fbfca58cf4f81cebfac59ef8e8d757d90eb/zensical-0.0.47-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:97ed2b21aba5f788fc39d1597d00938d602b4d2724ed599a1dab7548fe4f0025", size = 13044347, upload-time = "2026-07-05T15:50:52.429Z" },
-    { url = "https://files.pythonhosted.org/packages/4d/80/296ff21b686cda47c4a3f94c35bf62472291501c34e4f06dfd107cb237da/zensical-0.0.47-cp310-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:6f6b2de477c45284201e92301f997415f45f78493bd20f479ea9a1c86bbbbcca", size = 13006494, upload-time = "2026-07-05T15:50:55.376Z" },
-    { url = "https://files.pythonhosted.org/packages/2d/4e/5aeba02363db89c625cd41c76d2a6e40b07d6a75d869d970ace7accd2bfa/zensical-0.0.47-cp310-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2ee29ff819372eaab02ca0f14ac82e804332d898c57c56ffd4d89674f3e5ff71", size = 13379253, upload-time = "2026-07-05T15:50:58.743Z" },
     { url = "https://files.pythonhosted.org/packages/fd/dc/e72a1449544aeffa3dbe878c6340bcec98ba4eebabe7a592414064b0ae8d/zensical-0.0.47-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1bd94937c48a2e42b5b65b32c5075849937f23cebccaf250d249efa27266e0be", size = 13103356, upload-time = "2026-07-05T15:51:02.247Z" },
     { url = "https://files.pythonhosted.org/packages/48/eb/7fb956915cc59ee9f2ddf36ec5b16e8e858823217611e1d766816a661651/zensical-0.0.47-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:4702605b991bece11494a9bb318d5ba7229f00e5adcc9e6010acd58e9719686b", size = 13220897, upload-time = "2026-07-05T15:51:05.919Z" },
-    { url = "https://files.pythonhosted.org/packages/57/6b/944954d60bf1d61de2a7fa2732d0fb2d5deee64567db6088cdd2b5f76973/zensical-0.0.47-cp310-abi3-musllinux_1_2_armv7l.whl", hash = "sha256:77f08ffcc3da9ca2f972330e501927aa7e8e445bfa7b758107edc645acda266e", size = 13280476, upload-time = "2026-07-05T15:51:09.352Z" },
-    { url = "https://files.pythonhosted.org/packages/ce/80/4aece9b99eb5809b04fc6577fc50e877c998917293dfd58b5b229616b92b/zensical-0.0.47-cp310-abi3-musllinux_1_2_i686.whl", hash = "sha256:319cf370ecc6d87da69c935c5acd6e1959dd48954766e9f954319bdb0bec5d36", size = 13439392, upload-time = "2026-07-05T15:51:12.564Z" },
     { url = "https://files.pythonhosted.org/packages/41/10/5cbffe680605b4fa7c0d6326f07a6adc86854f8b9d61bb1b29bb482d40eb/zensical-0.0.47-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:59656bf604a8b03eede4ce1a847640bab1129ab86dec2e39e5bd4b808b1802d2", size = 13386534, upload-time = "2026-07-05T15:51:15.892Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/06/79c7726b0388da40a96cc01113d872d639da1d8a5f96b5265e46e8472ceb/zensical-0.0.47-cp310-abi3-win32.whl", hash = "sha256:81a13a8bacadedada4847eed4aaa4a3f4ef0e5b78dbb2a2022bc6fb7e7dc9464", size = 12356060, upload-time = "2026-07-05T15:51:19.167Z" },
     { url = "https://files.pythonhosted.org/packages/f9/7a/7daaeadfdf7dc2941c8b931f9c6c83396d1da45634cec1a28f8d85a57708/zensical-0.0.47-cp310-abi3-win_amd64.whl", hash = "sha256:944a309be69b11daa8bba46c61fb74f32a98b637f3e7c11135e7cc2a5eccbe32", size = 12601932, upload-time = "2026-07-05T15:51:22.485Z" },
 ]
 

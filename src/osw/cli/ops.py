@@ -149,6 +149,45 @@ def ledger_path(ctx: Context) -> dict:
 
 
 @operation(
+    group="skill",
+    cli_name="install",
+    surfaces=frozenset({"cli"}),
+    idempotent_hint=True,
+)
+def install_skill(
+    ctx: Context,
+    name: str = "osl-tasks",
+    target_dir: Optional[str] = None,
+    force: bool = False,
+) -> dict:
+    """Install a Claude Code skill that ships with this package.
+
+    Copies the packaged skill directory ``src/osw/skills/<name>`` to
+    ``~/.claude/skills/<name>`` (or under ``target_dir`` when given). A new
+    Claude Code session picks the installed skill up automatically, with no
+    further action needed. This is the alternative to installing the
+    osw-python plugin from its marketplace.
+    """
+    src = Path(__file__).resolve().parent.parent / "skills" / name
+    if not src.is_dir():
+        available = sorted(p.name for p in src.parent.iterdir() if p.is_dir())
+        raise errors.NotFound(
+            f"No packaged skill named '{name}'. Available: {', '.join(available)}."
+        )
+
+    base = Path(target_dir) if target_dir else Path.home() / ".claude" / "skills"
+    dest = base / name
+    if dest.exists() and not force:
+        raise errors.OpError(f"'{dest}' already exists. Pass --force to overwrite it.")
+
+    shutil.copytree(src, dest, dirs_exist_ok=True)
+    files = sorted(
+        p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file()
+    )
+    return {"name": name, "source": str(src), "target": str(dest), "files": files}
+
+
+@operation(
     group="instances",
     cli_name="list",
     surfaces=frozenset({"cli"}),

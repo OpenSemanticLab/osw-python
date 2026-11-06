@@ -11,12 +11,19 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
+import os
+import platform
+import sys
+from contextlib import contextmanager
 
 import pytest
 import yaml
 
+import osw
 from osw.mcp import server
 from osw.service import config
+from osw.service.context import Context
 from osw.service.registry import iter_operations
 
 _ALL_VARS = [
@@ -202,11 +209,125 @@ def _serve_without_blocking(monkeypatch) -> None:
     monkeypatch.setattr(server.atexit, "register", lambda func: func)
 
 
+# -- -h / -V / an unknown argument, all resolved before any credential is
+# needed (Change: main() now takes argv and parses it with argparse) --------
+def _refuse_to_build(*args, **kwargs):
+    raise AssertionError("_build_server must not be called on this path")
+
+
+def _expected_version_line(prog: str) -> str:
+    """The line ``prog --version`` must print, built independently of
+    ``server.version_line`` so a bug in that function (e.g. ignoring
+    ``prog``) cannot pass these tests by comparing itself to itself."""
+    location = os.path.dirname(osw.__file__)
+    return (
+        f"{prog} {osw.__version__} from {location} (Python {platform.python_version()})"
+    )
+
+
+def test_main_version_flag_prints_the_line_and_builds_no_server(monkeypatch, capsys):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    server.main(["--version"])
+
+    out = capsys.readouterr().out.strip()
+    assert out.startswith("osw-mcp ")
+    assert out == _expected_version_line("osw-mcp")
+
+
+def test_main_short_version_flag_prints_the_line_and_builds_no_server(
+    monkeypatch, capsys
+):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    server.main(["-V"])
+
+    assert capsys.readouterr().out.strip() == _expected_version_line("osw-mcp")
+
+
+def test_main_help_flag_exits_zero_with_the_help_on_stdout(monkeypatch, capsys):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    with pytest.raises(SystemExit) as exc_info:
+        server.main(["-h"])
+
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert "osw-mcp" in out
+    assert "--version" in out
+
+
+def test_main_with_no_argument_reads_sys_argv(monkeypatch, capsys):
+    """``argv=None`` (the default) is argparse's own convention for "read
+    the real command line", which ``ArgumentParser.parse_args`` implements by
+    reading ``sys.argv[1:]`` itself, at call time. This proves that path
+    actually works for ``main()``, not just that it forwards ``None``."""
+    monkeypatch.setattr(sys, "argv", ["osw-mcp", "--version"])
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    server.main()
+
+    assert capsys.readouterr().out.strip() == _expected_version_line("osw-mcp")
+
+
+_MCP_DOCS_URL = (
+    "https://github.com/OpenSemanticLab/osw-python/blob/main/docs/tools/mcp.md."
+)
+
+
+@pytest.mark.parametrize("columns", ["60", "90", "132"])
+def test_help_description_keeps_the_url_on_one_line(monkeypatch, columns):
+    """argparse's default formatter wraps the description with textwrap,
+    break_on_hyphens=True, so at some terminal widths (90 is one) a line ends
+    with ".../osw-" and the next starts with "python/blob/...". The parser
+    has to keep the URL intact regardless of the terminal width; COLUMNS is
+    what shutil.get_terminal_size (which argparse's formatter uses) reads.
+    """
+    monkeypatch.setenv("COLUMNS", columns)
+
+    lines = server._build_parser().format_help().splitlines()
+
+    assert any(_MCP_DOCS_URL in line for line in lines)
+
+
+def test_argparse_help_text_is_ascii():
+    """osw-mcp's argparse help goes to stdout on the -h path, which main()
+    does not force to UTF-8 (unlike the --version path). A non-ASCII
+    character in the description or an option's help would risk
+    UnicodeEncodeError on a locale that cannot represent it, the same class
+    of defect tests/test_cli.py::test_every_help_string_is_ascii guards
+    against for the typer app.
+    """
+    assert server._build_parser().format_help().isascii()
+
+
+def test_main_rejects_an_unknown_argument(monkeypatch, capsys):
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    with pytest.raises(SystemExit) as exc_info:
+        server.main(["--bogus"])
+
+    assert exc_info.value.code == 2
+    assert "osw-mcp" in capsys.readouterr().err
+
+
+def test_main_rejects_an_abbreviated_version_flag(monkeypatch, capsys):
+    """argparse accepts an unambiguous abbreviation by default; osw's own
+    CLI (click) does not, so osw-mcp turns that off (allow_abbrev=False) to
+    match: an argument that is not exactly --version or -V is rejected."""
+    monkeypatch.setattr(server, "_build_server", _refuse_to_build)
+
+    with pytest.raises(SystemExit) as exc_info:
+        server.main(["--vers"])
+
+    assert exc_info.value.code == 2
+
+
 def test_main_is_quiet_on_a_successful_start(monkeypatch, capsys):
     _configure(monkeypatch)
     _serve_without_blocking(monkeypatch)
 
-    server.main()
+    server.main([])
 
     assert "[osw]" not in capsys.readouterr().err
 
@@ -217,7 +338,7 @@ def test_main_prints_the_report_when_osw_verbose_is_set(monkeypatch, capsys):
     config.reset()
     _serve_without_blocking(monkeypatch)
 
-    server.main()
+    server.main([])
 
     err = capsys.readouterr().err
     assert "[osw-mcp] credentials" in err
@@ -232,8 +353,102 @@ def test_main_prints_the_report_when_startup_fails(monkeypatch, tmp_path, capsys
     config.reset()
 
     with pytest.raises(SystemExit):
-        server.main()
+        server.main([])
 
     err = capsys.readouterr().err
     assert "[osw-mcp] " in err
     assert "failed to start" in err
+
+
+def test_main_forces_utf8_on_stderr_and_leaves_stdout_alone(monkeypatch):
+    """An MCP client puts stderr on a pipe, so Python picks the locale encoding.
+
+    The startup report carries the credential file path and the env file path
+    (src/osw/service/config.py), so a directory or account name outside ASCII
+    reaches the client's log mangled.
+
+    stdout is left alone on purpose. The SDK's ``stdio_server`` re-wraps the
+    binary buffer as UTF-8 itself and claims file descriptor 1 while doing it,
+    so the JSON-RPC channel does not depend on this.
+    """
+    _configure(monkeypatch)
+    _serve_without_blocking(monkeypatch)
+    out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    err = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="backslashreplace")
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+
+    server.main([])
+
+    assert err.encoding == "utf-8"
+    # reconfigure() resets errors to strict unless it is passed as well, and a
+    # strict stderr would raise while reporting a failure.
+    assert err.errors == "backslashreplace"
+    assert out.encoding == "cp1252"
+
+
+@contextmanager
+def _osw_logging_on_the_captured_stream():
+    """osw's own handler, writing to the stream pytest has in place right now.
+
+    Two resets are needed. ``enable_logging`` resolves ``sys.stderr`` once,
+    when it builds the handler (src/osw/__init__.py:149), so the handler
+    attached when conftest imported osw still holds the stderr from before
+    capsys replaced it. And that handler steps aside as soon as an ancestor
+    logger has a handler of its own (src/osw/__init__.py:84-88), which
+    pytest's log capture puts on the root logger.
+
+    A context manager rather than a fixture, because pytest attaches those
+    root handlers after the fixtures have run. Mirrors ``osw_logger`` and
+    ``plain_logging`` in tests/test_logging_setup.py.
+    """
+    root, osw_logger = logging.getLogger(), logging.getLogger("osw")
+    saved_root = root.handlers[:]
+    saved = (osw_logger.handlers[:], osw_logger.level, osw._level_is_ours)
+    root.handlers = []
+    try:
+        osw.enable_logging()
+        yield
+    finally:
+        root.handlers = saved_root
+        osw_logger.handlers, osw._level_is_ours = saved[0], saved[2]
+        osw_logger.setLevel(saved[1])
+
+
+def _no_connection(self, iri):
+    raise RuntimeError("offline test: no connection is made")
+
+
+def test_a_log_record_during_a_tool_call_never_reaches_stdout(
+    monkeypatch, tmp_path, capsys
+):
+    """stdout is the JSON-RPC channel, so one log line there breaks the client.
+
+    Two mechanisms keep it clean and only one of them is osw's own code:
+    ``enable_logging`` defaults its handler to ``sys.stderr``, and the MCP SDK
+    claims file descriptor 1 for the wire. A single edit to that default would
+    undo the first, which is what this holds.
+
+    The status operation is used because it logs a warning from inside
+    ``ctx.guard()`` when the connection check fails
+    (src/osw/service/ops/status.py:63). ``guard()`` rebinds ``sys.stdout`` to
+    ``sys.stderr`` for the call's duration, and a handler built earlier does
+    not follow that rebinding, so the record goes to the handler's own stream.
+    That is the stream under test here.
+    """
+    _configure(monkeypatch)
+    monkeypatch.setenv("OSW_STATE_DIR", str(tmp_path / "state"))
+    # Makes the connection check fail without a network, which is what gets
+    # status to log while the tool call is running.
+    monkeypatch.setattr(Context, "osw_for", _no_connection)
+    config.reset()
+    mcp = server.create_server()
+
+    with _osw_logging_on_the_captured_stream():
+        asyncio.run(mcp.call_tool("status", {}))
+
+    captured = capsys.readouterr()
+    # First, so a run that emits no record at all fails here rather than
+    # passing the stdout assertion without having observed anything.
+    assert "status connection check failed" in captured.err
+    assert captured.out == ""

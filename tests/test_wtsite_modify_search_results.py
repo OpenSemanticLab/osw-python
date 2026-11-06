@@ -7,6 +7,9 @@ must keep the legacy keyword-argument call form working.
 
 import threading
 
+import pytest
+
+import osw.wiki_tools as wt
 import osw.wtsite as wtsite_mod
 from osw.wtsite import WtPage, WtSite
 
@@ -144,3 +147,48 @@ def test_modify_search_results_legacy_keyword_call_still_works(monkeypatch):
 
     assert handled == titles
     assert comments == [("Item:OSW1", "[bot] legacy")]
+
+
+@pytest.mark.parametrize("mode", ["prefix", "semantic"])
+@pytest.mark.parametrize("flag", ["return_json", "return_meta"])
+def test_modify_search_results_rejects_a_query_not_asking_for_titles(
+    monkeypatch, mode, flag
+):
+    """A search asked for raw responses or result objects yields no titles to
+    edit, so the method must say so instead of failing on the first result."""
+    ws = _make_fake_wtsite()
+    # Would hand back dicts rather than titles if the guard let the call through
+    _stub_search(monkeypatch, [{"fulltext": "Item:OSW1"}])
+
+    param = WtSite.ModifySearchResultsParam(
+        mode=mode,
+        query=wt.SearchParam(query="[[Category:Item]]", **{flag: True}),
+        comment="[bot] test",
+    )
+
+    with pytest.raises(ValueError, match=flag):
+        ws.modify_search_results(param, modify_page=lambda wtpage: None)
+
+
+@pytest.mark.parametrize("mode", ["prefix", "semantic"])
+def test_modify_search_results_accepts_a_plain_search_param(monkeypatch, mode):
+    """The guard must not reject a SearchParam that does ask for titles."""
+    ws = _make_fake_wtsite()
+    titles = ["Item:OSW1"]
+    pages = _make_pages(ws, titles)
+    comments = []
+
+    _stub_search(monkeypatch, titles)
+    _stub_get_page(monkeypatch, ws, pages)
+    _stub_edits(monkeypatch, pages, comments)
+
+    handled = []
+
+    param = WtSite.ModifySearchResultsParam(
+        mode=mode,
+        query=wt.SearchParam(query="[[Category:Item]]"),
+        comment="[bot] test",
+    )
+    ws.modify_search_results(param, modify_page=lambda wtpage: handled.append(1))
+
+    assert handled == [1]

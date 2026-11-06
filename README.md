@@ -22,8 +22,8 @@ pip install osw
 ```
 
 Optional extras (`osw[wikitext]`, `osw[DB]`, `osw[S3]`, `osw[dataimport]`,
-`osw[UI]`, `osw[all]`) are described in the
-[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/).
+`osw[UI]`, `osw[mcp]`, `osw[all]`) are described in the
+[Get Started guide](https://opensemanticlab.github.io/osw-python/latest/get-started/).
 
 ## Quickstart
 
@@ -39,12 +39,25 @@ More runnable scripts live in [examples/](examples/), and the
 [Basics tutorial](docs/tutorials/basics.ipynb) walks through the
 OpenSemanticLab data model.
 
+## Tools
+
+Installing `osw` also installs an `osw` command line client, and the
+`osw[mcp]` extra adds an MCP server that exposes a live instance to agent
+clients such as Claude Code:
+
+```bash
+osw search ask '[[Category:Item]]' --limit 5
+```
+
+Commands, tools and their configuration are described in the
+[Tools guide](https://opensemanticlab.github.io/osw-python/latest/tools/).
+
 ## Logging
 
 osw reports what it is doing on the `osw` logger at INFO by default. Levels,
 the `OSW_LOG_LEVEL` environment variable and how to collect the records in your
 own logging setup are described in the
-[Get Started guide](https://opensemanticlab.github.io/osw-python/get-started/#logging).
+[Get Started guide](https://opensemanticlab.github.io/osw-python/latest/get-started/#logging).
 
 ## Contributing
 

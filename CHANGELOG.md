@@ -10,6 +10,459 @@
 
 <!-- version list -->
 
+## v2.9.1 (2026-11-06)
+
+### Bug Fixes
+
+- **core**: Resolve bare $refs before dropping schema definitions
+  ([#164](https://github.com/OpenSemanticLab/osw-python/pull/164),
+  [`d86ad31`](https://github.com/OpenSemanticLab/osw-python/commit/d86ad31b9531b027117707bfa159a36f8b5d0694))
+
+
+## v2.9.0 (2026-11-05)
+
+### Features
+
+- Make dask optional so osw imports without it
+  ([#219](https://github.com/OpenSemanticLab/osw-python/pull/219),
+  [`897df83`](https://github.com/OpenSemanticLab/osw-python/commit/897df832a132c653886af8089a0285f41e951e09))
+
+
+## v2.8.2 (2026-10-10)
+
+### Bug Fixes
+
+- Detect CharacteristicType from the opensemantic packages too
+  ([`f195a97`](https://github.com/OpenSemanticLab/osw-python/commit/f195a973b141cf830c65656ab946ca454e7309aa))
+
+
+## v2.8.1 (2026-09-23)
+
+### Bug Fixes
+
+- **core**: Map an unresolved iri to None instead of omitting it
+  ([#208](https://github.com/OpenSemanticLab/osw-python/pull/208),
+  [`a30dae1`](https://github.com/OpenSemanticLab/osw-python/commit/a30dae1b55f430818f329a5a2312c1bb0eb4d034))
+
+- **core**: Return a list from load_entity and pair iris by title
+  ([#208](https://github.com/OpenSemanticLab/osw-python/pull/208),
+  [`a30dae1`](https://github.com/OpenSemanticLab/osw-python/commit/a30dae1b55f430818f329a5a2312c1bb0eb4d034))
+
+### Documentation
+
+- Point repo links at the versioned /latest/ docs paths
+  ([#206](https://github.com/OpenSemanticLab/osw-python/pull/206),
+  [`c21ad24`](https://github.com/OpenSemanticLab/osw-python/commit/c21ad241078e64d05171b9ae2907c007590384b1))
+
+- **skill**: Note the CLI and MCP prerequisite and version skew
+  ([#210](https://github.com/OpenSemanticLab/osw-python/pull/210),
+  [`11e8ce8`](https://github.com/OpenSemanticLab/osw-python/commit/11e8ce8fbb466c638cdaf8b3d7c4b7854b2cda69))
+
+
+## v2.8.0 (2026-09-22)
+
+### Bug Fixes
+
+- **service**: Reconcile validate_entity with the write path
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Report created, updated and skipped pages separately
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **skill**: Validate before the first write, and cover the task settings
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Build System
+
+- **release**: Stamp the osw version into the osl-tasks skill
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **release**: Stamp the osw version into the plugin manifest too
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Documentation
+
+- **service**: Correct the cause of the emptied reference lists
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Name the two terms that could desync the skipped check
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **skill**: Drive osl-tasks from the generic operations
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Features
+
+- **service**: Add generic schema, search and validation operations
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Add schema field-usage operation
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Add task and project operations with a Claude skill
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Derive SMW property names from the category @context
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Generic schema and search operations with an osl-tasks skill
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Refactoring
+
+- **service**: Drop the task read and render operations
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **service**: Remove the task service module
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+### Testing
+
+- **release**: Check the version bump touches only the skill frontmatter
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **release**: Cover CITATION.cff in the version stamping guards
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+- **release**: Drop the version equality check
+  ([#204](https://github.com/OpenSemanticLab/osw-python/pull/204),
+  [`ddd4445`](https://github.com/OpenSemanticLab/osw-python/commit/ddd44450c47ec071b4cc2ebb6109a1a877101b19))
+
+
+## v2.7.1 (2026-09-22)
+
+### Bug Fixes
+
+- **mcp**: Include the wikitext extra in the mcp extra
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+- **mcp**: Include wikitext in the mcp extra, streamline tools docs
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+### Documentation
+
+- **mcp**: Note that uvx reuses an installed osw tool
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+- **tools**: Document uv tool install for osw and osw-mcp
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+- **tools**: Streamline install and registration guidance
+  ([#203](https://github.com/OpenSemanticLab/osw-python/pull/203),
+  [`aafbe22`](https://github.com/OpenSemanticLab/osw-python/commit/aafbe229a88208578c387d9481da0198df3d8f2a))
+
+
+## v2.7.0 (2026-09-22)
+
+### Features
+
+- **cli,mcp**: Accept -h and -V/--version
+  ([#200](https://github.com/OpenSemanticLab/osw-python/pull/200),
+  [`41e0162`](https://github.com/OpenSemanticLab/osw-python/commit/41e0162695849869d0c6f51173a4a8cc1e96188f))
+
+### Testing
+
+- **cli**: Check -h on every command, not three sample paths
+  ([#200](https://github.com/OpenSemanticLab/osw-python/pull/200),
+  [`41e0162`](https://github.com/OpenSemanticLab/osw-python/commit/41e0162695849869d0c6f51173a4a8cc1e96188f))
+
+
+## v2.6.2 (2026-09-22)
+
+### Bug Fixes
+
+- **cli,mcp**: UTF-8 stderr, a stdout guard, and OSW_CRED_FILEPATH paths
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+- **config**: Expand a leading ~ in OSW_CRED_FILEPATH
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+- **mcp**: Encode the osw-mcp startup report as UTF-8
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+- **mcp**: Resolve a relative OSW_CRED_FILEPATH at startup
+  ([#196](https://github.com/OpenSemanticLab/osw-python/pull/196),
+  [`0d0b2b6`](https://github.com/OpenSemanticLab/osw-python/commit/0d0b2b63cf36562d693592e07b2752fac84dc908))
+
+
+## v2.6.1 (2026-09-21)
+
+### Bug Fixes
+
+- **core**: Never write unparseable entity.py from fetch_schema
+  ([#167](https://github.com/OpenSemanticLab/osw-python/pull/167),
+  [`8a830d9`](https://github.com/OpenSemanticLab/osw-python/commit/8a830d981c19eada131de5713350802d0f732df5))
+
+
+## v2.6.0 (2026-09-21)
+
+### Bug Fixes
+
+- **cli**: Write stdout and stderr as UTF-8, not the locale encoding
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **config**: Find .env from the CWD, report config sources
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **config**: Reject a hostless domain and a relative state_dir
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **config**: Validate domain and state_dir
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **deps**: Make python-dotenv a base dependency
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Flag truncation at the limit that reached the wiki
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Print the running adapter's name in shared messages
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Validate read_only via pydantic instead of truthy set
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+### Build System
+
+- Declare click as a direct dependency
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Type-check src/osw/mcp instead of excluding it
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+### Documentation
+
+- Correct why the CLI may infer an instance
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Default MCP examples to a credential file in env
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Document the osw CLI and unify the config reference
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Drop remaining references to the separate MCP environment
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Move CLI and MCP sections out of the README
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Reorganize CLI and MCP pages into a Tools section
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Restructure the CLI and MCP guide ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Simplify the CLI and MCP setup section
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Make the search help explain OSW-ID titles
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Rename `search text` to `search titles`
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Add a quick install section for claude mcp add
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Describe the credential lookup without the rationale
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Correct the reason the config report flushes
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Say what search_entities actually counts
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+### Features
+
+- An osw CLI and an MCP server for live OSL instances
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Remove filesystem paths from the MCP surface
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Add instances status, fix the username status reports
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Add typer CLI assembled from the operation registry
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Find accounts.pwd.yaml in the working directory
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Print one configuration line by default
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Suppress osw's import notice on the console scripts
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Add osw-mcp server exposing a live OSL instance
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Authenticate from an osw credential file
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Pin one instance per server, wire annotations and meta
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Port server to mcp 2.x and isolate the extra
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Report config sources only when OSW_VERBOSE is set
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Require an explicitly configured OSW_DOMAIN
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Select between multiple OSL instances at runtime
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **search**: Add a page-content search
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+### Refactoring
+
+- De-isolate the mcp extra from the dev environment
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Extract SDK-free osw.service core from osw.mcp
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Rename osw search instances to osw search entities
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Drop tool closures, fold registration into server
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Lift remaining tool bodies into osw.service.ops
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Lift search tools into osw.service.ops
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Log shared diagnostics instead of printing them
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **service**: Validate Settings with pydantic
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+### Testing
+
+- Decode subprocess output as UTF-8, not the locale codepage
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Do not assume the first ask-query hit carries jsondata
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- Stop test_init_from_env_vars leaking OSW_CRED_FILEPATH
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Cover the osw-mcp script and the shim's level choice
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **cli**: Normalize typer's rich output before asserting
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **config**: Cover drive-relative state_dir and an unknown home
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **logging**: Reset the osw logger in its fixture
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+- **mcp**: Cover main() on a successful start, quiet and verbose
+  ([#133](https://github.com/OpenSemanticLab/osw-python/pull/133),
+  [`0455673`](https://github.com/OpenSemanticLab/osw-python/commit/04556736115b1f775b828d712594dae3601059c5))
+
+
+## v2.5.2 (2026-09-21)
+
+### Bug Fixes
+
+- **search**: Read truncation from SMW's query-continue-offset
+  ([`91c3d7e`](https://github.com/OpenSemanticLab/osw-python/commit/91c3d7ea2d737a16a38ce457a8d060d73708c2ac))
+
+- **wtsite**: Reject a modify_search_results query without titles
+  ([`7943d49`](https://github.com/OpenSemanticLab/osw-python/commit/7943d49b2b3e393ddafde7ea78890035cd2031e3))
+
+
 ## v2.5.1 (2026-09-21)
 
 ### Bug Fixes

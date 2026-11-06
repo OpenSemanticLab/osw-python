@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib
 import json
 import logging
@@ -38,6 +39,15 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
+
+try:
+    # Characteristics of the released opensemantic packages derive from this
+    # class, not from the one in osw.model.entity.
+    from opensemantic.core.v1 import (
+        CharacteristicType as _OpensemanticCharacteristicType,
+    )
+except ImportError:  # pragma: no cover - optional dependency
+    _OpensemanticCharacteristicType = None
 from osw.defaults import params as default_params
 from osw.utils.code_postprocessing import (
     remove_constraints_from_forward_refs,
@@ -111,6 +121,93 @@ def collect_messages(
         if message not in target:
             target.append(message)
     return target
+
+
+def remove_unserializable_default_sentinels(content: str) -> str:
+    """Replaces defaults that repr a datamodel-code-generator sentinel object
+
+    datamodel-code-generator uses a bare `UNDEFINED = object()` sentinel with
+    `is` identity checks. oold's merge_deep deep-copies schema dicts during
+    allOf composition, which clones that sentinel into a look-alike object,
+    defeating the identity guard, so the generator reprs it into source as
+    `default_factory=lambda :Foo.parse_obj(<object object at 0x...>)`, which
+    is not valid Python.
+
+    Based on oold.generator.Generator.generate(), but matching the factory
+    expression itself rather than everything up to the next closing paren:
+    oold's pattern consumes the paren belonging to `parse_obj(`, which leaves
+    a dangling `)` behind whenever the sentinel is wrapped in a call.
+    """
+    return re.sub(
+        r"default_factory=lambda\s*:\s*"
+        r"(?:[\w.]+\(<object object at 0x[0-9a-fA-F]+>\)"
+        r"|<object object at 0x[0-9a-fA-F]+>)",
+        "default=None",
+        content,
+    )
+
+
+def ensure_valid_python_source(content: str, path: str) -> None:
+    """Raises a descriptive SyntaxError if content is not valid Python
+
+    _fetch_schema writes the generated model to a file that is imported right
+    after (or, for non-final calls, on the next process start). A corrupt
+    write poisons every later import of osw.model.entity, and there is
+    previously-valid content sitting at `path` that would otherwise still
+    work. Validating before opening the file for writing means a bad
+    generation leaves that previous, valid content in place instead.
+    """
+    try:
+        ast.parse(content)
+    except SyntaxError as e:
+        offending_line = ""
+        if e.lineno is not None:
+            lines = content.splitlines()
+            if 0 < e.lineno <= len(lines):
+                offending_line = lines[e.lineno - 1]
+        message = (
+            f"Generated model for '{path}' is not valid Python: "
+            f"{e.msg} (line {e.lineno}): {offending_line!r}"
+        )
+        _logger.error(message)
+        raise SyntaxError(message) from e
+
+
+def reload_module_or_restore(module, path: str, previous_content: str = None) -> None:
+    """Reloads module, putting previous_content back if the import fails
+
+    ast.parse only proves the generated model is syntactically valid. It can
+    still fail at import time, e.g. on an undefined name or an error raised
+    while a class body is executed. Restoring the previous file content keeps
+    later imports of osw.model.entity working instead of leaving a module on
+    disk that raises for the rest of the installation's lifetime.
+    """
+    try:
+        importlib.reload(module)
+    except Exception as e:
+        _logger.error(f"Generated model at '{path}' failed to import: {e}")
+        if previous_content is not None:
+            _logger.error(f"Restoring the previous content of '{path}'")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(previous_content)
+            try:
+                importlib.reload(module)
+            except Exception as restore_error:
+                # do not mask the original failure, but make it obvious that
+                # the module is now broken in memory as well
+                _logger.error(
+                    f"Restoring '{path}' did not make it importable again: "
+                    f"{restore_error}"
+                )
+        raise
+
+
+def read_file_if_exists(path: str) -> str:
+    """Returns the content of path, or None if it does not exist yet"""
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return f.read()
 
 
 # Reusable type definitions
@@ -220,10 +317,21 @@ class OSW(BaseModel):
                 entities = osw_obj.load_entity(
                     OSW.LoadEntityParam(titles=request.iris)
                 ).entities
-                # create a dict with request.iris as keys and the loaded entities as values
-                # by iterating over both lists
+                # load_entity() skips pages it cannot build, so the returned
+                # list can be shorter than request.iris. Pair by full title
+                # instead of by position, so a skipped page does not shift
+                # every following entity onto the wrong iri.
+                entities_by_title = {
+                    get_full_title(entity): entity for entity in entities
+                }
                 nodes = {}
-                for iri, entity in zip(request.iris, entities):
+                for iri in request.iris:
+                    entity = entities_by_title.get(iri)
+                    if entity is None:
+                        _logger.warning(f"Could not resolve iri '{iri}'")
+                    # ResolveResult.nodes is typed Dict[str, Union[None, ...]],
+                    # and oold indexes it by iri without checking for the key,
+                    # so an unresolved iri has to be present and None
                     nodes[iri] = entity
                 return ResolveResult(nodes=nodes)
 
@@ -417,7 +525,29 @@ class OSW(BaseModel):
                     else:
                         result_array.append(subschema)
                 match.full_path.update_or_create(schema, result_array)
-            if "definitions" in schema:
+
+            all_refs_resolved = True
+            bare_ref_jsonpath_expr = parse("$..dollarref")
+            # pydantic only wraps a $ref in allOf when the field carries extra
+            #  metadata (e.g. Field(description=...)). A plain nested-model
+            #  field produces a bare {"$ref": ...} that is not reachable via
+            #  the "$..allOf" jsonpath above, so replace those local
+            #  definitions (#/definitions/...) with embedded definitions too,
+            #  to prevent a dangling ref once "definitions" is removed below
+            for match in bare_ref_jsonpath_expr.find(schema):
+                value = match.value
+                if value.startswith("#"):
+                    definition_jsonpath_expr = parse(
+                        value.replace("#", "$").replace("/", ".")
+                    )
+                    def_matches = definition_jsonpath_expr.find(schema)
+                    for def_match in def_matches:
+                        match.context.full_path.update_or_create(
+                            schema, def_match.value
+                        )
+                    if not def_matches:
+                        all_refs_resolved = False
+            if "definitions" in schema and all_refs_resolved:
                 del schema["definitions"]
 
             if "allOf" not in schema:
@@ -885,6 +1015,9 @@ class OSW(BaseModel):
             # are not v1 compatible mainly by using update_model()
             content = re.sub(r"(,?\s*unique_items=True\s*)", "", content)
 
+            # fix unserializable defaults from datamodel-code-generator (#125)
+            content = remove_unserializable_default_sentinels(content)
+
             # Detect empty subclasses, replaces their occurrences with base classes,
             # and removes the empty class definitions.
             # Only processes subclasses that follow naming patterns:
@@ -1093,14 +1226,27 @@ class OSW(BaseModel):
                     content = black.format_str(content, mode=black.Mode())
                     # run isort to sort imports using Vertical Hanging Indent style
                     content = isort.code(content, profile="black")
-                except Exception:
-                    pass  # black is optional, continue without formatting
+                except Exception as e:
+                    # black/isort are optional, continue without formatting, but
+                    # do not hide a signal that the generated content is broken
+                    _logger.warning(f"Failed to format generated model content: {e}")
+
+            # validate before writing: a corrupt write poisons every later
+            # import of this file, so leaving the previous valid content in
+            # place is strictly better than writing invalid syntax (#125)
+            ensure_valid_python_source(content, result_model_path)
+
+            # keep the current file so that a model that parses but does not
+            # import can be rolled back below (#125)
+            previous_content = read_file_if_exists(result_model_path)
 
             with open(result_model_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             if fetchSchemaParam.final:
-                importlib.reload(model)  # reload the updated module
+                # reload the updated module, restoring the previous content if
+                # the generated model turns out not to be importable
+                reload_module_or_restore(model, result_model_path, previous_content)
                 if not site_cache_state:
                     self.site.disable_cache()  # restore original state
 
@@ -1216,8 +1362,8 @@ class OSW(BaseModel):
     class LoadEntityResult(BaseModel):
         """Result of load_entity()"""
 
-        entities: Union[model.OswBaseModel, List[model.OswBaseModel]]
-        """The dataclass instance(s)"""
+        entities: List[model.OswBaseModel]
+        """The list of dataclass instances"""
 
     # fmt: off
     @overload
@@ -1750,12 +1896,15 @@ class OSW(BaseModel):
             if self.change_id is None:
                 self.change_id = str(uuid4())
             for entity in self.entities:
-                if getattr(entity, "meta", None) is None:
-                    entity.meta = model.Meta()
-                if entity.meta.change_id is None:
-                    entity.meta.change_id = []
-                if self.change_id not in entity.meta.change_id:
-                    entity.meta.change_id.append(self.change_id)
+                try:
+                    if getattr(entity, "meta", None) is None:
+                        entity.meta = model.Meta()
+                    if entity.meta.change_id is None:
+                        entity.meta.change_id = []
+                    if self.change_id not in entity.meta.change_id:
+                        entity.meta.change_id.append(self.change_id)
+                except (ValueError, AttributeError):
+                    pass  # entity model doesn't have meta field
             if len(self.entities) > 5 and self.parallel is None:
                 self.parallel = True
             if self.parallel is None:
@@ -2043,10 +2192,18 @@ class OSW(BaseModel):
 
                 mode = AggregateGeneratedSchemasParamMode.ROOT_LEVEL
                 # Put generated schema in definitions section,
-                #  currently only enabled for Characteristics
-                if hasattr(model, "CharacteristicType") and isinstance(
-                    entity_, model.CharacteristicType
-                ):
+                #  currently only enabled for Characteristics. The class is
+                #  either the locally generated one or the one shipped by the
+                #  opensemantic packages, depending on where the model is from.
+                characteristic_types = tuple(
+                    t
+                    for t in (
+                        getattr(model, "CharacteristicType", None),
+                        _OpensemanticCharacteristicType,
+                    )
+                    if t is not None
+                )
+                if characteristic_types and isinstance(entity_, characteristic_types):
                     mode = AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
 
                 new_schema = aggregate_generated_schemas(

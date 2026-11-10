@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Page not found - osw-python</title>
+  <meta name="robots" content="noindex">
+  <noscript>
+    <meta http-equiv="refresh" content="0; url=/osw-python/">
+  </noscript>
+  <script>
+    // GitHub Pages serves this file for every missing path. Paths of the
+    // documentation before mike go to their current page, every other
+    // missing path goes to the main page.
+    (function () {
+      var base = "/osw-python/";
+      var moved = {
+        tools: "latest/tools/",
+        osw: "latest/api/core/",
+        controller: "latest/api/controller/",
+        model: "latest/api/model/",
+        auth: "latest/api/auth/",
+        license: "latest/about/",
+        authors: "latest/about/"
+      };
+      var path = window.location.pathname;
+      var rest = path.indexOf(base) === 0 ? path.slice(base.length) : "";
+      var first = rest.split("/")[0];
+      var target = Object.prototype.hasOwnProperty.call(moved, first)
+        ? moved[first]
+        : "";
+      window.location.replace(base + target);
+    })();
+  </script>
+</head>
+<body>
+  <p>
+    This page does not exist. Go to the
+    <a href="/osw-python/">osw-python documentation</a>.
+  </p>
+</body>
+</html>

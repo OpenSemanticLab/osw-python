@@ -24,14 +24,20 @@ import osw.model.entity as model
 from osw.core import OSW
 from osw.wtsite import WtPage
 
-META_CATEGORY = "Category:OSWMetaCategory"
+META_UUID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+META_CATEGORY = "Category:OSW0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d"
+CHARACTERISTIC_TYPE = "Category:OSWffe74f291d354037b318c422591c5023"
 GEN_POINTER = "#/$defs/generated"
 
 
 class _FakeMetaCategoryPage:
-    def __init__(self, title, template):
+    def __init__(self, title, template, schema):
         self.title = title
-        self._slots = {"schema_template": template, "jsondata": {}}
+        self._slots = {
+            "schema_template": template,
+            "jsondata": {},
+            "jsonschema": schema,
+        }
 
     def get_slot_content(self, slot_key):
         return self._slots[slot_key]
@@ -43,13 +49,33 @@ class _FakeGetPageResult:
 
 
 class _FakeSite:
-    def __init__(self, template):
+    """Serves a meta category with the template under test.
+
+    Like in the wiki, the templates follow the allOf chain of the meta category
+    schema, so the meta category refers to CharacteristicType when `definitions`
+    is set.
+    """
+
+    def __init__(self, template, definitions):
         self.template = template
+        self.definitions = definitions
+
+    def _page(self, title):
+        if title == META_CATEGORY:
+            schema = {"uuid": META_UUID}
+            if self.definitions:
+                schema["allOf"] = [
+                    {"$ref": f"/wiki/{CHARACTERISTIC_TYPE}?action=raw&slot=jsonschema"}
+                ]
+            return _FakeMetaCategoryPage(title, self.template, schema)
+        if title == CHARACTERISTIC_TYPE:
+            return _FakeMetaCategoryPage(
+                title, None, {"uuid": "ffe74f29-1d35-4037-b318-c422591c5023"}
+            )
+        return _FakeMetaCategoryPage(title, None, {})
 
     def get_page(self, param):
-        return _FakeGetPageResult([
-            _FakeMetaCategoryPage(t, self.template) for t in param.titles
-        ])
+        return _FakeGetPageResult([self._page(t) for t in param.titles])
 
 
 @pytest.fixture
@@ -60,7 +86,11 @@ def store(monkeypatch):
     """
     original_policy = OSW._apply_overwrite_policy
 
-    def _store(entity, template, stored):
+    def _store(entity, template, stored, definitions=None):
+        if definitions is None:
+            # characteristics select the definitions section mode in the wiki
+            definitions = isinstance(entity, CharacteristicType)
+
         def policy_with_stored_schema(param):
             if stored is not None:
                 param.page.set_slot_content(
@@ -71,7 +101,7 @@ def store(monkeypatch):
         monkeypatch.setattr(
             OSW, "_apply_overwrite_policy", staticmethod(policy_with_stored_schema)
         )
-        osw_obj = OSW.construct(site=_FakeSite(template))
+        osw_obj = OSW.construct(site=_FakeSite(template, definitions))
         result = osw_obj.store_entity(
             OSW.StoreEntityParam(
                 entities=[entity],

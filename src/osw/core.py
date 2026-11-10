@@ -40,15 +40,6 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
-
-try:
-    # Characteristics of the released opensemantic packages derive from this
-    # class, not from the one in osw.model.entity.
-    from opensemantic.core.v1 import (
-        CharacteristicType as _OpensemanticCharacteristicType,
-    )
-except ImportError:  # pragma: no cover - optional dependency
-    _OpensemanticCharacteristicType = None
 from osw.defaults import params as default_params
 from osw.utils.code_postprocessing import (
     remove_constraints_from_forward_refs,
@@ -59,6 +50,7 @@ from osw.utils.oold import (
     AggregateGeneratedSchemasParamMode,
     aggregate_generated_schemas,
     escape_json_strings,
+    merge_deep,
     merge_generated_definitions,
 )
 from osw.utils.templates import (
@@ -69,6 +61,7 @@ from osw.utils.util import parallelize
 from osw.utils.wiki import (
     get_full_title,
     get_namespace,
+    get_osw_id,
     get_title,
     is_empty,
     namespace_from_full_title,
@@ -232,6 +225,235 @@ def remove_generated_schema_section(
             if not (isinstance(entry, dict) and entry.get("$ref") == gen_def_pointer)
         ]
     return schema
+
+
+CATEGORY_CATEGORY_UUID = "89aafe6d-ae5a-4f29-97ff-df7736d4cab6"
+CATEGORY_ENTITY_UUID = "ce353767-c628-45bd-9d88-d6eb3009aec0"
+# the definitions section mode is selected when this template is in the list
+CHARACTERISTIC_TYPE_TITLE = "Category:OSWffe74f291d354037b318c422591c5023"
+
+
+def _title_from_schema_ref(ref: Any) -> Optional[str]:
+    """Page title of a $ref to a category schema, None for any other $ref.
+
+    Accepts '/wiki/Category:X?action=raw&slot=jsonschema' and
+    '.../Special:SlotResolver/Category/X.slot_jsonschema.json'.
+    """
+    if not isinstance(ref, str) or ref.startswith("#"):
+        return None
+    path = ref.split("?")[0]
+    match = re.search(r"/Special:SlotResolver/([^/]+)/(.+)\.slot_[a-z]+\.json$", path)
+    if match:
+        return f"{match.group(1)}:{match.group(2)}"
+    match = re.search(r"/wiki/(Category:[^/]+)$", path)
+    if match:
+        return match.group(1)
+    if re.fullmatch(r"Category:[^/]+", path):
+        return path
+    return None
+
+
+def collect_category_template_titles(
+    get_pages, meta_category_titles: List[str]
+) -> List[str]:
+    """Titles of the category templates the wiki form editor applies.
+
+    Mirrors the editor: the schema of the meta categories is bundled, the uuid of
+    every schema is collected after the schemas below it (allOf, oneOf, anyOf,
+    definitions, $defs, every entry of properties and the items of each property
+    are followed in this order, so the most generic schema comes first) and the
+    result starts with Category:Category. A referenced schema is followed only
+    at its first occurrence, like in a bundled schema.
+    Category:Category and Category:Entity are not collected. Follows
+    osl.util.postProcessPage (PageBot.js) with editor.jsonschema.subschemas_uuids
+    (MwJson_schema.js, _preprocess) in mediawiki-extensions-OpenSemanticLab and
+    mediawiki-extensions-MwJson. A '/wiki/<title>?action=raw' reference is
+    followed only for category pages, e.g. '/wiki/JsonSchema:Label?action=raw'
+    is not followed. A 'Special:SlotResolver' reference is followed for any page.
+
+    Parameters
+    ----------
+    get_pages
+        callable that returns the page objects for a list of titles
+    meta_category_titles
+        titles of the meta categories, e.g. ["Category:Category"]
+    """
+    templates = ["Category:Category"]
+    schema_cache: Dict[str, dict] = {}
+    visited = set()
+
+    def schema_of(title: str) -> dict:
+        if title not in schema_cache:
+            schema = {}
+            for page in get_pages([title]):
+                if page.title == title:
+                    schema = page.get_slot_content("jsonschema") or {}
+            if not schema:
+                _logger.warning(
+                    f"No jsonschema found for {title}. Its templates are not "
+                    "applied, which can select the wrong schema generation mode."
+                )
+            schema_cache[title] = schema
+        return schema_cache[title]
+
+    def walk(schema: Any) -> None:
+        if not isinstance(schema, dict):
+            return
+        ref_title = _title_from_schema_ref(schema.get("$ref"))
+        if ref_title is not None:
+            # a bundled schema is included once, later refs point to it
+            if ref_title not in visited:
+                visited.add(ref_title)
+                walk(schema_of(ref_title))
+            return
+        for key in ("allOf", "oneOf", "anyOf"):
+            sub = schema.get(key)
+            for entry in sub if isinstance(sub, list) else [sub]:
+                walk(entry)
+        for key in ("definitions", "$defs"):
+            if isinstance(schema.get(key), dict):
+                for entry in schema[key].values():
+                    walk(entry)
+        if isinstance(schema.get("properties"), dict):
+            for entry in schema["properties"].values():
+                walk(entry)
+                if isinstance(entry, dict):
+                    walk(entry.get("items"))
+        uuid = schema.get("uuid")
+        if uuid and uuid not in (CATEGORY_CATEGORY_UUID, CATEGORY_ENTITY_UUID):
+            title = "Category:" + get_osw_id(uuid)
+            if title not in templates:
+                templates.append(title)
+
+    for title in meta_category_titles:
+        visited.add(title)
+        walk(schema_of(title))
+    return templates
+
+
+def reset_generated_jsonld_context(
+    schema: Optional[dict], had_generated_section: bool
+) -> None:
+    """Empties the generated first object block of the @context array.
+
+    Port of osl.util.resetGeneratedJsonLdContext in PageBot.js. The generated
+    property mappings are by convention the first object entry of an @context
+    array, the strings before it are parent schema references. Without a generated
+    section the first object block is hand written, so an empty block is inserted
+    ahead of it. A string or object @context is left as it is. Modifies schema in
+    place.
+    """
+    if not schema:
+        return
+    context = schema.get("@context")
+    if not isinstance(context, list):
+        return
+    index = next((i for i, e in enumerate(context) if isinstance(e, dict)), -1)
+    if not had_generated_section:
+        context.insert(len(context) if index == -1 else index, {})
+        return
+    if index != -1:
+        context[index] = {}
+    else:
+        context.append({})
+
+
+def merge_generated_jsonld_context(schema: dict, generated_context: Any) -> None:
+    """Merges the @context of a generated schema into the schema.
+
+    Port of the @context handling of osl.util.postProcessPage in PageBot.js. The
+    generated mappings are merged into the first object block of the @context
+    array only, which reset_generated_jsonld_context() reserved. oold's
+    aggregate_generated_schemas() collapses all object blocks into one, which
+    would fuse a hand written block with the generated one. String entries
+    (parent schema references) of the generated context are appended when new.
+    Modifies schema in place.
+    """
+    existing = schema.get("@context")
+    if isinstance(existing, list):
+        context_list = existing
+    else:
+        context_list = [existing] if existing else []
+    entries = (
+        generated_context
+        if isinstance(generated_context, list)
+        else [generated_context]
+    )
+    generated_object: dict = {}
+    for entry in entries:
+        if isinstance(entry, dict):
+            generated_object = merge_deep(generated_object, entry)
+        elif entry and entry not in context_list:
+            context_list.append(entry)
+    index = next((i for i, e in enumerate(context_list) if isinstance(e, dict)), -1)
+    if index == -1:
+        context_list.append(generated_object)
+    else:
+        context_list[index] = merge_deep(context_list[index], generated_object)
+    schema["@context"] = context_list
+
+
+def strip_root_members_superseded_by_generated(
+    root_schema: dict, generated_schema: dict
+) -> bool:
+    """Removes the root members the generated section defines.
+
+    Port of osl.util.stripRootMembersSupersededByGenerated in PageBot.js. A member
+    declared at root takes precedence over the same member pulled in through
+    allOf, so a copy of the generated members at root would shadow the freshly
+    generated ones. Containers are searched recursively, manual siblings stay.
+    Members that are written to root on purpose are skipped. The allOf entries that
+    the generated section repeats are removed from root. Modifies root_schema in
+    place and returns True when anything was removed.
+    """
+    promoted_to_root = {
+        "title",
+        "title*",
+        "description",
+        "description*",
+        "@context",
+        "$defs",
+        "allOf",
+        "$ref",
+        "$comment",
+    }
+    removed = False
+
+    def strip(target, generated, is_root):
+        nonlocal removed
+        if not isinstance(target, dict) or not isinstance(generated, dict):
+            return
+        for key in list(generated.keys()):
+            if is_root and key in promoted_to_root:
+                continue
+            if key not in target:
+                continue
+            if isinstance(generated[key], dict) and isinstance(target[key], dict):
+                strip(target[key], generated[key], False)
+                if len(target[key]) == 0:
+                    del target[key]
+                    removed = True
+            else:
+                del target[key]
+                removed = True
+
+    strip(root_schema, generated_schema, True)
+
+    generated_allof = generated_schema.get("allOf")
+    generated_allof = generated_allof if isinstance(generated_allof, list) else []
+    if isinstance(root_schema.get("allOf"), list) and generated_allof:
+        generated_refs = [
+            e["$ref"] for e in generated_allof if isinstance(e, dict) and e.get("$ref")
+        ]
+        kept = [
+            e
+            for e in root_schema["allOf"]
+            if not (isinstance(e, dict) and e.get("$ref") in generated_refs)
+        ]
+        if len(kept) != len(root_schema["allOf"]):
+            root_schema["allOf"] = kept
+            removed = True
+    return removed
 
 
 # Reusable type definitions
@@ -2201,33 +2423,34 @@ class OSW(BaseModel):
         """Titles of the pages an edit was sent for, to be verified below."""
 
         meta_category_templates = {}
+        definitions_section = False
         if param.namespace == "Category":
             meta_category_titles = param.meta_category_title
             if not isinstance(meta_category_titles, list):
                 meta_category_titles = [meta_category_titles]
-            meta_category_template_strs = {}
-            # We have to do this iteratively to support meta categories inheritance
-            while meta_category_titles is not None and len(meta_category_titles) > 0:
-                meta_categories = self.site.get_page(
-                    WtSite.GetPageParam(titles=meta_category_titles)
-                ).pages
-                for meta_category in meta_categories:
-                    meta_category_template_strs[meta_category.title] = (
-                        meta_category.get_slot_content("schema_template")
-                    )
 
-                meta_category_titles = meta_category.get_slot_content("jsondata").get(
-                    "subclass_of"
-                )
+            def get_pages(titles):
+                return self.site.get_page(WtSite.GetPageParam(titles=titles)).pages
 
-            for title in meta_category_template_strs.keys():
-                meta_category_template_str = meta_category_template_strs[title]
-                if meta_category_template_str:
-                    meta_category_templates[title] = compile_handlebars_template(
-                        meta_category_template_str
+            # The templates follow the allOf chain of the schema of the meta
+            # categories, like the form editor does. subclass_of is not used:
+            # Category:Category has no subclass_of but an allOf to CharacteristicType
+            template_titles = collect_category_template_titles(
+                get_pages, meta_category_titles
+            )
+            for page in get_pages(template_titles):
+                template_str = page.get_slot_content("schema_template")
+                if template_str:
+                    meta_category_templates[page.title] = compile_handlebars_template(
+                        template_str
                     )
-            # inverse order to have the most generic template first
-            meta_category_templates = dict(reversed(meta_category_templates.items()))
+            definitions_section = CHARACTERISTIC_TYPE_TITLE in template_titles
+            # keep the order of the list, the most generic template first
+            meta_category_templates = {
+                t: meta_category_templates[t]
+                for t in template_titles
+                if t in meta_category_templates
+            }
 
         def store_entity_(
             entity_: model.Entity,
@@ -2309,29 +2532,30 @@ class OSW(BaseModel):
                     )
 
                 mode = AggregateGeneratedSchemasParamMode.ROOT_LEVEL
-                # Put generated schema in definitions section,
-                #  currently only enabled for Characteristics. The class is
-                #  either the locally generated one or the one shipped by the
-                #  opensemantic packages, depending on where the model is from.
-                characteristic_types = tuple(
-                    t
-                    for t in (
-                        getattr(model, "CharacteristicType", None),
-                        _OpensemanticCharacteristicType,
-                    )
-                    if t is not None
-                )
-                if characteristic_types and isinstance(entity_, characteristic_types):
+                # Put the generated schema in the definitions section when the
+                # templates include CharacteristicType, like the form editor does.
+                if definitions_section:
                     mode = AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
+                definitions = (
+                    mode == AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
+                )
 
                 stored_schema = page.get_slot_content("jsonschema") or {}
                 # Regenerate the generated section from scratch. Skip this when
                 # the generation failed, so the stored section is kept.
-                if (
-                    mode == AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
-                    and len(generated_schemas) > 0
-                ):
+                if definitions and len(generated_schemas) > 0:
+                    reset_generated_jsonld_context(
+                        stored_schema,
+                        isinstance(stored_schema.get("$defs"), dict)
+                        and "generated" in stored_schema["$defs"],
+                    )
                     remove_generated_schema_section(stored_schema)
+                if definitions:
+                    for generated_schema in generated_schemas.values():
+                        if "@context" in generated_schema:
+                            merge_generated_jsonld_context(
+                                stored_schema, generated_schema.pop("@context")
+                            )
                 new_schema = aggregate_generated_schemas(
                     AggregateGeneratedSchemasParam(
                         target_schema=stored_schema,
@@ -2339,6 +2563,12 @@ class OSW(BaseModel):
                         mode=mode,
                     )
                 ).aggregated_schema
+                if definitions and isinstance(
+                    (new_schema.get("$defs") or {}).get("generated"), dict
+                ):
+                    strip_root_members_superseded_by_generated(
+                        new_schema, new_schema["$defs"]["generated"]
+                    )
                 page.set_slot_content("jsonschema", new_schema)
             if param.offline is False and not kept_existing:
                 page.edit(

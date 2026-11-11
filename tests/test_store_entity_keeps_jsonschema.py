@@ -122,8 +122,9 @@ def _characteristic():
         uuid="efad8086-4a76-47ca-b278-f5f944e5754b",
         name="TestCharacteristic",
         label=[{"text": "Test Characteristic"}],
-        # the default resolves a superclass from a wiki
-        subclass_of=[],
+        # the default resolves a superclass from a wiki, and oold 2 rejects an
+        # empty list for this required field
+        subclass_of=[CHARACTERISTIC_TYPE],
     )
 
 

@@ -11,6 +11,7 @@ directory, which is based on the current working directory
 """
 
 import importlib.util
+import logging
 import os
 import re
 from enum import Enum
@@ -18,7 +19,6 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import overload
 from uuid import uuid4
-from warnings import warn
 
 import requests
 from opensemantic.v1 import OswBaseModel
@@ -46,6 +46,8 @@ from osw.defaults import params as default_params
 from osw.defaults import paths as default_paths
 from osw.utils.wiki import namespace_from_full_title, title_from_full_title
 from osw.wtsite import WtSite
+
+_logger = logging.getLogger(__name__)
 
 
 class OswExpress(OSW):
@@ -127,7 +129,7 @@ class OswExpress(OSW):
             if not isinstance(cred_filepath, Path):
                 cred_filepath = Path(cred_filepath)
             if not cred_filepath.is_file():
-                print(
+                _logger.warning(
                     f"Credential file '{cred_filepath}' does not exist and will "
                     "be ignored. Credentials are taken from the environment "
                     "variables OSW_USERNAME/OSW_PASSWORD or an interactive "
@@ -146,7 +148,7 @@ class OswExpress(OSW):
             response = requests.get(url)  # noqa: S113 reachability probe, TODO add timeout
             if response.status_code == 200:
                 # Domain is reachable
-                print(f"Connecting to '{domain}'...")
+                _logger.info(f"Connecting to '{domain}'...")
             else:
                 raise ConnectionError(
                     f"Could not connect to '{domain}'. Response: {response.status_code}"
@@ -157,7 +159,7 @@ class OswExpress(OSW):
         super().__init__(**{"site": site, "domain": domain})
         self.cred_mngr = cred_mngr
         self.cred_filepath = cred_filepath
-        print(f"Connected to '{domain}'.")
+        _logger.info(f"Connected to '{domain}'.")
 
     def __enter__(self):
         """Return self when entering the context manager."""
@@ -448,7 +450,7 @@ def build_target_fn(
     if mode == FilenameMode.osw_id:
         return osw_id_fn
     if not name:
-        warn(
+        _logger.warning(
             f"No name is stored for '{osw_id_fn}', falling back to the OSW-ID as "
             f"the file name."
         )
@@ -998,7 +1000,7 @@ def import_with_fallback(
     except Exception as e:
         if dependencies is None:
             dependencies = {}
-            warn(
+            _logger.warning(
                 "No 'dependencies' were passed to the function "
                 "import_with_fallback()! Trying to derive them from 'to_import'."
             )
@@ -1015,7 +1017,7 @@ def import_with_fallback(
                 "No 'dependencies' were passed to the function import_with_fallback() "
                 "and could not be derived from 'to_import'!"
             )
-        warn(
+        _logger.warning(
             f"An exception occurred while loading the module dependencies: \n"
             f'"{e}"\n'
             "A connection to an OSW instance, to fetch the dependencies from, "

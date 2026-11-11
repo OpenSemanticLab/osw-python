@@ -1,9 +1,13 @@
 """Build pydantic User/Organization entities from proposals.
 
 Must run within an open OSW connection (the models resolve linked entities on
-construction). Organization references are passed as a list of page-title IRIs,
-which oold stores in the entity's ``__iris__`` map; the reference attribute is
-never read back here, as that would trigger a network resolve.
+construction). Organization references are passed as a list of page-title IRIs;
+the reference attribute is never read back here, as that would trigger a
+network resolve.
+
+An empty field is set to None, so its key is absent from the serialized item.
+The store merges with the stored page, so an absent key keeps the stored value.
+Clearing a stored value is done by ``prune.clear_jsondata_keys`` instead.
 """
 
 from __future__ import annotations
@@ -24,17 +28,13 @@ def _labels(text: str) -> List[Any]:
 
 
 def _strip_protected(entity: Any) -> None:
-    """Clear protected relations (e.g. employment_contract_status).
+    """Unset protected relations (e.g. employment_contract_status).
 
-    Set to an empty list rather than removed: the model re-applies its default
-    when the field is absent, and the store only overwrites a relation that is
-    present as an explicit empty value (with ``remove_empty=False``).
+    The attribute is set to None, so the key is absent from the serialized item
+    and the model default is not written. A stored value is left unchanged.
     """
-    iris = getattr(entity, "__iris__", None)
-    if isinstance(iris, dict):
-        for name in PROTECTED_FIELDS:
-            if name in iris:
-                iris[name] = []
+    for name in PROTECTED_FIELDS:
+        setattr(entity, name, None)
 
 
 def build_organization(proposed: ProposedOrganization) -> Organization:
@@ -66,9 +66,11 @@ def build_user(proposed: ProposedUser) -> User:
 def apply_update(entity: Any, proposed: ProposedUser, apply_fields: Set[str]) -> Any:
     """Apply the accepted fields onto a loaded existing entity, in place.
 
-    Fields whose proposal is empty (REMOVE) are cleared; protected fields in
-    ``apply_fields`` are stripped from the entity's ``__iris__`` map.
+    An empty organization or website value is set to None, which leaves the
+    stored value unchanged. Protected fields are always unset.
     """
+    if "username" in apply_fields:
+        entity.username = proposed.username
     if "label" in apply_fields:
         entity.label = _labels(proposed.label)
     if "first_name" in apply_fields:
@@ -80,10 +82,10 @@ def apply_update(entity: Any, proposed: ProposedUser, apply_fields: Set[str]) ->
     if "emails" in apply_fields:
         entity.email = set(proposed.emails)
     if "websites" in apply_fields:
-        entity.website = set(proposed.websites)
+        entity.website = set(proposed.websites) if proposed.websites else None
     if "organizations" in apply_fields:
-        # Empty list both links (non-empty) and clears (empty, on removal).
-        entity.__iris__["organization"] = list(proposed.organizations)
-    if any(name in apply_fields for name in PROTECTED_FIELDS):
-        _strip_protected(entity)
+        entity.organization = (
+            list(proposed.organizations) if proposed.organizations else None
+        )
+    _strip_protected(entity)
     return entity

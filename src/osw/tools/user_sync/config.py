@@ -43,6 +43,8 @@ class SyncConfig:
     link_organizations: bool = False
     # Remove disabled optional fields and protected fields from existing items.
     prune: bool = False
+    # Blocked MediaWiki accounts are skipped unless this is set.
+    include_blocked: bool = False
     orcid_api_base: str = ORCID_API_BASE_DEFAULT
     excluded_groups: List[str] = field(default_factory=lambda: list(SYSTEM_GROUPS))
 
@@ -111,8 +113,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--prune",
         dest="prune",
         action="store_true",
-        help="Remove disabled optional fields and employment_contract_status from "
-        "existing items (data cleanup). Off by default; a normal run only adds.",
+        help="Remove disabled optional fields from existing items and overwrite "
+        "employment_contract_status with an empty value (data cleanup). Off by "
+        "default; a normal run only adds.",
     )
     account_scope = parser.add_mutually_exclusive_group()
     account_scope.add_argument(
@@ -133,6 +136,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Do not skip MediaWiki reserved system accounts (Maintenance script etc.).",
     )
+    parser.add_argument(
+        "--include-blocked",
+        dest="include_blocked",
+        action="store_true",
+        help="Do not skip blocked MediaWiki accounts.",
+    )
     return parser
 
 
@@ -152,4 +161,5 @@ def config_from_args(argv: Optional[List[str]] = None) -> SyncConfig:
         include_websites=args.include_websites or args.with_extras,
         link_organizations=args.link_organizations or args.with_extras,
         prune=args.prune,
+        include_blocked=args.include_blocked,
     )

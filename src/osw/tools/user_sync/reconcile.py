@@ -1,9 +1,11 @@
 """Reconcile proposed User items against the ones already stored.
 
 Pure logic: given proposed users and an index of existing items, classify each
-into NEW, GAP_FILL, CONFLICT or UNCHANGED and record the per-field differences
-(including REMOVE diffs for disabled optional fields and protected fields).
-The interactive layer consumes this plan; nothing here does IO.
+user into one of four categories: NEW, GAP_FILL, CONFLICT or UNCHANGED. Each
+changed field has one of three statuses: GAP_FILL, CONFLICT or REMOVE (REMOVE is
+used for disabled optional fields and protected fields, only when pruning). A user
+with only gap-fills or removals is GAP_FILL. Placeholder names are never compared
+for an existing item. The interactive layer consumes this plan; nothing here does IO.
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ SCALAR_FIELDS = ("label", "first_name", "surname", "orcid")
 SET_FIELDS = ("emails", "websites", "organizations")
 URL_FIELDS = ("orcid", "websites")
 RECONCILED_FIELDS = SCALAR_FIELDS + SET_FIELDS
+# Fields derived from a username placeholder when no name is known.
+PLACEHOLDER_FIELDS = ("label", "first_name", "surname")
 # Fields that are only written when opted in; removed from existing when disabled.
 OPTIONAL_FIELDS = ("websites", "organizations")
 
@@ -155,6 +159,9 @@ def reconcile_user(
     diffs: List[FieldDiff] = []
     has_conflict = has_change = False
     for name in RECONCILED_FIELDS:
+        if proposed.placeholder_name and name in PLACEHOLDER_FIELDS:
+            # A placeholder is only written for a new item, never for an existing one.
+            continue
         if name in OPTIONAL_FIELDS and name not in enabled_fields:
             # Disabled optional field: remove any existing value only when pruning.
             if prune and not _is_empty(ef[name]):
@@ -166,6 +173,11 @@ def reconcile_user(
             diffs.append(FieldDiff(name, ef[name], pf[name], status))
             has_conflict = has_conflict or status == CONFLICT
             has_change = has_change or status == GAP_FILL
+    # An item found by its page title instead of its username has no username
+    # yet. Fill it, so the next run matches the item by username.
+    if not getattr(existing, "username", None):
+        diffs.append(FieldDiff("username", None, proposed.username, GAP_FILL))
+        has_change = True
     # Protected fields are stripped from existing items only when pruning.
     if prune:
         for name in PROTECTED_FIELDS:

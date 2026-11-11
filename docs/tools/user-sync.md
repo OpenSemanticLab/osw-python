@@ -4,6 +4,10 @@ Create or update OSW `User` items from the MediaWiki accounts of an OSL
 instance, enriching ORCID users from the public ORCID API. The run is
 idempotent and previews every change before writing.
 
+This is a Python script built on the osw library. It is not a command of the
+`osw` CLI and not an MCP tool, see [Tools](index.md). It runs from a source
+checkout, because `examples/` is not part of the installed package.
+
 ## When to use it
 
 OSL instances gain accounts from manual creation and from whitelisted ORCID
@@ -16,12 +20,20 @@ semantic `User` item until this tool reconciles them.
 uv run python examples/user_sync.py --domain your-instance.example.org --dry-run
 ```
 
-Credentials are read from `accounts.pwd.yaml` (or `--cred-filepath`), the same
-mechanism as `OswExpress`. Start with `--dry-run` to preview, then run without
-it to write after confirming at the prompt.
+The script reads the credential file given by `--cred-filepath`, otherwise
+`accounts.pwd.yaml` in the working directory, otherwise the file named by the
+`OSW_CRED_FILEPATH` environment variable. It does not read a `.env` file.
+`--domain` falls back to the `OSW_DOMAIN` environment variable. See
+[Credentials](configuration.md#credentials) for the file format. Start with
+`--dry-run` to preview, then run without it to write after confirming at the
+prompt.
 
-To also remove data no longer wanted (disabled optional fields and
-`employment_contract_status`) from existing items, add `--prune`:
+To also clean up existing items, add `--prune`. Without it, the sync never
+writes `employment_contract_status` and never removes anything. With it,
+`employment_contract_status` on existing items is overwritten with an empty
+value. So are `website` and `organization`, unless `--with-websites` or
+`--with-organizations` enables them. This happens in a second edit of the
+page's jsondata after the store:
 
 ```bash
 uv run python examples/user_sync.py --domain your-instance.example.org --prune --dry-run
@@ -49,11 +61,14 @@ only core identity plus email.
 | `--with-websites` | Also store ORCID researcher URLs (opt-in). |
 | `--with-organizations` | Also create and link Organization items from ORCID affiliations (opt-in). |
 | `--with-extras` | Enable both websites and organizations. |
-| `--prune` | Remove disabled optional fields and `employment_contract_status` from existing items (default off; a normal run only adds). |
+| `--include-blocked` | Do not skip blocked MediaWiki accounts. |
+| `--prune` | Overwrite `employment_contract_status`, and `website` or `organization` when their opt-in flag is not given, on existing items with an empty value, in a second edit of the page's jsondata after the store (default off; a normal run never writes `employment_contract_status` and never removes anything). |
 
 ## What it does
 
-1. Enumerate MediaWiki accounts, skipping bots and privileged groups
+1. Enumerate MediaWiki accounts, skipping blocked accounts (unless
+   `--include-blocked` is set; the User item of a skipped blocked account is
+   left unchanged), bots and privileged groups
    (`bot`, `sysop`, `bureaucrat`, `interface-admin`) and MediaWiki reserved
    system usernames. Accounts whose username is an exact ORCID iD are exempt
    from the group filter (so a person's own admin account is synced); other
@@ -62,10 +77,14 @@ only core identity plus email.
    always; researcher URLs and affiliations only when their flag is enabled.
 3. Map each account to a proposed `User` item with a deterministic id
    (uuid5 on the ORCID iD, else the username), so re-runs are idempotent.
-4. Reconcile against existing items by `username` into NEW, GAP_FILL, CONFLICT,
-   REMOVE or UNCHANGED, then preview; gap-fills apply automatically and conflicts
-   are resolved interactively. Removals only appear with `--prune`; a normal run
-   never removes anything.
+4. Reconcile against existing items. Existing items are found by `username`
+   across all `User` items. An item whose deterministic page already exists is
+   updated and not created again. Each user gets one of four categories: NEW,
+   GAP_FILL, CONFLICT or UNCHANGED. Each changed field has one of three
+   statuses: GAP_FILL, CONFLICT or REMOVE. The preview shows a removed field as
+   `-field`. A user with only gap-fills or removals is GAP_FILL. Gap-fills apply
+   automatically and conflicts are resolved interactively. Removals appear only
+   with `--prune`; a normal run never removes anything.
 5. Store items, create `User:<username>` redirects to each item, ensure any
    linked Organization items, verify by reloading, and warn about users with no
    email.
@@ -76,14 +95,16 @@ only core identity plus email.
 | --- | --- |
 | `username`, `first_name`, `surname`, `label`, `orcid` | Always (core identity). |
 | `email` | Standard: always attempted; missing email is warned, not fatal; never removed. |
-| `website` | Opt-in (`--with-websites`); removed from existing only with `--prune`. |
-| `organization` | Opt-in (`--with-organizations`); removed from existing only with `--prune`. |
-| `employment_contract_status` | Never written; removed from existing only with `--prune`. |
+| `website` | Opt-in (`--with-websites`); without that flag, on existing items overwritten with an empty value only with `--prune`, in a second jsondata edit after the store. |
+| `organization` | Opt-in (`--with-organizations`); without that flag, on existing items overwritten with an empty value only with `--prune`, in a second jsondata edit after the store. |
+| `employment_contract_status` | Never written without `--prune`; with `--prune`, overwritten with an empty value on existing items in a second jsondata edit after the store. |
 
 ## Notes
 
 - MediaWiki does not expose other users' email or real name, so ORCID is the
   only source of rich data. Non-ORCID accounts get username-based placeholder
-  names, flagged in the preview.
-- On a first accepted run the library autofetches schemas and may regenerate
-  `src/osw/model/entity.py`; restore it if you do not want that change.
+  names, flagged in the preview. Placeholder names are written only for new
+  items and are never proposed for an existing item.
+- In a source checkout (for developers), the first accepted run autofetches
+  schemas and may regenerate `src/osw/model/entity.py`. Restore it if you do not
+  want that change.

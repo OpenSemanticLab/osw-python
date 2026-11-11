@@ -18,6 +18,7 @@ nav = [
         { "Overview" = "tools/index.md" },
         { "CLI" = "tools/cli.md" },
         { "MCP" = "tools/mcp.md" },
+        { "User Sync (script)" = "tools/user-sync.md" },
         { "Configuration" = "tools/configuration.md" },
     ]},
     { "API Reference" = [
@@ -27,9 +28,6 @@ nav = [
         { "Authentication" = "api/auth.md" },
         { "Controllers" = "api/controller.md" },
         { "Model" = "api/model.md" },
-    ]},
-    { "Tools" = [
-        { "User Sync" = "tools/user-sync.md" },
     ]},
     { "Development" = "dev.md" },
 ]

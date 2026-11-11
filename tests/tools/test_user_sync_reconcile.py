@@ -36,6 +36,7 @@ def _proposed(**kw):
 
 def _entity(**kw):
     base = dict(
+        username=ORCID,
         label="Lukas Koschmieder",
         first_name="Lukas",
         surname="Koschmieder",
@@ -46,6 +47,7 @@ def _entity(**kw):
     )
     base.update(kw)
     return SimpleNamespace(
+        username=base["username"],
         label=[SimpleNamespace(text=base["label"])] if base["label"] else [],
         first_name=base["first_name"],
         surname=base["surname"],
@@ -200,3 +202,37 @@ def test_reconcile_plan_counts():
     counts = plan.counts()
     assert counts == {NEW: 1, GAP_FILL: 0, CONFLICT: 1, UNCHANGED: 1}
     assert [c.proposed.username for c in plan.conflicts] == ["conflict-user"]
+
+
+def test_placeholder_name_is_not_compared_for_an_existing_item():
+    proposed = _proposed(
+        first_name="bob", surname="bob", label="bob", placeholder_name=True
+    )
+    for existing in (
+        _entity(label="Robert Smith", first_name="Robert", surname="Smith"),
+        _entity(label=None, first_name=None, surname=None),
+    ):
+        change = reconcile_user(proposed, existing)
+        names = {d.name for d in change.diffs}
+        assert not names & {"label", "first_name", "surname"}
+        assert change.category == UNCHANGED
+
+
+def test_placeholder_name_is_kept_for_a_new_item():
+    change = reconcile_user(_proposed(placeholder_name=True), None)
+    assert change.category == NEW
+
+
+def test_missing_username_is_filled_on_an_existing_item():
+    # An item found by its page title instead of its username has none yet.
+    change = reconcile_user(_proposed(), _entity(username=None))
+    assert change.category == GAP_FILL
+    assert [(d.name, d.proposed) for d in change.diffs] == [("username", ORCID)]
+
+
+def test_placeholder_user_without_username_still_gets_it():
+    change = reconcile_user(
+        _proposed(placeholder_name=True, label=ORCID), _entity(username=None)
+    )
+    assert change.category == GAP_FILL
+    assert [d.name for d in change.diffs] == ["username"]

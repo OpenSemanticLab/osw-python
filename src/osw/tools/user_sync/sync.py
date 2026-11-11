@@ -15,10 +15,11 @@ from osw.core import OSW
 
 from .build import apply_update, build_organization, build_user
 from .config import SyncConfig
-from .existing import load_existing_users
+from .existing import adopt_existing_pages, load_existing_users
 from .interactive import Prompter, Resolution, resolve_plan
 from .mapping import ProposedOrganization, map_user
-from .reconcile import reconcile
+from .prune import clear_jsondata_keys
+from .reconcile import REMOVE, reconcile
 from .redirects import ensure_redirect
 from .sources import (
     RESERVED_USERNAMES,
@@ -36,6 +37,7 @@ class SyncReport:
     updated: List[str] = field(default_factory=list)
     skipped: List[str] = field(default_factory=list)
     failed: Dict[str, str] = field(default_factory=dict)
+    pruned: List[str] = field(default_factory=list)
     redirects_created: List[str] = field(default_factory=list)
     organizations: List[str] = field(default_factory=list)
     missing_email: List[str] = field(default_factory=list)
@@ -45,16 +47,22 @@ class SyncReport:
         state = "applied" if self.accepted else "no changes written"
         return (
             f"{state}: created={len(self.created)} updated={len(self.updated)} "
-            f"skipped={len(self.skipped)} failed={len(self.failed)} "
+            f"skipped={len(self.skipped)} pruned={len(self.pruned)} "
+            f"failed={len(self.failed)} "
             f"redirects={len(self.redirects_created)} orgs={len(self.organizations)} "
             f"missing_email={len(self.missing_email)}"
         )
 
 
 def _build_proposals(config: SyncConfig, osw: Any, session: Any):
-    """Enumerate MediaWiki users, enrich ORCID users and map to proposals."""
+    """Enumerate MediaWiki users, enrich ORCID users and map to proposals.
+
+    Returns the proposed users, the organizations and the names of the blocked
+    accounts that were skipped.
+    """
     excluded = tuple(config.excluded_groups) if config.exclude_bot_group else ()
     reserved = RESERVED_USERNAMES if config.exclude_system_usernames else ()
+    skipped_blocked: List[str] = []
     mw_users = enumerate_mw_users(
         osw.mw_site,
         excluded_groups=excluded,
@@ -62,6 +70,8 @@ def _build_proposals(config: SyncConfig, osw: Any, session: Any):
         include_orcid=config.include_orcid,
         include_non_orcid=config.include_non_orcid,
         limit=config.limit,
+        exclude_blocked=not config.include_blocked,
+        skipped_blocked=skipped_blocked,
     )
     cache: Dict[str, Any] = {}
     proposed_users = []
@@ -87,7 +97,7 @@ def _build_proposals(config: SyncConfig, osw: Any, session: Any):
         proposed_users.append(proposed)
         for org in orgs:
             org_map.setdefault(org.uuid, org)
-    return proposed_users, org_map
+    return proposed_users, org_map, skipped_blocked
 
 
 def _store_organizations(osw: Any, org_map, report: SyncReport) -> None:
@@ -103,9 +113,7 @@ def _store_organizations(osw: Any, org_map, report: SyncReport) -> None:
         report.failed["organizations"] = str(exc)
 
 
-def _store_users(
-    osw: Any, resolution: Resolution, report: SyncReport, remove_empty: bool = True
-) -> None:
+def _store_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
     entities = []
     for resolved in resolution.resolved:
         proposed = resolved.change.proposed
@@ -130,12 +138,41 @@ def _store_users(
                 OSW.StoreEntityParam(
                     entities=entities,
                     overwrite=True,
-                    remove_empty=remove_empty,
                     edit_comment="user-sync",
                 )
             )
         except Exception as exc:  # pragma: no cover - network failure path
             report.failed["store"] = str(exc)
+
+
+# Names of reconciled fields mapped to their keys in the item's jsondata.
+_JSONDATA_KEYS = {
+    "websites": "website",
+    "organizations": "organization",
+    "employment_contract_status": "employment_contract_status",
+}
+
+
+def _prune_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
+    """Overwrite removed fields of existing items with an empty value."""
+    for resolved in resolution.resolved:
+        if resolved.action != "update":
+            continue
+        keys = [
+            _JSONDATA_KEYS[d.name]
+            for d in resolved.change.diffs
+            if d.status == REMOVE
+            and d.name in resolved.apply_fields
+            and d.name in _JSONDATA_KEYS
+        ]
+        if not keys:
+            continue
+        title = resolved.change.proposed.full_page_title
+        try:
+            if clear_jsondata_keys(osw, title, keys):
+                report.pruned.append(title)
+        except Exception as exc:  # pragma: no cover - network failure path
+            report.failed[f"prune:{title}"] = str(exc)
 
 
 def _create_redirects(osw: Any, resolution: Resolution, report: SyncReport) -> None:
@@ -189,9 +226,10 @@ def run_user_sync(
         raise ValueError("run_user_sync requires an authenticated OSW connection")
     prompter = prompter or Prompter()
 
-    proposed_users, org_map = _build_proposals(config, osw, session)
+    proposed_users, org_map, skipped_blocked = _build_proposals(config, osw, session)
     missing_email = [p.username for p in proposed_users if not p.emails]
     existing = load_existing_users(osw)
+    adopt_existing_pages(osw, existing, proposed_users)
     plan = reconcile(
         proposed_users,
         existing,
@@ -200,6 +238,11 @@ def run_user_sync(
     )
 
     summary_lines = []
+    if skipped_blocked:
+        summary_lines.append(
+            f"Skipped blocked accounts ({len(skipped_blocked)}): "
+            + ", ".join(skipped_blocked)
+        )
     if config.link_organizations and org_map:
         summary_lines.append(f"Organizations to ensure: {len(org_map)}")
     if config.create_redirects:
@@ -220,8 +263,9 @@ def run_user_sync(
 
     if config.link_organizations:
         _store_organizations(osw, org_map, report)
-    # When pruning, keep emptied fields in the payload so they overwrite (delete).
-    _store_users(osw, resolution, report, remove_empty=not config.prune)
+    _store_users(osw, resolution, report)
+    if config.prune and "store" not in report.failed:
+        _prune_users(osw, resolution, report)
     if config.create_redirects:
         _create_redirects(osw, resolution, report)
     _verify(osw, report)

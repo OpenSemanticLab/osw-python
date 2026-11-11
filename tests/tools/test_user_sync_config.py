@@ -84,3 +84,9 @@ def test_run_user_sync_requires_connection():
 
     with pytest.raises(ValueError, match="connection"):
         run_user_sync(SyncConfig())
+
+
+def test_include_blocked_flag():
+    assert SyncConfig().include_blocked is False
+    assert config_from_args([]).include_blocked is False
+    assert config_from_args(["--include-blocked"]).include_blocked is True

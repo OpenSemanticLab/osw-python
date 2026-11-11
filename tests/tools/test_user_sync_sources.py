@@ -142,3 +142,30 @@ def test_partition_by_orcid():
     parts = partition_by_orcid(users)
     assert [u.name for u in parts["orcid"]] == ["0000-0002-6374-9831"]
     assert [u.name for u in parts["other"]] == ["Alice"]
+
+
+def test_blocked_users_are_skipped_by_default_and_listed():
+    site = FakeSite([
+        _page([
+            {"name": "Alice", "groups": ["user"]},
+            {"name": "Mallory", "groups": ["user"], "blockid": 5},
+            {"name": "0000-0002-6374-9831", "groups": ["user"], "blockid": 6},
+        ])
+    ])
+    skipped = []
+    users = enumerate_mw_users(site, skipped_blocked=skipped)
+    assert [u.name for u in users] == ["Alice"]
+    assert skipped == ["Mallory", "0000-0002-6374-9831"]
+
+
+def test_blocked_users_are_kept_with_exclude_blocked_false():
+    site = FakeSite([
+        _page([
+            {"name": "Alice", "groups": ["user"]},
+            {"name": "Mallory", "groups": ["user"], "blockid": 5},
+        ])
+    ])
+    skipped = []
+    users = enumerate_mw_users(site, exclude_blocked=False, skipped_blocked=skipped)
+    assert [u.name for u in users] == ["Alice", "Mallory"]
+    assert skipped == []

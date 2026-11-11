@@ -1,7 +1,7 @@
 """External data sources for the user-item sync tool.
 
-This module wraps the MediaWiki ``allusers`` API. The ORCID public-API client is
-added in a later phase.
+This module wraps the MediaWiki ``allusers`` API to list accounts and contains a
+client for the public ORCID API that fetches and parses ORCID records.
 """
 
 from __future__ import annotations
@@ -100,6 +100,8 @@ def enumerate_mw_users(
     include_non_orcid: bool = True,
     limit: Optional[int] = None,
     batch: Any = "max",
+    exclude_blocked: bool = True,
+    skipped_blocked: Optional[List[str]] = None,
 ) -> List[MwUser]:
     """List MediaWiki accounts to sync.
 
@@ -114,6 +116,9 @@ def enumerate_mw_users(
         include_non_orcid: If False, keep only ORCID-username accounts.
         limit: Keep at most this many accounts after filtering.
         batch: ``aulimit`` value passed to the API.
+        exclude_blocked: If True, skip blocked accounts, ORCID or not.
+        skipped_blocked: If given, receives the names of the skipped blocked
+            accounts.
     """
     excluded = set(excluded_groups)
     excluded_names = set(excluded_usernames)
@@ -121,6 +126,10 @@ def enumerate_mw_users(
     for raw in _iter_allusers(site, batch=batch):
         user = MwUser.from_api(raw)
         if user.name in excluded_names:
+            continue
+        if exclude_blocked and user.blocked:
+            if skipped_blocked is not None:
+                skipped_blocked.append(user.name)
             continue
         if not user.is_orcid and excluded.intersection(user.groups):
             continue

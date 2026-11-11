@@ -1,7 +1,12 @@
 """Unit tests for the orchestrator (dry-run path, no live models)."""
 
+from types import SimpleNamespace
+
+from osw.data.import_utility import uuid_to_full_page_title
 from osw.tools.user_sync.config import SyncConfig
 from osw.tools.user_sync.interactive import Prompter
+from osw.tools.user_sync.mapping import user_uuid
+from osw.tools.user_sync.sources import MwUser
 from osw.tools.user_sync.sync import SyncReport, run_user_sync
 
 ORCID = "0000-0002-6374-9831"
@@ -17,6 +22,9 @@ ORCID_RECORD = {
 
 
 class FakeMwSite:
+    def __init__(self, extra_users=()):
+        self.extra_users = list(extra_users)
+
     def api(self, action, **params):
         assert action == "query" and params["list"] == "allusers"
         return {
@@ -24,21 +32,29 @@ class FakeMwSite:
                 "allusers": [
                     {"name": ORCID, "groups": ["user"]},
                     {"name": "SyncBot", "groups": ["user", "bot"]},
+                    *self.extra_users,
                 ]
             }
         }
 
 
 class FakeOsw:
-    def __init__(self):
-        self.mw_site = FakeMwSite()
+    def __init__(self, extra_users=(), existing_pages=None):
+        self.mw_site = FakeMwSite(extra_users)
+        self.site = SimpleNamespace(semantic_search=self._semantic_search)
+        self.existing_pages = existing_pages or {}
+        self.loaded = []
         self.store_calls = 0
 
-    def query_instances(self, category):
-        return []
+    def _semantic_search(self, query):
+        return [SimpleNamespace(titles=[], truncated=False, next_offset=None, count=0)]
+
+    def _get_missing_page_titles(self, titles, confirm_delay_s=5):
+        return [t for t in titles if t not in self.existing_pages]
 
     def load_entity(self, titles):
-        return []
+        self.loaded.extend(titles)
+        return [self.existing_pages[t] for t in titles]
 
     def store_entity(self, param):
         self.store_calls += 1
@@ -107,3 +123,49 @@ def test_requires_connection():
         assert "connection" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected ValueError")
+
+
+def _dry_run_output(osw, **config):
+    io = CapturingIO()
+    report = run_user_sync(
+        SyncConfig(domain="d", dry_run=True, **config),
+        osw=osw,
+        prompter=Prompter(io.input, io.output),
+        session=FakeSession(),
+    )
+    return report, "\n".join(io.outputs)
+
+
+def test_preview_lists_skipped_blocked_accounts():
+    osw = FakeOsw(extra_users=[{"name": "Mallory", "groups": ["user"], "blockid": 5}])
+    _, joined = _dry_run_output(osw)
+    assert "Skipped blocked accounts (1): Mallory" in joined
+    assert "new=1" in joined  # only the ORCID user
+
+
+def test_include_blocked_keeps_blocked_accounts():
+    osw = FakeOsw(extra_users=[{"name": "Mallory", "groups": ["user"], "blockid": 5}])
+    _, joined = _dry_run_output(osw, include_blocked=True)
+    assert "Skipped blocked accounts" not in joined
+    assert "new=2" in joined
+
+
+def test_existing_page_at_the_deterministic_title_is_not_created_again():
+    uid = user_uuid(MwUser(name=ORCID))
+    title = uuid_to_full_page_title(uid)
+    stored = SimpleNamespace(
+        uuid=uid,
+        username=None,
+        label=[],
+        first_name=None,
+        surname=None,
+        orcid=None,
+        email=set(),
+        website=set(),
+        organization=set(),
+    )
+    osw = FakeOsw(existing_pages={title: stored})
+    _, joined = _dry_run_output(osw)
+    assert osw.loaded == [title]
+    assert "new=0" in joined
+    assert "gap_fill=1" in joined

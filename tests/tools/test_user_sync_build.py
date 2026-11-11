@@ -30,48 +30,58 @@ def _entity():
         surname="",
         orcid=None,
         email=set(),
-        website=set(),
-        __iris__={
-            "organization": ["Item:OSWa"],
-            "employment_contract_status": "Item:OSWx",
-        },
+        website={"https://x"},
+        organization=["Item:OSWa"],
+        employment_contract_status="Item:OSWx",
     )
 
 
-def test_strip_protected_empties_only_protected():
+def test_strip_protected_unsets_only_protected():
     entity = _entity()
     _strip_protected(entity)
-    assert entity.__iris__["employment_contract_status"] == []
-    assert entity.__iris__["organization"] == ["Item:OSWa"]
+    assert entity.employment_contract_status is None
+    assert entity.organization == ["Item:OSWa"]
 
 
 def test_apply_update_strips_protected_when_in_fields():
     entity = _entity()
     apply_update(entity, _proposed(), {"employment_contract_status"})
-    assert entity.__iris__["employment_contract_status"] == []
+    assert entity.employment_contract_status is None
 
 
-def test_apply_update_keeps_protected_when_not_in_fields():
+def test_apply_update_strips_protected_when_not_in_fields():
     entity = _entity()
     apply_update(entity, _proposed(surname="New"), {"surname"})
-    assert "employment_contract_status" in entity.__iris__
+    assert entity.employment_contract_status is None
     assert entity.surname == "New"
 
 
-def test_apply_update_clears_organization_when_empty():
+def test_apply_update_unsets_organization_when_empty():
     entity = _entity()
     apply_update(entity, _proposed(organizations=[]), {"organizations"})
-    assert entity.__iris__["organization"] == []
+    assert entity.organization is None
 
 
 def test_apply_update_sets_organization_when_present():
     entity = _entity()
     apply_update(entity, _proposed(organizations=["Item:OSWb"]), {"organizations"})
-    assert entity.__iris__["organization"] == ["Item:OSWb"]
+    assert entity.organization == ["Item:OSWb"]
 
 
-def test_apply_update_clears_website():
+def test_apply_update_unsets_website_when_empty():
     entity = _entity()
-    entity.website = {"https://x"}
     apply_update(entity, _proposed(websites=[]), {"websites"})
-    assert entity.website == set()
+    assert entity.website is None
+
+
+def test_apply_update_sets_website_when_present():
+    entity = _entity()
+    apply_update(entity, _proposed(websites=["https://y"]), {"websites"})
+    assert entity.website == {"https://y"}
+
+
+def test_apply_update_sets_username_when_accepted():
+    entity = _entity()
+    entity.username = None
+    apply_update(entity, _proposed(username="u"), {"username"})
+    assert entity.username == "u"

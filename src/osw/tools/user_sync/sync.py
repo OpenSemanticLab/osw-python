@@ -8,8 +8,8 @@ verify.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field, replace
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from osw.core import OSW
 
@@ -19,7 +19,7 @@ from .existing import adopt_existing_pages, load_existing_users
 from .interactive import Prompter, Resolution, resolve_plan
 from .mapping import ProposedOrganization, map_user
 from .prune import clear_jsondata_keys
-from .reconcile import REMOVE, reconcile
+from .reconcile import REMOVE, existing_fields, reconcile
 from .redirects import ensure_redirect
 from .sources import (
     RESERVED_USERNAMES,
@@ -100,6 +100,13 @@ def _build_proposals(config: SyncConfig, osw: Any, session: Any):
     return proposed_users, org_map, skipped_blocked
 
 
+def _record_partial(report: SyncReport, exc: Exception) -> List[str]:
+    """Record each failed title of a partial store; return the stored titles."""
+    for title, error in exc.failed.items():
+        report.failed[f"store:{title}"] = str(error)
+    return list(exc.stored)
+
+
 def _store_organizations(osw: Any, org_map, report: SyncReport) -> None:
     if not org_map:
         return
@@ -109,40 +116,70 @@ def _store_organizations(osw: Any, org_map, report: SyncReport) -> None:
             OSW.StoreEntityParam(entities=entities, edit_comment="user-sync: orgs")
         )
         report.organizations = [org.full_page_title for org in org_map.values()]
+    except OSW.StoreEntityPartialError as exc:
+        report.organizations = _record_partial(report, exc)
     except Exception as exc:  # pragma: no cover - network failure path
         report.failed["organizations"] = str(exc)
 
 
-def _store_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
+def _store_users(
+    osw: Any,
+    resolution: Resolution,
+    report: SyncReport,
+    failed_orgs: FrozenSet[str] = frozenset(),
+) -> None:
+    """Store created and updated items; count a title only once it is stored.
+
+    New links to an organization in ``failed_orgs`` are dropped, so no item
+    points to an organization that was not stored. A link the existing item
+    already has is kept. A re-run proposes the dropped links again.
+    """
     entities = []
+    pending: List[Tuple[str, str]] = []  # (action, title) per entity
     for resolved in resolution.resolved:
         proposed = resolved.change.proposed
+        drop = set(proposed.organizations) & failed_orgs
+        if drop and resolved.change.existing is not None:
+            drop -= existing_fields(resolved.change.existing)["organizations"]
+        if drop:
+            proposed = replace(
+                proposed,
+                organizations=[o for o in proposed.organizations if o not in drop],
+            )
         try:
             if resolved.action == "create":
                 entities.append(build_user(proposed))
-                report.created.append(proposed.full_page_title)
             elif resolved.action == "update":
                 entities.append(
                     apply_update(
                         resolved.change.existing, proposed, resolved.apply_fields
                     )
                 )
-                report.updated.append(proposed.full_page_title)
             else:
                 report.skipped.append(proposed.full_page_title)
+                continue
+            pending.append((resolved.action, proposed.full_page_title))
         except Exception as exc:  # pragma: no cover - build failure path
             report.failed[f"build:{proposed.username}"] = str(exc)
-    if entities:
-        try:
-            osw.store_entity(
-                OSW.StoreEntityParam(
-                    entities=entities,
-                    overwrite=True,
-                    edit_comment="user-sync",
-                )
+    if not entities:
+        return
+    try:
+        osw.store_entity(
+            OSW.StoreEntityParam(
+                entities=entities,
+                overwrite=True,
+                edit_comment="user-sync",
             )
-        except Exception as exc:  # pragma: no cover - network failure path
-            report.failed["store"] = str(exc)
+        )
+        stored = {title for _, title in pending}
+    except OSW.StoreEntityPartialError as exc:
+        stored = set(_record_partial(report, exc))
+    except Exception as exc:  # pragma: no cover - network failure path
+        report.failed["store"] = str(exc)
+        stored = set()
+    for action, title in pending:
+        if title in stored:
+            (report.created if action == "create" else report.updated).append(title)
 
 
 # Names of reconciled fields mapped to their keys in the item's jsondata.
@@ -155,9 +192,12 @@ _JSONDATA_KEYS = {
 
 def _prune_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
     """Overwrite removed fields of existing items with an empty value."""
+    updated = set(report.updated)
     for resolved in resolution.resolved:
         if resolved.action != "update":
             continue
+        if resolved.change.proposed.full_page_title not in updated:
+            continue  # the update was not stored
         keys = [
             _JSONDATA_KEYS[d.name]
             for d in resolved.change.diffs
@@ -176,10 +216,14 @@ def _prune_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
 
 
 def _create_redirects(osw: Any, resolution: Resolution, report: SyncReport) -> None:
-    # Every in-scope user has an item (created or pre-existing), so ensure the
-    # redirect for all of them; a re-run repairs any missing redirect.
+    # A redirect needs an existing target: an item stored in this run, or one
+    # that existed before it (update or skip). A failed create gets none; a
+    # re-run writes it once the item is stored.
+    created = set(report.created)
     for resolved in resolution.resolved:
         proposed = resolved.change.proposed
+        if resolved.action == "create" and proposed.full_page_title not in created:
+            continue
         try:
             written = ensure_redirect(osw, proposed.username, proposed.full_page_title)
             if written:
@@ -261,9 +305,16 @@ def run_user_sync(
         _warn_missing_email(prompter, missing_email)
         return report
 
+    failed_orgs: FrozenSet[str] = frozenset()
     if config.link_organizations:
         _store_organizations(osw, org_map, report)
-    _store_users(osw, resolution, report)
+        stored_orgs = set(report.organizations)
+        failed_orgs = frozenset(
+            o.full_page_title
+            for o in org_map.values()
+            if o.full_page_title not in stored_orgs
+        )
+    _store_users(osw, resolution, report, failed_orgs=failed_orgs)
     if config.prune and "store" not in report.failed:
         _prune_users(osw, resolution, report)
     if config.create_redirects:

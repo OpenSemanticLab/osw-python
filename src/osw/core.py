@@ -204,20 +204,38 @@ def read_file_if_exists(path: str) -> str:
         return f.read()
 
 
+SCHEMA_DEF_KEY = "$defs"
+"""Keyword for schema definitions, see AggregateGeneratedSchemasParam.def_key"""
+SCHEMA_GEN_DEF_KEY = "generated"
+"""Key of the generated section, see AggregateGeneratedSchemasParam.gen_def_key"""
+
+
 def remove_generated_schema_section(
-    schema: dict, def_key: str = "$defs", gen_def_key: str = "generated"
-) -> dict:
-    """Removes the generated section and the allOf entry that points to it.
+    schema: Any,
+    def_key: str = SCHEMA_DEF_KEY,
+    gen_def_key: str = SCHEMA_GEN_DEF_KEY,
+) -> Any:
+    """Removes the generated section and every reference that points to it.
 
     aggregate_generated_schemas() merges into an existing generated section and
     merge_deep() concatenates arrays, so a stale 'required' entry or 'type' would
     survive every regeneration. Mirrors osl.util.postProcessPage in PageBot.js of
-    mediawiki-extensions-OpenSemanticLab. Modifies schema in place.
+    mediawiki-extensions-OpenSemanticLab, which drops the allOf entry and, with
+    generate_root_ref, the root $ref. Modifies schema in place and returns it.
+
+    A schema that is not an object is returned unchanged. get_slot_content()
+    returns whatever the slot holds, and a slot stored with a non-json content
+    model gives a string, for which raising here aborted the whole upload.
     """
+    if not isinstance(schema, dict):
+        return schema
     gen_def_pointer = f"#/{def_key}/{gen_def_key}"
     defs = schema.get(def_key)
     if isinstance(defs, dict):
         defs.pop(gen_def_key, None)
+    # generate_root_ref=True points the root $ref at the section instead of allOf
+    if schema.get("$ref") == gen_def_pointer:
+        del schema["$ref"]
     if isinstance(schema.get("allOf"), list):
         schema["allOf"] = [
             entry
@@ -2508,8 +2526,17 @@ class OSW(BaseModel):
                 and overwrite_class_param.overwrite
                 == AddOverwriteClassOptions.keep_existing
             )
+            # _apply_overwrite_policy() replaces jsondata, header and footer for
+            # this policy but returns the page with its remote jsonschema slot,
+            # so the regeneration below has to start from an empty schema to
+            # keep the promise that nothing of the remote page survives.
+            replaced_remote = (
+                overwrite_class_param.overwrite
+                == AddOverwriteClassOptions.replace_remote
+            )
             if not kept_existing and len(meta_category_templates.keys()) > 0:
                 generated_schemas = {}
+                generation_failed = False
                 try:
                     jsondata = page.get_slot_content("jsondata")
                     if param.remove_empty:
@@ -2527,6 +2554,9 @@ class OSW(BaseModel):
                         )
                         generated_schemas[key] = json.loads(schema_str)
                 except Exception as e:
+                    # the loop stops at the first template that fails, so what
+                    # it collected so far is an incomplete generation
+                    generation_failed = True
                     _logger.error(
                         f"Schema generation from template failed for {entity_}: {e}"
                     )
@@ -2540,36 +2570,64 @@ class OSW(BaseModel):
                     mode == AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
                 )
 
-                stored_schema = page.get_slot_content("jsonschema") or {}
-                # Regenerate the generated section from scratch. Skip this when
-                # the generation failed, so the stored section is kept.
-                if definitions and len(generated_schemas) > 0:
-                    reset_generated_jsonld_context(
-                        stored_schema,
-                        isinstance(stored_schema.get("$defs"), dict)
-                        and "generated" in stored_schema["$defs"],
-                    )
-                    remove_generated_schema_section(stored_schema)
-                if definitions:
-                    for generated_schema in generated_schemas.values():
-                        if "@context" in generated_schema:
-                            merge_generated_jsonld_context(
-                                stored_schema, generated_schema.pop("@context")
+                # Leave the stored slot alone unless every template rendered.
+                # The form editor aborts the save in the same case: writing only
+                # the part that did render would replace the stored section with
+                # a fragment and drop what the failing templates contribute.
+                if generated_schemas and not generation_failed:
+                    stored_schema = page.get_slot_content("jsonschema")
+                    if not isinstance(stored_schema, dict):
+                        if stored_schema:
+                            _logger.warning(
+                                f"The jsonschema slot of '{entity_title}' does "
+                                "not hold an object and is replaced."
                             )
-                new_schema = aggregate_generated_schemas(
-                    AggregateGeneratedSchemasParam(
-                        target_schema=stored_schema,
-                        generated_schemas=generated_schemas,
-                        mode=mode,
+                        stored_schema = {}
+                    if replaced_remote:
+                        stored_schema = {}
+                    had_generated_section = (
+                        isinstance(stored_schema.get(SCHEMA_DEF_KEY), dict)
+                        and SCHEMA_GEN_DEF_KEY in stored_schema[SCHEMA_DEF_KEY]
                     )
-                ).aggregated_schema
-                if definitions and isinstance(
-                    (new_schema.get("$defs") or {}).get("generated"), dict
-                ):
-                    strip_root_members_superseded_by_generated(
-                        new_schema, new_schema["$defs"]["generated"]
+                    # Regenerate the generated section from scratch.
+                    if definitions:
+                        # @context belongs at the root, so it cannot be dropped
+                        # together with the generated section and is reset on its
+                        # own. ROOT_LEVEL is left out on purpose: its templates
+                        # emit parent references only, so reserving a block there
+                        # would insert an empty object into every hand written
+                        # context without ever filling it.
+                        reset_generated_jsonld_context(
+                            stored_schema, had_generated_section
+                        )
+                    # in both modes, like the form editor: a page that switched
+                    # mode keeps a pointer to a section that no longer exists
+                    remove_generated_schema_section(
+                        stored_schema, SCHEMA_DEF_KEY, SCHEMA_GEN_DEF_KEY
                     )
-                page.set_slot_content("jsonschema", new_schema)
+                    if definitions:
+                        for generated_schema in generated_schemas.values():
+                            if "@context" in generated_schema:
+                                merge_generated_jsonld_context(
+                                    stored_schema, generated_schema.pop("@context")
+                                )
+                    new_schema = aggregate_generated_schemas(
+                        AggregateGeneratedSchemasParam(
+                            target_schema=stored_schema,
+                            generated_schemas=generated_schemas,
+                            mode=mode,
+                            def_key=SCHEMA_DEF_KEY,
+                            gen_def_key=SCHEMA_GEN_DEF_KEY,
+                        )
+                    ).aggregated_schema
+                    generated_section = (new_schema.get(SCHEMA_DEF_KEY) or {}).get(
+                        SCHEMA_GEN_DEF_KEY
+                    )
+                    if definitions and isinstance(generated_section, dict):
+                        strip_root_members_superseded_by_generated(
+                            new_schema, generated_section
+                        )
+                    page.set_slot_content("jsonschema", new_schema)
             if param.offline is False and not kept_existing:
                 page.edit(
                     param.edit_comment, bot_edit=param.bot_edit

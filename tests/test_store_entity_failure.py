@@ -17,20 +17,8 @@ def _title(entity):
     return f"{get_namespace(entity)}:{get_title(entity)}"
 
 
-@pytest.fixture
-def offline_osw(monkeypatch):
-    # no network when a WtPage is constructed with do_init=True; mimic the
-    # do_init=False branch of WtPage.__init__ which sets .exists
-    monkeypatch.setattr(WtPage, "init", lambda self: setattr(self, "exists", False))
-    # bypass the overwrite policy: return the page that was built for the entity
-    monkeypatch.setattr(
-        OSW, "_apply_overwrite_policy", staticmethod(lambda param: param.page)
-    )
-    # the write verification would query the wiki. These tests cover the reporting
-    # of a failed edit, so report every edited page as existing. The verification
-    # itself is covered by test_store_entity_verify.py
-    monkeypatch.setattr(OSW, "_get_missing_page_titles", lambda self, titles: [])
-    return OSW.construct(site=object())
+# offline_osw comes from tests/conftest.py. These tests are about the reporting
+# of a failed edit, so _install_edit() replaces its WtPage.edit stub.
 
 
 def _install_edit(monkeypatch, failing_titles):

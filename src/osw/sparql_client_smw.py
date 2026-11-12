@@ -1,7 +1,10 @@
 # from quantities
 import getpass
+import logging
 
 from SPARQLWrapper import BASIC, JSON, POST, SPARQLWrapper
+
+_logger = logging.getLogger(__name__)
 
 
 class SmwSparqlClient:
@@ -166,14 +169,16 @@ class SmwSparqlClient:
         for key in self.encoding_dict.keys():
             query = query.replace(key, self.encoding_dict[key])
         if debug:
-            print(query)
+            _logger.debug(query)
         # Select distinct ?p ?o where
         #  {<http://dbpedia.org/resource/Amount_of_substance> ?p ?o} LIMIT 100
         triples = self.sparqlQuery(query)
         # print(triples)
         tdict = {}
         if debug:
-            print("{} triplets found".format(len(triples["results"]["bindings"])))
+            _logger.debug(
+                "{} triplets found".format(len(triples["results"]["bindings"]))
+            )
         for t in triples["results"]["bindings"]:
             if tsubject == "":
                 s = t["subject"]["value"]

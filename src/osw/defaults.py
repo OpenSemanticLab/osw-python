@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import List, Union
 
 from pydantic.v1 import BaseModel, PrivateAttr, validator
+
+_logger = logging.getLogger(__name__)
 
 PACKAGE_ROOT_PATH = Path(__file__).parents[2]
 SRC_PATH = PACKAGE_ROOT_PATH / "src"
@@ -125,7 +128,7 @@ class Paths(Defaults):
                     new_rel_path = new_val / old_rel_path
                     setattr(self, attr_name, new_rel_path)
                     cls_name = type(self).__name__
-                    print(
+                    _logger.info(
                         f"Following the setting of {cls_name}.{set_attr}, "
                         f"{cls_name}.{attr_name} was updated to {new_rel_path}."
                     )

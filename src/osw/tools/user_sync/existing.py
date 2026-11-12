@@ -6,10 +6,13 @@ different uuid are updated rather than duplicated.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
+from osw.core import OSW
 from osw.wiki_tools import SearchParam
+from osw.wtsite import WtSite
 
 from .config import USER_CATEGORY
 
@@ -22,9 +25,15 @@ class ExistingUsers:
     """Existing User items indexed by their MediaWiki username."""
 
     by_username: Dict[str, Any] = field(default_factory=dict)
+    # The jsondata as stored on the page, per username. The loaded entity cannot
+    # tell a stored value from a model default.
+    stored_jsondata: Dict[str, dict] = field(default_factory=dict)
 
     def get(self, username: str) -> Optional[Any]:
         return self.by_username.get(username)
+
+    def get_stored(self, username: str) -> Optional[dict]:
+        return self.stored_jsondata.get(username)
 
 
 def _as_entity_list(result: Any) -> List[Any]:
@@ -37,6 +46,29 @@ def _as_entity_list(result: Any) -> List[Any]:
     if isinstance(result, list):
         return result
     return [result]
+
+
+def _load_with_stored(osw: Any, titles: List[str]) -> Tuple[List[Any], Dict[str, dict]]:
+    """Load the entities and read the stored jsondata of the same pages.
+
+    The pages are fetched once and handed to load_entity as offline pages, so the
+    jsondata is read without a second request. A copy is taken first, because
+    load_entity removes empty keys from the slot content in place.
+
+    Returns:
+        The entities and the stored jsondata keyed by the uuid in it.
+    """
+    pages = osw.site.get_page(WtSite.GetPageParam(titles=titles)).pages
+    offline_pages = {page.title: page for page in pages}
+    stored: Dict[str, dict] = {}
+    for page in pages:
+        jsondata = page.get_slot_content("jsondata")
+        if isinstance(jsondata, dict):
+            stored[str(jsondata.get("uuid"))] = copy.deepcopy(jsondata)
+    result = osw.load_entity(
+        OSW.LoadEntityParam(titles=titles, offline_pages=offline_pages)
+    )
+    return _as_entity_list(result), stored
 
 
 def _query_user_titles(
@@ -88,13 +120,16 @@ def load_existing_users(
     titles = _query_user_titles(osw, category, limit)
     if not titles:
         return ExistingUsers()
-    entities = _as_entity_list(osw.load_entity(titles))
-    by_username: Dict[str, Any] = {}
+    entities, stored = _load_with_stored(osw, titles)
+    existing = ExistingUsers()
     for entity in entities:
         username = getattr(entity, "username", None)
         if username:
-            by_username[username] = entity
-    return ExistingUsers(by_username=by_username)
+            existing.by_username[username] = entity
+            jsondata = stored.get(str(getattr(entity, "uuid", None)))
+            if jsondata is not None:
+                existing.stored_jsondata[username] = jsondata
+    return existing
 
 
 def adopt_existing_pages(
@@ -118,12 +153,15 @@ def adopt_existing_pages(
     present = [p for p in candidates if p.full_page_title not in missing]
     if not present:
         return []
-    entities = _as_entity_list(osw.load_entity([p.full_page_title for p in present]))
+    entities, stored = _load_with_stored(osw, [p.full_page_title for p in present])
     by_uuid = {str(getattr(e, "uuid", None)): e for e in entities if e is not None}
     adopted: List[str] = []
     for proposed in present:
         entity = by_uuid.get(str(proposed.uuid))
         if entity is not None:
             existing.by_username[proposed.username] = entity
+            jsondata = stored.get(str(proposed.uuid))
+            if jsondata is not None:
+                existing.stored_jsondata[proposed.username] = jsondata
             adopted.append(proposed.full_page_title)
     return adopted

@@ -10,6 +10,18 @@ from osw.tools.user_sync.existing import (
     adopt_existing_pages,
     load_existing_users,
 )
+from osw.wtsite import WtPage
+
+
+class FakeWtPage(WtPage):
+    """A WtPage that serves a fixed jsondata slot without a wiki."""
+
+    def __init__(self, title, jsondata=None):
+        self.title = title
+        self._jsondata = jsondata or {}
+
+    def get_slot_content(self, slot, *args, **kwargs):
+        return self._jsondata
 
 
 def _ask_result(titles, continue_offset=None):
@@ -33,6 +45,11 @@ class FakeSite:
     def __init__(self, responses):
         self._responses = list(responses)
         self.queries = []
+        self.stored = {}
+
+    def get_page(self, param):
+        pages = [FakeWtPage(t, self.stored.get(t, {"uuid": t})) for t in param.titles]
+        return SimpleNamespace(pages=pages, errors=[])
 
     def api(self, action, **params):
         assert action == "ask"
@@ -54,8 +71,10 @@ class FakeOsw:
         assert confirm_delay_s == 0
         return [t for t in titles if t in self.missing]
 
-    def load_entity(self, titles):
+    def load_entity(self, param):
+        titles = param.titles
         self.loaded = list(titles)
+        assert set(param.offline_pages) == set(titles)
         return [self._entities[t] for t in titles]
 
 
@@ -157,3 +176,28 @@ def test_adopt_skips_users_already_matched_by_username():
     existing = ExistingUsers(by_username={"Alice": SimpleNamespace(username="Alice")})
     assert adopt_existing_pages(osw, existing, [_proposed("Alice", "1")]) == []
     assert osw.loaded is None
+
+
+def test_load_records_the_stored_jsondata_per_username():
+    entities = {
+        "Item:OSW1": SimpleNamespace(username="Alice", uuid="u1"),
+        "Item:OSW2": SimpleNamespace(username="Bob", uuid="u2"),
+    }
+    osw = FakeOsw(["Item:OSW1", "Item:OSW2"], entities)
+    osw.site.stored = {
+        "Item:OSW1": {"uuid": "u1", "username": "Alice", "website": []},
+        "Item:OSW2": {"uuid": "u2", "username": "Bob"},
+    }
+    existing = load_existing_users(osw)
+    assert existing.get_stored("Alice") == osw.site.stored["Item:OSW1"]
+    assert "employment_contract_status" not in existing.get_stored("Bob")
+    assert existing.get_stored("missing") is None
+
+
+def test_adopt_records_the_stored_jsondata():
+    found = SimpleNamespace(username=None, uuid="1")
+    osw = FakeOsw([], {"Item:OSW1": found}, pages=[_ask_result([])])
+    osw.site.stored = {"Item:OSW1": {"uuid": "1", "label": [{"text": "A"}]}}
+    existing = ExistingUsers()
+    adopt_existing_pages(osw, existing, [_proposed("Alice", "1")])
+    assert existing.get_stored("Alice") == osw.site.stored["Item:OSW1"]

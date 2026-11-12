@@ -8,6 +8,7 @@ from osw.tools.user_sync.interactive import Prompter
 from osw.tools.user_sync.mapping import user_uuid
 from osw.tools.user_sync.sources import MwUser
 from osw.tools.user_sync.sync import SyncReport, run_user_sync
+from osw.wtsite import WtPage
 
 ORCID = "0000-0002-6374-9831"
 
@@ -19,6 +20,17 @@ ORCID_RECORD = {
         }
     }
 }
+
+
+class FakeWtPage(WtPage):
+    """A WtPage that serves a fixed jsondata slot without a wiki."""
+
+    def __init__(self, title, jsondata=None):
+        self.title = title
+        self._jsondata = jsondata or {}
+
+    def get_slot_content(self, slot, *args, **kwargs):
+        return self._jsondata
 
 
 class FakeMwSite:
@@ -41,7 +53,9 @@ class FakeMwSite:
 class FakeOsw:
     def __init__(self, extra_users=(), existing_pages=None):
         self.mw_site = FakeMwSite(extra_users)
-        self.site = SimpleNamespace(semantic_search=self._semantic_search)
+        self.site = SimpleNamespace(
+            semantic_search=self._semantic_search, get_page=self._get_page
+        )
         self.existing_pages = existing_pages or {}
         self.loaded = []
         self.store_calls = 0
@@ -52,9 +66,13 @@ class FakeOsw:
     def _get_missing_page_titles(self, titles, confirm_delay_s=5):
         return [t for t in titles if t not in self.existing_pages]
 
-    def load_entity(self, titles):
-        self.loaded.extend(titles)
-        return [self.existing_pages[t] for t in titles]
+    def _get_page(self, param):
+        pages = [FakeWtPage(t) for t in param.titles]
+        return SimpleNamespace(pages=pages, errors=[])
+
+    def load_entity(self, param):
+        self.loaded.extend(param.titles)
+        return [self.existing_pages[t] for t in param.titles]
 
     def store_entity(self, param):
         self.store_calls += 1

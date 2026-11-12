@@ -30,12 +30,25 @@ class FakeMwSite:
         return {"query": {"allusers": self._users}}
 
 
+class FakeWtPage(WtPage):
+    """A WtPage that serves a fixed jsondata slot without a wiki."""
+
+    def __init__(self, title, jsondata=None):
+        self.title = title
+        self._jsondata = jsondata or {}
+
+    def get_slot_content(self, slot, *args, **kwargs):
+        return self._jsondata
+
+
 class FakeStoreOsw:
     """Fake connection whose store_entity returns the stage StoreEntityResult."""
 
     def __init__(self, users, existing=None, drop_username=False):
         self.mw_site = FakeMwSite(users)
-        self.site = SimpleNamespace(semantic_search=self._semantic_search)
+        self.site = SimpleNamespace(
+            semantic_search=self._semantic_search, get_page=self._get_page
+        )
         self.existing = existing or {}
         self.drop_username = drop_username
         self.store_params = []
@@ -51,7 +64,11 @@ class FakeStoreOsw:
     def _get_missing_page_titles(self, titles, confirm_delay_s=5):
         return [t for t in titles if t not in self.existing]
 
+    def _get_page(self, param):
+        return SimpleNamespace(pages=[FakeWtPage(t) for t in param.titles], errors=[])
+
     def load_entity(self, titles):
+        titles = getattr(titles, "titles", titles)
         if isinstance(titles, str):
             titles = [titles]
         loaded = []
@@ -311,20 +328,32 @@ def test_clear_jsondata_keys_empties_present_keys_only(monkeypatch):
         "organization": ["Item:OSWa"],
         "employment_contract_status": "Item:OSWb",
         "short_name": [{"text": "x", "lang": "en"}],
+        "unknown_key": "x",
     }
     page = FakePrunePage(content)
     _patch_page(monkeypatch, page)
     written = clear_jsondata_keys(
         SimpleNamespace(site=None),
         ITEM_TITLE,
-        ["website", "organization", "employment_contract_status"],
+        ["website", "organization", "employment_contract_status", "unknown_key"],
     )
     assert written is True
     assert page.content["website"] == []
     assert page.content["organization"] == []
-    assert page.content["employment_contract_status"] == []
+    assert "employment_contract_status" not in page.content
+    assert "unknown_key" not in page.content
     assert page.content["short_name"] == content["short_name"]
     assert page.comments == ["user-sync: prune"]
+
+
+def test_clear_jsondata_keys_leaves_empty_arrays_alone(monkeypatch):
+    page = FakePrunePage({"website": [], "organization": [], "username": "Alice"})
+    _patch_page(monkeypatch, page)
+    written = clear_jsondata_keys(
+        SimpleNamespace(site=None), ITEM_TITLE, ["website", "organization"]
+    )
+    assert written is False
+    assert page.comments == []
 
 
 def test_clear_jsondata_keys_does_not_add_absent_keys_or_write(monkeypatch):

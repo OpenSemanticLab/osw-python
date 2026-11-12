@@ -91,6 +91,18 @@ def _existing_has_iri(entity: Any, name: str) -> bool:
     return isinstance(iris, dict) and bool(iris.get(name))
 
 
+def _has_protected_value(
+    entity: Any, name: str, stored_jsondata: Optional[Dict[str, Any]]
+) -> bool:
+    """True if the protected field holds a value that pruning would remove.
+
+    Without stored jsondata the loaded entity is the only source.
+    """
+    if stored_jsondata is None:
+        return _existing_has_iri(entity, name)
+    return not _is_empty(stored_jsondata.get(name))
+
+
 def existing_fields(entity: Any) -> Dict[str, Any]:
     """Normalized comparable field view of a loaded User entity."""
     return {
@@ -151,6 +163,7 @@ def reconcile_user(
     existing: Optional[Any],
     enabled_fields: FrozenSet[str] = frozenset(),
     prune: bool = False,
+    stored_jsondata: Optional[Dict[str, Any]] = None,
 ) -> UserChange:
     if existing is None:
         return UserChange(proposed=proposed, existing=None, category=NEW)
@@ -178,10 +191,11 @@ def reconcile_user(
     if not getattr(existing, "username", None):
         diffs.append(FieldDiff("username", None, proposed.username, GAP_FILL))
         has_change = True
-    # Protected fields are stripped from existing items only when pruning.
+    # Protected fields are stripped from existing items only when pruning. The
+    # stored jsondata decides, because a loaded entity also shows model defaults.
     if prune:
         for name in PROTECTED_FIELDS:
-            if _existing_has_iri(existing, name):
+            if _has_protected_value(existing, name, stored_jsondata):
                 diffs.append(FieldDiff(name, "set", None, REMOVE))
                 has_change = True
     category = CONFLICT if has_conflict else GAP_FILL if has_change else UNCHANGED
@@ -217,7 +231,13 @@ def reconcile(
     prune: bool = False,
 ) -> ReconcilePlan:
     changes = [
-        reconcile_user(p, existing.get(p.username), enabled_fields, prune)
+        reconcile_user(
+            p,
+            existing.get(p.username),
+            enabled_fields,
+            prune,
+            existing.get_stored(p.username),
+        )
         for p in proposed_users
     ]
     return ReconcilePlan(changes=changes)

@@ -191,7 +191,7 @@ _JSONDATA_KEYS = {
 
 
 def _prune_users(osw: Any, resolution: Resolution, report: SyncReport) -> None:
-    """Overwrite removed fields of existing items with an empty value."""
+    """Clear removed fields of stored existing items (see clear_jsondata_keys)."""
     updated = set(report.updated)
     for resolved in resolution.resolved:
         if resolved.action != "update":

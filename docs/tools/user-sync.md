@@ -30,10 +30,12 @@ prompt.
 
 To also clean up existing items, add `--prune`. Without it, the sync never
 writes `employment_contract_status` and never removes anything. With it,
-`employment_contract_status` on existing items is overwritten with an empty
-value. So are `website` and `organization`, unless `--with-websites` or
-`--with-organizations` enables them. This happens in a second edit of the
-page's jsondata after the store:
+`employment_contract_status` is removed from the stored jsondata of existing
+items. `website` and `organization` are overwritten with an empty list, unless
+`--with-websites` or `--with-organizations` enables them. This happens in a
+second edit of the page's jsondata after the store. The sync decides from the
+stored jsondata, not from the loaded item, which shows the model default for
+`employment_contract_status`. A second `--prune` run therefore changes nothing:
 
 ```bash
 uv run python examples/user_sync.py --domain your-instance.example.org --prune --dry-run
@@ -62,7 +64,7 @@ only core identity plus email.
 | `--with-organizations` | Also create and link Organization items from ORCID affiliations (opt-in). |
 | `--with-extras` | Enable both websites and organizations. |
 | `--include-blocked` | Do not skip blocked MediaWiki accounts. |
-| `--prune` | Overwrite `employment_contract_status`, and `website` or `organization` when their opt-in flag is not given, on existing items with an empty value, in a second edit of the page's jsondata after the store (default off; a normal run never writes `employment_contract_status` and never removes anything). |
+| `--prune` | Remove `employment_contract_status` from the stored jsondata of existing items, and overwrite `website` or `organization` with an empty list when their opt-in flag is not given, in a second edit of the page's jsondata after the store (default off; a normal run never writes `employment_contract_status` and never removes anything). |
 
 ## What it does
 
@@ -95,9 +97,9 @@ only core identity plus email.
 | --- | --- |
 | `username`, `first_name`, `surname`, `label`, `orcid` | Always (core identity). |
 | `email` | Standard: always attempted; missing email is warned, not fatal; never removed. |
-| `website` | Opt-in (`--with-websites`); without that flag, on existing items overwritten with an empty value only with `--prune`, in a second jsondata edit after the store. |
-| `organization` | Opt-in (`--with-organizations`); without that flag, on existing items overwritten with an empty value only with `--prune`, in a second jsondata edit after the store. |
-| `employment_contract_status` | Never written without `--prune`; with `--prune`, overwritten with an empty value on existing items in a second jsondata edit after the store. |
+| `website` | Opt-in (`--with-websites`); without that flag, on existing items overwritten with an empty list only with `--prune`, in a second jsondata edit after the store. |
+| `organization` | Opt-in (`--with-organizations`); without that flag, on existing items overwritten with an empty list only with `--prune`, in a second jsondata edit after the store. |
+| `employment_contract_status` | Never written without `--prune`; with `--prune`, removed from the stored jsondata of existing items in a second jsondata edit after the store. |
 
 ## Notes
 

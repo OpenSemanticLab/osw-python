@@ -157,6 +157,40 @@ def test_protected_field_removed_when_pruning():
     assert change.category == GAP_FILL
 
 
+def test_protected_default_not_stored_is_not_removed():
+    # The loaded entity shows the model default IRI, the stored page has none.
+    entity = _entity()
+    entity.__iris__ = {"employment_contract_status": "Item:OSWdefault"}
+    change = reconcile_user(
+        _proposed(), entity, prune=True, stored_jsondata={"username": ORCID}
+    )
+    assert [d for d in change.diffs if d.status == REMOVE] == []
+    assert change.category == UNCHANGED
+
+
+def test_protected_field_stored_is_removed_when_pruning():
+    entity = _entity()
+    entity.__iris__ = {"employment_contract_status": "Item:OSWx"}
+    change = reconcile_user(
+        _proposed(),
+        entity,
+        prune=True,
+        stored_jsondata={"employment_contract_status": "Item:OSWx"},
+    )
+    removes = [d.name for d in change.diffs if d.status == REMOVE]
+    assert removes == ["employment_contract_status"]
+
+
+def test_reconcile_uses_the_stored_jsondata_of_the_index():
+    entity = _entity()
+    entity.__iris__ = {"employment_contract_status": "Item:OSWdefault"}
+    existing = ExistingUsers(
+        by_username={ORCID: entity}, stored_jsondata={ORCID: {"username": ORCID}}
+    )
+    plan = reconcile([_proposed()], existing, prune=True)
+    assert plan.changes[0].category == UNCHANGED
+
+
 def test_missing_label_is_gap_fill():
     change = reconcile_user(_proposed(label="Lukas Koschmieder"), _entity(label=None))
     assert change.category == GAP_FILL

@@ -113,8 +113,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--prune",
         dest="prune",
         action="store_true",
-        help="Remove disabled optional fields from existing items and overwrite "
-        "employment_contract_status with an empty value (data cleanup). Off by "
+        help="Overwrite disabled optional fields of existing items with an empty "
+        "list and remove employment_contract_status (data cleanup). Off by "
         "default; a normal run only adds.",
     )
     account_scope = parser.add_mutually_exclusive_group()

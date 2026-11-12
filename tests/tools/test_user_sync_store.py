@@ -365,3 +365,19 @@ def test_clear_jsondata_keys_does_not_add_absent_keys_or_write(monkeypatch):
     assert written is False
     assert page.content == {"website": [], "username": "Alice"}
     assert page.comments == []
+
+
+def test_clear_jsondata_keys_deletes_an_empty_single_valued_key(monkeypatch):
+    page = FakePrunePage({
+        "website": [],
+        "employment_contract_status": [],
+        "username": "Alice",
+    })
+    _patch_page(monkeypatch, page)
+    written = clear_jsondata_keys(
+        SimpleNamespace(site=None),
+        ITEM_TITLE,
+        ["website", "employment_contract_status"],
+    )
+    assert written is True
+    assert page.content == {"website": [], "username": "Alice"}

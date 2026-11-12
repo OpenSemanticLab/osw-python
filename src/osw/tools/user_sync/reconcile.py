@@ -17,6 +17,7 @@ from typing import Any, Dict, FrozenSet, List, Optional
 from .config import PROTECTED_FIELDS
 from .existing import ExistingUsers
 from .mapping import ProposedUser
+from .prune import needs_clearing
 
 NEW = "new"
 GAP_FILL = "gap_fill"
@@ -100,7 +101,9 @@ def _has_protected_value(
     """
     if stored_jsondata is None:
         return _existing_has_iri(entity, name)
-    return not _is_empty(stored_jsondata.get(name))
+    if name not in stored_jsondata:
+        return False
+    return needs_clearing(name, stored_jsondata[name])
 
 
 def existing_fields(entity: Any) -> Dict[str, Any]:

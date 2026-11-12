@@ -270,3 +270,18 @@ def test_placeholder_user_without_username_still_gets_it():
     )
     assert change.category == GAP_FILL
     assert [d.name for d in change.diffs] == ["username"]
+
+
+def test_protected_field_stored_as_empty_list_is_removed_when_pruning():
+    # [] is not a valid value for the single-valued field, so it is removed.
+    entity = _entity()
+    entity.__iris__ = {"employment_contract_status": "Item:OSWdefault"}
+    change = reconcile_user(
+        _proposed(),
+        entity,
+        prune=True,
+        stored_jsondata={"username": ORCID, "employment_contract_status": []},
+    )
+    assert [(d.name, d.status) for d in change.diffs] == [
+        ("employment_contract_status", REMOVE)
+    ]

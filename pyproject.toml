@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
     # registered_credentials(), used to find the wiki of a file without a URL
     "oold>=2.3.0",
-    "opensemantic",
+    "opensemantic>=0.2.5",
     # the file controllers this module wraps
     "opensemantic.core>=0.59.0",
     "opensemantic.base>=0.42.7",

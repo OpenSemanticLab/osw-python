@@ -2044,6 +2044,51 @@ class OSW(BaseModel):
                     overwrite=self.policy,
                 )
 
+    def _check_property_title_unchanged(
+        self, entity: model.Entity, entity_title: str
+    ) -> None:
+        """Raises if a property page with the uuid of 'entity' exists under another
+        title, since writing would create a second property page with that uuid.
+
+        Parameters
+        ----------
+        entity
+            The property entity about to be stored
+        entity_title
+            The full target page title, e.g. 'Property:HasName'
+
+        Raises
+        ------
+        ValueError
+            If the wiki holds the uuid on a differing 'Property:' page
+        """
+        uuid = getattr(entity, "uuid", None)
+        if not uuid:
+            return
+
+        def normalize(full_title: str) -> str:
+            # MediaWiki: '_' equals ' ' and the first character is case-insensitive
+            namespace, _sep, name = full_title.replace("_", " ").partition(":")
+            return f"{namespace}:{name[:1].upper()}{name[1:]}"
+
+        # the base Entity @context maps uuid to the SMW property HasUuid
+        existing = self.site.semantic_search(f"[[HasUuid::{uuid!s}]]")
+        existing = [t for t in existing if t.startswith("Property:")]
+        differing = [t for t in existing if normalize(t) != normalize(entity_title)]
+        if not differing:
+            return
+        existing_str = ", ".join(f"'{t}'" for t in differing)
+        raise ValueError(
+            f"Cannot store property with uuid {uuid}: the wiki already holds it "
+            f"as {existing_str}, but the target title is '{entity_title}'. "
+            "Writing would create a second property page with the same uuid, "
+            "which happens when 'name' (or 'meta.wiki_page.title') changed. "
+            "If a replacement/rename of the property is intended, move the page "
+            f"'{differing[0]}' to '{entity_title}' in the wiki first, then repeat "
+            "the update. Otherwise keep the original 'name', or pass the existing "
+            "title in 'meta.wiki_page.title'."
+        )
+
     @staticmethod
     def _apply_overwrite_policy(param: OSW._ApplyOverwriteParam) -> WtPage:
         if param.inplace:
@@ -2498,6 +2543,8 @@ class OSW(BaseModel):
             if overwrite_class_param is None:
                 raise TypeError("'overwrite_class_param' must not be None!")
             entity_title = namespace_ + ":" + title_
+            if namespace_ == "Property" and param.offline is not True:
+                self._check_property_title_unchanged(entity_, entity_title)
             page = self._apply_overwrite_policy(
                 OSW._ApplyOverwriteParam(
                     page=WtPage(
@@ -2772,18 +2819,14 @@ class OSW(BaseModel):
             comment_:
                 Command for the change log, by default None
             """
-            title_ = None
             namespace_ = None
             if hasattr(entity_, "meta"):
                 if entity_.meta and entity_.meta.wiki_page:
-                    if entity_.meta.wiki_page.title:
-                        title_ = entity_.meta.wiki_page.title
                     if entity_.meta.wiki_page.namespace:
                         namespace_ = entity_.meta.wiki_page.namespace
             if namespace_ is None:
                 namespace_ = get_namespace(entity_)
-            if title_ is None:
-                title_ = OSW.get_osw_id(entity_.uuid)
+            title_ = get_title(entity_)
             if namespace_ is None or title_ is None:
                 _logger.error("Unsupported entity type")
                 return

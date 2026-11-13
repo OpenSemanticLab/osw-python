@@ -1010,3 +1010,46 @@ def test_misspelled_command_option_keeps_clicks_suggestion(runner):
     combined = _usage_error(result)
     assert "--jsondata" in combined
     assert "before the command" not in combined
+
+
+def test_entity_put_reports_the_reason_of_a_failed_store(
+    runner, configured_env, monkeypatch
+):
+    """The CLI shows why store_entity refused, not just the failed titles."""
+    from opensemantic.core.v1 import AnnotationProperty
+
+    from osw.core import OSW
+    from osw.service.ops import entities
+
+    fake_osw = MagicMock()
+    fake_osw.fetch_schema.return_value = MagicMock(error_messages=[])
+    fake_osw.store_entity.side_effect = OSW.StoreEntityPartialError(
+        OSW.StoreEntityResult(
+            change_id="c1",
+            pages={},
+            failed={
+                "Property:NewName": ValueError(
+                    "move the page 'Property:OldName' to 'Property:NewName'"
+                )
+            },
+        )
+    )
+    monkeypatch.setattr("osw.service.context.OswExpress", lambda **kwargs: fake_osw)
+    monkeypatch.setattr(
+        entities, "_resolve_category_class", lambda category: AnnotationProperty
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "entity",
+            "put",
+            "Category:Property",
+            "--jsondata",
+            '{"name": "NewName", "label": [{"text": "x"}]}',
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "move the page" in result.stderr
+    assert "Property:OldName" in result.stderr

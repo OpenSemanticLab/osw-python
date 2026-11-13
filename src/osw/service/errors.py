@@ -127,3 +127,14 @@ class BinaryContent(OpError):
 
     type = "BinaryContent"
     exit_code = 3
+
+
+class StoreFailed(OpError):
+    """``store_entity`` could not store an entity.
+
+    Keeps the wire ``type`` a non-``OpError`` ``StoreEntityPartialError`` had,
+    while the message carries the reason of each failed page.
+    """
+
+    type = "StoreEntityPartialError"
+    exit_code = 1

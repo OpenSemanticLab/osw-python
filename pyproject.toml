@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "oold>=0.15.0",
-    "opensemantic @ git+https://github.com/OpenSemanticWorld-Packages/opensemantic-python@664da4a1a866a9c2b94ce9b3b2dc1c1ed1d5f226",
+    "opensemantic>=0.2.5",
     "opensemantic.core>=0.57.4",
     "opensemantic.base>=0.42.7",
     "pydantic[email]>=2.12.0",
@@ -163,10 +163,6 @@ dev = [
     # automated releases + changelog from conventional commits
     "python-semantic-release>=10.0.0",
 ]
-
-[tool.hatch.metadata]
-# opensemantic is pinned to a git commit until the release carrying get_title lands
-allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 # osw_entry.py must be shipped too: both console scripts point at it.

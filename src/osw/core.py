@@ -32,6 +32,7 @@ from oold.backend.interface import (
     set_resolver,
 )
 from oold.generator import Generator
+from oold.model.v1 import _types as oold_type_registry
 from oold.utils.codegen import OOLDJsonSchemaParser
 from opensemantic.v1 import OswBaseModel
 from pydantic import PydanticDeprecatedSince20
@@ -39,15 +40,6 @@ from pydantic.v1 import BaseModel, Field, PrivateAttr, create_model, validator
 from pyld import jsonld
 
 import osw.model.entity as model
-
-try:
-    # Characteristics of the released opensemantic packages derive from this
-    # class, not from the one in osw.model.entity.
-    from opensemantic.core.v1 import (
-        CharacteristicType as _OpensemanticCharacteristicType,
-    )
-except ImportError:  # pragma: no cover - optional dependency
-    _OpensemanticCharacteristicType = None
 from osw.defaults import params as default_params
 from osw.utils.code_postprocessing import (
     remove_constraints_from_forward_refs,
@@ -58,6 +50,7 @@ from osw.utils.oold import (
     AggregateGeneratedSchemasParamMode,
     aggregate_generated_schemas,
     escape_json_strings,
+    merge_deep,
     merge_generated_definitions,
 )
 from osw.utils.templates import (
@@ -68,6 +61,7 @@ from osw.utils.util import parallelize
 from osw.utils.wiki import (
     get_full_title,
     get_namespace,
+    get_osw_id,
     get_title,
     is_empty,
     namespace_from_full_title,
@@ -210,6 +204,258 @@ def read_file_if_exists(path: str) -> str:
         return f.read()
 
 
+def remove_generated_schema_section(
+    schema: dict, def_key: str = "$defs", gen_def_key: str = "generated"
+) -> dict:
+    """Removes the generated section and the allOf entry that points to it.
+
+    aggregate_generated_schemas() merges into an existing generated section and
+    merge_deep() concatenates arrays, so a stale 'required' entry or 'type' would
+    survive every regeneration. Mirrors osl.util.postProcessPage in PageBot.js of
+    mediawiki-extensions-OpenSemanticLab. Modifies schema in place.
+    """
+    gen_def_pointer = f"#/{def_key}/{gen_def_key}"
+    defs = schema.get(def_key)
+    if isinstance(defs, dict):
+        defs.pop(gen_def_key, None)
+    if isinstance(schema.get("allOf"), list):
+        schema["allOf"] = [
+            entry
+            for entry in schema["allOf"]
+            if not (isinstance(entry, dict) and entry.get("$ref") == gen_def_pointer)
+        ]
+    return schema
+
+
+CATEGORY_CATEGORY_UUID = "89aafe6d-ae5a-4f29-97ff-df7736d4cab6"
+CATEGORY_ENTITY_UUID = "ce353767-c628-45bd-9d88-d6eb3009aec0"
+# the definitions section mode is selected when this template is in the list
+CHARACTERISTIC_TYPE_TITLE = "Category:OSWffe74f291d354037b318c422591c5023"
+
+
+def _title_from_schema_ref(ref: Any) -> Optional[str]:
+    """Page title of a $ref to a category schema, None for any other $ref.
+
+    Accepts '/wiki/Category:X?action=raw&slot=jsonschema' and
+    '.../Special:SlotResolver/Category/X.slot_jsonschema.json'.
+    """
+    if not isinstance(ref, str) or ref.startswith("#"):
+        return None
+    path = ref.split("?")[0]
+    match = re.search(r"/Special:SlotResolver/([^/]+)/(.+)\.slot_[a-z]+\.json$", path)
+    if match:
+        return f"{match.group(1)}:{match.group(2)}"
+    match = re.search(r"/wiki/(Category:[^/]+)$", path)
+    if match:
+        return match.group(1)
+    if re.fullmatch(r"Category:[^/]+", path):
+        return path
+    return None
+
+
+def collect_category_template_titles(
+    get_pages, meta_category_titles: List[str]
+) -> List[str]:
+    """Titles of the category templates the wiki form editor applies.
+
+    Mirrors the editor: the schema of the meta categories is bundled, the uuid of
+    every schema is collected after the schemas below it (allOf, oneOf, anyOf,
+    definitions, $defs, every entry of properties and the items of each property
+    are followed in this order, so the most generic schema comes first) and the
+    result starts with Category:Category. A referenced schema is followed only
+    at its first occurrence, like in a bundled schema.
+    Category:Category and Category:Entity are not collected. Follows
+    osl.util.postProcessPage (PageBot.js) with editor.jsonschema.subschemas_uuids
+    (MwJson_schema.js, _preprocess) in mediawiki-extensions-OpenSemanticLab and
+    mediawiki-extensions-MwJson. A '/wiki/<title>?action=raw' reference is
+    followed only for category pages, e.g. '/wiki/JsonSchema:Label?action=raw'
+    is not followed. A 'Special:SlotResolver' reference is followed for any page.
+
+    Parameters
+    ----------
+    get_pages
+        callable that returns the page objects for a list of titles
+    meta_category_titles
+        titles of the meta categories, e.g. ["Category:Category"]
+    """
+    templates = ["Category:Category"]
+    schema_cache: Dict[str, dict] = {}
+    visited = set()
+
+    def schema_of(title: str) -> dict:
+        if title not in schema_cache:
+            schema = {}
+            for page in get_pages([title]):
+                if page.title == title:
+                    schema = page.get_slot_content("jsonschema") or {}
+            if not schema:
+                _logger.warning(
+                    f"No jsonschema found for {title}. Its templates are not "
+                    "applied, which can select the wrong schema generation mode."
+                )
+            schema_cache[title] = schema
+        return schema_cache[title]
+
+    def walk(schema: Any) -> None:
+        if not isinstance(schema, dict):
+            return
+        ref_title = _title_from_schema_ref(schema.get("$ref"))
+        if ref_title is not None:
+            # a bundled schema is included once, later refs point to it
+            if ref_title not in visited:
+                visited.add(ref_title)
+                walk(schema_of(ref_title))
+            return
+        for key in ("allOf", "oneOf", "anyOf"):
+            sub = schema.get(key)
+            for entry in sub if isinstance(sub, list) else [sub]:
+                walk(entry)
+        for key in ("definitions", "$defs"):
+            if isinstance(schema.get(key), dict):
+                for entry in schema[key].values():
+                    walk(entry)
+        if isinstance(schema.get("properties"), dict):
+            for entry in schema["properties"].values():
+                walk(entry)
+                if isinstance(entry, dict):
+                    walk(entry.get("items"))
+        uuid = schema.get("uuid")
+        if uuid and uuid not in (CATEGORY_CATEGORY_UUID, CATEGORY_ENTITY_UUID):
+            title = "Category:" + get_osw_id(uuid)
+            if title not in templates:
+                templates.append(title)
+
+    for title in meta_category_titles:
+        visited.add(title)
+        walk(schema_of(title))
+    return templates
+
+
+def reset_generated_jsonld_context(
+    schema: Optional[dict], had_generated_section: bool
+) -> None:
+    """Empties the generated first object block of the @context array.
+
+    Port of osl.util.resetGeneratedJsonLdContext in PageBot.js. The generated
+    property mappings are by convention the first object entry of an @context
+    array, the strings before it are parent schema references. Without a generated
+    section the first object block is hand written, so an empty block is inserted
+    ahead of it. A string or object @context is left as it is. Modifies schema in
+    place.
+    """
+    if not schema:
+        return
+    context = schema.get("@context")
+    if not isinstance(context, list):
+        return
+    index = next((i for i, e in enumerate(context) if isinstance(e, dict)), -1)
+    if not had_generated_section:
+        context.insert(len(context) if index == -1 else index, {})
+        return
+    if index != -1:
+        context[index] = {}
+    else:
+        context.append({})
+
+
+def merge_generated_jsonld_context(schema: dict, generated_context: Any) -> None:
+    """Merges the @context of a generated schema into the schema.
+
+    Port of the @context handling of osl.util.postProcessPage in PageBot.js. The
+    generated mappings are merged into the first object block of the @context
+    array only, which reset_generated_jsonld_context() reserved. oold's
+    aggregate_generated_schemas() collapses all object blocks into one, which
+    would fuse a hand written block with the generated one. String entries
+    (parent schema references) of the generated context are appended when new.
+    Modifies schema in place.
+    """
+    existing = schema.get("@context")
+    if isinstance(existing, list):
+        context_list = existing
+    else:
+        context_list = [existing] if existing else []
+    entries = (
+        generated_context
+        if isinstance(generated_context, list)
+        else [generated_context]
+    )
+    generated_object: dict = {}
+    for entry in entries:
+        if isinstance(entry, dict):
+            generated_object = merge_deep(generated_object, entry)
+        elif entry and entry not in context_list:
+            context_list.append(entry)
+    index = next((i for i, e in enumerate(context_list) if isinstance(e, dict)), -1)
+    if index == -1:
+        context_list.append(generated_object)
+    else:
+        context_list[index] = merge_deep(context_list[index], generated_object)
+    schema["@context"] = context_list
+
+
+def strip_root_members_superseded_by_generated(
+    root_schema: dict, generated_schema: dict
+) -> bool:
+    """Removes the root members the generated section defines.
+
+    Port of osl.util.stripRootMembersSupersededByGenerated in PageBot.js. A member
+    declared at root takes precedence over the same member pulled in through
+    allOf, so a copy of the generated members at root would shadow the freshly
+    generated ones. Containers are searched recursively, manual siblings stay.
+    Members that are written to root on purpose are skipped. The allOf entries that
+    the generated section repeats are removed from root. Modifies root_schema in
+    place and returns True when anything was removed.
+    """
+    promoted_to_root = {
+        "title",
+        "title*",
+        "description",
+        "description*",
+        "@context",
+        "$defs",
+        "allOf",
+        "$ref",
+        "$comment",
+    }
+    removed = False
+
+    def strip(target, generated, is_root):
+        nonlocal removed
+        if not isinstance(target, dict) or not isinstance(generated, dict):
+            return
+        for key in list(generated.keys()):
+            if is_root and key in promoted_to_root:
+                continue
+            if key not in target:
+                continue
+            if isinstance(generated[key], dict) and isinstance(target[key], dict):
+                strip(target[key], generated[key], False)
+                if len(target[key]) == 0:
+                    del target[key]
+                    removed = True
+            else:
+                del target[key]
+                removed = True
+
+    strip(root_schema, generated_schema, True)
+
+    generated_allof = generated_schema.get("allOf")
+    generated_allof = generated_allof if isinstance(generated_allof, list) else []
+    if isinstance(root_schema.get("allOf"), list) and generated_allof:
+        generated_refs = [
+            e["$ref"] for e in generated_allof if isinstance(e, dict) and e.get("$ref")
+        ]
+        kept = [
+            e
+            for e in root_schema["allOf"]
+            if not (isinstance(e, dict) and e.get("$ref") in generated_refs)
+        ]
+        if len(kept) != len(root_schema["allOf"]):
+            root_schema["allOf"] = kept
+            removed = True
+    return removed
+
+
 # Reusable type definitions
 class OverwriteOptions(Enum):
     """Options for overwriting properties"""
@@ -242,6 +488,46 @@ class AddOverwriteClassOptions(Enum):
 
 
 OVERWRITE_CLASS_OPTIONS = Union[OverwriteOptions, AddOverwriteClassOptions]
+
+
+def _explicitly_set_empty(entity: OswBaseModel, jsondata: dict) -> dict:
+    """Returns the top-level jsondata entries the caller set to an empty value.
+
+    remove_empty() cannot tell an empty value that was assigned on purpose from
+    one that is merely a default, so it strips both. Assigning an empty value is
+    how a property gets cleared, though: the merge in _apply_overwrite_policy()
+    starts from the remote content, so a local key that was stripped leaves the
+    remote value in place and the property can never be emptied. pydantic records
+    the fields that were explicitly supplied in __fields_set__, which is enough to
+    keep those and drop the rest.
+
+    Parameters
+    ----------
+    entity:
+        The entity the jsondata was serialized from
+    jsondata:
+        The serialized entity, before remove_empty() has been applied
+
+    Returns
+    -------
+    result:
+        The subset of jsondata that is empty but was explicitly set
+    """
+    fields_set = getattr(entity, "__fields_set__", None)
+    if not fields_set:
+        return {}
+    fields = getattr(entity, "__fields__", {})
+    keys = set()
+    for name in fields_set:
+        # json() is called without by_alias, so the key is the field name. Accept
+        # the alias too, so that a field declared with one (model.PrefectFlow
+        # names 'schema_' after 'schema') is matched either way.
+        keys.add(name)
+        if name in fields:
+            keys.add(fields[name].alias)
+    return {
+        key: value for key, value in jsondata.items() if key in keys and is_empty(value)
+    }
 
 
 class OSW(BaseModel):
@@ -631,24 +917,36 @@ class OSW(BaseModel):
         first = True
         last = False
         results = []
-        for schema_title in fetchSchemaParam.schema_title:
-            last = schema_title == fetchSchemaParam.schema_title[-1]
-            mode = fetchSchemaParam.mode
-            if not first:  # 'replace' makes only sense for the first schema
-                mode = "append"
-            res = self._fetch_schema(
-                OSW._FetchSchemaParam(
-                    schema_title=schema_title,
-                    mode=mode,
-                    final=last,
-                    generate_annotations=fetchSchemaParam.generate_annotations,
-                    generator_options=fetchSchemaParam.generator_options,
-                    offline_pages=fetchSchemaParam.offline_pages,
-                    result_model_path=fetchSchemaParam.result_model_path,
+        # the page cache is enabled once for the whole operation, because the same
+        # schema pages are read repeatedly while $refs are resolved. The state is
+        # taken and restored here and not per schema title: _fetch_schema would
+        # snapshot the state its own predecessor has already changed. The restore
+        # runs in a finally block so that an early return or an exception in
+        # _fetch_schema cannot leave the cache enabled for the rest of the process.
+        site_cache_state = self.site.get_cache_enabled()
+        self.site.enable_cache()
+        try:
+            for schema_title in fetchSchemaParam.schema_title:
+                last = schema_title == fetchSchemaParam.schema_title[-1]
+                mode = fetchSchemaParam.mode
+                if not first:  # 'replace' makes only sense for the first schema
+                    mode = "append"
+                res = self._fetch_schema(
+                    OSW._FetchSchemaParam(
+                        schema_title=schema_title,
+                        mode=mode,
+                        final=last,
+                        generate_annotations=fetchSchemaParam.generate_annotations,
+                        generator_options=fetchSchemaParam.generator_options,
+                        offline_pages=fetchSchemaParam.offline_pages,
+                        result_model_path=fetchSchemaParam.result_model_path,
+                    )
                 )
-            )
-            results.append(res)
-            first = False
+                results.append(res)
+                first = False
+        finally:
+            if not site_cache_state:
+                self.site.disable_cache()  # restore original state
 
         # merge unique results and return
         merged_result = OSW.FetchSchemaResult(
@@ -729,9 +1027,13 @@ class OSW(BaseModel):
         ----------
         fetchSchemaParam
             See FetchSchemaParam, by default None
+
+        Notes
+        -----
+        The page cache is enabled and restored by the calling fetch_schema(), not
+        here. This method is called once per schema title and recursively per $ref,
+        so a snapshot taken here would read the state a previous call has set.
         """
-        site_cache_state = self.site.get_cache_enabled()
-        self.site.enable_cache()
         if fetchSchemaParam is None:
             fetchSchemaParam = OSW._FetchSchemaParam()
         schema_title = fetchSchemaParam.schema_title
@@ -1207,8 +1509,6 @@ class OSW(BaseModel):
                 # reload the updated module, restoring the previous content if
                 # the generated model turns out not to be importable
                 reload_module_or_restore(model, result_model_path, previous_content)
-                if not site_cache_state:
-                    self.site.disable_cache()  # restore original state
 
         return OSW.FetchSchemaResult(
             fetched_schema_titles=fetchSchemaParam.fetched_schema_titles,
@@ -1390,44 +1690,136 @@ class OSW(BaseModel):
                 entity = None
                 schemas = []
                 schemas_fetched = True
+                # maps a category (page title, e.g. "Category:OSW...") to the
+                # class to use for it, either an already registered class (e.g. a
+                # packaged model class) or a freshly compiled one
+                category_to_cls: Dict[str, Type[model.Entity]] = {}
                 jsondata = page.get_slot_content("jsondata")
                 if param.remove_empty:
                     remove_empty(jsondata)
                 if jsondata:
                     for category in jsondata["type"]:
-                        schema = (
-                            self.site
-                            .get_page(
-                                WtSite.GetPageParam(
-                                    titles=[category], offline_pages=param.offline_pages
-                                )
-                            )
-                            .pages[0]
-                            .get_slot_content("jsonschema")
-                        )
-                        schemas.append(schema)
-                        # generate model if not already exists
-                        cls_name: str = schema["title"]
-                        # If a schema_to_use is provided, we do not need to check if
-                        #  the model exists
-                        if not param.model_to_use:
-                            if not hasattr(model, cls_name):
-                                if param.autofetch_schema:
-                                    self.fetch_schema(
-                                        OSW.FetchSchemaParam(
-                                            schema_title=category,
-                                            mode="append",
-                                            offline_pages=param.offline_pages,
-                                        )
+                        # one unusable category must not end the whole call
+                        try:
+                            schema = (
+                                self.site
+                                .get_page(
+                                    WtSite.GetPageParam(
+                                        titles=[category],
+                                        offline_pages=param.offline_pages,
                                     )
-                            if not hasattr(model, cls_name):
-                                schemas_fetched = False
-                                _logger.error(
-                                    f"Model {cls_name} not found. Schema {category} "
-                                    f"needs to be fetched first."
                                 )
+                                .pages[0]
+                                .get_slot_content("jsonschema")
+                            )
+                            schemas.append(schema)
+                            # generate model if not already exists
+                            cls_name: str = schema["title"]
+                            # If a schema_to_use is provided, we do not need to check if
+                            #  the model exists
+                            if not param.model_to_use:
+                                # Prefer a class already registered for this category
+                                # IRI (e.g. a packaged model class) over compiling a
+                                # new one. Compiling one anyway would take over the
+                                # oold type registry entry for this category and hide
+                                # the packaged class' typed fields/helpers.
+                                registered_cls = oold_type_registry.get(category)
+                                # Controllers and result wrappers (e.g.
+                                #  WikiFileController, UploadFileResult) inherit
+                                #  their category IRI from the model class they
+                                #  extend, and the registry keeps whichever class
+                                #  was defined last. Such a specialization asks for
+                                #  fields a plain page's jsondata does not carry, so
+                                #  prefer the canonical class from osw.model.entity
+                                #  over a subclass of it.
+                                canonical_cls = getattr(model, cls_name, None)
+                                if (
+                                    registered_cls is not None
+                                    # the schema title can also name a module
+                                    #  attribute that is not a class
+                                    and isinstance(canonical_cls, type)
+                                    and registered_cls is not canonical_cls
+                                    and issubclass(registered_cls, canonical_cls)
+                                ):
+                                    _logger.debug(
+                                        f"Ignoring '{registered_cls}' registered for "
+                                        f"category '{category}': it specializes "
+                                        f"'{canonical_cls}', which is used instead."
+                                    )
+                                    registered_cls = None
+                                if registered_cls is not None:
+                                    category_to_cls[category] = registered_cls
+                                else:
+                                    if not hasattr(model, cls_name):
+                                        if param.autofetch_schema:
+                                            self.fetch_schema(
+                                                OSW.FetchSchemaParam(
+                                                    schema_title=category,
+                                                    mode="append",
+                                                    offline_pages=param.offline_pages,
+                                                )
+                                            )
+                                    if not hasattr(model, cls_name):
+                                        schemas_fetched = False
+                                        _logger.error(
+                                            f"Model {cls_name} not found. Schema "
+                                            f"{category} needs to be fetched first."
+                                        )
+                                    else:
+                                        generated_cls = getattr(model, cls_name)
+                                        # The class we are about to use may have just
+                                        # claimed (or may already hold) the registry
+                                        # slot for this category. If a different class
+                                        # is registered for it, someone's registration
+                                        # was silently overwritten - do not raise, but
+                                        # make sure this does not pass silently.
+                                        conflicting_cls = oold_type_registry.get(
+                                            category
+                                        )
+                                        if (
+                                            conflicting_cls is not None
+                                            and conflicting_cls is not generated_cls
+                                            # the slot holder specializes
+                                            #  generated_cls, e.g. a controller
+                                            #  that inherits the category IRI:
+                                            #  the case the guard above expects,
+                                            #  not a conflict. A fetch can leave
+                                            #  a non-class under the schema title.
+                                            and not (
+                                                isinstance(generated_cls, type)
+                                                and issubclass(
+                                                    conflicting_cls, generated_cls
+                                                )
+                                            )
+                                        ):
+                                            _logger.warning(
+                                                f"Class '{generated_cls}' generated for "
+                                                f"category '{category}' claims the oold "
+                                                f"type registry slot already held by a "
+                                                f"different class '{conflicting_cls}'."
+                                            )
+                                        category_to_cls[category] = generated_cls
+                        except Exception as e:
+                            schemas_fetched = False
+                            _logger.error(
+                                f"Error reading the schema of category "
+                                f"{category} for page {page.title}: {e}"
+                            )
+                            continue
                 if not schemas_fetched:
                     continue
+                # fetch_schema() reloads osw.model.entity, which replaces every
+                #  class defined there, so a class picked before a later fetch in
+                #  the loop above may be out of date: take the current object
+                for category, chosen_cls in category_to_cls.items():
+                    # a non-class is left for the construction below to reject
+                    if (
+                        isinstance(chosen_cls, type)
+                        and chosen_cls.__module__ == model.__name__
+                    ):
+                        category_to_cls[category] = getattr(
+                            model, chosen_cls.__name__, chosen_cls
+                        )
 
                 try:
                     if param.model_to_use:
@@ -1437,13 +1829,15 @@ class OSW(BaseModel):
                         _logger.error("no schema defined")
 
                     elif len(schemas) == 1:
-                        cls: Type[model.Entity] = getattr(model, schemas[0]["title"])
+                        # category_to_cls is fully populated for every category
+                        # that reached this point (see the loop above)
+                        cls: Type[model.Entity] = category_to_cls[jsondata["type"][0]]
                         entity: model.Entity = cls(**jsondata)
 
                     else:
                         bases = []
-                        for schema in schemas:
-                            bases.append(getattr(model, schema["title"]))
+                        for category in jsondata["type"]:
+                            bases.append(category_to_cls[category])
                         cls = create_model("Test", __base__=tuple(bases))
                         entity: model.Entity = cls(**jsondata)
                 except Exception as e:
@@ -1570,6 +1964,19 @@ class OSW(BaseModel):
                     f"'{self.overwrite.value}', which acts on the entity as a "
                     f"whole. Use an OverwriteOptions value for 'overwrite'."
                 )
+            if self.per_property:
+                unknown = [
+                    key for key in self.per_property if key not in self.model.__fields__
+                ]
+                if unknown:
+                    # validate_per_property() only runs at construction and when
+                    # 'per_property' itself is assigned. Reassigning 'model' would
+                    # otherwise just drop the now-unknown keys from the rebuilt
+                    # mapping, leaving a setting that silently never applies.
+                    raise ValueError(
+                        f"Property not found in model '{self.model.__name__}': "
+                        f"{', '.join(unknown)}"
+                    )
             per_property_ = self.per_property or {}
             self._per_property = {
                 field_name: per_property_.get(field_name, self.overwrite)
@@ -1757,7 +2164,14 @@ class OSW(BaseModel):
         # We want those not to be listed as keys
         local_content["jsondata"] = json.loads(param.entity.json(exclude_none=True))
         if param.remove_empty:
+            # an empty value the caller assigned on purpose is how a property gets
+            # cleared, so it has to survive remove_empty() and reach the merge
+            # below, where step c) can let it win over the remote value
+            explicitly_set_empty = _explicitly_set_empty(
+                param.entity, local_content["jsondata"]
+            )
             remove_empty(local_content["jsondata"])
+            local_content["jsondata"].update(explicitly_set_empty)
         if param.debug:
             _logger.debug(f"'local_content': {local_content!s}")
         # Apply the overwrite logic
@@ -1826,9 +2240,28 @@ class OSW(BaseModel):
         overwrite_per_class: Optional[List[OSW.OverwriteClassParam]] = None
         """A list of OverwriteClassParam objects. If a class specific overwrite setting
         is set, this setting is used.
+
+        Each object is copied when it is validated into this parameter, so it is a
+        snapshot taken here: configure a policy fully before passing it, since
+        mutating it afterwards no longer affects this StoreEntityParam.
+
+        A class is identified by its OSW type. A subclass that does not redefine
+        'type' therefore shares its parent's policy and cannot be given one of its
+        own. Generated model classes always redefine it; hand-written subclasses
+        such as the file controllers do not.
         """
         remove_empty: Optional[bool] = True
-        """If true, remove key with an empty string value from the jsondata."""
+        """If true, remove key with an empty string value from the jsondata.
+
+        A top-level property that was explicitly assigned an empty value is kept
+        rather than stripped, so that '', [] or {} reaches the merge. Whether it
+        then clears the stored value still depends on the overwrite setting for
+        that property: 'true' clears it, 'only empty' clears it only if the stored
+        value is empty too, and 'false' (or 'keep existing', the default) leaves
+        the stored value in place.
+
+        Assign None instead of an empty value for 'not known', otherwise the
+        property is cleared on the wiki."""
         change_id: Optional[str] = None
         """ID to document the change. Entities within the same store_entity() call will
         share the same change_id. This parameter can also be used to link multiple
@@ -1851,11 +2284,9 @@ class OSW(BaseModel):
         seconds later if a page is reported as missing. If the query itself fails,
         the pages are reported as stored and an error is logged. Has no effect if
         'offline' is True."""
-        _overwrite_per_class: Dict[str, Dict[str, OSW.OverwriteClassParam]] = (
-            PrivateAttr()
-        )
-        """Private attribute, for internal use only. Use 'overwrite_per_class'
-        instead."""
+        _overwrite_per_class: Dict[str, OSW.OverwriteClassParam] = PrivateAttr()
+        """Private attribute, for internal use only. Maps the OSW type of a model
+        class to its policy. Use 'overwrite_per_class' instead."""
 
         def __init__(self, **data):
             super().__init__(**data)
@@ -1881,22 +2312,32 @@ class OSW(BaseModel):
                 )
             if self.overwrite is None:
                 self.overwrite = self.__fields__["overwrite"].get_default()
-            self._overwrite_per_class = {"by name": {}, "by type": {}}
+            self._overwrite_per_class = {}
             if self.overwrite_per_class is not None:
                 for param in self.overwrite_per_class:
-                    model_name = param.model.__name__
                     model_type = param.model.__fields__["type"].get_default()[0]
-                    if (
-                        model_name in self._overwrite_per_class["by name"].keys()
-                        or model_type in self._overwrite_per_class["by type"].keys()
-                    ):
+                    declared = self._overwrite_per_class.get(model_type)
+                    if declared is not None:
+                        other = declared.model
+                        detail = ""
+                        # issubclass(X, X) is True, so the same class declared
+                        # twice would otherwise be blamed on inheritance
+                        if param.model is not other and (
+                            issubclass(param.model, other)
+                            or issubclass(other, param.model)
+                        ):
+                            detail = (
+                                " A subclass that does not redefine 'type' inherits "
+                                "it, so store_entity() cannot tell the two apart. "
+                                "Declare a single OverwriteClassParam for both."
+                            )
                         raise ValueError(
-                            f"More than one OverwriteClassParam for the class "
-                            f"'{model_type}' ({model_name}) has been passed in the "
-                            f"list to 'overwrite_per_class'!"
+                            f"More than one OverwriteClassParam for the type "
+                            f"'{model_type}' has been passed in the list to "
+                            f"'overwrite_per_class': '{other.__name__}' and "
+                            f"'{param.model.__name__}'.{detail}"
                         )
-                    self._overwrite_per_class["by name"][model_name] = param
-                    self._overwrite_per_class["by type"][model_type] = param
+                    self._overwrite_per_class[model_type] = param
 
     class StoreEntityResult(OswBaseModel):
         """Result of store_entity()"""
@@ -1904,8 +2345,13 @@ class OSW(BaseModel):
         change_id: str
         """The ID of the change"""
         pages: Dict[str, WtPage]
-        """The pages that have been successfully stored, keyed by full page title.
-        On partial failure this contains only the successfully-stored pages."""
+        """The pages that have been successfully processed, keyed by full page title.
+        On partial failure this contains only the successfully-processed pages.
+        Includes the pages listed in 'skipped', which were left untouched."""
+        skipped: Dict[str, WtPage] = {}
+        """Existing pages that were not written because the applicable overwrite
+        setting was 'keep existing', keyed by full page title. These also appear in
+        'pages'; subtract them to get the pages that were actually written."""
         failed: Dict[str, Exception] = {}
         """Entities that could not be stored, mapped to the exception that caused the
         failure. Empty on full success. The key is the full page title where one could
@@ -1920,13 +2366,20 @@ class OSW(BaseModel):
         """Raised by store_entity() when one or more entities could not be stored.
 
         Carries the partial ``StoreEntityResult`` so callers can learn exactly which
-        entities were written (``stored`` / ``result.pages``) and which failed
-        (``failed`` / ``result.failed``) without a separate existence query.
+        entities were written (``stored``), which existed already and were left
+        untouched by 'keep existing' (``skipped``), and which failed (``failed`` /
+        ``result.failed``) without a separate existence query.
         """
 
         def __init__(self, result: OSW.StoreEntityResult):
             self.result = result
-            self.stored = list(result.pages.keys())
+            # a page kept by 'keep existing' was not written, so it does not
+            # belong in 'stored'. 'result.pages' still lists it, for callers
+            # that only care about which entities are on the wiki afterwards.
+            self.skipped = list(result.skipped.keys())
+            self.stored = [
+                title for title in result.pages if title not in result.skipped
+            ]
             self.failed = result.failed
             total = len(result.pages) + len(result.failed)
             failed_titles = ", ".join(result.failed.keys())
@@ -2024,37 +2477,39 @@ class OSW(BaseModel):
 
         max_index = len(param.entities)
         created_pages = {}
+        skipped_pages = {}
         edited_titles = set()
         """Titles of the pages an edit was sent for, to be verified below."""
 
         meta_category_templates = {}
+        definitions_section = False
         if param.namespace == "Category":
             meta_category_titles = param.meta_category_title
             if not isinstance(meta_category_titles, list):
                 meta_category_titles = [meta_category_titles]
-            meta_category_template_strs = {}
-            # We have to do this iteratively to support meta categories inheritance
-            while meta_category_titles is not None and len(meta_category_titles) > 0:
-                meta_categories = self.site.get_page(
-                    WtSite.GetPageParam(titles=meta_category_titles)
-                ).pages
-                for meta_category in meta_categories:
-                    meta_category_template_strs[meta_category.title] = (
-                        meta_category.get_slot_content("schema_template")
-                    )
 
-                meta_category_titles = meta_category.get_slot_content("jsondata").get(
-                    "subclass_of"
-                )
+            def get_pages(titles):
+                return self.site.get_page(WtSite.GetPageParam(titles=titles)).pages
 
-            for title in meta_category_template_strs.keys():
-                meta_category_template_str = meta_category_template_strs[title]
-                if meta_category_template_str:
-                    meta_category_templates[title] = compile_handlebars_template(
-                        meta_category_template_str
+            # The templates follow the allOf chain of the schema of the meta
+            # categories, like the form editor does. subclass_of is not used:
+            # Category:Category has no subclass_of but an allOf to CharacteristicType
+            template_titles = collect_category_template_titles(
+                get_pages, meta_category_titles
+            )
+            for page in get_pages(template_titles):
+                template_str = page.get_slot_content("schema_template")
+                if template_str:
+                    meta_category_templates[page.title] = compile_handlebars_template(
+                        template_str
                     )
-            # inverse order to have the most generic template first
-            meta_category_templates = dict(reversed(meta_category_templates.items()))
+            definitions_section = CHARACTERISTIC_TYPE_TITLE in template_titles
+            # keep the order of the list, the most generic template first
+            meta_category_templates = {
+                t: meta_category_templates[t]
+                for t in template_titles
+                if t in meta_category_templates
+            }
 
         def store_entity_(
             entity_: model.Entity,
@@ -2138,28 +2593,43 @@ class OSW(BaseModel):
                     )
 
                 mode = AggregateGeneratedSchemasParamMode.ROOT_LEVEL
-                # Put generated schema in definitions section,
-                #  currently only enabled for Characteristics. The class is
-                #  either the locally generated one or the one shipped by the
-                #  opensemantic packages, depending on where the model is from.
-                characteristic_types = tuple(
-                    t
-                    for t in (
-                        getattr(model, "CharacteristicType", None),
-                        _OpensemanticCharacteristicType,
-                    )
-                    if t is not None
-                )
-                if characteristic_types and isinstance(entity_, characteristic_types):
+                # Put the generated schema in the definitions section when the
+                # templates include CharacteristicType, like the form editor does.
+                if definitions_section:
                     mode = AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
+                definitions = (
+                    mode == AggregateGeneratedSchemasParamMode.DEFINITIONS_SECTION
+                )
 
+                stored_schema = page.get_slot_content("jsonschema") or {}
+                # Regenerate the generated section from scratch. Skip this when
+                # the generation failed, so the stored section is kept.
+                if definitions and len(generated_schemas) > 0:
+                    reset_generated_jsonld_context(
+                        stored_schema,
+                        isinstance(stored_schema.get("$defs"), dict)
+                        and "generated" in stored_schema["$defs"],
+                    )
+                    remove_generated_schema_section(stored_schema)
+                if definitions:
+                    for generated_schema in generated_schemas.values():
+                        if "@context" in generated_schema:
+                            merge_generated_jsonld_context(
+                                stored_schema, generated_schema.pop("@context")
+                            )
                 new_schema = aggregate_generated_schemas(
                     AggregateGeneratedSchemasParam(
-                        schema=page.get_slot_content("jsonschema"),
+                        target_schema=stored_schema,
                         generated_schemas=generated_schemas,
                         mode=mode,
                     )
                 ).aggregated_schema
+                if definitions and isinstance(
+                    (new_schema.get("$defs") or {}).get("generated"), dict
+                ):
+                    strip_root_members_superseded_by_generated(
+                        new_schema, new_schema["$defs"]["generated"]
+                    )
                 page.set_slot_content("jsonschema", new_schema)
             if param.offline is False and not kept_existing:
                 page.edit(
@@ -2175,6 +2645,8 @@ class OSW(BaseModel):
                         f"'{page.get_url()}'."
                     )
             created_pages[page.title] = page
+            if kept_existing:
+                skipped_pages[page.title] = page
 
         sorted_entities = OSW.sort_list_of_entities_by_class(param.entities)
         _logger.info(
@@ -2197,7 +2669,7 @@ class OSW(BaseModel):
         upload_index = 0
         for class_type, entities in sorted_entities.by_type.items():
             # Try to get a class specific overwrite setting
-            class_param = param._overwrite_per_class["by type"].get(class_type, None)
+            class_param = param._overwrite_per_class.get(class_type, None)
             if class_param is None:
                 entity_model = entities[0].__class__
                 class_param = OSW.OverwriteClassParam(
@@ -2300,7 +2772,10 @@ class OSW(BaseModel):
                 del created_pages[title]
 
         store_result = OSW.StoreEntityResult(
-            change_id=param.change_id, pages=created_pages, failed=failed
+            change_id=param.change_id,
+            pages=created_pages,
+            skipped=skipped_pages,
+            failed=failed,
         )
         if failed:
             # Surface partial/total failure so callers cannot mistake a dropped

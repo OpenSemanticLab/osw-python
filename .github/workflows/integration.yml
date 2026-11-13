@@ -2,16 +2,17 @@
 # INTEGR_TEST_* secrets; where they are unavailable (e.g. forks), the
 # credential fixtures make the tests skip instead of fail.
 #
-# Runs on every pull request into main, so breaking changes surface before the
-# release job (gated separately by required review on the pypi environment)
-# ever starts. No push trigger: a push to main is already covered by the PR
-# that preceded it, so a second run would add nothing.
+# Runs on every pull request into main or stage, so breaking changes surface
+# before the release job (gated separately by required review on the pypi
+# environment) ever starts. stage collects reviewed pull requests before they
+# go to main together. No push trigger: a push to main is already covered by
+# the PR that preceded it, so a second run would add nothing.
 
 name: Integration
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, stage]
   workflow_dispatch:
 
 concurrency:

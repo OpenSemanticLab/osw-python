@@ -1,0 +1,586 @@
+{
+  "Category:OSW37a57741ae2e4dd4b29b1172b6848be8": {
+    "jsondata": {
+      "subclass_of": [
+        "Category:Item"
+      ],
+      "type": [
+        "Category:Category"
+      ],
+      "label": [
+        {
+          "text": "Physical Item",
+          "lang": "en"
+        },
+        {
+          "text": "Physischer Gegenstand",
+          "lang": "de"
+        }
+      ],
+      "uuid": "37a57741-ae2e-4dd4-b29b-1172b6848be8",
+      "description": [
+        {
+          "text": "Physical item as opposed to intangible item. It can posses properties such as position, geometry, weight, volume , etc.  ",
+          "lang": "en"
+        },
+        {
+          "text": "Physischer Gegenstand im Gegensatz zu immateriellen Gegenständen. Er kann Eigenschaften wie Position, Geometrie, Gewicht, Volumen usw. besitzen.  ",
+          "lang": "de"
+        }
+      ],
+      "name": "PhysicalItem",
+      "metaclass": [
+        "Category:OSWca99a9bb9ad24386b222d18a73c2af5e"
+      ],
+      "utf8_icon": [
+        "🪨"
+      ],
+      "characteristics": [
+        "Category:OSW42d82cfc0c304ca48b21e72557a5472f"
+      ]
+    },
+    "jsonschema": {
+      "@context": [
+        "/wiki/Category:Item?action=raw&slot=jsonschema",
+        {
+          "data_sheet": {
+            "@id": "Property:HasDataSheet",
+            "@type": "@id"
+          },
+          "instructions": {
+            "@id": "Property:HasInstructions",
+            "@type": "@id"
+          },
+          "manual": {
+            "@id": "Property:HasManual",
+            "@type": "@id"
+          },
+          "manufacturer": {
+            "@id": "Property:HasManufacturer",
+            "@type": "@id"
+          },
+          "origin": {
+            "@id": "Property:HasStatement",
+            "@type": "@id",
+            "@context": {
+              "origin_item_instance_property": "Property:HasProperty",
+              "origin_item_instance": "Property:HasObject"
+            }
+          },
+          "quantity_statements": {
+            "@id": "Property:HasStatement",
+            "@type": "@id"
+          },
+          "safety_data_sheet": {
+            "@id": "Property:HasSafetyDataSheet",
+            "@type": "@id"
+          },
+          "serial_number": "Property:HasSerialNumber",
+          "type_no": "Property:HasTypeNumber"
+        },
+        "/wiki/Category:OSW42d82cfc0c304ca48b21e72557a5472f?action=raw&slot=jsonschema",
+        {}
+      ],
+      "allOf": [
+        {
+          "$ref": "/wiki/Category:Item?action=raw&slot=jsonschema"
+        },
+        {
+          "$ref": "#/$defs/generated"
+        }
+      ],
+      "type": "object",
+      "uuid": "37a57741-ae2e-4dd4-b29b-1172b6848be8",
+      "title": "PhysicalItem",
+      "title*": {
+        "en": "Physical Item",
+        "de": "Physischer Gegenstand"
+      },
+      "description": "Physical item as opposed to intangible item. It can posses properties such as position, geometry, weight, volume , etc.  ",
+      "description*": {
+        "en": "Physical item as opposed to intangible item. It can posses properties such as position, geometry, weight, volume , etc.  ",
+        "de": "Physischer Gegenstand im Gegensatz zu immateriellen Gegenständen. Er kann Eigenschaften wie Position, Geometrie, Gewicht, Volumen usw. besitzen.  "
+      },
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "default": [
+            "Category:OSW37a57741ae2e4dd4b29b1172b6848be8"
+          ]
+        },
+        "quantity_statements": {
+          "type": "array",
+          "format": "tabs",
+          "title": "Quantitative statement(s)",
+          "title*": {
+            "de": "Quantitative Aussage(n)"
+          },
+          "eval_template": {
+            "type": "mustache-wikitext",
+            "mode": "render",
+            "value": "{{#quantity_statements}}.. {{#quantity}}[[{{quantity}}]]{{/quantity}} {{#value}}{{value}}{{/value}}<br>{{/quantity_statements}}"
+          },
+          "items": {
+            "$ref": "/wiki/JsonSchema:QuantityProperty?action=raw"
+          }
+        },
+        "origin": {
+          "type": "array",
+          "format": "table",
+          "title": "Origin",
+          "title*": {
+            "de": "Ursprung"
+          },
+          "description": "Other physical item(s) that this physical item was derived from.",
+          "description*": {
+            "de": "Andere(r) physische(r) Gegenstand/Gegenstände aus der dieser physische Gegenstand hergestellt wurde."
+          },
+          "options": {
+            "enable_array_copy": true,
+            "array_copy_ignore": [
+              "uuid",
+              "attachments"
+            ]
+          },
+          "eval_template": [
+            {
+              "type": "mustache-wikitext",
+              "mode": "render",
+              "value": "{{=<% %>=}} <ul><%#origin%><li>[[<%origin_item_instance%>]] ({{#switch:{{USERLANGUAGECODE}}|en=Type|de=Typ|#default=Type}}: {{#ask:[[<%origin_item_instance%>]]|?HasType=|format=plain|mainlabel=-}})</li><%/origin%></ul>"
+            }
+          ],
+          "items": {
+            "type": "object",
+            "format": "grid-strict",
+            "title": "Other physical Item",
+            "title*": {
+              "de": "Anderer physischer Gegenstand"
+            },
+            "id": "origin_item",
+            "headerTemplate": "{{ i1 }}",
+            "defaultProperties": [],
+            "required": [
+              "uuid",
+              "origin_item_type",
+              "origin_item_instance_property",
+              "origin_item_instance"
+            ],
+            "properties": {
+              "uuid": {
+                "type": "string",
+                "dynamic_template": "{{_uuid_}}",
+                "options": {
+                  "hidden": true,
+                  "dynamic_template": {
+                    "override": "empty"
+                  }
+                }
+              },
+              "origin_item_type": {
+                "title": "Type",
+                "title*": {
+                  "de": "Typ"
+                },
+                "type": "string",
+                "format": "autocomplete",
+                "range": "Category:Category",
+                "options": {
+                  "autocomplete": {
+                    "$comment": "Tool",
+                    "query": "[[:Category:OSW37a57741ae2e4dd4b29b1172b6848be8]]OR[[SubClassOf::Category:OSW37a57741ae2e4dd4b29b1172b6848be8]]OR[[SubClassOf.SubClassOf::Category:OSW37a57741ae2e4dd4b29b1172b6848be8]]OR[[SubClassOf.SubClassOf.SubClassOf::Category:OSW37a57741ae2e4dd4b29b1172b6848be8]]OR[[SubClassOf.SubClassOf.SubClassOf.SubClassOf::Category:OSW37a57741ae2e4dd4b29b1172b6848be8]]OR[[SubClassOf.SubClassOf.SubClassOf.SubClassOf.SubClassOf::Category:OSW37a57741ae2e4dd4b29b1172b6848be8]]"
+                  },
+                  "grid_columns": 12
+                },
+                "default": "Category:OSW37a57741ae2e4dd4b29b1172b6848be8",
+                "propertyOrder": 40
+              },
+              "origin_item_instance_property": {
+                "type": "string",
+                "default": "Property:HasOrigin",
+                "options": {
+                  "hidden": true
+                }
+              },
+              "origin_item_instance": {
+                "title": "Instance",
+                "title*": {
+                  "de": "Instanz"
+                },
+                "type": "string",
+                "format": "autocomplete",
+                "range": "Category:OSW37a57741ae2e4dd4b29b1172b6848be8",
+                "watch": {
+                  "origin_item_type_": "origin_item.origin_item_type"
+                },
+                "options": {
+                  "autocomplete": {
+                    "query": "[[HasType::$(origin_item_type_)]]|?Display_title_of=label|?HasImage=image|?HasDescription=description"
+                  },
+                  "grid_columns": 12
+                },
+                "propertyOrder": 50
+              }
+            }
+          }
+        },
+        "type_no": {
+          "allOf": [
+            {
+              "$ref": "/wiki/JsonSchema:TypeNumber?action=raw&slot=main"
+            }
+          ]
+        },
+        "manufacturer": {
+          "allOf": [
+            {
+              "$ref": "/wiki/JsonSchema:Manufacturer?action=raw&slot=main"
+            }
+          ]
+        },
+        "data_sheet": {
+          "$ref": "/wiki/JsonSchema:DataSheet?action=raw&slot=main"
+        },
+        "safety_data_sheet": {
+          "$ref": "/wiki/JsonSchema:SafetyDataSheet?action=raw&slot=main"
+        },
+        "manual": {
+          "$ref": "/wiki/JsonSchema:Manual?action=raw&slot=main"
+        },
+        "instructions": {
+          "$ref": "/wiki/JsonSchema:Instructions?action=raw&slot=main"
+        }
+      },
+      "$defs": {
+        "generated": {
+          "$comment": "Autogenerated section - do not edit. Generated from Category:Category Category:OSWffe74f291d354037b318c422591c5023",
+          "allOf": [
+            {
+              "$ref": "/wiki/Category:Item?action=raw&slot=jsonschema"
+            },
+            {
+              "$ref": "/wiki/Category:OSW42d82cfc0c304ca48b21e72557a5472f?action=raw&slot=jsonschema"
+            }
+          ],
+          "type": "object",
+          "uuid": "37a57741-ae2e-4dd4-b29b-1172b6848be8",
+          "title": "GeneratedPhysicalItem",
+          "title*": {
+            "en": "Physical Item",
+            "de": "Physischer Gegenstand"
+          },
+          "description": "This is an autogenerated partial class definition of 'PhysicalItem'",
+          "description*": {
+            "en": "Physical item as opposed to intangible item. It can posses properties such as position, geometry, weight, volume , etc.  ",
+            "de": "Physischer Gegenstand im Gegensatz zu immateriellen Gegenständen. Er kann Eigenschaften wie Position, Geometrie, Gewicht, Volumen usw. besitzen.  "
+          },
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "default": [
+                "Category:OSW37a57741ae2e4dd4b29b1172b6848be8"
+              ]
+            }
+          },
+          "defaultProperties": [
+            "type"
+          ]
+        }
+      }
+    },
+    "revision": {
+      "revid": 129378,
+      "parentid": 113874,
+      "user": "Lukas Gold",
+      "timestamp": "2026-07-20T10:38:01Z"
+    }
+  },
+  "Category:OSWca99a9bb9ad24386b222d18a73c2af5e": {
+    "jsondata": {
+      "subclass_of": [
+        "Category:Category"
+      ],
+      "type": [
+        "Category:Category"
+      ],
+      "uuid": "ca99a9bb-9ad2-4386-b222-d18a73c2af5e",
+      "label": [
+        {
+          "text": "Physical Item Type",
+          "lang": "en"
+        }
+      ],
+      "description": [
+        {
+          "text": "Helps to create subcategories of PhysicalItem",
+          "lang": "en"
+        }
+      ],
+      "name": "PhysicalItemType"
+    },
+    "jsonschema": {
+      "@context": [
+        "/wiki/Category:Category?action=raw&slot=jsonschema",
+        {
+          "constituents": {
+            "@type": "@id",
+            "@id": "Property:HasStatement",
+            "@context": {
+              "property": "Property:HasProperty",
+              "type": "Property:HasValue"
+            }
+          },
+          "data_sheet": {
+            "@id": "Property:HasDataSheet",
+            "@type": "@id"
+          },
+          "instructions": {
+            "@id": "Property:HasInstructions",
+            "@type": "@id"
+          },
+          "manual": {
+            "@id": "Property:HasManual",
+            "@type": "@id"
+          },
+          "manufacturer": {
+            "@id": "Property:HasManufacturer",
+            "@type": "@id"
+          },
+          "safety_data_sheet": {
+            "@id": "Property:HasSafetyDataSheet",
+            "@type": "@id"
+          },
+          "type_no": "Property:HasTypeNumber"
+        }
+      ],
+      "allOf": [
+        {
+          "$ref": "/wiki/Category:Category?action=raw&slot=jsonschema"
+        }
+      ],
+      "type": "object",
+      "uuid": "ca99a9bb-9ad2-4386-b222-d18a73c2af5e",
+      "title": "PhysicalItemType",
+      "title*": {
+        "en": "Physical Item Type"
+      },
+      "description": "Helps to create subcategories of PhysicalItem",
+      "description*": {
+        "en": "Helps to create subcategories of PhysicalItem"
+      },
+      "required": [
+        "type"
+      ],
+      "defaultPropertis": [
+        "type_no",
+        "manufacturer",
+        "data_sheet",
+        "safety_data_sheet",
+        "supply",
+        "specifications"
+      ],
+      "properties": {
+        "type": {
+          "default": [
+            "Category:OSWca99a9bb9ad24386b222d18a73c2af5e"
+          ]
+        },
+        "type_no": {
+          "$ref": "/wiki/JsonSchema:TypeNumber?action=raw&slot=main"
+        },
+        "manufacturer": {
+          "$ref": "/wiki/JsonSchema:Manufacturer?action=raw&slot=main"
+        },
+        "data_sheet": {
+          "$ref": "/wiki/JsonSchema:DataSheet?action=raw&slot=main"
+        },
+        "safety_data_sheet": {
+          "$ref": "/wiki/JsonSchema:SafetyDataSheet?action=raw&slot=main"
+        },
+        "instructions": {
+          "$ref": "/wiki/JsonSchema:Instructions?action=raw&slot=main"
+        },
+        "manual": {
+          "$ref": "/wiki/JsonSchema:Manual?action=raw&slot=main"
+        },
+        "supply": {
+          "title": "Supply",
+          "title*": {
+            "de": "Bezugsmöglichkeit"
+          },
+          "description": "Supply of the material with supplier, article no. and link",
+          "description*": {
+            "de": "Bezugsmöglichkeit des Materials mit Lieferant, Artikelnummer und Link"
+          },
+          "type": "array",
+          "format": "table",
+          "items": {
+            "title": "Supply",
+            "title*": {
+              "de": "Bezugsmöglichkeit"
+            },
+            "type": "object",
+            "properties": {
+              "supplier": {
+                "title": "Supplier",
+                "title*": {
+                  "de": "Lieferant"
+                },
+                "type": "string",
+                "format": "autocomplete",
+                "options": {
+                  "autocomplete": {
+                    "category": "Category:OSW3cb8cef2225e403092f098f99bc4c472"
+                  }
+                }
+              },
+              "article_no": {
+                "title": "Article no.",
+                "title*": {
+                  "de": "Artikelnummer"
+                },
+                "description": "Article number in the catalogue of the supplier",
+                "description*": {
+                  "de": "Artikelnummer im Katalog des Lieferanten"
+                },
+                "type": "string"
+              },
+              "comment": {
+                "title": "Comment",
+                "title*": {
+                  "de": "Kommentar"
+                },
+                "description": "Comment on the supply of the material",
+                "description*": {
+                  "de": "Kommentar bezüglich der Bezugsmöglichkeit des Materials"
+                },
+                "type": "string",
+                "format": ""
+              },
+              "link": {
+                "title": "Link",
+                "title*": {
+                  "de": "Link"
+                },
+                "description": "Link to the article in the online catalogue of the supplier",
+                "description*": {
+                  "de": "Link zum Artikel im Online-Katalog des Lieferanten"
+                },
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "specifications": {
+          "title": "Specification of technical properties",
+          "title*": {
+            "de": "Spezifikation technischer Eigenschaften"
+          },
+          "type": "array",
+          "format": "table",
+          "items": {
+            "title": "Attribute",
+            "title*": {
+              "de": "Attribut"
+            },
+            "type": "object",
+            "headerTemplate": "{{i1}} - {{self.name}}",
+            "required": [
+              "attribute_name",
+              "quantity_prop"
+            ],
+            "properties": {
+              "attribute_name": {
+                "title": "Name",
+                "type": "array",
+                "format": "table",
+                "items": {
+                  "$ref": "/wiki/JsonSchema:Label?action=raw"
+                },
+                "minItems": 1
+              },
+              "quantity_prop": {
+                "$ref": "/wiki/JsonSchema:QuantityProperty?action=raw"
+              }
+            }
+          }
+        },
+        "constituents": {
+          "type": "array",
+          "format": "tabs",
+          "title": "Constituents",
+          "title*": {
+            "de": "Bestandteile"
+          },
+          "description": "Components or parts",
+          "items": {
+            "type": "object",
+            "title": "Constituent",
+            "title*": {
+              "de": "Bestandteil"
+            },
+            "headerTemplate": "{{i1}} - {{self.name}}",
+            "required": [
+              "name",
+              "type",
+              "uuid",
+              "property"
+            ],
+            "properties": {
+              "uuid": {
+                "title": "UUID",
+                "type": "string",
+                "format": "uuid",
+                "options": {
+                  "hidden": true
+                }
+              },
+              "property": {
+                "type": "string",
+                "default": "Property:HasPart",
+                "options": {
+                  "hidden": true
+                }
+              },
+              "is_array": {
+                "title": "Is array",
+                "type": "boolean"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              },
+              "type": {
+                "title": "Type",
+                "type": "string",
+                "format": "autocomplete",
+                "$comment": "Material",
+                "range": "Category:OSW31ca9a739cb24079b36824045c0832aa",
+                "options": {
+                  "autocomplete": {
+                    "$comment": "todo: we need an any-subcategory-of shortcut",
+                    "query": "[[SubClassOf::Category:OSW31ca9a739cb24079b36824045c0832aa]]OR[[SubClassOf.SubClassOf::Category:OSW31ca9a739cb24079b36824045c0832aa]]OR[[SubClassOf.SubClassOf.SubClassOf::Category:OSW31ca9a739cb24079b36824045c0832aa]]OR[[SubClassOf.SubClassOf.SubClassOf.SubClassOf::Category:OSW31ca9a739cb24079b36824045c0832aa]]OR[[SubClassOf.SubClassOf.SubClassOf.SubClassOf.SubClassOf::Category:OSW31ca9a739cb24079b36824045c0832aa]]"
+                  }
+                }
+              },
+              "default": {
+                "title": "Default value",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "revision": {
+      "revid": 122162,
+      "parentid": 122150,
+      "user": "Simon Stier",
+      "timestamp": "2026-04-04T14:42:51Z"
+    }
+  }
+}

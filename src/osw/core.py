@@ -530,6 +530,42 @@ def _explicitly_set_empty(entity: OswBaseModel, jsondata: dict) -> dict:
     }
 
 
+def _flatten_manual_definitions(schema: dict) -> dict:
+    """Merge `$defs/manual` into the schema root, like oold's
+    merge_generated_definitions does for `$defs/generated`.
+
+    Hand-authored schema pages keep their schema in `$defs/manual`. A `$ref` to
+    such a page with additional keys next to it cannot be resolved by the code
+    generator unless the definition is flattened. Every root `$ref` and every
+    `allOf` entry pointing to `#/$defs/manual` is removed, existing root keys win.
+    The schema is left unchanged if `$defs/manual` is not referenced.
+    Limit: pointers below `#/$defs/manual/...` are not rewritten, consistent
+    with `$defs/generated`.
+    """
+    manual_ref = "#/$defs/manual"
+    manual_content = schema.get("$defs", {}).get("manual")
+    if not manual_content:
+        return schema
+    is_manual_ref = lambda item: (
+        isinstance(item, dict) and item.get("$ref") == manual_ref
+    )
+    has_root_ref = schema.get("$ref") == manual_ref
+    has_allof_ref = any(is_manual_ref(item) for item in schema.get("allOf", []))
+    if not (has_root_ref or has_allof_ref):
+        return schema
+    if has_root_ref:
+        schema.pop("$ref")
+    if has_allof_ref:
+        schema["allOf"] = [i for i in schema["allOf"] if not is_manual_ref(i)]
+        if not schema["allOf"]:
+            del schema["allOf"]
+    schema = merge_deep(deepcopy(manual_content), schema)
+    schema["$defs"].pop("manual", None)
+    if not schema["$defs"]:
+        del schema["$defs"]
+    return schema
+
+
 class OSW(BaseModel):
     """Bundles core functionalities of OpenSemanticWorld (OSW)"""
 
@@ -1069,8 +1105,10 @@ class OSW(BaseModel):
         else:
             schema_str = ""
             if page.get_slot_content("jsonschema"):
-                schema = merge_generated_definitions(
-                    deepcopy(page.get_slot_content("jsonschema"))
+                schema = _flatten_manual_definitions(
+                    merge_generated_definitions(
+                        deepcopy(page.get_slot_content("jsonschema"))
+                    )
                 )
                 schema_str = json.dumps(schema)
         if (schema_str is None) or (schema_str == ""):

@@ -111,6 +111,26 @@ def test_osw_property_raises_not_configured_when_no_active_domain(
     assert "--instance" in str(exc_info.value)
 
 
+@pytest.mark.parametrize(
+    "active_iri,connect_domain",
+    [
+        ("http://localhost:8081", "http://localhost:8081"),
+        ("https://wiki.example.org/w/", "wiki.example.org"),
+        ("wiki.example.org", "wiki.example.org"),
+    ],
+)
+def test_osw_property_keeps_an_http_scheme(monkeypatch, active_iri, connect_domain):
+    """An http active iri reaches OswExpress with its scheme, https stays bare."""
+    monkeypatch.setattr(config, "get_active_iri", lambda: active_iri)
+    ctx = Context(_settings())
+    osw_for = MagicMock()
+    monkeypatch.setattr(ctx, "osw_for", osw_for)
+
+    _ = ctx.osw
+
+    osw_for.assert_called_once_with(connect_domain)
+
+
 # -- limit ----------------------------------------------------------------
 def test_limit_falls_back_to_settings_max_results():
     ctx = Context(_settings(), osw=object())

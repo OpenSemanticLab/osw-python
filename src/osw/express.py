@@ -54,7 +54,11 @@ class OswExpress(OSW):
     """This class provides convenience functions for osw-python."""
 
     domain: str
-    """The domain of the OSL instance to connect to."""
+    """The domain of the OSL instance to connect to, as a bare host with an
+    optional port, e.g. 'wiki.example.org' or 'localhost:8081'."""
+    scheme: str = "https"
+    """The URL scheme used to connect, 'https' unless the domain was given with
+    an 'http://' prefix, e.g. for a local test wiki."""
     cred_filepath: Optional[Union[str, Path]]
     """The filepath to the credentials file. Will be overwritten by the cred_filepath
     of cred_mngr, if it posses a non-None value. If cred_filepath is None,
@@ -67,8 +71,16 @@ class OswExpress(OSW):
 
     @validator("domain")
     def validate_domain(cls, v):
-        pattern = r"^(?!-)[A-Za-z0-9.-]{1,63}(?<!-)\.[A-Za-z]{2,}$"
+        # Dot-separated labels (a single label such as 'localhost' is allowed),
+        # each without a leading or trailing hyphen, and an optional port.
+        label = r"(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
+        pattern = rf"^{label}(?:\.{label})*(?::\d{{1,5}})?$"
         assert re.match(pattern, v), "The domain is not valid."  # noqa: S101 pydantic validator idiom
+        return v
+
+    @validator("scheme")
+    def validate_scheme(cls, v):
+        assert v in ("http", "https"), "The scheme must be 'http' or 'https'."  # noqa: S101 pydantic validator idiom
         return v
 
     @overload
@@ -111,6 +123,13 @@ class OswExpress(OSW):
                     "\nIf no domain was set as environmental variable, 'domain' is a "
                     "required argument."
                 )
+        # An 'http://' or 'https://' prefix selects the scheme; the domain itself
+        # is stored bare, because other code builds URLs and IRIs from it.
+        scheme = "https"
+        match = re.match(r"^(https?)://", domain, flags=re.IGNORECASE)
+        if match:
+            scheme = match.group(1).lower()
+            domain = domain[match.end() :].rstrip("/")
         if cred_mngr is not None and cred_mngr.cred_filepath is not None:
             # If a credential manager is explicitly defined, that should have priority
             cred_filepath = cred_mngr.cred_filepath[0]
@@ -144,7 +163,7 @@ class OswExpress(OSW):
                 cred_mngr = CredentialManager(cred_filepath=cred_filepath)
         # Test if domain is reachable
         try:
-            url = f"https://{domain}/wiki/Main_Page"
+            url = f"{scheme}://{domain}/wiki/Main_Page"
             response = requests.get(url)  # noqa: S113 reachability probe, TODO add timeout
             if response.status_code == 200:
                 # Domain is reachable
@@ -155,8 +174,10 @@ class OswExpress(OSW):
                 )
         except Exception as e:
             raise ConnectionError(f"Could not connect to '{domain}'. Error: {e}")
-        site = WtSite(WtSite.WtSiteConfig(iri=domain, cred_mngr=cred_mngr))
-        super().__init__(**{"site": site, "domain": domain})
+        # WtSite defaults to https; only an http iri needs the scheme spelled out.
+        iri = domain if scheme == "https" else f"{scheme}://{domain}"
+        site = WtSite(WtSite.WtSiteConfig(iri=iri, cred_mngr=cred_mngr))
+        super().__init__(**{"site": site, "domain": domain, "scheme": scheme})
         self.cred_mngr = cred_mngr
         self.cred_filepath = cred_filepath
         _logger.info(f"Connected to '{domain}'.")

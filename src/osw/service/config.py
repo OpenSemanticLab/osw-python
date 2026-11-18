@@ -922,6 +922,19 @@ def derive_domain(iri: str) -> str:
     return _derive_domain(iri)
 
 
+def derive_connect_domain(iri: str) -> str:
+    """Return the domain argument for ``OswExpress`` that connects to ``iri``.
+
+    This is the bare domain, prefixed with ``http://`` when ``iri`` names that
+    scheme, so that an http-only wiki (e.g. a local test wiki) is not reached
+    over https.
+    """
+    domain = _derive_domain(iri)
+    if iri.lower().startswith("http://"):
+        return f"http://{domain}"
+    return domain
+
+
 def set_active_instance(iri: str) -> None:
     """Set the active instance to ``iri``.
 

@@ -1,0 +1,30 @@
+{
+    "subclass_of": [
+        "Category:Entity"
+    ],
+    "type": [
+        "Category:Category"
+    ],
+    "uuid": "ffe74f29-1d35-4037-b318-c422591c5023",
+    "label": [
+        {
+            "text": "Characteristic Type",
+            "lang": "en"
+        },
+        {
+            "text": "Charakteristik-Typ",
+            "lang": "de"
+        }
+    ],
+    "description": [
+        {
+            "text": "A set of properties intended to be used in other characteristic types or classes",
+            "lang": "en"
+        },
+        {
+            "text": "Ein Satz von Eigenschaften zur Nutzung in anderen Charakteristik-Typen oder Klassen",
+            "lang": "de"
+        }
+    ],
+    "name": "CharacteristicType"
+}

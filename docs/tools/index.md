@@ -2,8 +2,10 @@
 
 Besides the Python API, osw ships two adapters that talk to a live instance:
 the `osw` command line client, and an MCP server for agent clients such as
-Claude Code. Both run the same operations from one shared, SDK-free core
-(`osw.service`), so a command and its matching tool behave identically. They
+Claude Code. This section also covers standalone scripts built on the Python
+API. The current one is the [user sync](user-sync.md). The two adapters run
+the same operations from one shared, SDK-free core (`osw.service`), so a
+command and its matching tool behave identically. They
 differ in exactly one way: only the CLI accepts filesystem paths.
 
 ## Setup
@@ -49,4 +51,5 @@ extras are listed in the [Get Started guide](../get-started.md#optional-extras).
 | ---- | -------- |
 | [CLI](cli.md) | The `.env` quick start, the full command reference, and the global flags |
 | [MCP server](mcp.md) | The tool surface, the no-filesystem-access and one-server-per-instance rules, and how to register the server with a client such as Claude Code |
+| [User Sync (script)](user-sync.md) | A Python script that creates or updates `User` items from the MediaWiki accounts of an instance, with the options, the data it writes and how it reconciles existing items |
 | [Configuration](configuration.md) | What both adapters share: where credentials and settings come from, and the full environment-variable reference |

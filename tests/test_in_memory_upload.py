@@ -20,7 +20,10 @@ from osw.controller.file.memory import InMemoryController
 def test_controller_accepts_a_caller_supplied_stream():
     stream = BytesIO(b"payload")
     controller = InMemoryController(stream=stream)
-    assert controller.get() is stream
+    assert controller.stream is stream
+    # get() hands out a reader over the buffer, not the buffer itself, so a
+    # caller closing what it read does not empty the controller
+    assert controller.get().read() == b"payload"
     assert controller.get().read() == b"payload"
 
 
@@ -68,7 +71,7 @@ def test_upload_wraps_a_stream_in_an_in_memory_controller(monkeypatch):
 
     controller = seen["source_file_controller"]
     assert isinstance(controller, InMemoryController)
-    assert controller.get() is stream
+    assert controller.stream is stream
 
 
 def test_upload_rejects_a_source_that_is_not_file_like():

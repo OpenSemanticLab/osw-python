@@ -1,0 +1,19 @@
+{
+    "label": [
+        {
+            "text": "Category (Class)",
+            "lang": "en"
+        }
+    ],
+    "uuid": "89aafe6d-ae5a-4f29-97ff-df7736d4cab6",
+    "description": [
+        {
+            "text": "Meta-Category for Categories",
+            "lang": "en"
+        }
+    ],
+    "name": "CategoryClass",
+    "type": [
+        "Category:Category"
+    ]
+}

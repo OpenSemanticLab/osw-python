@@ -108,7 +108,9 @@ class Context:
           ``CredentialManager`` and passed to ``OswExpress`` explicitly.
         """
         if self._osw is None:
-            self._osw = self.osw_for(self._require_active_domain())
+            self._require_active_domain()
+            iri = config.get_active_iri()
+            self._osw = self.osw_for(config.derive_connect_domain(iri))
         return self._osw
 
     @osw.setter

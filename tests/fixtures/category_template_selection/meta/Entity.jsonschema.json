@@ -1,0 +1,728 @@
+{
+    "@context": {
+        "owl": "http://www.w3.org/2002/07/owl#",
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "schema": "https://schema.org/",
+        "skos": "https://www.w3.org/TR/skos-reference/",
+        "wiki": "https://wiki-dev.open-semantic-lab.org/id/",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "odrl": "http://www.w3.org/ns/odrl/2/",
+        "Category": {
+            "@id": "wiki:Category-3A",
+            "@prefix": true
+        },
+        "File": {
+            "@id": "https://wiki-dev.open-semantic-lab.org/wiki/Special:Redirect/file/",
+            "@prefix": true
+        },
+        "Item": {
+            "@id": "wiki:Item-3A",
+            "@prefix": true
+        },
+        "Property": {
+            "@id": "wiki:Property-3A",
+            "@prefix": true
+        },
+        "attachments*": {
+            "@id": "Property:HasFileAttachment",
+            "@type": "@id"
+        },
+        "based_on": {
+            "@id": "skos:isBasedOn",
+            "@type": "@id"
+        },
+        "based_on*": {
+            "@id": "Property:IsBasedOn",
+            "@type": "@id"
+        },
+        "close_ontology_match": {
+            "@id": "skos:closeMatch",
+            "@type": "@id"
+        },
+        "close_ontology_match*": {
+            "@id": "Property:Equivalent_URI",
+            "@type": "@id"
+        },
+        "close_ontology_match**": {
+            "@id": "Property:HasCloseOntologyMatch",
+            "@type": "@id"
+        },
+        "description": {
+            "@id": "skos:definition"
+        },
+        "description*": {
+            "@id": "Property:HasDescription"
+        },
+        "exact_ontology_match": {
+            "@id": "skos:exactMatch",
+            "@type": "@id"
+        },
+        "exact_ontology_match*": {
+            "@id": "Property:Equivalent_URI",
+            "@type": "@id"
+        },
+        "exact_ontology_match**": {
+            "@id": "Property:HasExactOntologyMatch",
+            "@type": "@id"
+        },
+        "image": {
+            "@id": "schema:image",
+            "@type": "@id"
+        },
+        "image*": {
+            "@id": "Property:HasImage",
+            "@type": "@id"
+        },
+        "keywords": {
+            "@id": "schema:keywords",
+            "@type": "@id"
+        },
+        "keywords*": {
+            "@id": "Property:HasKeyword",
+            "@type": "@id"
+        },
+        "label": {
+            "@id": "skos:prefLabel"
+        },
+        "label*": {
+            "@id": "Property:HasLabel"
+        },
+        "lang": {
+            "@id": "@language"
+        },
+        "meta": {
+            "@id": "Property:HasMeta",
+            "@type": "@id",
+            "@context": {
+                "change_id": {
+                    "@id": "Property:HasChangeId",
+                    "@type": "xsd:string"
+                }
+            }
+        },
+        "name*": {
+            "@id": "Property:HasName"
+        },
+        "classification_categories": {
+            "@id": "Property:Category",
+            "@type": "@id"
+        },
+        "classification_categories*": {
+            "@id": "Property:HasClassificationCategory",
+            "@type": "@id"
+        },
+        "query_label": {
+            "@id": "Property:HasLabel",
+            "@type": "@id"
+        },
+        "rdf_type": {
+            "@id": "@type",
+            "@type": "@id"
+        },
+        "short_name": {
+            "@id": "Property:HasShortName"
+        },
+        "access_policy": {
+            "@id": "odrl:hasPolicy",
+            "@type": "@id",
+            "@context": {
+                "usergroup_permissions": {
+                    "@id": "odrl:permission",
+                    "@type": "@id",
+                    "@context": {
+                        "assignee_usergroup": {
+                            "@id": "odrl:assignee",
+                            "@type": "@id"
+                        },
+                        "action": {
+                            "@id": "odrl:action",
+                            "@type": "@id"
+                        }
+                    }
+                },
+                "user_permissions": {
+                    "@id": "odrl:permission",
+                    "@type": "@id",
+                    "@context": {
+                        "assignee_user": {
+                            "@id": "odrl:assignee",
+                            "@type": "@id"
+                        },
+                        "action": {
+                            "@id": "odrl:action",
+                            "@type": "@id"
+                        }
+                    }
+                }
+            }
+        },
+        "statements": {
+            "@id": "Property:HasStatement",
+            "@type": "@id"
+        },
+        "text": {
+            "@id": "@value"
+        },
+        "type": {
+            "@id": "Property:HasType",
+            "@type": "@id"
+        },
+        "type*": {
+            "@id": "Property:HasSchema",
+            "@type": "@id"
+        },
+        "uuid*": {
+            "@id": "Property:HasUuid"
+        }
+    },
+    "uuid": "ce353767-c628-45bd-9d88-d6eb3009aec0",
+    "title": "Entity",
+    "type": "object",
+    "id": "entity",
+    "required": [
+        "uuid",
+        "label"
+    ],
+    "defaultProperties": [
+        "description"
+    ],
+    "properties": {
+        "type": {
+            "title": "Types/Categories",
+            "title*": {
+                "de": "Typen/Kategorien"
+            },
+            "propertyOrder": -1010,
+            "type": "array",
+            "format": "table",
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{=<% %>=}} <%#type%> {{Viewer/Link |page=<%.%> }} <br><%/type%>"
+                }
+            ],
+            "items": {
+                "title": "Type",
+                "title*": {
+                    "de": "Typ"
+                },
+                "type": "string"
+            },
+            "default": [
+                "Category:Entity"
+            ],
+            "minItems": 1
+        },
+        "rdf_type": {
+            "title": "Additional RDF type(s)",
+            "title*": {
+                "de": "Zusätzliche(r) RDF-Typ(en)"
+            },
+            "description": "Declares additional type(s) for this entity, thereby stating that this entity is an instance of an additional RDF class. See also https://schema.org/additionalType. Category:Entity is not directly instantiated. Therefor the inheriting classes (Category:Category, Category:Item, Category:Property) decide on the implementation and mapping within the \"@context\". The value must be a full IRI, e.g. https://schema.org/Person",
+            "description*": {
+                "de": "Deklariert zusätzliche(n) Typ(en) für diese Entität und gibt damit an, dass diese Entität eine Instanz einer zusätzlichen RDF-Klasse ist. Siehe auch https://schema.org/additionalType. Category:Entity wird nicht direkt instanziiert. Daher entscheiden die erbenden Klassen (Category:Category, Category:Item, Category:Property) über die Implementierung und das Mapping innerhalb des \"@context\". Der Wert muss eine vollständige IRI sein, z.B. https://schema.org/Person"
+            },
+            "type": "array",
+            "format": "table",
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{#rdf_type}} {{=<% %>=}} {{Viewer/Link |url= <%={{ }}=%> {{{.}}} {{=<% %>=}} }} <br><%={{ }}=%>{{/rdf_type}}"
+                }
+            ],
+            "items": {
+                "title": "RDF type",
+                "title*": {
+                    "de": "RDF-Typ"
+                },
+                "type": "string"
+            },
+            "uniqueItems": true
+        },
+        "exact_ontology_match": {
+            "type": "array",
+            "title": "Ontology Match (Exact)",
+            "description": "Only use this property if all properties defined in the Ontology can be asserted to this object.",
+            "titel*": {
+                "de": "Ontologieübereinstimmung (exakt)"
+            },
+            "description*": {
+                "de": "Verwenden Sie diese Eigenschaft nur, wenn alle in der Ontologie definierten Eigenschaften auf dieses Objekt übertragen werden können."
+            },
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{#exact_ontology_match}} {{=<% %>=}} {{Viewer/Link |url= <%={{ }}=%> {{{.}}} {{=<% %>=}} }} <br><%={{ }}=%>{{/exact_ontology_match}}"
+                }
+            ],
+            "items": {
+                "type": "string",
+                "options": {
+                    "compact": "true"
+                }
+            },
+            "uniqueItems": true
+        },
+        "close_ontology_match": {
+            "type": "array",
+            "title": "Ontology Match (Close)",
+            "description": "Use this property if you are not sure if all properties from the ontology can be asserted to this object but the meaning is very close.",
+            "titel*": {
+                "de": "Ontologieübereinstimmung (ähnlich)"
+            },
+            "description*": {
+                "de": "Verwenden Sie diese Eigenschaft, wenn Sie nicht sicher sind, ob alle Eigenschaften aus der Ontologie für dieses Objekt geltend gemacht werden können, die Bedeutung aber sehr nahe liegt."
+            },
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{#close_ontology_match}} {{=<% %>=}} {{Viewer/Link |url= <%={{ }}=%> {{{.}}} {{=<% %>=}} }} <br><%={{ }}=%>{{/close_ontology_match}}"
+                }
+            ],
+            "items": {
+                "type": "string",
+                "options": {
+                    "compact": "true"
+                }
+            },
+            "uniqueItems": true
+        },
+        "uuid": {
+            "title": "UUID",
+            "type": "string",
+            "format": "uuid",
+            "options": {
+                "hidden": true
+            }
+        },
+        "iri": {
+            "title": "IRI",
+            "description": "The Internationalized Resource Identifier (IRI) of this entity",
+            "description*": {
+                "de": "Der internationalisierte Ressourcenbezeichner (IRI) dieser Entität"
+            },
+            "type": "string",
+            "format": "url",
+            "options": {
+                "hidden": true
+            }
+        },
+        "name": {
+            "title": "Technical name",
+            "title*": {
+                "de": "Technischer Name"
+            },
+            "description": "Technical / Machine compatible name",
+            "description*": {
+                "de": "Technischer / Maschinenkompatibler Name"
+            },
+            "type": "string",
+            "options": {
+                "hidden": true
+            }
+        },
+        "label": {
+            "type": "array",
+            "title": "Label(s)",
+            "title*": {
+                "de": "Bezeichnung(en)"
+            },
+            "description": "At least one label is required.",
+            "description*": {
+                "de": "Mindestens eine Bezeichnung ist erforderlich."
+            },
+            "format": "table",
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "$comment": "Displays value according to user language with eng as fallback option. Note: {{=<% %>=}} changes mustache expression from {{..}} to <% %> for mixing with wikitext templates",
+                    "value": "{{=<% %>=}} {{#switch:{{USERLANGUAGECODE}} <%#label%> | {{#ifeq: <%lang%>|en|#default|<%lang%>}} = <%text%> <%/label%> }}"
+                }
+            ],
+            "items": {
+                "$ref": "/wiki/JsonSchema:Label?action=raw"
+            },
+            "minItems": 1
+        },
+        "short_name": {
+            "type": "array",
+            "title": "Short name(s)",
+            "title*": {
+                "de": "Kurzname(n)"
+            },
+            "description": "Abbreviation, Acronym, etc.",
+            "description*": {
+                "de": "Abkürzung, Akronym, etc."
+            },
+            "format": "table",
+            "eval_template": {
+                "type": "mustache-wikitext",
+                "mode": "render",
+                "$comment": "Displays value according to user language with eng as fallback option. Note: {{=<% %>=}} changes mustache expression from {{..}} to <% %> for mixing with wikitext templates",
+                "value": "{{=<% %>=}} {{#switch:{{USERLANGUAGECODE}} <%#short_name%> | {{#ifeq: <%lang%>|en|#default|<%lang%>}} = <%text%> <%/short_name%> }}"
+            },
+            "items": {
+                "title": "ShortName",
+                "title*": {
+                    "en": "Short name",
+                    "de": "Kurzname"
+                },
+                "$ref": "/wiki/JsonSchema:Label?action=raw"
+            }
+        },
+        "query_label": {
+            "title": "Query label",
+            "title*": {
+                "de": "Abfrage-Bezeichnung"
+            },
+            "type": "string",
+            "options": {
+                "hidden": true,
+                "conditional_visible": {
+                    "modes": [
+                        "query"
+                    ]
+                }
+            }
+        },
+        "description": {
+            "title": "Description",
+            "title*": {
+                "de": "Beschreibung"
+            },
+            "type": "array",
+            "format": "table",
+            "eval_template": {
+                "type": "mustache-wikitext",
+                "mode": "render",
+                "$comment": "Displays value according to user language with eng as fallback option. Note: {{=<% %>=}} changes mustache expression from {{..}} to <% %> for mixing with wikitext templates",
+                "value": "{{=<% %>=}} {{#switch:{{USERLANGUAGECODE}} <%#description%> | {{#ifeq: <%lang%>|en|#default|<%lang%>}} = <%text%> <%/description%> }}"
+            },
+            "items": {
+                "$ref": "/wiki/JsonSchema:Description?action=raw"
+            }
+        },
+        "image": {
+            "title": "Image",
+            "title*": {
+                "de": "Bild"
+            },
+            "propertyOrder": 1020,
+            "type": "string",
+            "format": "url",
+            "options": {
+                "upload": {}
+            },
+            "links": [
+                {
+                    "href": "{{#if self}}/w/index.php?title=Special:Redirect/file/{{self}}&width=200&height=200{{/if}}",
+                    "mediaType": "image"
+                },
+                {
+                    "href": "{{#if self}}/w/index.php?title=Special:Redirect/file/{{self}}{{/if}}",
+                    "rel": "{{#if self}}download{{/if}}",
+                    "download": true
+                }
+            ]
+        },
+        "classification_categories": {
+            "type": "array",
+            "format": "table",
+            "title": "Classification categories",
+            "title*": {
+                "de": "Ordnungskategorien"
+            },
+            "description": "Classification categories are used to categorize instances, e.g., according to their use but not their properties. When querying for instances of a here listed classification category, this instance will be returned. Note: Classification categories define no properties, while 'regular' categories define properties, which an instance assigns values to.",
+            "description*": {
+                "de": "Ordnungskategorien werden verwendet, um Instanzen zu kategorisieren, z. B. nach ihrer Verwendung, nicht aber nach ihren Eigenschaften. Bei der Abfrage nach Instanzen einer hier aufgeführten Ordnungskategorie wird diese Instanz zurückgegeben. Hinweis: Ordnungskategorien definieren keine Eigenschaften, während 'normale' Kategorien Eigenschaften definieren, denen eine Instanz Werte zuweist."
+            },
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{=<% %>=}} <%#classification_categories%> {{Viewer/Link |page=<%.%> }} <br><%/classification_categories%>"
+                }
+            ],
+            "items": {
+                "title": "Classification category",
+                "title*": {
+                    "de": "Ordnungskategorie"
+                },
+                "type": "string",
+                "format": "autocomplete",
+                "options": {
+                    "autocomplete": {
+                        "$comment": "SubCategories of Item OR OwlThing (Category:OSW379d5a1589c74c82bc0de47938264d00)",
+                        "query": "[[SubClassOf::Category:Item]] OR [[SubClassOf.SubClassOf::Category:Item]] OR [[SubClassOf.SubClassOf.SubClassOf::Category:Item]] OR [[SubClassOf.SubClassOf.SubClassOf.SubClassOf::Category:Item]] OR [[SubClassOf.SubClassOf.SubClassOf.SubClassOf.SubClassOf::Category:Item]] OR [[SubClassOf::Category:OSW379d5a1589c74c82bc0de47938264d00]]"
+                    }
+                }
+            }
+        },
+        "keywords": {
+            "type": "array",
+            "format": "table",
+            "title": "Keywords / Tags",
+            "title*": {
+                "de": "Schlagworte / Tags"
+            },
+            "description": "Designated to the user defined categorization of this element",
+            "description*": {
+                "de": "Dient der nutzerdefinierten Kategorisierung des Elements"
+            },
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{=<% %>=}} <%#keywords%> {{Viewer/Link |page=<%.%> }} <br><%/keywords%>"
+                }
+            ],
+            "items": {
+                "title": "Keyword",
+                "title*": {
+                    "de": "Schlagwort"
+                },
+                "type": "string",
+                "format": "autocomplete",
+                "range": "Category:OSW09f6cdd54bc54de786eafced5f675cbe"
+            }
+        },
+        "based_on": {
+            "type": "array",
+            "title": "Based on",
+            "title*": {
+                "de": "Basierend auf"
+            },
+            "description": "Other entities on which this one is based, e.g. when it is created by copying",
+            "description*": {
+                "de": "Andere Entitäten auf die diese basiert, z. B. wenn sie durch Kopieren entstanden ist"
+            },
+            "eval_template": [
+                {
+                    "type": "mustache-wikitext",
+                    "mode": "render",
+                    "value": "{{=<% %>=}} <%#based_on%> {{Viewer/Link |page=<%.%> }} <br><%/based_on%>"
+                }
+            ],
+            "items": {
+                "type": "string",
+                "format": "autocomplete",
+                "options": {
+                    "autocomplete": {
+                        "$comment": "All categories here since subclassof_range is limited by depth 5",
+                        "query": "[[:Category:%2B]]"
+                    }
+                }
+            },
+            "options": {
+                "hidden": "true"
+            }
+        },
+        "access_policy": {
+            "title": "AccessAndUsagePolicy",
+            "title*": {
+                "en": "Access policy",
+                "de": "Zugriffsbeschränkungen"
+            },
+            "description": "Defines access control rules (who can read/write this entity).",
+            "description*": {
+                "de": "Definiert Zugriffsregeln (wer darf diese Entität lesen/bearbeiten)."
+            },
+            "type": "object",
+            "defaultProperties": [
+                "usergroup_permissions"
+            ],
+            "$comment": "See also https://www.w3.org/TR/odrl-vocab/#term-hasPolicy and https://w3c.github.io/odrl/bp/#. For interoperability with DSP/DCAT see https://docs.internationaldataspaces.org/ids-knowledgebase/dataspace-protocol/catalog/catalog.protocol#id-1.2-dcat-and-odrl-profiles.",
+            "eval_template": {
+                "$comment": "See https://www.mediawiki.org/wiki/Extension:Semantic_ACL",
+                "type": "mustache-wikitext",
+                "mode": "render",
+                "value": "{{=<% %>=}} <%#access_policy.usergroup_permissions%> {{#if: <%assignee_usergroup%> | [[<%assignee_usergroup%>]] {{#switch: <%action%> |odrl:read= {{#set: |Visible to=whitelist |Visible to group= {{#ask: [[<%assignee_usergroup%>]]|?HasGroupname=|mainlabel=-|link=none|format=plain}} }} (read) |odrl:write= {{#set: |Editable by=whitelist |Editable by group= {{#ask: [[<%assignee_usergroup%>]]|?HasGroupname=|mainlabel=-|link=none|format=plain}} }} (write) |#default=}} <br> |}} <%/access_policy.usergroup_permissions%> <%#access_policy.user_permissions%> {{#if: <%assignee_user%> | [[<%assignee_user%>]] {{#switch: <%action%> |odrl:read= {{#set: |Visible to=whitelist |Visible to user= User:{{#ask: [[<%assignee_user%>]]|?HasUsername=|mainlabel=-|link=none|format=plain}} }} (read) |odrl:write= {{#set: |Editable by=whitelist |Editable by user= User:{{#ask: [[<%assignee_user%>]]|?HasUsername=|mainlabel=-|link=none|format=plain}} }} (write) |#default=}} <br> |}} <%/access_policy.user_permissions%>"
+            },
+            "properties": {
+                "usergroup_permissions": {
+                    "title": "GroupPermissions",
+                    "title*": {
+                        "en": "Group permissions",
+                        "de": "Gruppen-Erlaubnisse"
+                    },
+                    "type": "array",
+                    "format": "table",
+                    "items": {
+                        "title": "GroupPermission",
+                        "title*": {
+                            "en": "Permission",
+                            "de": "Erlaubnis"
+                        },
+                        "type": "object",
+                        "required": [
+                            "assignee_usergroup",
+                            "action"
+                        ],
+                        "properties": {
+                            "assignee_usergroup": {
+                                "title": "User group",
+                                "title*": {
+                                    "de": "Nutzergruppe"
+                                },
+                                "type": "string",
+                                "minLength": 1,
+                                "format": "autocomplete",
+                                "range": "Category:OSWb24f37ada8d043c194e7036df5d86b39",
+                                "options": {
+                                    "autocomplete": {
+                                        "$commment": "user should not create new or edit existing groups here",
+                                        "create_inline": false
+                                    }
+                                }
+                            },
+                            "action": {
+                                "type": "string",
+                                "title": "Action",
+                                "title*": {
+                                    "de": "Aktion"
+                                },
+                                "enum": [
+                                    "odrl:read",
+                                    "odrl:write"
+                                ],
+                                "options": {
+                                    "enum_titles": [
+                                        "read",
+                                        "edit"
+                                    ],
+                                    "enum_titles*": [
+                                        "Lesen",
+                                        "Bearbeiten"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "user_permissions": {
+                    "title": "UserPermissions",
+                    "title*": {
+                        "en": "User permissions",
+                        "de": "Nutzer-Erlaubnisse"
+                    },
+                    "type": "array",
+                    "format": "table",
+                    "items": {
+                        "title": "Permission",
+                        "title*": {
+                            "en": "Permission",
+                            "de": "Erlaubnis"
+                        },
+                        "type": "object",
+                        "required": [
+                            "assignee_user",
+                            "action"
+                        ],
+                        "properties": {
+                            "assignee_user": {
+                                "title": "Specific user",
+                                "title*": {
+                                    "de": "Bestimmter Nutzer"
+                                },
+                                "type": "string",
+                                "minLength": 1,
+                                "format": "autocomplete",
+                                "range": "Category:OSW8b3e627eb76b46d68fce3a12ff220c8e",
+                                "options": {
+                                    "autocomplete": {
+                                        "$commment": "user should not create new or edit existing accounts here",
+                                        "create_inline": false
+                                    }
+                                }
+                            },
+                            "action": {
+                                "type": "string",
+                                "title": "Action",
+                                "title*": {
+                                    "de": "Aktion"
+                                },
+                                "enum": [
+                                    "odrl:read",
+                                    "odrl:write"
+                                ],
+                                "options": {
+                                    "enum_titles": [
+                                        "read",
+                                        "edit"
+                                    ],
+                                    "enum_titles*": [
+                                        "Lesen",
+                                        "Bearbeiten"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "statements": {
+            "type": "array",
+            "title": "Statements",
+            "title*": {
+                "de": "Aussagen"
+            },
+            "format": "tabs",
+            "propertyOrder": 1010,
+            "eval_template": {
+                "type": "mustache-wikitext",
+                "mode": "render",
+                "value": "{{=<% %>=}} <%#statements%>.. {{Viewer/Link |page=<%#predicate%><%predicate%><%/predicate%><%#property%><%property%><%/property%><%#quantity%><%quantity%><%/quantity%>}} <%#object%>{{Viewer/Link |page=<%object%>}}<%/object%><%#value%><%value%><%/value%><br><%/statements%>"
+            },
+            "items": {
+                "$ref": "/wiki/JsonSchema:Statement?action=raw"
+            }
+        },
+        "attachments": {
+            "type": "array",
+            "title": "File attachments",
+            "title*": {
+                "de": "Dateianhänge"
+            },
+            "eval_template": {
+                "type": "mustache-wikitext",
+                "mode": "render",
+                "value": "{{=<% %>=}} <%={{ }}=%>  {{#attachments}}{{{.}}};{{/attachments}} {{=<% %>=}} <%={{ }}=%>"
+            },
+            "options": {
+                "collapsed": true
+            },
+            "propertyOrder": 1030,
+            "items": {
+                "title": "Attachment",
+                "title*": {
+                    "de": "Anhang"
+                },
+                "type": "string",
+                "format": "url",
+                "options": {
+                    "upload": {}
+                },
+                "links": [
+                    {
+                        "href": "{{#if self}}/w/index.php?title=Special:Redirect/file/{{self}}{{/if}}",
+                        "rel": "{{#if self}}download{{/if}}",
+                        "download": true
+                    }
+                ]
+            }
+        },
+        "meta": {
+            "$ref": "/wiki/JsonSchema:Meta?action=raw",
+            "options": {
+                "hidden": true
+            }
+        }
+    }
+}

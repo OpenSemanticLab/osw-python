@@ -1,0 +1,115 @@
+{
+    "@context": [
+        {
+            "exact_ontology_match***": {
+                "@id": "owl:equivalentClass",
+                "@type": "@id"
+            },
+            "subclass_of": {
+                "@id": "rdfs:subClassOf",
+                "@type": "@id"
+            },
+            "subclass_of*": {
+                "@id": "Property:SubClassOf",
+                "@type": "@id"
+            },
+            "version": "owl:versionInfo",
+            "version*": "Property:HasVersion",
+            "utf8_icon": "Property:HasUtf8Icon"
+        },
+        "/wiki/Category:OSWffe74f291d354037b318c422591c5023?action=raw&slot=jsonschema"
+    ],
+    "allOf": [
+        {
+            "$ref": "/wiki/Category:OSWffe74f291d354037b318c422591c5023?action=raw&slot=jsonschema"
+        }
+    ],
+    "uuid": "89aafe6d-ae5a-4f29-97ff-df7736d4cab6",
+    "type": "object",
+    "title": "Category",
+    "title*": {
+        "de": "Kategorie (Klasse)",
+        "en": "Category (Class)"
+    },
+    "required": [
+        "subclass_of",
+        "type"
+    ],
+    "defaultProperties": [
+        "version"
+    ],
+    "properties": {
+        "type": {
+            "items": {
+                "subclassof_range": "Category:Category",
+                "format": "autocomplete",
+                "options": {
+                    "autocomplete": {
+                        "$comment": "All categories here since subclassof_range is limited by depth 5",
+                        "query": "[[:Category:%2B]]"
+                    }
+                }
+            },
+            "default": [
+                "Category:Category"
+            ],
+            "options": {
+                "hidden": true
+            }
+        },
+        "version": {
+            "title": "Version",
+            "title*": {
+                "de": "Version"
+            },
+            "description": "Human-readable version string (e.g. 1.0.1) following https://semver.org/",
+            "description*": {
+                "de": "Für Menschen lesbare Versionszeichenfolge (z.B. 1.0.1) gemäß https://semver.org/"
+            },
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+            "propertyOrder": -1010,
+            "default": "0.1.0"
+        },
+        "subclass_of": {
+            "title": "Supercategories",
+            "title*": {
+                "de": "Überkategorien"
+            },
+            "type": "array",
+            "propertyOrder": -1009,
+            "items": {
+                "title": "Category",
+                "title*": {
+                    "de": "Kategorie"
+                },
+                "type": "string",
+                "format": "autocomplete",
+                "subclassof_range": "Category:Entity"
+            },
+            "default": [
+                "Category:Entity"
+            ],
+            "options": {
+                "hidden": false
+            }
+        },
+        "utf8_icon": {
+            "type": "array",
+            "title": "UTF8-Icons",
+            "title*": {
+                "de": "UTF8-Symbole"
+            },
+            "description": "see https://www.unicode.org/cldr/charts/latest/annotations/romance.html",
+            "description*": {
+                "de": "siehe https://www.unicode.org/cldr/charts/latest/annotations/germanic.html"
+            },
+            "items": {
+                "type": "string",
+                "title": "UTF8-Icon",
+                "minLength": 1,
+                "maxLength": 2
+            }
+        }
+    }
+}

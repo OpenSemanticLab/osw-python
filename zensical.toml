@@ -18,6 +18,7 @@ nav = [
         { "Overview" = "tools/index.md" },
         { "CLI" = "tools/cli.md" },
         { "MCP" = "tools/mcp.md" },
+        { "User Sync (script)" = "tools/user-sync.md" },
         { "Configuration" = "tools/configuration.md" },
     ]},
     { "API Reference" = [

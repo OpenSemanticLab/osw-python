@@ -134,6 +134,10 @@ def create_or_update_entity(
     and writes a second entity instead of changing the intended one. Read the
     current record with ``get_entity`` first and keep its uuid.
 
+    The page name of an entity of a ``Category:Property`` subclass is
+    ``Property:<name>``. An update that changes the ``name`` of a property is
+    refused: move the page in the wiki first.
+
     ``overwrite`` controls update behavior: one of true | false | only empty |
     replace remote | keep existing. The default, true, merges field by field
     into the stored record: fields absent from ``jsondata`` keep their stored
@@ -163,15 +167,21 @@ def create_or_update_entity(
         raise errors.ValidationError(
             f"jsondata does not validate against {category}: {exc}"
         )
-    store = ctx.osw.store_entity(
-        OSW.StoreEntityParam(
-            entities=[entity],
-            namespace=namespace,
-            overwrite=_parse_overwrite(overwrite),
-            edit_comment=comment,
-            bot_edit=True,
+    try:
+        store = ctx.osw.store_entity(
+            OSW.StoreEntityParam(
+                entities=[entity],
+                namespace=namespace,
+                overwrite=_parse_overwrite(overwrite),
+                edit_comment=comment,
+                bot_edit=True,
+            )
         )
-    )
+    except OSW.StoreEntityPartialError as exc:
+        # the exception text lists titles only, the reasons are in .failed
+        raise errors.StoreFailed(
+            "; ".join(f"{title}: {reason}" for title, reason in exc.failed.items())
+        ) from exc
     titles = list(store.pages.keys())
     # WtPage.exists is set once, when the page is loaded, and no write path
     #  refreshes it, so after the store it still reports the pre-write state.

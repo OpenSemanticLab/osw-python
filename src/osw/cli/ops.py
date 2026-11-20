@@ -271,7 +271,7 @@ def status_instances(ctx: Context) -> dict:
                 # Not ctx.osw: that one is cached and bound to the active
                 # instance. These connections are ours alone, so we close each
                 # one instead of leaving it open for the rest of the command.
-                connection = ctx.osw_for(config.derive_domain(iri))
+                connection = ctx.osw_for(config.derive_connect_domain(iri))
                 entry["connected"] = True
                 _close_quietly(connection, iri)
         except Exception as exc:

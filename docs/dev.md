@@ -66,8 +66,8 @@ excluded by default:
 
 Integration tests run against a live wiki and need credentials; tests
 whose credentials are missing skip instead of fail. CI runs them on every
-pull request into `main` (workflow `integration.yml`), so they gate the
-release rather than run after it.
+pull request into `main` or `stage` (workflow `integration.yml`), so they
+gate the release rather than run after it.
 
 === "make"
 

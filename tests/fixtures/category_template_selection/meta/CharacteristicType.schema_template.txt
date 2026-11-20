@@ -1,0 +1,143 @@
+{
+    "@context": [
+    	{{#each subclass_of}}
+        "/wiki/{{{.}}}?action=raw\u0026slot=jsonschema"{{#unless @last}},{{/unless}}
+        {{/each}}
+        {{#each characteristics}},
+        "/wiki/{{{.}}}?action=raw\u0026slot=jsonschema"
+        {{/each}}{{#if subclass_of}},{{else}}{{#if characteristics}},{{/if}}{{/if}}{
+        {{#join properties}}
+            {{#if instance_property}}"{{name}}": {"@id": "Property:HasStatement", "@type": "@id", "@context": {
+                "{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_instance_property": "Property:HasProperty",
+                "{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_instance": "Property:HasObject"
+            }}{{else}}{{#if rdf_property}}"{{name}}": "{{rdf_property}}"{{/if}}{{/if}}
+        {{/join}}
+        }
+    ],
+    "allOf": [
+    	{{#each subclass_of}}
+        {"$ref": "/wiki/{{{.}}}?action=raw\u0026slot=jsonschema" }{{#unless @last}},{{/unless}}
+        {{/each}}
+        {{#each characteristics}},
+        {"$ref": "/wiki/{{{.}}}?action=raw\u0026slot=jsonschema"}
+        {{/each}}
+    ],
+    "type": "object",
+    "uuid": "{{{uuid}}}",
+    "title": "{{{name}}}",
+    "title*": {
+    	{{#each label}}
+        "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+    	{{/each}}
+    },
+    "description": "{{{description.[0].text}}}",
+    "description*": {
+    	{{#each description}}
+        "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+    	{{/each}}
+    },
+    "required": [
+        "type"
+        {{#each properties}}
+            {{#if required}},"{{name}}"{{/if}}
+        {{/each}}
+    ],
+    "defaultProperties": [
+        "type"
+        {{#each properties}}
+            {{#if recommended}},"{{name}}"{{/if}}
+        {{/each}}
+    ],
+    "properties": {
+        "type": {
+            "default": ["{{{_page_title}}}"]
+        }
+        {{#each properties}},
+        "{{{name}}}": {
+            {{#if instance_property}}
+            {{#if array}}"type": "array", "format": "tabs", "items": {
+            {{/if}}"type": "object",
+            "title": "{{{name}}}"
+            {{#if label}}, "title*": {
+            	{{#each label}}
+                "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+            	{{/each}}
+            }{{/if}}
+            {{#if description}}, "description": "{{{description.[0].text}}}",
+            "description*": {
+            	{{#each description}}
+                "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+            	{{/each}}
+            }{{/if}},
+            "id": "{{{name}}}",
+            "required": [{{#unless omit_uuid}}"uuid", {{/unless}}"{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_instance_property", "{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_instance"],
+            "properties": {
+                {{#unless omit_uuid}}"uuid": {
+                    "title": "UUID", "type": "string", "format": "uuid",
+                    "dynamic_template": "{{{{raw}}}}{{_uuid_}}{{{{/raw}}}}",
+                    "options": {"hidden": true}
+                },{{/unless}}
+                {{#if context_label}}
+                "label": {"title": "Label", "type": "array", "format": "table",
+                    "items": {"$ref": "/wiki/JsonSchema:Label?action=raw"}},
+                "description": {"title": "Description", "type": "array", "format": "table",
+                    "items": {"$ref": "/wiki/JsonSchema:Description?action=raw"}},
+                {{/if}}
+                "{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_type": {
+                    "title": "Type", "type": "string", "format": "autocomplete",
+                    {{#if base_class_from}}"range": "Category:Category",
+                    "watch": {"{{{name}}}_base_": "{{{base_class_from}}}"},
+                    "options": {"autocomplete": {"query": "[[:$({{{name}}}_base_)]]OR[[SubClassOf::$({{{name}}}_base_)]]OR[[SubClassOf.SubClassOf::$({{{name}}}_base_)]]OR[[SubClassOf.SubClassOf.SubClassOf::$({{{name}}}_base_)]]OR[[SubClassOf.SubClassOf.SubClassOf.SubClassOf::$({{{name}}}_base_)]]OR[[SubClassOf.SubClassOf.SubClassOf.SubClassOf.SubClassOf::$({{{name}}}_base_)]]"}}
+                    {{else}}"subclassof_range": "{{{base_class}}}"
+                    {{/if}}
+                    {{#if default_type}}, "default": "{{{default_type}}}"{{/if}}
+                },
+                "{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_instance_property": {
+                    "type": "string", "default": "{{{instance_property}}}",
+                    "options": {"hidden": true}
+                },
+                "{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_instance": {
+                    "title": "Instance", "type": "string", "format": "autocomplete",
+                    "range": "{{#if instance_range}}{{{instance_range}}}{{else}}{{#if default_type}}{{{default_type}}}{{else}}{{{base_class}}}{{/if}}{{/if}}",
+                    "watch": {"{{{name}}}_type_": "{{{name}}}.{{#if subfield_prefix}}{{{subfield_prefix}}}{{else}}{{{name}}}{{/if}}_type"},
+                    "options": {"autocomplete": {"query": "[[$({{{name}}}_type_)]]|?Display_title_of=label|?HasImage=image|?HasDescription=description"}}
+                }
+                {{#each extra_subfields}},
+                "{{{name}}}": {{#if array}}{"type": "array", "items": {{/if}}{"title": "{{#if title}}{{{title}}}{{else}}{{{name}}}{{/if}}", "type": "{{{type}}}"}{{#if array}} }{{/if}}
+                {{/each}}
+            }
+            {{#if array}} } {{/if}}
+            {{else}}
+            {{#if array}}"type": "array", "items": {
+            {{/if}}
+            "title":  "{{{name}}}"
+            {{#if label}}, "title*": {
+            	{{#each label}}
+                "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+            	{{/each}}
+            }{{/if}}
+            {{#if description}}, "description": "{{{description.[0].text}}}",
+            "description*": {
+            	{{#each description}}
+                "{{{lang}}}": "{{{text}}}"{{#unless @last}},{{/unless}}
+            	{{/each}}
+            }{{/if}}
+            {{#if characteristic}}{{#if default_unit}}, "allOf": [{"$ref": "/wiki/{{{characteristic}}}?action=raw\u0026slot=jsonschema"}], "properties": {"unit": {"default": "{{{default_unit}}}"}}{{else}}, "$ref": "/wiki/{{{characteristic}}}?action=raw\u0026slot=jsonschema"{{/if}}{{else}}{{#if rdf_property}}, "$ref": "/wiki/{{{rdf_property}}}?action=raw\u0026slot=jsonschema"{{/if}}{{/if}}
+            {{#if range}}, "type": "string", "format": "autocomplete", "range": "{{{range}}}"
+            {{else}}{{#if type}}, "type": "{{{type}}}"{{/if}}
+            {{#if format}}, "format": "{{{format}}}"{{/if}}
+            {{/if}}
+            {{#if pattern}}, "pattern": "{{{pattern}}}"{{/if}}
+            {{#if minimum}}, "minimum": {{minimum}}{{/if}}
+            {{#if maximum}}, "maximum": {{maximum}}{{/if}}
+            {{#if exclusive_minimum}}, "exclusiveMinimum": {{exclusive_minimum}}{{/if}}
+            {{#if exclusive_maximum}}, "exclusiveMaximum": {{exclusive_maximum}}{{/if}}
+            {{#if multiple_of}}, "multipleOf": {{multiple_of}}{{/if}}
+            {{#if min_length}}, "minLength": {{min_length}}{{/if}}
+            {{#if max_length}}, "maxLength": {{max_length}}{{/if}}
+            {{#if array}} } {{/if}}
+            {{/if}}
+        }
+    	{{/each}}
+    }
+}
